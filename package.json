@@ -4,7 +4,6 @@
   "description": "Experimental QUIC implementation",
   "main": "main.js",
   "scripts": {
-    "start": "tsc ./src/**/*.ts && tsc ./src/*.ts && node ./src/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
