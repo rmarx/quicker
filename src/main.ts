@@ -1,0 +1,1 @@
+console.log("TODO: create custom main for server and for client");

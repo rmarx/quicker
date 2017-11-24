@@ -1,0 +1,26 @@
+{
+  "name": "quicker",
+  "version": "1.0.0",
+  "description": "Experimental QUIC implementation",
+  "main": "main.js",
+  "scripts": {
+    "start": "tsc ./src/**/*.ts && tsc ./src/*.ts && node ./src/main.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rmarx/quicker.git"
+  },
+  "keywords": [
+    "QUIC"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/rmarx/quicker/issues"
+  },
+  "homepage": "https://github.com/rmarx/quicker#readme",
+  "devDependencies": {
+    "@types/node": "^8.0.53"
+  }
+}
