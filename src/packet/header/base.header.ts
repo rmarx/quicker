@@ -13,6 +13,8 @@ export abstract class BaseHeader {
         this.packetNumber = packetNumber;
     }
 
+    abstract toBuffer(): Buffer;
+
     public getPacketType(): number {
         return this.packetType;
     }

@@ -30,4 +30,8 @@ export class ShortHeader extends BaseHeader {
     public setKeyPhaseBit(bit: boolean) {
         this.keyPhaseBit = bit;
     }
+
+    public toBuffer(): Buffer {
+        throw Error("Method not implemented");
+    }
 }

@@ -9,7 +9,7 @@ export class LongHeader extends BaseHeader {
     public static readonly HEADER_SIZE: number = 17;
     private version: Version;
 
-    public constructor(type: number, connectionID: ConnectionID, packetNumber: PacketNumber, version: Version) {
+    public constructor(type: LongHeaderType, connectionID: ConnectionID, packetNumber: PacketNumber, version: Version) {
         super(HeaderType.LongHeader, type, connectionID, packetNumber);
         this.version = version;
     }
@@ -20,6 +20,26 @@ export class LongHeader extends BaseHeader {
 
     public setVersion(version: Version) {
         this.version = version;
+    }
+
+    public toBuffer(): Buffer {
+        var buf = Buffer.alloc( LongHeader.HEADER_SIZE );
+        var offset = 0;
+        
+        var connectionID = this.getConnectionID();
+        if (connectionID === undefined) {
+            throw Error("Undefined ConnectionID");
+        }
+
+        // create LongHeader
+        var type = 0x80 + LongHeaderType.VersionNegotiation;
+        buf.writeUInt8(type, offset++);
+        connectionID.getConnectionID().copy(buf, offset);
+        offset += 8; // 9
+        this.getPacketNumber().getPacketNumber().copy(buf, offset);
+        offset += 4; // 13
+        this.getVersion().getVersion().copy(buf, offset);
+        return buf;
     }
 }
 

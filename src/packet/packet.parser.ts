@@ -43,7 +43,7 @@ export class PacketParser {
         }
     }
 
-    private parseShortHeaderPacket(header: BaseHeader, buffer: Buffer, offset: number): any {
+    private parseShortHeaderPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
         throw new Error("Method not implemented.");
     }
 

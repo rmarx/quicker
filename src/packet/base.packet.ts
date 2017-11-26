@@ -1,4 +1,5 @@
-import { BaseHeader } from "./header/base.header";
+import { BaseHeader, ConnectionID, PacketNumber, HeaderType } from "./header/base.header";
+import { Version, LongHeader } from "./header/long.header";
 
 
 export abstract class BasePacket {
@@ -21,6 +22,8 @@ export abstract class BasePacket {
     public getPacketType() {
         return this.packetType;
     }
+
+    abstract toBuffer(): Buffer;
 }
 
 // TODO add all packet types
