@@ -1,23 +1,24 @@
 
 export abstract class BaseHeader {
 
+    private headerType: HeaderType;
     // ConnectionID can be null when connectionID is omitted by the omit_transport_connection_id parameter
-    private type: number;
+    private packetType: number;
     private connectionID?: ConnectionID;
     private packetNumber: PacketNumber;
 
-    public constructor(type: number, connectionID: (ConnectionID | undefined) ,packetNumber: PacketNumber) {
-        this.type = type;
+    public constructor(headerType: HeaderType, type: number, connectionID: (ConnectionID | undefined) ,packetNumber: PacketNumber) {
+        this.packetType = type;
         this.connectionID = connectionID;
         this.packetNumber = packetNumber;
     }
 
-    public getType(): number {
-        return this.type;
+    public getPacketType(): number {
+        return this.packetType;
     }
 
-    public setType(type: number) {
-        this.type = type;
+    public setPacketType(type: number) {
+        this.packetType = type;
     }
 
     public getConnectionID(): ConnectionID  |  undefined {
@@ -35,12 +36,21 @@ export abstract class BaseHeader {
     public setPacketNumber(packetNumber: PacketNumber) {
         this.packetNumber = packetNumber;
     }
+
+    public getHeaderType() {
+        return this.headerType;
+    }
+}
+
+export enum HeaderType {
+    LongHeader,
+    ShortHeader
 }
 
 
 export class BaseProperty {
     /**
-     * Keep buffer of the connectionID so it can be used directly when building a new packet
+     * TODO change to bignum
      */
     private propertyBuffer: Buffer;
 

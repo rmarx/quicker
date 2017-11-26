@@ -1,12 +1,16 @@
-import { BaseHeader, ConnectionID, PacketNumber } from "./base.header";
+import { BaseHeader, ConnectionID, PacketNumber, HeaderType } from "./base.header";
 
-
+/**           0              [1-7]  
+ *   +--------------------------------------------------------------------------------------+
+ *   |0|C|K| type(5) |  [connection ID (64)] |  packet nr (8/16/32) |  Protected Payload(*) |
+ *   +--------------------------------------------------------------------------------------+
+ */
 export class ShortHeader extends BaseHeader {
     private connectionIDOmitted: boolean;
     private keyPhaseBit: boolean;
 
     public constructor(type: number, connectionID: (ConnectionID | undefined), packetNumber: PacketNumber, connectionIDOmitted: boolean, keyPhaseBit: boolean) {
-        super(type, connectionID, packetNumber);
+        super(HeaderType.LongHeader, type, connectionID, packetNumber);
         this.connectionIDOmitted = connectionIDOmitted;
         this.keyPhaseBit = keyPhaseBit;
     }
