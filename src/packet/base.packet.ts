@@ -2,10 +2,10 @@ import { BaseHeader } from "./header/base.header";
 
 
 export abstract class BasePacket {
-    // TODO
     private header: BaseHeader;
+    private packetType: PacketType;
 
-    public constructor(header: BaseHeader) {
+    public constructor(packetType: PacketType, header: BaseHeader) {
         this.header = header;
     }
 
@@ -17,4 +17,14 @@ export abstract class BasePacket {
     public setHeader(header: BaseHeader) {
         this.header = header;
     }
+
+    public getPacketType() {
+        return this.packetType;
+    }
 }
+
+// TODO add all packet types
+export enum PacketType {
+    VersionNegotiation
+}
+

@@ -26,7 +26,7 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseLongHeader(buf: Buffer): HeaderOffset {
-        var type = (buf.readUIntBE(0, 1) - 128);
+        var type = (buf.readUIntBE(0, 1) - 0x80);
         var connectionId = new ConnectionID(buf.slice(1, 9));
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
         var packetNumber = new PacketNumber(buf.slice(9, 13), 4);
@@ -67,10 +67,10 @@ export class HeaderParser {
      */
     private correctShortHeaderType(type: number, connectionIdOmitted: boolean, keyPhaseBit: boolean): number {
         if(!connectionIdOmitted) {
-            type = type - 64;
+            type = type - 0x40;
         }
         if(keyPhaseBit) {
-            type = type - 32;
+            type = type - 0x20;
         }
         return type;
     }
