@@ -30,7 +30,7 @@ export class AEAD {
 
     private getClearTextSecret(hkdf: HKDF, connectionID: ConnectionID, encryptingEndpoint: EndpointType): any {
         var quicVersionSalt = Buffer.from(Constants.getVersionSalt(Constants.getActiveVersion()),'hex');
-        var clearTextSecret = hkdf.extract(quicVersionSalt, connectionID.getConnectionID())
+        var clearTextSecret = hkdf.extract(quicVersionSalt, connectionID.toBuffer())
         var label = "QUIC client cleartext Secret";
         if(encryptingEndpoint === EndpointType.Server) {
             label = "QUIC server cleartext Secret";

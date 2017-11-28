@@ -1,4 +1,5 @@
 import { fromBuffer } from "bignum";
+import { Bignum } from "../../helpers/bignum";
 
 export abstract class BaseHeader {
 
@@ -53,26 +54,27 @@ export enum HeaderType {
 
 
 export class BaseProperty {
-    /**
-     * TODO change to bignum
-     */
-    private propertyBuffer: Buffer;
+    
+    private property: Bignum;
 
     public constructor(buffer: Buffer) {
-        this.setProperty(buffer);
+        this.property = new Bignum(buffer);
     }
 
-    protected getProperty(): Buffer {
-        return this.propertyBuffer;
+    protected getProperty(): Bignum {
+        return this.property;
     }
 
-    protected setProperty(buffer: Buffer) {
-        this.propertyBuffer = Buffer.alloc(buffer.length);
-        buffer.copy(this.propertyBuffer);
+    protected setProperty(bignum: Bignum) {
+        this.property = bignum;
+    }
+
+    public toBuffer(): Buffer {
+        return this.property.toBuffer();
     }
 
     public toString(): string {
-        return this.propertyBuffer.toString("hex");
+        return this.property.toString("hex");
     }
 }
 
@@ -89,12 +91,12 @@ export class ConnectionID extends BaseProperty {
         super(buffer);
     }
 
-    public getConnectionID(): Buffer {
+    public getConnectionID(): Bignum {
         return this.getProperty();
     }
 
-    public setConnectionID(buffer: Buffer) {
-        this.setProperty(buffer);
+    public setConnectionID(bignum: Bignum) {
+        this.setProperty(bignum);
     }
 }
 
@@ -111,17 +113,12 @@ export class PacketNumber extends BaseProperty {
         super(buffer);
     }
 
-    public getPacketNumber(): Buffer {
+    public getPacketNumber(): Bignum {
         return this.getProperty();
     }
 
-    public setPacketNumber(buffer: Buffer, length: number) {
-        // Buffer need to be length 1,2 or 4 given by the length variable
-        if (buffer.length !== length) {
-            // TODO: throw error
-            return;
-        }
-        this.setProperty(buffer);
+    public setPacketNumber(bignum: Bignum) {
+        this.setProperty(bignum);
     }
 
     public getLength(): number {

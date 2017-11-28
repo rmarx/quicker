@@ -1,4 +1,5 @@
 import { BaseHeader, BaseProperty, ConnectionID, PacketNumber, HeaderType } from "./base.header";
+import { Bignum } from "../../helpers/bignum";
 
 /**        0              1-7                 8-12           13 - 16          17-*  
  *   +--------------------------------------------------------------------------------+
@@ -34,11 +35,11 @@ export class LongHeader extends BaseHeader {
         // create LongHeader
         var type = 0x80 + LongHeaderType.VersionNegotiation;
         buf.writeUInt8(type, offset++);
-        connectionID.getConnectionID().copy(buf, offset);
+        connectionID.toBuffer().copy(buf, offset);
         offset += 8; // 9
-        this.getPacketNumber().getPacketNumber().copy(buf, offset);
+        this.getPacketNumber().toBuffer().copy(buf, offset);
         offset += 4; // 13
-        this.getVersion().getVersion().copy(buf, offset);
+        this.getVersion().toBuffer().copy(buf, offset);
         return buf;
     }
 }
@@ -63,11 +64,11 @@ export class Version extends BaseProperty {
         super(buffer);
     }
 
-    public getVersion(): Buffer {
+    public getVersion(): Bignum {
         return this.getProperty();
     }
 
-    public setVersion(buffer: Buffer) {
-        this.setProperty(buffer);
+    public setVersion(bignum: Bignum) {
+        this.setProperty(bignum);
     }
 }
