@@ -22,9 +22,9 @@ export class Client {
         this.hostname = hostname;
         this.port = port;
         this.client = createSocket("udp4");
-        this.client.on('error',this.onError);
-        this.client.on('message',this.onMessage);
-        this.client.on('close',this.onClose);
+        this.client.on('error',(err) => {this.onError(err)});
+        this.client.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        this.client.on('close',() => {this.onClose()});
     }
 
     public testSend() {
@@ -46,17 +46,24 @@ export class Client {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-
+        console.log("on message");
         try {
             var packetOffset: PacketOffset = this.packetParser.parse(msg);
         }catch(err) {
             // packet not parseable yet.
+            console.log("parse error: " + err.message);
             return;
         }
         var packet: BasePacket = packetOffset.packet;
         // TODO parse frames
         console.log("Packet type: " + packet.getPacketType().toString());
         // TODO ACK 
+        var connectionID = packet.getHeader().getConnectionID();
+        if(connectionID !== undefined) {
+            var version = new Version(Buffer.from(Constants.getActiveVersion(),'hex'));
+            var p = VersionNegotiationPacket.createVersionNegotiationPacket(connectionID, packet.getHeader().getPacketNumber(), version);
+            this.client.send(p.toBuffer(),rinfo.port, rinfo.address);
+        }
     }
 
     private onError(error: Error): any {

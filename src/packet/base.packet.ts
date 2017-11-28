@@ -7,6 +7,7 @@ export abstract class BasePacket {
     private packetType: PacketType;
 
     public constructor(packetType: PacketType, header: BaseHeader) {
+        this.packetType = packetType;
         this.header = header;
     }
 
@@ -26,8 +27,11 @@ export abstract class BasePacket {
     abstract toBuffer(): Buffer;
 }
 
-// TODO add all packet types
 export enum PacketType {
-    VersionNegotiation
+    VersionNegotiation,
+    ClientInitial,
+    ServerStatelessRetry,
+    ServerCleartext,
+    ClientCleartext
 }
 

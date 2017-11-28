@@ -1,3 +1,4 @@
+import { fromBuffer } from "bignum";
 
 export abstract class BaseHeader {
 
@@ -8,6 +9,7 @@ export abstract class BaseHeader {
     private packetNumber: PacketNumber;
 
     public constructor(headerType: HeaderType, type: number, connectionID: (ConnectionID | undefined) ,packetNumber: PacketNumber) {
+        this.headerType = headerType;
         this.packetType = type;
         this.connectionID = connectionID;
         this.packetNumber = packetNumber;
@@ -75,6 +77,8 @@ export class BaseProperty {
 }
 
 export class ConnectionID extends BaseProperty {
+
+    private packetNumber: any;
 
     public constructor(buffer: Buffer) {
         // Buffer need to be length 8 because connection id is 64 bits long

@@ -57,7 +57,7 @@ export class VersionNegotiationPacket extends BasePacket {
      * @param packetNumber 
      * @param version 
      */
-    public static createVersionNegotiationPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version) {
+    public static createVersionNegotiationPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): VersionNegotiationPacket {
         var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {

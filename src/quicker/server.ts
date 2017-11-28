@@ -2,6 +2,9 @@ import { Socket, createSocket, SocketType, RemoteInfo } from "dgram";
 import { PacketParser, PacketOffset } from "../packet/packet.parser";
 import { BasePacket } from "../packet/base.packet";
 import { EventEmitter } from "events";
+import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
+import { Constants } from "../helpers/constants";
+import { Version } from "../packet/header/long.header";
 
 export class Server extends EventEmitter{
     private server: Socket;
@@ -22,10 +25,10 @@ export class Server extends EventEmitter{
          * TODO: Check if host is ipv6 or ipv4
          */
         this.server = createSocket('udp4');
-        this.server.on('error',this.onError);
-        this.server.on('message',this.onMessage);
-        this.server.on('listening',this.onListening);
-        this.server.on('close',this.onClose);
+        this.server.on('error',(err) => {this.onError(err)});
+        this.server.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        this.server.on('listening',() => {this.onListening()});
+        this.server.on('close',() => {this.onClose()});
         this.server.bind(this.port, this.host);
     }
 
@@ -42,10 +45,16 @@ export class Server extends EventEmitter{
         // TODO parse frames
         console.log("Packet type: " + packet.getPacketType().toString());
         // TODO ACK 
+        var connectionID = packet.getHeader().getConnectionID();
+        if(connectionID !== undefined) {
+            var version = new Version(Buffer.from(Constants.getActiveVersion(),'hex'));
+            var p = VersionNegotiationPacket.createVersionNegotiationPacket(connectionID, packet.getHeader().getPacketNumber(), version);
+            this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
+        }
     }
 
     private onError(error: Error): any {
-        console.log("error");
+        console.log("error: " + error.message);
     }
 
     private onClose(): any {

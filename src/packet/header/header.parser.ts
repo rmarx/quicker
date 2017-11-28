@@ -26,6 +26,7 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseLongHeader(buf: Buffer): HeaderOffset {
+        console.log("parsing long header");
         var type = (buf.readUIntBE(0, 1) - 0x80);
         var connectionId = new ConnectionID(buf.slice(1, 9));
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
@@ -41,6 +42,7 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseShortHeader(buf: Buffer): HeaderOffset {
+        console.log("parsing short header");
         var offset = 1;
         var type = buf.readUIntBE(0, 1);
         var connectionIdOmitted = !(BitOperation.isBitSet(type, 7));

@@ -21,5 +21,9 @@
   "homepage": "https://github.com/rmarx/quicker#readme",
   "devDependencies": {
     "@types/node": "^8.0.53"
+  },
+  "dependencies": {
+    "@types/bignum": "0.0.29",
+    "bignum": "^0.12.5"
   }
 }
