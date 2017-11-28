@@ -1,4 +1,4 @@
-import { fromBuffer, add, rand } from "bignum";
+import { fromBuffer, add, rand, eq, gt, lt } from "bignum";
 
 
 /**
@@ -16,9 +16,33 @@ export class Bignum {
      * Add function to add the value of the parameter bignum to the value of the bignum object from this instance
      * @param num 
      */
-    public add(num: Bignum) {
+    public add(num: Bignum): void {
         var bn = add(this.bignum,num.bignum);
         this.bignum = bn;
+    }
+
+    /**
+     * Checks if the bignum value of this instance is the same as the value of num
+     * @param num 
+     */
+    public equals(num: Bignum): boolean {
+        return eq(this.bignum, num.bignum);
+    }
+
+    /**
+     * Checks if the bignum value of this instance is greater than the value of num
+     * @param num 
+     */
+    public greaterThan(num: Bignum): boolean {
+        return gt(this.bignum, num.bignum);
+    }
+
+    /**
+     * Checks if the bignum value of this instance is less than the value of num
+     * @param num 
+     */
+    public lessThan(num: Bignum): boolean {
+        return lt(this.bignum, num.bignum);
     }
 
     /**
