@@ -2,6 +2,8 @@ import { BasePacket, PacketType } from "../base.packet";
 import { Version, LongHeader, LongHeaderType } from "../header/long.header";
 import { BaseHeader, HeaderType, PacketNumber, ConnectionID } from "../header/base.header";
 import { Constants } from "../../helpers/constants";
+import { AEAD } from "../../crypto/aead";
+import { EndpointType } from "../../quicker/type";
 
 
 
@@ -29,15 +31,22 @@ export class VersionNegotiationPacket extends BasePacket {
             throw Error("Header is not defined");
         }
         var headerBuffer = this.getHeader().toBuffer();
-        var buf = Buffer.alloc(headerBuffer.length + (Constants.SUPPORTED_VERSIONS.length * 4));
+        var outOffset = headerBuffer.length;
     
-        headerBuffer.copy(buf, 0);
-        var offset = headerBuffer.length;
-
+        var payloadOffset = 0
+        var payloadBuffer = Buffer.alloc(Constants.SUPPORTED_VERSIONS.length * 4);
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-            buf.write(version, offset);
-            offset += 4;
-        })
+            payloadBuffer.write(version, payloadOffset);
+            payloadOffset += 4;
+        });
+        var connectionID = this.getHeader().getConnectionID();
+        if (connectionID !== undefined) {
+            var aead = new AEAD();
+            payloadBuffer = aead.clearTextEncrypt(connectionID, payloadBuffer, EndpointType.Server);
+        }
+        var buf = Buffer.alloc(headerBuffer.length + payloadBuffer.length);
+        headerBuffer.copy(buf, 0);
+        payloadBuffer.copy(buf, outOffset)
         return buf;
     }
 
@@ -53,7 +62,7 @@ export class VersionNegotiationPacket extends BasePacket {
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
-        })
+        });
         return new VersionNegotiationPacket(header, versions);
     }
 }

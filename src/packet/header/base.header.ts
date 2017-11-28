@@ -57,7 +57,7 @@ export class BaseProperty {
     private propertyBuffer: Buffer;
 
     public constructor(buffer: Buffer) {
-        this.propertyBuffer = buffer;
+        this.setProperty(buffer);
     }
 
     protected getProperty(): Buffer {
@@ -65,7 +65,8 @@ export class BaseProperty {
     }
 
     protected setProperty(buffer: Buffer) {
-        this.propertyBuffer = buffer;
+        this.propertyBuffer = Buffer.alloc(buffer.length);
+        buffer.copy(this.propertyBuffer);
     }
 
     public toString(): string {

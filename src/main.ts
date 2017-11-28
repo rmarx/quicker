@@ -1,1 +1,4 @@
-console.log("TODO: create custom main for server and for client");
+import { Server } from "./quicker/server";
+
+var server = new Server();
+server.listen('localhost', 10000);
