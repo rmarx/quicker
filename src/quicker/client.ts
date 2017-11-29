@@ -5,6 +5,7 @@ import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
 import { ConnectionID, PacketNumber } from "../packet/header/base.header";
 import { Version } from "../packet/header/long.header";
 import { Constants } from "../utilities/constants";
+import { PacketFactory } from "../packet/packet.factory";
 
 export class Client {
         
@@ -33,7 +34,7 @@ export class Client {
         var connectionID = new ConnectionID(conBuf);
         var packetNumber = new PacketNumber(Buffer.from("ffffffff", 'hex'), 4);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        var versionNegotiationPacket: VersionNegotiationPacket = VersionNegotiationPacket.createVersionNegotiationPacket(connectionID, packetNumber, version);
+        var versionNegotiationPacket: VersionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
         this.client.send(versionNegotiationPacket.toBuffer(), this.port, this.hostname);
     }
 

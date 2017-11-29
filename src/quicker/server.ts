@@ -5,6 +5,7 @@ import { EventEmitter } from "events";
 import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
 import { Constants } from "../utilities/constants";
 import { Version } from "../packet/header/long.header";
+import { PacketFactory } from "../packet/packet.factory";
 
 export class Server extends EventEmitter{
     private server: Socket;
@@ -48,7 +49,7 @@ export class Server extends EventEmitter{
         var connectionID = packet.getHeader().getConnectionID();
         if(connectionID !== undefined) {
             var version = new Version(Buffer.from(Constants.getActiveVersion(),'hex'));
-            var p = VersionNegotiationPacket.createVersionNegotiationPacket(connectionID, packet.getHeader().getPacketNumber(), version);
+            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packet.getHeader().getPacketNumber(), version);
             this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
         }
     }
