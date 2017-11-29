@@ -1,6 +1,6 @@
 import { ConnectionID } from "../packet/header/base.header";
 import { HKDF } from "./hkdf";
-import { Constants } from "../helpers/constants";
+import { Constants } from "../utilities/constants";
 import { EndpointType } from "../quicker/type";
 import { createCipheriv, createDecipheriv } from "crypto";
 

@@ -3,7 +3,7 @@ import { BasePacket } from "./base.packet";
 import { HeaderType, BaseHeader } from "./header/base.header";
 import { LongHeader, LongHeaderType, Version } from "./header/long.header";
 import { VersionNegotiationPacket } from "./packet/version.negotiation";
-import { Constants } from "../helpers/constants";
+import { Constants } from "../utilities/constants";
 
 
 export class PacketParser {

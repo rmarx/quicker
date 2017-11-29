@@ -1,17 +1,17 @@
 import { ConnectionID, PacketNumber } from "./header/base.header";
 import { Version, LongHeader, LongHeaderType } from "./header/long.header";
 import { VersionNegotiationPacket } from "./packet/version.negotiation";
-import { Constants } from "../helpers/constants";
-import { ServerStatelessRetryPacket } from "./packet/server.stateless.retry";
+import { Constants } from "../utilities/constants";
 import { ClientInitialPacket } from "./packet/client.initial";
-import { ClientCleartextPacket } from "./packet/client.cleartext";
+import { ServerStatelessRetryPacket } from "./packet/server.stateless.retry";
 import { ServerCleartextPacket } from "./packet/server.cleartext";
+import { ClientCleartextPacket } from "./packet/client.cleartext";
+
 
 export class PacketFactory {
 
     /**
      *  Method to create a Version Negotiation packet, given connectionID, packetnumber and version
-     * naar factory
      * 
      * @param connectionID 
      * @param packetNumber 

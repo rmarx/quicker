@@ -1,7 +1,7 @@
 import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 import { Version } from "../header/long.header";
-import { Constants } from "../../helpers/constants";
+import { Constants } from "../../utilities/constants";
 import { AEAD } from "../../crypto/aead";
 import { EndpointType } from "../../quicker/type";
 

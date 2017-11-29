@@ -1,5 +1,5 @@
 import { Server } from "./quicker/server";
-import { Bignum } from "./helpers/bignum";
+import { Bignum } from "./utilities/bignum";
 
 
 var server = new Server();

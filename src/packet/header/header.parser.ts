@@ -1,9 +1,9 @@
-import { BitOperation } from "./../../helpers/bit.operation";
+import { BitOperation } from "./../../utilities/bit.operation";
 import { BasePacket } from "../base.packet";
 import { BaseHeader, ConnectionID, PacketNumber } from "./base.header";
 import { LongHeader, Version } from "./long.header";
 import { ShortHeader } from "./short.header";
-import { Constants } from "../../helpers/constants";
+import { Constants } from "../../utilities/constants";
 
 
 export class HeaderParser {

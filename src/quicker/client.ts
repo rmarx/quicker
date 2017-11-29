@@ -4,7 +4,7 @@ import { BasePacket } from "../packet/base.packet";
 import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
 import { ConnectionID, PacketNumber } from "../packet/header/base.header";
 import { Version } from "../packet/header/long.header";
-import { Constants } from "../helpers/constants";
+import { Constants } from "../utilities/constants";
 
 export class Client {
         

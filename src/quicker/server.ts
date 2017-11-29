@@ -3,7 +3,7 @@ import { PacketParser, PacketOffset } from "../packet/packet.parser";
 import { BasePacket } from "../packet/base.packet";
 import { EventEmitter } from "events";
 import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
-import { Constants } from "../helpers/constants";
+import { Constants } from "../utilities/constants";
 import { Version } from "../packet/header/long.header";
 
 export class Server extends EventEmitter{

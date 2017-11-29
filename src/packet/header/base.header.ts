@@ -1,5 +1,5 @@
 import { fromBuffer } from "bignum";
-import { Bignum } from "../../helpers/bignum";
+import { Bignum } from "../../utilities/bignum";
 
 export abstract class BaseHeader {
 

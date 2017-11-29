@@ -1,6 +1,6 @@
 import { BaseHeader, BaseProperty, ConnectionID, PacketNumber, HeaderType } from "./base.header";
-import { Bignum } from "../../helpers/bignum";
-import { Constants } from "../../helpers/constants";
+import { Bignum } from "../../utilities/bignum";
+import { Constants } from "../../utilities/constants";
 
 /**        0              1-7                 8-12           13 - 16          17-*  
  *   +--------------------------------------------------------------------------------+
