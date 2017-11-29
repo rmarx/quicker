@@ -1,11 +1,5 @@
 import { BasePacket, PacketType } from "../base.packet";
-import { Version, LongHeader, LongHeaderType } from "../header/long.header";
-import { BaseHeader, HeaderType, PacketNumber, ConnectionID } from "../header/base.header";
-import { Constants } from "../../helpers/constants";
-import { AEAD } from "../../crypto/aead";
-import { EndpointType } from "../../quicker/type";
-
-
+import { BaseHeader } from "../header/base.header";
 
 export class ClientCleartextPacket extends BasePacket {
     
@@ -23,17 +17,5 @@ export class ClientCleartextPacket extends BasePacket {
         var headerBuffer = this.getHeader().toBuffer();
         
         return headerBuffer;
-    }
-
-    /**
-     *  Method to create a Client Cleartext Packet, given connectionID, packetnumber and version
-     * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
-     */
-    public static createClientCleartextPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ClientCleartextPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
-        return new ClientCleartextPacket(header);
     }
 }

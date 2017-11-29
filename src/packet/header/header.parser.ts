@@ -3,6 +3,7 @@ import { BasePacket } from "../base.packet";
 import { BaseHeader, ConnectionID, PacketNumber } from "./base.header";
 import { LongHeader, Version } from "./long.header";
 import { ShortHeader } from "./short.header";
+import { Constants } from "../../helpers/constants";
 
 
 export class HeaderParser {
@@ -33,7 +34,7 @@ export class HeaderParser {
         var packetNumber = new PacketNumber(buf.slice(9, 13), 4);
         var version = new Version(buf.slice(13, 17));
 
-        return { header: new LongHeader(type, connectionId, packetNumber, version), offset: LongHeader.HEADER_SIZE };
+        return { header: new LongHeader(type, connectionId, packetNumber, version), offset: Constants.LONG_HEADER_SIZE };
     }
 
     /**

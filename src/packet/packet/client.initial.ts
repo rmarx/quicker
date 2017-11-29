@@ -1,11 +1,5 @@
 import { BasePacket, PacketType } from "../base.packet";
-import { Version, LongHeader, LongHeaderType } from "../header/long.header";
-import { BaseHeader, HeaderType, PacketNumber, ConnectionID } from "../header/base.header";
-import { Constants } from "../../helpers/constants";
-import { AEAD } from "../../crypto/aead";
-import { EndpointType } from "../../quicker/type";
-
-
+import { BaseHeader } from "../header/base.header";
 
 export class ClientInitialPacket extends BasePacket {
     
@@ -23,17 +17,5 @@ export class ClientInitialPacket extends BasePacket {
         var headerBuffer = this.getHeader().toBuffer();
         
         return headerBuffer;
-    }
-
-    /**
-     *  Method to create a Client Initial packet, given connectionID, packetnumber and version
-     * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
-     */
-    public static createClientInitialPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
-        return new ClientInitialPacket(header);
     }
 }

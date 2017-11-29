@@ -3,6 +3,7 @@ import { BasePacket } from "./base.packet";
 import { HeaderType, BaseHeader } from "./header/base.header";
 import { LongHeader, LongHeaderType, Version } from "./header/long.header";
 import { VersionNegotiationPacket } from "./packet/version.negotiation";
+import { Constants } from "../helpers/constants";
 
 
 export class PacketParser {
@@ -24,7 +25,7 @@ export class PacketParser {
 
     private parseLongHeaderPacket(header: BaseHeader, buffer: Buffer): PacketOffset {
         console.log("parsing long header packet");
-        var offset = LongHeader.HEADER_SIZE;
+        var offset = Constants.LONG_HEADER_SIZE;
         switch(header.getPacketType()) {
             case LongHeaderType.VersionNegotiation:
                 return this.parseVersionNegotiationPacket(header, buffer, offset);;

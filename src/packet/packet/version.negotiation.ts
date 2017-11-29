@@ -1,11 +1,9 @@
 import { BasePacket, PacketType } from "../base.packet";
-import { Version, LongHeader, LongHeaderType } from "../header/long.header";
-import { BaseHeader, HeaderType, PacketNumber, ConnectionID } from "../header/base.header";
+import { BaseHeader } from "../header/base.header";
+import { Version } from "../header/long.header";
 import { Constants } from "../../helpers/constants";
 import { AEAD } from "../../crypto/aead";
 import { EndpointType } from "../../quicker/type";
-
-
 
 export class VersionNegotiationPacket extends BasePacket {
     private versions: Version[];
@@ -48,21 +46,5 @@ export class VersionNegotiationPacket extends BasePacket {
         headerBuffer.copy(buf, 0);
         payloadBuffer.copy(buf, outOffset)
         return buf;
-    }
-
-    /**
-     *  Method to create a Version Negotiation packet, given connectionID, packetnumber and version
-     * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
-     */
-    public static createVersionNegotiationPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): VersionNegotiationPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
-        var versions: Version[] = [];
-        Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-            versions.push(new Version(Buffer.from(version, 'hex')));
-        });
-        return new VersionNegotiationPacket(header, versions);
     }
 }

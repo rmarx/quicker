@@ -1,5 +1,6 @@
 import { BaseHeader, BaseProperty, ConnectionID, PacketNumber, HeaderType } from "./base.header";
 import { Bignum } from "../../helpers/bignum";
+import { Constants } from "../../helpers/constants";
 
 /**        0              1-7                 8-12           13 - 16          17-*  
  *   +--------------------------------------------------------------------------------+
@@ -7,7 +8,6 @@ import { Bignum } from "../../helpers/bignum";
  *   +--------------------------------------------------------------------------------+
  */
 export class LongHeader extends BaseHeader {
-    public static readonly HEADER_SIZE: number = 17;
     private version: Version;
 
     public constructor(type: LongHeaderType, connectionID: ConnectionID, packetNumber: PacketNumber, version: Version) {
@@ -24,7 +24,7 @@ export class LongHeader extends BaseHeader {
     }
 
     public toBuffer(): Buffer {
-        var buf = Buffer.alloc( LongHeader.HEADER_SIZE );
+        var buf = Buffer.alloc( Constants.LONG_HEADER_SIZE );
         var offset = 0;
         
         var connectionID = this.getConnectionID();

@@ -4,8 +4,8 @@ import { Bignum } from "../../helpers/bignum";
 export abstract class BaseHeader {
 
     private headerType: HeaderType;
-    // ConnectionID can be null when connectionID is omitted by the omit_transport_connection_id parameter
     private packetType: number;
+    // ConnectionID can be null when connectionID is omitted by the omit_transport_connection_id parameter
     private connectionID?: ConnectionID;
     private packetNumber: PacketNumber;
 
@@ -102,8 +102,6 @@ export class ConnectionID extends BaseProperty {
 
 export class PacketNumber extends BaseProperty {
 
-    private length: number;
-
     public constructor(buffer: Buffer, length: number) {
         // Buffer need to be length 1,2 or 4 given by the length variable
         if (buffer.length !== length) {
@@ -117,11 +115,12 @@ export class PacketNumber extends BaseProperty {
         return this.getProperty();
     }
 
-    public setPacketNumber(bignum: Bignum) {
+    public setPacketNumber(bignum: Bignum, length: number) {
+        // Buffer need to be length 1,2 or 4 given by the length variable
+        if (bignum.toBuffer().length !== length) {
+            // TODO: throw error
+            return;
+        }
         this.setProperty(bignum);
-    }
-
-    public getLength(): number {
-        return this.length;
     }
 }

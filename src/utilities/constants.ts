@@ -12,6 +12,8 @@ export class Constants {
     public static readonly VERSION_SALTS: { [id: string] : string; }= {
         'ff000007': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639'
     }
+    
+    public static readonly LONG_HEADER_SIZE = 17;
 
     /**
      * Method for testing purposes only
