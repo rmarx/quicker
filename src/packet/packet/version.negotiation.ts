@@ -34,7 +34,7 @@ export class VersionNegotiationPacket extends BasePacket {
         var payloadOffset = 0
         var payloadBuffer = Buffer.alloc(Constants.SUPPORTED_VERSIONS.length * 4);
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-            payloadBuffer.write(version, payloadOffset);
+            payloadBuffer.write(version, payloadOffset, 4, 'hex');
             payloadOffset += 4;
         });
         var buf = Buffer.alloc(headerBuffer.length + payloadBuffer.length);
