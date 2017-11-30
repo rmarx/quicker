@@ -4,9 +4,10 @@ import { BasePacket } from "../packet/base.packet";
 import { EventEmitter } from "events";
 import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
 import { Constants } from "../utilities/constants";
-import { Version } from "../packet/header/long.header";
+import { Version, LongHeader } from "../packet/header/long.header";
 import { PacketFactory } from "../packet/packet.factory";
-import { PacketNumber } from "../packet/header/base.header";
+import { PacketNumber, BaseHeader, HeaderType } from "../packet/header/base.header";
+import { HeaderParser } from "../packet/header/header.parser";
 
 export class Server extends EventEmitter{
     private server: Socket;
@@ -41,20 +42,12 @@ export class Server extends EventEmitter{
         }catch(err) {
             // packet not parseable yet.
             console.log("parse error: " + err.message);
+            var header = (new HeaderParser()).parse(msg).header;
+            if (header.getHeaderType() === HeaderType.LongHeader) {
+                var longHeader: LongHeader = <LongHeader>header;
+                this.sendVersionNegotiationPacket(rinfo, longHeader);
+            }
             return;
-        }
-        var packet: BasePacket = packetOffset.packet;
-        // TODO parse frames
-        console.log("Packet type: " + packet.getPacketType().toString());
-        console.log("Packet number: " + packet.getHeader().getPacketNumber().toString());
-        // TODO ACK 
-        var connectionID = packet.getHeader().getConnectionID();
-        var packetNumber = PacketNumber.randomPacketNumber();
-        if(connectionID !== undefined) {
-            console.log("Connection ID: " + connectionID.toString());
-            var version = new Version(Buffer.from(Constants.getActiveVersion(),'hex'));
-            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
-            this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
         }
     }
 
@@ -68,5 +61,15 @@ export class Server extends EventEmitter{
 
     private onListening(): any {
         console.log("listening");
+    }
+
+    private sendVersionNegotiationPacket(rinfo: RemoteInfo, header: LongHeader) {
+        var connectionID = header.getConnectionID();
+        if (connectionID !== undefined) {
+            var packetNumber = PacketNumber.randomPacketNumber();
+            var version = header.getVersion();
+            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
+            this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
+        }
     }
 }

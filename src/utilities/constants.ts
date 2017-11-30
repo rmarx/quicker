@@ -9,7 +9,7 @@ export class Constants {
     /**
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
-    public static readonly VERSION_SALTS: { [id: string] : string; }= {
+    public static readonly VERSION_SALTS: { [id: string] : string; } = {
         'ff000007': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639'
     }
     

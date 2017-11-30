@@ -37,11 +37,6 @@ export class VersionNegotiationPacket extends BasePacket {
             payloadBuffer.write(version, payloadOffset);
             payloadOffset += 4;
         });
-        var connectionID = this.getHeader().getConnectionID();
-        if (connectionID !== undefined) {
-            var aead = new AEAD();
-            payloadBuffer = aead.clearTextEncrypt(connectionID, payloadBuffer, EndpointType.Server);
-        }
         var buf = Buffer.alloc(headerBuffer.length + payloadBuffer.length);
         headerBuffer.copy(buf, 0);
         payloadBuffer.copy(buf, outOffset)

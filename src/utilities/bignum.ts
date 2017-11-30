@@ -5,7 +5,7 @@ import { fromBuffer, add, rand, eq, gt, lt } from "bignum";
  * Helper class for the bignum library
  */
 export class Bignum {
-    
+
     private bignum: any;
     private byteSize: number;
 
@@ -20,13 +20,22 @@ export class Bignum {
 
     /**
      * Add function to add the value of the parameter bignum to the value of the bignum object from this instance
+     * @param num with type Bignum
+     */
+    add(num: Bignum): void;
+    /**
+     * Add function to add the value a number to the instance bignum value
      * @param num 
      */
-    public add(num: Bignum): void {
-        var bn = add(this.bignum,num.bignum);
-        this.bignum = bn;
-    }
+    add(num: number): void;
 
+    public add(num: any): void {
+        if (num instanceof Bignum) {
+            this.bignum = add(this.bignum, num.bignum);
+        } else {
+            this.bignum = add(this.bignum, num);
+        }
+    }
     /**
      * Checks if the bignum value of this instance is the same as the value of num
      * @param num 
@@ -55,7 +64,7 @@ export class Bignum {
      * Get the buffer from the bignum object
      */
     public toBuffer(): Buffer {
-        return this.bignum.toBuffer({endian:'big',size:this.byteSize});
+        return this.bignum.toBuffer({ endian: 'big', size: this.byteSize });
     }
 
     /**
@@ -81,8 +90,8 @@ export class Bignum {
      * @param byteSize bytesize: default 4 (32-bits)
      */
     public static random(lowHex: string, highHex: string, byteSize: number = 4): Bignum {
-        var low = fromBuffer(Buffer.from(lowHex,'hex'));
-        var high = fromBuffer(Buffer.from(highHex,'hex'));
+        var low = fromBuffer(Buffer.from(lowHex, 'hex'));
+        var high = fromBuffer(Buffer.from(highHex, 'hex'));
         var bn = rand(low, high);
         return new Bignum(bn.toBuffer(), byteSize);
     }

@@ -21,7 +21,6 @@ export class AEAD {
     public clearTextEncrypt(connectionID: ConnectionID, payload: Buffer, encryptingEndpoint: EndpointType) {
         var hkdf = new HKDF("sha256");
         var clearTextSecret = this.getClearTextSecret(hkdf, connectionID, encryptingEndpoint);
-
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
         return this._encrypt(this.algorithm, key, iv, payload);
