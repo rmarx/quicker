@@ -14,12 +14,23 @@ export class HKDF {
         this.hashLength = createHash(algorithm).digest().length;
     }
 
+    /**
+     * Extract method from RFC-5869
+     * @param salt 
+     * @param ikm 
+     */
     public extract(salt: Buffer, ikm: Buffer): Buffer {
         var hmac = createHmac(this.algorithm, salt);
         hmac.update(ikm);
         return hmac.digest();
     }
 
+    /**
+     * Expand method from RFC-5869
+     * @param prk 
+     * @param info 
+     * @param lengthOutput 
+     */
     public expand(prk: Buffer, info: Buffer, lengthOutput: number): Buffer {
         var n: number = Math.ceil(lengthOutput / this.hashLength);
         var prevBuffer = new Buffer(0);
@@ -39,6 +50,13 @@ export class HKDF {
         return retBuffer;
     }
 
+    /**
+     * ExpandLabel function from TLS 1.3 RFC (still in draft at the time of writing)
+     * @param prk 
+     * @param label 
+     * @param hashValue 
+     * @param lengthOutput 
+     */
     public expandLabel(prk: Buffer, label: string, hashValue: string, lengthOutput: number): Buffer {
         label = "tls13 " + label;
         var length = Buffer.from([lengthOutput / 256, lengthOutput % 256]);
