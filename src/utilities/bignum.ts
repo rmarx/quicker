@@ -84,6 +84,6 @@ export class Bignum {
         var low = fromBuffer(Buffer.from(lowHex,'hex'));
         var high = fromBuffer(Buffer.from(highHex,'hex'));
         var bn = rand(low, high);
-        return new Bignum(bn.toBuffer());
+        return new Bignum(bn.toBuffer(), byteSize);
     }
 }
