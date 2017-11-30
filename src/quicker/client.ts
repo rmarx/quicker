@@ -28,11 +28,9 @@ export class Client {
         this.client.on('close',() => {this.onClose()});
     }
 
-    public testSend() {
-        var conBuf = Buffer.from("ffffffffffffffff", 'hex');
-        console.log("conbuf: " + conBuf.byteLength);
-        var connectionID = new ConnectionID(conBuf);
-        var packetNumber = new PacketNumber(Buffer.from("ffffffff", 'hex'), 4);
+    public testSend() {;
+        var connectionID = ConnectionID.randomConnectionID();
+        var packetNumber = PacketNumber.randomPacketNumber();
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         var versionNegotiationPacket: VersionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
         this.client.send(versionNegotiationPacket.toBuffer(), this.port, this.hostname);
@@ -58,11 +56,14 @@ export class Client {
         var packet: BasePacket = packetOffset.packet;
         // TODO parse frames
         console.log("Packet type: " + packet.getPacketType().toString());
+        console.log("Packet number: " + packet.getHeader().getPacketNumber().toString());
         // TODO ACK 
         var connectionID = packet.getHeader().getConnectionID();
+        var packetNumber = PacketNumber.randomPacketNumber();
         if(connectionID !== undefined) {
+            console.log("Connection ID: " + connectionID.toString());
             var version = new Version(Buffer.from(Constants.getActiveVersion(),'hex'));
-            var p = VersionNegotiationPacket.createVersionNegotiationPacket(connectionID, packet.getHeader().getPacketNumber(), version);
+            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
             this.client.send(p.toBuffer(),rinfo.port, rinfo.address);
         }
     }

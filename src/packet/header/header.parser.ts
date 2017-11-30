@@ -15,7 +15,7 @@ export class HeaderParser {
      */
     public parse(buf: Buffer): HeaderOffset {
         var type = buf.readUIntBE(0, 1);
-        if(BitOperation.isBitSet(type, 8)) {
+        if (BitOperation.isBitSet(type, 8)) {
             return this.parseLongHeader(buf);
         }
         return this.parseShortHeader(buf);
@@ -31,7 +31,7 @@ export class HeaderParser {
         var type = (buf.readUIntBE(0, 1) - 0x80);
         var connectionId = new ConnectionID(buf.slice(1, 9));
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
-        var packetNumber = new PacketNumber(buf.slice(9, 13), 4);
+        var packetNumber = new PacketNumber(buf.slice(9, 13));
         var version = new Version(buf.slice(13, 17));
 
         return { header: new LongHeader(type, connectionId, packetNumber, version), offset: Constants.LONG_HEADER_SIZE };
@@ -69,10 +69,10 @@ export class HeaderParser {
      * @param keyPhaseBit 
      */
     private correctShortHeaderType(type: number, connectionIdOmitted: boolean, keyPhaseBit: boolean): number {
-        if(!connectionIdOmitted) {
+        if (!connectionIdOmitted) {
             type = type - 0x40;
         }
-        if(keyPhaseBit) {
+        if (keyPhaseBit) {
             type = type - 0x20;
         }
         return type;
@@ -91,13 +91,13 @@ export class HeaderParser {
      */
     private getShortHeaderPacketNumber(type: number, buffer: Buffer, offset: number): PacketNumber {
         var size = 1 << (type - 1);
-        return new PacketNumber(buffer.slice(offset, offset + size), size);
-    }   
+        return new PacketNumber(buffer.slice(offset, offset + size));
+    }
 }
 /**
  * Interface so that the offset of the buffer is also returned because it is variable in a shortheader
  */
 export interface HeaderOffset {
-    header: BaseHeader, 
+    header: BaseHeader,
     offset: number
 }

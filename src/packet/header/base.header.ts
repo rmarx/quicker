@@ -9,7 +9,7 @@ export abstract class BaseHeader {
     private connectionID?: ConnectionID;
     private packetNumber: PacketNumber;
 
-    public constructor(headerType: HeaderType, type: number, connectionID: (ConnectionID | undefined) ,packetNumber: PacketNumber) {
+    public constructor(headerType: HeaderType, type: number, connectionID: (ConnectionID | undefined), packetNumber: PacketNumber) {
         this.headerType = headerType;
         this.packetType = type;
         this.connectionID = connectionID;
@@ -26,7 +26,7 @@ export abstract class BaseHeader {
         this.packetType = type;
     }
 
-    public getConnectionID(): ConnectionID  |  undefined {
+    public getConnectionID(): ConnectionID | undefined {
         return this.connectionID;
     }
 
@@ -54,11 +54,11 @@ export enum HeaderType {
 
 
 export class BaseProperty {
-    
+
     private property: Bignum;
 
-    public constructor(buffer: Buffer) {
-        this.property = new Bignum(buffer);
+    public constructor(buffer: Buffer, byteSize = 4) {
+        this.property = new Bignum(buffer, byteSize);
     }
 
     protected getProperty(): Bignum {
@@ -80,15 +80,8 @@ export class BaseProperty {
 
 export class ConnectionID extends BaseProperty {
 
-    private packetNumber: any;
-
     public constructor(buffer: Buffer) {
-        // Buffer need to be length 8 because connection id is 64 bits long
-        if (buffer.length !== 8) {
-            // TODO: throw error
-            return;
-        }
-        super(buffer);
+        super(buffer, 8);
     }
 
     public getConnectionID(): Bignum {
@@ -98,29 +91,43 @@ export class ConnectionID extends BaseProperty {
     public setConnectionID(bignum: Bignum) {
         this.setProperty(bignum);
     }
+
+    public static randomConnectionID(): ConnectionID {
+        var randomBignum = Bignum.random('00', 'ffffffffffffffff', 8);
+        return new ConnectionID(randomBignum.toBuffer());
+    }
 }
 
 export class PacketNumber extends BaseProperty {
 
-    public constructor(buffer: Buffer, length: number) {
-        // Buffer need to be length 1,2 or 4 given by the length variable
-        if (buffer.length !== length) {
-            // TODO: throw error
-            return;
-        }
-        super(buffer);
+    public constructor(buffer: Buffer) {
+        super(buffer, 8);
     }
 
     public getPacketNumber(): Bignum {
         return this.getProperty();
     }
 
-    public setPacketNumber(bignum: Bignum, length: number) {
-        // Buffer need to be length 1,2 or 4 given by the length variable
-        if (bignum.toBuffer().length !== length) {
-            // TODO: throw error
-            return;
-        }
+    public setPacketNumber(bignum: Bignum) {
         this.setProperty(bignum);
+    }
+
+    public getMostSignificantBits(size: number = 4): Buffer {
+        size = size > 8 ? 8 : size;
+        var buf = Buffer.alloc(size);
+        this.getProperty().toBuffer().copy(buf, 0, 0, size);
+        return buf;
+    }
+
+    public getLeastSignificantBits(size: number = 4): Buffer {
+        size = size > 8 ? 8 : size;
+        var buf = Buffer.alloc(size);
+        this.getProperty().toBuffer().copy(buf, 0, 8 - size, 8);
+        return buf;
+    }
+
+    public static randomPacketNumber(): PacketNumber {
+        var randomBignum = Bignum.random('00000000', '80000000', 8);
+        return new PacketNumber(randomBignum.toBuffer());
     }
 }

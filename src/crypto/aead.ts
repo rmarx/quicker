@@ -41,7 +41,6 @@ export class AEAD {
         var cipher = createCipheriv(algorithm, key, iv);
         var update: Buffer = cipher.update(payload);
         var final: Buffer = cipher.final();
-        console.log("authtag:" + cipher.getAuthTag().toString('hex'));
         return Buffer.concat([update, final, cipher.getAuthTag()]);
     }
 

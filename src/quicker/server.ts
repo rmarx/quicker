@@ -6,6 +6,7 @@ import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
 import { Constants } from "../utilities/constants";
 import { Version } from "../packet/header/long.header";
 import { PacketFactory } from "../packet/packet.factory";
+import { PacketNumber } from "../packet/header/base.header";
 
 export class Server extends EventEmitter{
     private server: Socket;
@@ -45,11 +46,14 @@ export class Server extends EventEmitter{
         var packet: BasePacket = packetOffset.packet;
         // TODO parse frames
         console.log("Packet type: " + packet.getPacketType().toString());
+        console.log("Packet number: " + packet.getHeader().getPacketNumber().toString());
         // TODO ACK 
         var connectionID = packet.getHeader().getConnectionID();
+        var packetNumber = PacketNumber.randomPacketNumber();
         if(connectionID !== undefined) {
+            console.log("Connection ID: " + connectionID.toString());
             var version = new Version(Buffer.from(Constants.getActiveVersion(),'hex'));
-            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packet.getHeader().getPacketNumber(), version);
+            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
             this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
         }
     }

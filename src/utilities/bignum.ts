@@ -7,9 +7,15 @@ import { fromBuffer, add, rand, eq, gt, lt } from "bignum";
 export class Bignum {
     
     private bignum: any;
+    private byteSize: number;
 
-    public constructor(buf: Buffer) {
+    /**
+     * @param buf buffer containing the number
+     * @param byteSize bytesize, default 4 (32-bit)
+     */
+    public constructor(buf: Buffer, byteSize: number = 4) {
         this.bignum = fromBuffer(buf);
+        this.byteSize = byteSize;
     }
 
     /**
@@ -49,7 +55,7 @@ export class Bignum {
      * Get the buffer from the bignum object
      */
     public toBuffer(): Buffer {
-        return this.bignum.toBuffer();
+        return this.bignum.toBuffer({endian:'big',size:this.byteSize});
     }
 
     /**
@@ -72,8 +78,9 @@ export class Bignum {
      * Creates a Bignum object with a random value between lowHex and highHex
      * @param lowHex lowerbound (in hex)
      * @param highHex  upperbound (in hex)
+     * @param byteSize bytesize: default 4 (32-bits)
      */
-    public static random(lowHex: string, highHex: string): Bignum {
+    public static random(lowHex: string, highHex: string, byteSize: number = 4): Bignum {
         var low = fromBuffer(Buffer.from(lowHex,'hex'));
         var high = fromBuffer(Buffer.from(highHex,'hex'));
         var bn = rand(low, high);

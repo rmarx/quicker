@@ -37,7 +37,7 @@ export class LongHeader extends BaseHeader {
         buf.writeUInt8(type, offset++);
         connectionID.toBuffer().copy(buf, offset);
         offset += 8; // 9
-        this.getPacketNumber().toBuffer().copy(buf, offset);
+        this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
         offset += 4; // 13
         this.getVersion().toBuffer().copy(buf, offset);
         return buf;
@@ -56,11 +56,6 @@ export enum LongHeaderType {
 export class Version extends BaseProperty {
     
     public constructor(buffer: Buffer) {
-        // Buffer need to be length 4 because version is 32 bits long
-        if (buffer.length !== 4) {
-            // TODO: throw error
-            return;
-        }
         super(buffer);
     }
 
