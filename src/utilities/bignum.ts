@@ -1,4 +1,4 @@
-import { fromBuffer, add, rand, eq, gt, lt } from "bignum";
+import { fromBuffer, add, rand, eq, gt, lt, shiftLeft } from "bignum";
 
 
 /**
@@ -34,6 +34,16 @@ export class Bignum {
             this.bignum = add(this.bignum, num.bignum);
         } else {
             this.bignum = add(this.bignum, num);
+        }
+    }
+
+    shiftLeft(num: number): void;
+    shiftLeft(bignum: Bignum): void;
+    public shiftLeft(num: any): void {
+        if (num instanceof Bignum) {
+            this.bignum.shiftLeft(num.bignum);
+        } else {
+            this.bignum.shiftLeft(num);
         }
     }
     /**
