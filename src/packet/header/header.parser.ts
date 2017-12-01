@@ -2,7 +2,7 @@ import { BitOperation } from "./../../utilities/bit.operation";
 import { BasePacket } from "../base.packet";
 import { BaseHeader, ConnectionID, PacketNumber } from "./base.header";
 import { LongHeader, Version } from "./long.header";
-import { ShortHeader } from "./short.header";
+import { ShortHeader, ShortHeaderType } from "./short.header";
 import { Constants } from "../../utilities/constants";
 
 
@@ -30,9 +30,9 @@ export class HeaderParser {
         console.log("parsing long header");
         var type = (buf.readUIntBE(0, 1) - 0x80);
         var connectionId = new ConnectionID(buf.slice(1, 9));
+        var version = new Version(buf.slice(9, 13));
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
-        var packetNumber = new PacketNumber(buf.slice(9, 13));
-        var version = new Version(buf.slice(13, 17));
+        var packetNumber = new PacketNumber(buf.slice(13, 17));
 
         return { header: new LongHeader(type, connectionId, packetNumber, version), offset: Constants.LONG_HEADER_SIZE };
     }
@@ -79,10 +79,8 @@ export class HeaderParser {
     }
 
     /**
-     * Get the packet number from the buffer by calculating the size that depends on the value of type:
-     *      type: 0x01 => packet number is 1 byte
-     *      type: 0x02 => packet number is 2 byte
-     *      type: 0x03 => packet number is 4 byte
+     * Get the packet number from the buffer by getting the size of the packet number field 
+     *   from the short header type field:
      * 
      * TODO: still needs decoding of the packet number
      * @param type type field of the header
@@ -90,8 +88,16 @@ export class HeaderParser {
      * @param offset start offset of the buffer to get the packet number
      */
     private getShortHeaderPacketNumber(type: number, buffer: Buffer, offset: number): PacketNumber {
-        var size = 1 << (type - 1);
-        return new PacketNumber(buffer.slice(offset, offset + size));
+        switch (type) {
+            case ShortHeaderType.OneOctet:
+                return new PacketNumber(buffer.slice(offset, offset + 1));
+            case ShortHeaderType.TwoOctet:
+                return new PacketNumber(buffer.slice(offset, offset + 2));
+            case ShortHeaderType.FourOctet:
+                return new PacketNumber(buffer.slice(offset, offset + 4));
+            default:
+                throw Error("Not a valid packet type");
+        }
     }
 }
 /**

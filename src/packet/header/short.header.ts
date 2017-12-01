@@ -35,3 +35,9 @@ export class ShortHeader extends BaseHeader {
         throw Error("Method not implemented");
     }
 }
+
+export enum ShortHeaderType {
+    OneOctet = 0x1F,
+    TwoOctet = 0x1E,
+    FourOctet = 0x1D
+}

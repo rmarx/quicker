@@ -29,14 +29,12 @@ export class PacketParser {
         switch(header.getPacketType()) {
             case LongHeaderType.VersionNegotiation:
                 return this.parseVersionNegotiationPacket(header, buffer, offset);;
-            case LongHeaderType.ClientInitial:
-                // Client Initial
-            case LongHeaderType.ServerStatelessRetry:
+            case LongHeaderType.Initial:
+                // Initial
+            case LongHeaderType.Retry:
                 // Server Stateless Retry
-            case LongHeaderType.ServerCleartext:
-                // Server cleartext
-            case LongHeaderType.ClientCleartext:
-                // Client cleartext
+            case LongHeaderType.Handshake:
+                // Handshake
             case LongHeaderType.Protected0RTT:
                 // 0-RTT Protected
                 throw new Error("Method not implemented.");

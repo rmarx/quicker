@@ -4,7 +4,7 @@ import { Constants } from "../../utilities/constants";
 
 /**        0              1-7                 8-12           13 - 16          17-*  
  *   +--------------------------------------------------------------------------------+
- *   |1| type(7) |  connection ID (64) |  packet nr (32) |  version(32) |  Payload(*) |
+ *   |1| type(7) |  connection ID (64) |  version (32) |  packet nr (32) |  Payload(*)|
  *   +--------------------------------------------------------------------------------+
  */
 export class LongHeader extends BaseHeader {
@@ -45,12 +45,11 @@ export class LongHeader extends BaseHeader {
 }
 
 export enum LongHeaderType {
-    VersionNegotiation = 0x01,
-    ClientInitial = 0x02,
-    ServerStatelessRetry = 0x03,
-    ServerCleartext = 0x04,
-    ClientCleartext = 0x05,
-    Protected0RTT = 0x06
+    VersionNegotiation = 0x7F,
+    Initial = 0x7E,
+    Retry = 0x7D,
+    Handshake = 0x7C,
+    Protected0RTT = 0x7B
 }
 
 export class Version extends BaseProperty {
