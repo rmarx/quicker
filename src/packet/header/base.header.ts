@@ -127,7 +127,7 @@ export class PacketNumber extends BaseProperty {
     }
 
     public static randomPacketNumber(): PacketNumber {
-        var randomBignum = Bignum.random('00000000', '80000000', 8);
+        var randomBignum = Bignum.random('00000000','fffffc00', 8);
         return new PacketNumber(randomBignum.toBuffer());
     }
 }
