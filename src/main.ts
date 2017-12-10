@@ -1,4 +1,4 @@
 import { Server } from "./quicker/server";
 
 var server = new Server();
-server.listen('localhost', 10000);
+server.listen('localhost', 4433);

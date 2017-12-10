@@ -4,6 +4,7 @@
   "description": "Experimental QUIC implementation",
   "main": "out/main.js",
   "scripts": {
+    "start":"node out/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
