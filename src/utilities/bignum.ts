@@ -1,4 +1,4 @@
-import { fromBuffer, add, rand, eq, gt, lt, shiftLeft } from "bignum";
+import { BN, Endianness } from "bn.js";
 
 
 /**
@@ -6,16 +6,15 @@ import { fromBuffer, add, rand, eq, gt, lt, shiftLeft } from "bignum";
  */
 export class Bignum {
 
-    private bignum: any;
+    private bignum: BN;
     private byteSize: number;
 
     /**
      * @param buf buffer containing the number
      * @param byteSize bytesize, default 4 (32-bit)
      */
-    public constructor(buf: Buffer, byteSize: number = 4) {
-        this.bignum = fromBuffer(buf);
-        this.byteSize = byteSize;
+    public constructor(buf: Buffer, byteSize: number = 4, base: number = 16) {
+        this.fromBuffer(buf, byteSize, base);
     }
 
     /**
@@ -31,27 +30,21 @@ export class Bignum {
 
     public add(num: any): void {
         if (num instanceof Bignum) {
-            this.bignum = add(this.bignum, num.bignum);
+            this.bignum = this.bignum.add(num.bignum);
         } else {
-            this.bignum = add(this.bignum, num);
+            this.bignum = this.bignum.add(num);
         }
     }
 
-    shiftLeft(num: number): void;
-    shiftLeft(bignum: Bignum): void;
-    public shiftLeft(num: any): void {
-        if (num instanceof Bignum) {
-            this.bignum.shiftLeft(num.bignum);
-        } else {
-            this.bignum.shiftLeft(num);
-        }
+    public shiftLeft(num: number): void {
+        this.bignum = this.bignum.shln(num);
     }
     /**
      * Checks if the bignum value of this instance is the same as the value of num
      * @param num 
      */
     public equals(num: Bignum): boolean {
-        return eq(this.bignum, num.bignum);
+        return this.bignum.eq(num.bignum);
     }
 
     /**
@@ -59,7 +52,7 @@ export class Bignum {
      * @param num 
      */
     public greaterThan(num: Bignum): boolean {
-        return gt(this.bignum, num.bignum);
+        return this.bignum.gt(num.bignum);
     }
 
     /**
@@ -67,22 +60,23 @@ export class Bignum {
      * @param num 
      */
     public lessThan(num: Bignum): boolean {
-        return lt(this.bignum, num.bignum);
+        return this.bignum.lt(num.bignum);
     }
 
     /**
      * Get the buffer from the bignum object
      */
     public toBuffer(): Buffer {
-        return this.bignum.toBuffer({ endian: 'big', size: this.byteSize });
+        return this.bignum.toBuffer('be');
     }
 
     /**
      * Create a bignum object from the buffer that is given
      * @param buf 
      */
-    public fromBuffer(buf: Buffer) {
-        this.bignum = fromBuffer(buf);
+    public fromBuffer(buf: Buffer, byteSize: number = 4, base: number = 16) {
+        this.bignum = new BN(buf, base, 'be');
+        this.byteSize = byteSize;
     }
 
     /**
@@ -90,19 +84,31 @@ export class Bignum {
      * @param encoding default hex
      */
     public toString(encoding: string = 'hex'): string {
-        return this.bignum.toBuffer().toString('hex');
+        return this.bignum.toBuffer('be',this.byteSize).toString('hex');
     }
 
+    public getHighestOccupied(): number {
+        return this.bignum.bitLength();
+    } 
+
     /**
-     * Creates a Bignum object with a random value between lowHex and highHex
-     * @param lowHex lowerbound (in hex)
+     * Creates a Bignum object with a random value between 0 and highHex
      * @param highHex  upperbound (in hex)
      * @param byteSize bytesize: default 4 (32-bits)
      */
-    public static random(lowHex: string, highHex: string, byteSize: number = 4): Bignum {
-        var low = fromBuffer(Buffer.from(lowHex, 'hex'));
-        var high = fromBuffer(Buffer.from(highHex, 'hex'));
-        var bn = rand(low, high);
-        return new Bignum(bn.toBuffer(), byteSize);
+    public static random(highHex: string, byteSize: number = 4): Bignum {
+        var high = new Bignum(Buffer.from(highHex, 'hex'), byteSize, 16);
+        var num = new BN(0);
+        for(var i = 0; i < byteSize; i++) {
+            num = num.shln(8);
+            num = num.add(this.mathRandom());
+        }
+        num = num.mod(high.bignum);
+
+        return new Bignum(num.toBuffer('be'), byteSize, 10);
+    }
+
+    private static mathRandom(): BN {
+        return new BN(Math.random() * 256);
     }
 }

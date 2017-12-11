@@ -1,4 +1,3 @@
-import { fromBuffer } from "bignum";
 import { Bignum } from "../../utilities/bignum";
 
 export abstract class BaseHeader {
@@ -93,7 +92,7 @@ export class ConnectionID extends BaseProperty {
     }
 
     public static randomConnectionID(): ConnectionID {
-        var randomBignum = Bignum.random('00', 'ffffffffffffffff', 8);
+        var randomBignum = Bignum.random('ffffffffffffffff', 8);
         return new ConnectionID(randomBignum.toBuffer());
     }
 }
@@ -127,7 +126,7 @@ export class PacketNumber extends BaseProperty {
     }
 
     public static randomPacketNumber(): PacketNumber {
-        var randomBignum = Bignum.random('00000000','fffffc00', 8);
+        var randomBignum = Bignum.random('fffffc00', 8);
         return new PacketNumber(randomBignum.toBuffer());
     }
 }

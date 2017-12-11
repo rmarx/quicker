@@ -4,7 +4,7 @@
   "description": "Experimental QUIC implementation",
   "main": "out/main.js",
   "scripts": {
-    "start":"node out/main.js",
+    "start": "node out/main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -24,7 +24,6 @@
     "@types/node": "^8.0.53"
   },
   "dependencies": {
-    "@types/bignum": "0.0.29",
-    "bignum": "^0.12.5"
+    "bn.js": "^4.11.8"
   }
 }

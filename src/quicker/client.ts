@@ -1,4 +1,4 @@
-import { Socket, createSocket, RemoteInfo } from "dgram";
+import { Socket, createSocket, RemoteInfo, SocketOptions } from "dgram";
 import { PacketParser, PacketOffset } from "../packet/packet.parser";
 import { BasePacket } from "../packet/base.packet";
 import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
