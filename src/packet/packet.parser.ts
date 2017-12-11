@@ -16,7 +16,6 @@ export class PacketParser {
     public parse(msg: Buffer): PacketOffset {
         var headerOffset = this.headerParser.parse(msg);
         var header = headerOffset.header;
-        console.log(header.getHeaderType().toString());
         if (header.getHeaderType() === HeaderType.LongHeader) {
             return this.parseLongHeaderPacket(header, msg)
         }
@@ -24,7 +23,6 @@ export class PacketParser {
     }
 
     private parseLongHeaderPacket(header: BaseHeader, buffer: Buffer): PacketOffset {
-        console.log("parsing long header packet");
         var offset = Constants.LONG_HEADER_SIZE;
         switch(header.getPacketType()) {
             case LongHeaderType.VersionNegotiation:
@@ -45,7 +43,6 @@ export class PacketParser {
     }
 
     private parseShortHeaderPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
-        console.log("parse short header packet");
         throw new Error("Method not implemented.");
     }
 

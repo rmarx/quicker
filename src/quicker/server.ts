@@ -39,6 +39,16 @@ export class Server extends EventEmitter{
         console.log("on message");
         try {
             var packetOffset: PacketOffset = this.packetParser.parse(msg);
+
+            // debugging reasons;
+            var header = packetOffset.packet.getHeader();
+            var longHeader: LongHeader = <LongHeader>header
+            var connectionId = longHeader.getConnectionID();
+            if(connectionId !== undefined) {
+                console.log("connectionid: " + connectionId.toString());
+                console.log("packet number: " + longHeader.getPacketNumber().toString());
+                console.log("version: " + longHeader.getVersion().toString());
+            }
         }catch(err) {
             // packet not parseable yet.
             console.log("parse error: " + err.message);

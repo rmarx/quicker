@@ -48,6 +48,8 @@ export class Client {
         console.log("on message");
         try {
             var packetOffset: PacketOffset = this.packetParser.parse(msg);
+
+            
         }catch(err) {
             // packet not parseable yet.
             console.log("parse error: " + err.message);

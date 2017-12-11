@@ -37,9 +37,9 @@ export class LongHeader extends BaseHeader {
         buf.writeUInt8(type, offset++);
         connectionID.toBuffer().copy(buf, offset);
         offset += 8; // 9
-        this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
-        offset += 4; // 13
         this.getVersion().toBuffer().copy(buf, offset);
+        offset += 4; // 13
+        this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
         return buf;
     }
 }
