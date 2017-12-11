@@ -2,3 +2,4 @@ node_modules/*
 .vscode
 out/*
 package-lock.json
+keylogs.txt
