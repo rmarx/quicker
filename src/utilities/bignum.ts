@@ -32,13 +32,18 @@ export class Bignum {
         if (num instanceof Bignum) {
             this.bignum = this.bignum.add(num.bignum);
         } else {
-            this.bignum = this.bignum.add(num);
+            this.bignum = this.bignum.add(new BN(num));
         }
     }
 
+    /**
+     * Method to perform left shifts
+     * @param num any number
+     */
     public shiftLeft(num: number): void {
         this.bignum = this.bignum.shln(num);
     }
+
     /**
      * Checks if the bignum value of this instance is the same as the value of num
      * @param num 
@@ -66,8 +71,9 @@ export class Bignum {
     /**
      * Get the buffer from the bignum object
      */
-    public toBuffer(): Buffer {
-        return this.bignum.toBuffer('be');
+    public toBuffer(size?: number): Buffer {
+        var bSize = size === undefined ? this.byteSize : size;
+        return this.bignum.toBuffer('be', bSize);
     }
 
     /**
@@ -78,16 +84,20 @@ export class Bignum {
         this.bignum = new BN(buf, base, 'be');
         this.byteSize = byteSize;
     }
-
+    
     /**
      * gives the bignum value in string format (default hexadecimal)
      * @param encoding default hex
      */
-    public toString(encoding: string = 'hex'): string {
-        return this.bignum.toBuffer('be',this.byteSize).toString('hex');
+    public toString(encoding: string = 'hex', size?: number): string {
+        var bSize = size === undefined ? this.byteSize : size;
+        return this.bignum.toBuffer('be', bSize).toString('hex');
     }
 
-    public getHighestOccupied(): number {
+    /**
+     * Gives the index of the largest bit set
+     */
+    public getBitLength(): number {
         return this.bignum.bitLength();
     } 
 
@@ -108,6 +118,19 @@ export class Bignum {
         return new Bignum(num.toBuffer('be'), byteSize, 10);
     }
 
+    /**
+     * Creates a Bignum object from a number 
+     * @param num any number
+     */
+    public static fromNumber(num: number): Bignum {
+        var bn = new BN(num);
+        var bignum = new Bignum(bn.toBuffer('be'), bn.byteLength());
+        return bignum;
+    }
+
+    /**
+     * Function to create a BN object with a value between 0 (incl) and 256 (excl)
+     */
     private static mathRandom(): BN {
         return new BN(Math.random() * 256);
     }

@@ -32,6 +32,9 @@ export class Client {
         var connectionID = ConnectionID.randomConnectionID();
         var packetNumber = PacketNumber.randomPacketNumber();
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
+        console.log("connectionid: " + connectionID.toString());
+        console.log("packet number: " + packetNumber.toString());
+        console.log("version: " + version.toString());
         var versionNegotiationPacket: VersionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
         this.client.send(versionNegotiationPacket.toBuffer(), this.port, this.hostname);
     }
