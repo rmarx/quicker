@@ -1,11 +1,11 @@
-import { BasePacket, PacketType } from "../base.packet";
+import { BasePacket } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 
 
 export class ServerStatelessRetryPacket extends BasePacket {
     
     public constructor(header: BaseHeader) {
-        super(PacketType.ServerStatelessRetry, header);
+        super(header);
     }
 
     /**

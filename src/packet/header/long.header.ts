@@ -33,7 +33,7 @@ export class LongHeader extends BaseHeader {
         }
 
         // create LongHeader
-        var type = 0x80 + LongHeaderType.VersionNegotiation;
+        var type = 0x80 + this.getPacketType();
         buf.writeUInt8(type, offset++);
         connectionID.toBuffer().copy(buf, offset);
         offset += 8; // 9
@@ -45,11 +45,11 @@ export class LongHeader extends BaseHeader {
 }
 
 export enum LongHeaderType {
-    VersionNegotiation = 0x7F,
-    Initial = 0x7E,
-    Retry = 0x7D,
-    Handshake = 0x7C,
-    Protected0RTT = 0x7B
+    Initial = 0x7F,
+    Retry = 0x7E,
+    Handshake = 0x7D,
+    Protected0RTT = 0x7C,
+    Default = 0x00  // when it is not one of the above
 }
 
 export class Version extends BaseProperty {

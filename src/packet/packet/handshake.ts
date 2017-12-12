@@ -1,14 +1,14 @@
-import { BasePacket, PacketType } from "../base.packet";
+import { BasePacket } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 
-export class ServerCleartextPacket extends BasePacket {
+export class HandshakePacket extends BasePacket {
     
     public constructor(header: BaseHeader) {
-        super(PacketType.ServerCleartext, header);
+        super(header);
     }
 
     /**
-     * Method to get buffer object from a ServerCleartextPacket object
+     * Method to get buffer object from a HandshakePacket object
      */
     public toBuffer() {
         if (this.getHeader() === undefined) {

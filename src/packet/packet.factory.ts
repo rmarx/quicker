@@ -4,8 +4,7 @@ import { VersionNegotiationPacket } from "./packet/version.negotiation";
 import { Constants } from "../utilities/constants";
 import { ClientInitialPacket } from "./packet/client.initial";
 import { ServerStatelessRetryPacket } from "./packet/server.stateless.retry";
-import { ServerCleartextPacket } from "./packet/server.cleartext";
-import { ClientCleartextPacket } from "./packet/client.cleartext";
+import { HandshakePacket } from "./packet/handshake";
 
 
 export class PacketFactory {
@@ -17,8 +16,9 @@ export class PacketFactory {
      * @param packetNumber 
      * @param version 
      */
-    public static createVersionNegotiationPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): VersionNegotiationPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
+    public static createVersionNegotiationPacket(connectionID: ConnectionID, packetNumber: PacketNumber): VersionNegotiationPacket {
+        var version = new Version(Buffer.from('00000000', 'hex'));
+        var header = new LongHeader(LongHeaderType.Default, connectionID, packetNumber, version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
@@ -34,7 +34,7 @@ export class PacketFactory {
      * @param version 
      */
     public static createClientInitialPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
+        var header = new LongHeader(LongHeaderType.Initial, connectionID, packetNumber, version);
         return new ClientInitialPacket(header);
     }
 
@@ -46,31 +46,19 @@ export class PacketFactory {
      * @param version 
      */
     public static createServerStatelessRetryPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
+        var header = new LongHeader(LongHeaderType.Retry, connectionID, packetNumber, version);
         return new ServerStatelessRetryPacket(header);
     }
 
     /**
-     *  Method to create a Server Cleartext Packet, given connectionID, packetnumber and version
+     *  Method to create a Handshake Packet, given connectionID, packetnumber and version
      * 
      * @param connectionID 
      * @param packetNumber 
      * @param version 
      */
-    public static createServerCleartextPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ServerCleartextPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
-        return new ServerCleartextPacket(header);
-    }
-
-    /**
-     *  Method to create a Client Cleartext Packet, given connectionID, packetnumber and version
-     * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
-     */
-    public static createClientCleartextPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ClientCleartextPacket {
-        var header = new LongHeader(LongHeaderType.VersionNegotiation, connectionID, packetNumber, version);
-        return new ClientCleartextPacket(header);
+    public static createHandshakePacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): HandshakePacket {
+        var header = new LongHeader(LongHeaderType.Handshake, connectionID, packetNumber, version);
+        return new HandshakePacket(header);
     }
 }

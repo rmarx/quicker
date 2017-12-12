@@ -77,8 +77,7 @@ export class Server extends EventEmitter{
         var connectionID = header.getConnectionID();
         if (connectionID !== undefined) {
             var packetNumber = PacketNumber.randomPacketNumber();
-            var version = header.getVersion();
-            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber, version);
+            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber);
             this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
         }
     }
