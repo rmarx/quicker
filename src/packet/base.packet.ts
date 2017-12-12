@@ -4,10 +4,8 @@ import { Version, LongHeader } from "./header/long.header";
 
 export abstract class BasePacket {
     private header: BaseHeader;
-    private packetType: PacketType;
 
-    public constructor(packetType: PacketType, header: BaseHeader) {
-        this.packetType = packetType;
+    public constructor(header: BaseHeader) {
         this.header = header;
     }
 
@@ -20,18 +18,6 @@ export abstract class BasePacket {
         this.header = header;
     }
 
-    public getPacketType() {
-        return this.packetType;
-    }
-
     abstract toBuffer(): Buffer;
-}
-
-export enum PacketType {
-    VersionNegotiation,
-    ClientInitial,
-    ServerStatelessRetry,
-    ServerCleartext,
-    ClientCleartext
 }
 

@@ -1,10 +1,10 @@
-import { BasePacket, PacketType } from "../base.packet";
+import { BasePacket } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 
 export class ClientInitialPacket extends BasePacket {
     
     public constructor(header: BaseHeader) {
-        super(PacketType.ClientInitial, header);
+        super( header);
     }
 
     /**

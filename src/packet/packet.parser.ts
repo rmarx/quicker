@@ -23,10 +23,9 @@ export class PacketParser {
     }
 
     private parseLongHeaderPacket(header: BaseHeader, buffer: Buffer): PacketOffset {
+        var longheader = <LongHeader>header;
         var offset = Constants.LONG_HEADER_SIZE;
         switch(header.getPacketType()) {
-            case LongHeaderType.VersionNegotiation:
-                return this.parseVersionNegotiationPacket(header, buffer, offset);;
             case LongHeaderType.Initial:
                 // Initial
             case LongHeaderType.Retry:
@@ -37,6 +36,11 @@ export class PacketParser {
                 // 0-RTT Protected
                 throw new Error("Method not implemented.");
             default:
+                // Version negotiation packet
+                console.log("version: " + longheader.getVersion().toString());
+                if (longheader.getVersion().toString() === "00000000") {
+                    return this.parseVersionNegotiationPacket(header, buffer, offset);
+                }
                 // Unknown packet type
                 throw new Error("Unknown packet type.");
         }
