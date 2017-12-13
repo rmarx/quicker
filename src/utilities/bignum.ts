@@ -7,13 +7,13 @@ import { BN, Endianness } from "bn.js";
 export class Bignum {
 
     private bignum: BN;
-    private byteSize: number;
+    private byteSize: number | undefined;
 
     /**
      * @param buf buffer containing the number
      * @param byteSize bytesize, default 4 (32-bit)
      */
-    public constructor(buf: Buffer, byteSize: number = 4, base: number = 16) {
+    public constructor(buf: Buffer, byteSize?: number, base: number = 16) {
         this.fromBuffer(buf, byteSize, base);
     }
 
@@ -73,6 +73,7 @@ export class Bignum {
      */
     public toBuffer(size?: number): Buffer {
         var bSize = size === undefined ? this.byteSize : size;
+        bSize = bSize !== undefined ? bSize : this.bignum.byteLength();
         return this.bignum.toBuffer('be', bSize);
     }
 
@@ -80,7 +81,7 @@ export class Bignum {
      * Create a bignum object from the buffer that is given
      * @param buf 
      */
-    public fromBuffer(buf: Buffer, byteSize: number = 4, base: number = 16) {
+    public fromBuffer(buf: Buffer, byteSize?: number, base: number = 16) {
         this.bignum = new BN(buf, base, 'be');
         this.byteSize = byteSize;
     }
@@ -99,7 +100,11 @@ export class Bignum {
      */
     public getBitLength(): number {
         return this.bignum.bitLength();
-    } 
+    }
+
+    public getByteLength(): number {
+        return this.byteSize !== undefined ? this.byteSize : this.bignum.byteLength();
+    }
 
     /**
      * Creates a Bignum object with a random value between 0 and highHex
