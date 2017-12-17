@@ -16,6 +16,12 @@ export class Constants {
     public static readonly LONG_HEADER_SIZE = 17;
 
     /**
+     * Default algorithm for cleartext encryption/decryption in QUIC
+     */
+    public static readonly DEFAULT_AEAD = 'aes-128-gcm';
+    public static readonly DEFAULT_HASH = 'sha256';
+
+    /**
      * Method for testing purposes only
      */
     public static getActiveVersion() {

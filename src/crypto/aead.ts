@@ -6,11 +6,6 @@ import { createCipheriv, createDecipheriv } from "crypto";
 
 
 export class AEAD {
-
-    /**
-     * Default algorithm for cleartext encryption/decryption in QUIC
-     */
-    private readonly algorithm = "aes-128-gcm";
     
     /**
      * Method to encrypt the payload (cleartext)
@@ -19,11 +14,11 @@ export class AEAD {
      * @param encryptingEndpoint the encrypting endpoint
      */
     public clearTextEncrypt(connectionID: ConnectionID, payload: Buffer, encryptingEndpoint: EndpointType) {
-        var hkdf = new HKDF("sha256");
+        var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var clearTextSecret = this.getClearTextSecret(hkdf, connectionID, encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
-        return this._encrypt(this.algorithm, key, iv, payload);
+        return this._encrypt(Constants.DEFAULT_AEAD, key, iv, payload);
     }
 
     /**
@@ -38,7 +33,7 @@ export class AEAD {
 
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
-        return this._decrypt(this.algorithm, key, iv, encryptedPayload);
+        return this._decrypt(Constants.DEFAULT_AEAD, key, iv, encryptedPayload);
     }
 
     /**
