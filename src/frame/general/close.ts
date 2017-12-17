@@ -16,10 +16,11 @@ export abstract class CloseFrame extends BaseFrame {
     public toBuffer(): Buffer {
         var phraseLengthBuffer: Buffer = VLIE.encode(this.phrase.length);
         var phraseBuffer: Buffer = Buffer.from(this.phrase, 'utf8');
-        var buf = Buffer.alloc(phraseLengthBuffer.byteLength + phraseBuffer.byteLength + 2);
-        buf.writeUInt16BE(this.errorCode, 0);
-        phraseLengthBuffer.copy(buf, 2);
-        phraseBuffer.copy(buf, 2 + phraseLengthBuffer.byteLength);
+        var buf = Buffer.alloc(phraseLengthBuffer.byteLength + phraseBuffer.byteLength + 3);
+        buf.writeUInt8(this.getType(), 0);
+        buf.writeUInt16BE(this.errorCode, 1);
+        phraseLengthBuffer.copy(buf, 3);
+        phraseBuffer.copy(buf, 3 + phraseLengthBuffer.byteLength);
         return buf;
     }
 }

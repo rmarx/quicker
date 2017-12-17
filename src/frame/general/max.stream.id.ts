@@ -1,5 +1,6 @@
-import { BaseFrame, FrameType } from "../base.frame";
-import { Bignum } from "./../../utilities/bignum";
+import {BaseFrame, FrameType} from '../base.frame';
+import {Bignum} from '../../utilities/bignum';
+import {VLIE} from '../../crypto/vlie';
 
 
 export class MaxStreamIdFrame extends BaseFrame {
@@ -11,6 +12,10 @@ export class MaxStreamIdFrame extends BaseFrame {
 	}
     
     public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+        var maxStreamIDBuffer: Buffer = VLIE.encode(this.maxStreamID);
+        var returnBuffer: Buffer = Buffer.alloc(maxStreamIDBuffer.byteLength + 1);
+        returnBuffer.writeUInt8(this.getType(), 0);
+        maxStreamIDBuffer.copy(returnBuffer, 1);
+        return returnBuffer;
     }
 }

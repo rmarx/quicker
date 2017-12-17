@@ -9,6 +9,10 @@ export abstract class BaseFrame {
 
     abstract toBuffer(): Buffer;
 
+    public getType(): FrameType {
+        return this.type;
+    }
+
 }
 
 export enum FrameType {
