@@ -3,7 +3,7 @@ import {BaseFrame, FrameType} from '../base.frame';
 
 
 
-export abstract class CloseFrame extends BaseFrame {
+abstract class BaseCloseFrame extends BaseFrame {
     private errorCode: number;
     private phrase: string;
 
@@ -25,13 +25,13 @@ export abstract class CloseFrame extends BaseFrame {
     }
 }
 
-export class ConnectionCloseFrame extends CloseFrame {
+export class ConnectionCloseFrame extends BaseCloseFrame {
     public constructor(errorCode: number, phrase: string) {
         super(FrameType.CONNECTION_CLOSE, errorCode, phrase);
     }
 }
 
-export class ApplicationCloseFrame extends CloseFrame {
+export class ApplicationCloseFrame extends BaseCloseFrame {
     public constructor(errorCode: number, phrase: string) {
         super(FrameType.CONNECTION_CLOSE, errorCode, phrase);
     }

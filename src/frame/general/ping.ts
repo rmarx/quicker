@@ -1,35 +1,34 @@
 import { BaseFrame, FrameType } from "../base.frame";
 
 
-
-export class PingFrame extends BaseFrame {
+abstract class BasePingFrame extends BaseFrame {
     private length: number;
     private data: Buffer;
 
 
-	public constructor(length: number, data: Buffer) {
-        super(FrameType.PING);
-		this.length = length;
-		this.data = data;
+    public constructor(type: FrameType, length: number, data: Buffer) {
+        super(type);
+        this.length = length;
+        this.data = data;
     }
-    
+
     public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+        var buffer = Buffer.alloc(25);
+        buffer.writeUInt8(this.getType(), 0);
+        buffer.writeUInt8(this.length, 1);
+        this.data.copy(buffer, 2);
+        return buffer;
     }
 }
 
-export class PongFrame extends BaseFrame {
-    private length: number;
-    private data: Buffer;
-
-
-	public constructor(length: number, data: Buffer) {
-        super(FrameType.PONG);
-		this.length = length;
-		this.data = data;
+export class PingFrame extends BasePingFrame {
+    public constructor(length: number, data: Buffer) {
+        super(FrameType.PING, length, data);
     }
-    
-    public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+}
+
+export class PongFrame extends BasePingFrame {
+    public constructor(length: number, data: Buffer) {
+        super(FrameType.PONG, length, data);
     }
 }

@@ -1,6 +1,6 @@
-import {Bignum} from '../../utilities/bignum';
 import {BaseFrame, FrameType} from '../base.frame';
-
+import {Bignum} from '../../utilities/bignum';
+import {VLIE} from '../../crypto/vlie';
 
 
 export class StreamIdBlockedFrame extends BaseFrame {
@@ -12,6 +12,11 @@ export class StreamIdBlockedFrame extends BaseFrame {
     }
     
     public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+        var offset = 0;
+        var streamIDBuffer: Buffer = VLIE.encode(this.streamID);
+        var returnBuffer: Buffer = Buffer.alloc(streamIDBuffer.byteLength + 1);
+        returnBuffer.writeUInt8(this.getType(), offset++);
+        streamIDBuffer.copy(returnBuffer, offset);
+        return returnBuffer;
     }
 }

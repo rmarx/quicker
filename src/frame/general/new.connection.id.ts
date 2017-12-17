@@ -15,6 +15,10 @@ export class NewConnectionIdFrame extends BaseFrame {
 	}
     
     public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+        var buffer = Buffer.alloc(25);
+        buffer.writeUInt8(this.getType(), 0);
+        this.connectionID.toBuffer().copy(buffer, 1);
+        this.statelessResetToken.copy(buffer, 9);
+        return buffer;
     }
 }
