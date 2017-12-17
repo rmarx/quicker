@@ -7,6 +7,8 @@ export abstract class BaseFrame {
         this.type = type;
     }
 
+    abstract toBuffer(): Buffer;
+
 }
 
 export enum FrameType {

@@ -12,4 +12,8 @@ export class StopSendingFrame extends BaseFrame {
         this.streamID = streamID;
         this.applicationErrorCode = applicationErrorCode;
     }
+
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

@@ -9,5 +9,9 @@ export class StreamIdBlockedFrame extends BaseFrame {
 	public constructor(streamID: Bignum) {
         super(FrameType.STREAM_ID_BLOCKED);
         this.streamID = streamID;
-	}
+    }
+    
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

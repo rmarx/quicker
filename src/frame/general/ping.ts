@@ -11,7 +11,11 @@ export class PingFrame extends BaseFrame {
         super(FrameType.PING);
 		this.length = length;
 		this.data = data;
-	}
+    }
+    
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }
 
 export class PongFrame extends BaseFrame {
@@ -23,5 +27,9 @@ export class PongFrame extends BaseFrame {
         super(FrameType.PONG);
 		this.length = length;
 		this.data = data;
-	}
+    }
+    
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

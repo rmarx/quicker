@@ -10,4 +10,8 @@ export class MaxDataFrame extends BaseFrame {
         super(FrameType.MAX_DATA);
         this.maxData = maxData;
     }
+
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

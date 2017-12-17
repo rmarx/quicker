@@ -11,4 +11,8 @@ export class ApplicationCloseFrame extends BaseFrame {
         this.errorCode = errorCode;
         this.phrase = phrase;
     }
+
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

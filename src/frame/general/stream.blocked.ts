@@ -11,5 +11,9 @@ export class StreamBlockedFrame extends BaseFrame {
         super(FrameType.STREAM_BLOCKED);
         this.streamID = streamID;
         this.blockedOffset = blockedOffset;
-	}
+    }
+    
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

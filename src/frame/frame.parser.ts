@@ -1,3 +1,4 @@
+import {MaxStreamFrame} from './general/max.stream';
 import {BaseFrame, FrameType} from './base.frame';
 import {Bignum} from '../utilities/bignum';
 import {VLIE} from '../crypto/vlie';
@@ -255,7 +256,11 @@ export class FrameParser {
         offset += dataLength.toNumber();
 
         var streamFrame = new StreamFrame(data);
-
+        streamFrame.setIsFinal(fin);
+        streamFrame.setIsFirst(len);
+        streamFrame.setIsLast(off);
+        streamFrame.setLength(dataLength);
+        streamFrame.setOffset(dataOffset);
         return {
             frame: streamFrame,
             offset: offset

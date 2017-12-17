@@ -14,4 +14,8 @@ export class RstStreamFrame extends BaseFrame {
         this.applicationErrorCode = applicationErrorCode;
         this.finalOffset = finalOffset;
     }
+
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

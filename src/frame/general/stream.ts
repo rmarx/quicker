@@ -19,6 +19,15 @@ export class StreamFrame extends BaseFrame {
         this.data = data;
     }
 
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
+
+
+
+    /**
+     * START Getters & Setters
+     */
 
 	public getIsFinal(): boolean {
 		return this.isFinal;
@@ -75,4 +84,8 @@ export class StreamFrame extends BaseFrame {
     public setData(buf: Buffer) {
         this.data = buf;
     }
+
+    /**
+     * End Getters & Setters
+     */
 }

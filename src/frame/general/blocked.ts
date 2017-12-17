@@ -9,5 +9,9 @@ export class BlockedFrame extends BaseFrame {
 	public constructor(blockedOffset: Bignum) {
         super(FrameType.BLOCKED);
         this.blockedOffset = blockedOffset;
-	}
+    }
+    
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

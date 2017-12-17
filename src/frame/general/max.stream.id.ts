@@ -10,4 +10,7 @@ export class MaxStreamIdFrame extends BaseFrame {
         this.maxStreamID = maxStreamID;
 	}
     
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

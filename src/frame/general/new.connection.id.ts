@@ -14,4 +14,7 @@ export class NewConnectionIdFrame extends BaseFrame {
 		this.statelessResetToken = statelessResetToken;
 	}
     
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }

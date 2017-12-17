@@ -11,5 +11,9 @@ export class MaxStreamFrame extends BaseFrame {
         super(FrameType.MAX_STREAM_DATA);
         this.streamID = streamID;
 		this.maxData = maxData;
-	}
+    }
+    
+    public toBuffer(): Buffer {
+        throw new Error("Method not implemented.");
+    }
 }
