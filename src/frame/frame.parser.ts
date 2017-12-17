@@ -1,11 +1,10 @@
-import {MaxStreamFrame} from './general/max.stream';
 import {BaseFrame, FrameType} from './base.frame';
 import {Bignum} from '../utilities/bignum';
 import {VLIE} from '../crypto/vlie';
 import {RstStreamFrame} from './general/rst.stream';
-import {ApplicationCloseFrame} from './general/application.close';
-import {ConnectionCloseFrame} from './general/connection.close';
+import {ApplicationCloseFrame, ConnectionCloseFrame} from './general/close';
 import {MaxDataFrame} from './general/max.data';
+import {MaxStreamFrame} from './general/max.stream';
 import {MaxStreamIdFrame} from './general/max.stream.id';
 import {PingFrame, PongFrame} from './general/ping';
 import {BlockedFrame} from './general/blocked';
@@ -15,6 +14,7 @@ import {ConnectionID} from '../packet/header/base.header';
 import {NewConnectionIdFrame} from './general/new.connection.id';
 import {StopSendingFrame} from './general/stop.sending';
 import {StreamFrame} from './general/stream';
+
 
 
 export class FrameParser {
