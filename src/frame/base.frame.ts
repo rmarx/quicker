@@ -2,6 +2,11 @@
 
 export abstract class BaseFrame {
     private type: FrameType;
+
+    public constructor(type: FrameType) {
+        this.type = type;
+    }
+
 }
 
 export enum FrameType {
@@ -20,6 +25,5 @@ export enum FrameType {
     STOP_SENDING = 0x0c,
     PONG = 0x0d,
     ACK = 0x0e,
-    STREAM_START = 0x10,
-    STREAM_END = 0x17
+    STREAM = 0x10
 }

@@ -96,6 +96,13 @@ export class Bignum {
     }
 
     /**
+     * Only use when you are sure that bignum is smaller than 2^53
+     */
+    public toNumber(): number {
+        return this.bignum.toNumber();
+    }
+
+    /**
      * Gives the index of the largest bit set
      */
     public getBitLength(): number {
