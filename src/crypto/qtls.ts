@@ -6,17 +6,19 @@ import { QuicTLS } from "qtls_wrap";
 export class QTLS {
     private qtlsHelper: QuicTLS;
     private isServer: boolean;
+    private options: any;
     private transportParameters: TransportParameters;
 
     private cipher: string;
 
-    public constructor(isServer: boolean) {
+    public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
+        this.options = options;
     }
 
     public setTransportParameters(buffer: Buffer, createNewHelper: boolean = true) {
         if(this.qtlsHelper === undefined || createNewHelper) {
-            this.qtlsHelper = new QuicTLS(this.isServer, {});
+            this.qtlsHelper = new QuicTLS(this.isServer, this.options);
         }
     }
 

@@ -8,6 +8,7 @@ import {ConnectionID, PacketNumber} from '../packet/header/base.header';
 import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
 import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
+import * as fs from 'fs';
 
 
 export class Client {
@@ -21,7 +22,7 @@ export class Client {
 
     constructor() {
         this.packetParser = new PacketParser();
-        this.qtls = new QTLS(false);
+        this.qtls = new QTLS(false, {key: fs.readFileSync('./../keys/key.pem'), cert: fs.readFileSync('./../keys/cert.pem')});
     }
 
     public connect(hostname: string, port: number) {
@@ -36,7 +37,7 @@ export class Client {
     public testSend() {;
         var connectionID = ConnectionID.randomConnectionID();
         var packetNumber = PacketNumber.randomPacketNumber();
-        var version = new Version(Buffer.from(Constants.getActiveVersion()))
+        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         console.log("connectionid: " + connectionID.toString());
         console.log("packet number: " + packetNumber.toString());
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(connectionID, packetNumber, version, this.qtls);

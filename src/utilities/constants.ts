@@ -3,14 +3,14 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff000007'
+        'ff000008'
     ];
 
     /**
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000007': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639'
+        'ff000008': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639'
     }
     
     public static readonly LONG_HEADER_SIZE = 17;
@@ -32,7 +32,7 @@ export class Constants {
     public static readonly MAX_IDLE_TIMEOUT = 600;
     public static readonly MAX_PACKET_SIZE = 65527;
 
-    public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
+    public static readonly CLIENT_INITIAL_MIN_SIZE = 1280;
 
     /**
      * Method for testing purposes only

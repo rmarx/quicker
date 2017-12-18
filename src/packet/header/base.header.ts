@@ -114,14 +114,14 @@ export class PacketNumber extends BaseProperty {
     public getMostSignificantBits(size: number = 4): Buffer {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
-        this.getProperty().toBuffer().copy(buf, 0, 8-size, 8);
+        this.getProperty().toBuffer().copy(buf, 0, 0, size);
         return buf;
     }
 
     public getLeastSignificantBits(size: number = 4): Buffer {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
-        this.getProperty().toBuffer().copy(buf, 0, 0, size);
+        this.getProperty().toBuffer().copy(buf, 0, 8-size, 8);
         console.log("before: " + this.getProperty().toString('hex'));
         console.log("result: " + buf.toString('hex'))
         return buf;
