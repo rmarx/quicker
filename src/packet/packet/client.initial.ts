@@ -3,14 +3,19 @@ import { BaseHeader } from "../header/base.header";
 import { StreamFrame } from "./../../frame/general/stream";
 import { PaddingFrame } from "./../../frame/general/padding";
 import { Constants } from "./../../utilities/constants";
+import { AEAD } from "./../../crypto/aead";
+import { EndpointType } from "./../../quicker/type";
+import { assert } from "console";
 
 export class ClientInitialPacket extends BasePacket {
 
     private streamFrame: StreamFrame;
+    private aead: AEAD;
     
     public constructor(header: BaseHeader, streamFrame: StreamFrame) {
         super( header);
         this.streamFrame = streamFrame;
+        this.aead = new AEAD();
     }
 
     /**
@@ -24,6 +29,14 @@ export class ClientInitialPacket extends BasePacket {
         var streamBuffer = this.streamFrame.toBuffer();
         var paddingSize = Constants.CLIENT_INITIAL_MIN_SIZE - streamBuffer.byteLength;
         var paddingFrame = new PaddingFrame(paddingSize);
+
+        var dataBuffer = Buffer.alloc(Constants.CLIENT_INITIAL_MIN_SIZE);
+        streamBuffer.copy(dataBuffer, 0);
+        paddingFrame.toBuffer().copy(dataBuffer, streamBuffer.byteLength);
+        var connectionid = this.getHeader().getConnectionID();
+        if(connectionid !== undefined) {
+            dataBuffer = this.aead.clearTextEncrypt(connectionid, dataBuffer, EndpointType.Client);
+        }
 
         var buffer = Buffer.alloc(headerBuffer.byteLength + Constants.CLIENT_INITIAL_MIN_SIZE);
         var offset = 0;
