@@ -46,7 +46,7 @@ export class PacketFactory {
         qtls.setTransportParameters(transportExt);
         var clientInitial = qtls.getClientInitial();
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
-        return new ClientInitialPacket(header);
+        return new ClientInitialPacket(header, streamFrame);
     }
 
     /**
