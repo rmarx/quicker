@@ -42,7 +42,7 @@ export class StreamFrame extends BaseFrame {
             size += offsetBuffer.byteLength;
         }
 
-        var buffer = Buffer.alloc(size);
+        var buffer = Buffer.alloc(size + this.data.byteLength);
         var offset = 0;
         buffer.writeUInt8(type, offset++);
         streamIDBuffer.copy(buffer, offset);
