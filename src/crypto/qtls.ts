@@ -20,6 +20,7 @@ export class QTLS {
         if(this.qtlsHelper === undefined || createNewHelper) {
             this.qtlsHelper = new QuicTLS(this.isServer, this.options);
         }
+        this.qtlsHelper.setTransportParameters(buffer);
     }
 
     public getClientInitial(): Buffer {

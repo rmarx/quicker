@@ -55,6 +55,7 @@ export class StreamFrame extends BaseFrame {
             offsetBuffer.copy(buffer, offset);
             offset += offsetBuffer.byteLength;
         }
+        this.data.copy(buffer, offset);
         return buffer;
     }
 
