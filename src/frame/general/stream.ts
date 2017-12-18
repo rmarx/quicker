@@ -1,12 +1,13 @@
+import {VLIE} from '../../crypto/vlie';
 import {Bignum} from '../../utilities/bignum';
 import {BaseFrame, FrameType} from '../base.frame';
 
 
 
 export class StreamFrame extends BaseFrame {
-    private isFinal: boolean; // set fin bit
-    private isLast: boolean; // if true, don't set length
-    private isFirst: boolean; // if true, no offset required
+    private fin: boolean; // set fin bit
+    private len: boolean; // if true, don't set length
+    private off: boolean; // if true, no offset required
 
     private streamID: Bignum;
     private length: Bignum;
@@ -14,43 +15,90 @@ export class StreamFrame extends BaseFrame {
 
     private data: Buffer;
 
-    public constructor(data: Buffer) {
+    public constructor(streamID: Bignum, data: Buffer) {
         super(FrameType.STREAM);
+        this.streamID = streamID;
         this.data = data;
+        this.fin =  false;
+        this.len = false;
+        this.off = false;
     }
 
     public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+        var type = this.getType();
+        var size = 1;
+        var streamIDBuffer = VLIE.encode(this.streamID);
+        size += streamIDBuffer.byteLength;
+        var lengthBuffer = undefined;
+        var offsetBuffer = undefined;
+
+        if (this.len) {
+            lengthBuffer = VLIE.encode(this.length)
+            size += lengthBuffer.byteLength;
+        }
+
+        if (this.off) {
+            offsetBuffer = VLIE.encode(this.offset)
+            size += offsetBuffer.byteLength;
+        }
+
+        var buffer = Buffer.alloc(size);
+        var offset = 0;
+        buffer.writeUInt8(type, offset++);
+        streamIDBuffer.copy(buffer, offset);
+        offset += streamIDBuffer.byteLength;
+        if (this.len && lengthBuffer !== undefined) {
+            lengthBuffer.copy(buffer, offset);
+            offset += lengthBuffer.byteLength;
+        }
+        if (this.off && offsetBuffer !== undefined) {
+            offsetBuffer.copy(buffer, offset);
+            offset += offsetBuffer.byteLength;
+        }
+        return buffer;
     }
 
+    public getType(): number {
+        var type: number = super.getType();
+        if (this.fin) {
+            type += 0x01;
+        }
+        if (!this.len) {
+            type += 0x02;
+        }
+        if (this.off) {
+            type += 0x04;
+        }
+        return type;
+    }
 
 
     /**
      * START Getters & Setters
      */
 
-	public getIsFinal(): boolean {
-		return this.isFinal;
+	public getFin(): boolean {
+		return this.fin;
 	}
 
-	public setIsFinal(value: boolean) {
-		this.isFinal = value;
+	public setFin(value: boolean) {
+		this.fin = value;
 	}
 
-	public getIsLast(): boolean {
-		return this.isLast;
+	public getLen(): boolean {
+		return this.len;
 	}
 
-	public setIsLast(value: boolean) {
-		this.isLast = value;
+	public setLen(value: boolean) {
+		this.len = value;
     }
     
-    public getIsFirst(): boolean {
-        return this.isFirst;
+    public getOff(): boolean {
+        return this.off;
     }
 
-    public setIsFirst(value: boolean) {
-        this.isFirst = value;
+    public setOff(value: boolean) {
+        this.off = value;
     }
 
     public getStreamID(): Bignum {

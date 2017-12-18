@@ -1,10 +1,13 @@
-import { ConnectionID, PacketNumber } from "./header/base.header";
-import { Version, LongHeader, LongHeaderType } from "./header/long.header";
-import { VersionNegotiationPacket } from "./packet/version.negotiation";
-import { Constants } from "../utilities/constants";
-import { ClientInitialPacket } from "./packet/client.initial";
-import { ServerStatelessRetryPacket } from "./packet/server.stateless.retry";
-import { HandshakePacket } from "./packet/handshake";
+import {ConnectionID, PacketNumber} from './header/base.header';
+import {VersionNegotiationPacket} from './packet/version.negotiation';
+import {Version, LongHeader, LongHeaderType} from './header/long.header';
+import {Constants} from '../utilities/constants';
+import {QTLS, TransportParameters} from '../crypto/qtls';
+import {ClientInitialPacket} from './packet/client.initial';
+import {StreamFrame} from '../frame/general/stream';
+import {Bignum} from '../utilities/bignum';
+import {ServerStatelessRetryPacket} from './packet/server.stateless.retry';
+import {HandshakePacket} from './packet/handshake';
 
 
 export class PacketFactory {
@@ -33,8 +36,16 @@ export class PacketFactory {
      * @param packetNumber 
      * @param version 
      */
-    public static createClientInitialPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): ClientInitialPacket {
+    public static createClientInitialPacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version, qtls: QTLS): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connectionID, packetNumber, version);
+        var transportParameters: TransportParameters = new TransportParameters(false, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
+        var transportParamBuffer: Buffer = transportParameters.toBuffer();
+        var transportExt = Buffer.alloc(transportParamBuffer.byteLength + 4);
+        transportExt.write(Constants.getActiveVersion());
+        transportParamBuffer.copy(transportExt, 4);
+        qtls.setTransportParameters(transportExt);
+        var clientInitial = qtls.getClientInitial();
+        var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         return new ClientInitialPacket(header);
     }
 

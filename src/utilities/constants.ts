@@ -21,6 +21,19 @@ export class Constants {
     public static readonly DEFAULT_AEAD = 'aes-128-gcm';
     public static readonly DEFAULT_HASH = 'sha256';
 
+
+    /**
+     * default values for transport extensions
+     */
+    public static readonly DEFAULT_MAX_STREAM_ID = 1048;
+    public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024 * 1014;
+    public static readonly DEFAULT_MAX_DATA = 50 * 1024 * 1024;
+    public static readonly DEFAULT_ACK_EXPONENT = 3;
+    public static readonly MAX_IDLE_TIMEOUT = 600;
+    public static readonly MAX_PACKET_SIZE = 65527;
+
+    public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
+
     /**
      * Method for testing purposes only
      */

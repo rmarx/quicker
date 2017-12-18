@@ -255,10 +255,10 @@ export class FrameParser {
         buffer.copy(data, 0, offset, dataLength.toNumber() + offset);
         offset += dataLength.toNumber();
 
-        var streamFrame = new StreamFrame(data);
-        streamFrame.setIsFinal(fin);
-        streamFrame.setIsFirst(len);
-        streamFrame.setIsLast(off);
+        var streamFrame = new StreamFrame(streamId, data);
+        streamFrame.setFin(fin);
+        streamFrame.setLen(len);
+        streamFrame.setOff(off);
         streamFrame.setLength(dataLength);
         streamFrame.setOffset(dataOffset);
         return {

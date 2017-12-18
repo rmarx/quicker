@@ -1,11 +1,14 @@
-import { Socket, createSocket, RemoteInfo, SocketOptions } from "dgram";
-import { PacketParser, PacketOffset } from "../packet/packet.parser";
-import { BasePacket } from "../packet/base.packet";
-import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
-import { ConnectionID, PacketNumber } from "../packet/header/base.header";
-import { Version } from "../packet/header/long.header";
-import { Constants } from "../utilities/constants";
-import { PacketFactory } from "../packet/packet.factory";
+import {Constants} from '../utilities/constants';
+import {Version} from '../packet/header/long.header';
+import {ClientInitialPacket} from '../packet/packet/client.initial';
+import {PacketParser, PacketOffset} from '../packet/packet.parser';
+import {PacketFactory} from '../packet/packet.factory';
+import {QTLS} from '../crypto/qtls';
+import {ConnectionID, PacketNumber} from '../packet/header/base.header';
+import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
+import {BasePacket} from '../packet/base.packet';
+import { Socket, createSocket, RemoteInfo } from 'dgram';
+
 
 export class Client {
         
@@ -14,9 +17,11 @@ export class Client {
     private client: Socket;
 
     private packetParser: PacketParser;
+    private qtls: QTLS;
 
     constructor() {
         this.packetParser = new PacketParser();
+        this.qtls = new QTLS(false);
     }
 
     public connect(hostname: string, port: number) {
@@ -31,10 +36,11 @@ export class Client {
     public testSend() {;
         var connectionID = ConnectionID.randomConnectionID();
         var packetNumber = PacketNumber.randomPacketNumber();
+        var version = new Version(Buffer.from(Constants.getActiveVersion()))
         console.log("connectionid: " + connectionID.toString());
         console.log("packet number: " + packetNumber.toString());
-        var versionNegotiationPacket: VersionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber);
-        this.client.send(versionNegotiationPacket.toBuffer(), this.port, this.hostname);
+        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(connectionID, packetNumber, version, this.qtls);
+        this.client.send(clientInitial.toBuffer(), this.port, this.hostname);
     }
 
     public getPort(): number {
