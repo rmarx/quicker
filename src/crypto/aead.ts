@@ -1,7 +1,8 @@
-import { ConnectionID } from "../packet/header/base.header";
-import { HKDF } from "./hkdf";
-import { Constants } from "../utilities/constants";
-import { EndpointType } from "../quicker/type";
+import {Bignum} from '../utilities/bignum';
+import {ConnectionID, PacketNumber, BaseHeader} from '../packet/header/base.header';
+import {HKDF} from './hkdf';
+import {Constants} from '../utilities/constants';
+import {EndpointType} from '../quicker/type';
 import { createCipheriv, createDecipheriv } from "crypto";
 
 
@@ -13,11 +14,17 @@ export class AEAD {
      * @param payload Payload that needs to be send
      * @param encryptingEndpoint the encrypting endpoint
      */
-    public clearTextEncrypt(connectionID: ConnectionID, payload: Buffer, encryptingEndpoint: EndpointType) {
+    public clearTextEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
-        var clearTextSecret = this.getClearTextSecret(hkdf, connectionID, encryptingEndpoint);
+        var connectionId = header.getConnectionID();
+        if (connectionId === undefined) {
+            throw Error("No conenction ID set in header in function clearTextEncrypt");
+        }
+        var clearTextSecret = this.getClearTextSecret(hkdf, connectionId, encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
+        var nonce = this.calculateNonce(iv, header.getPacketNumber());
+        var ad = this.calculateAssociatedData(header);
         return this._encrypt(Constants.DEFAULT_AEAD, key, iv, payload);
     }
 
@@ -81,5 +88,16 @@ export class AEAD {
         var update: Buffer = cipher.update(encPayload);
         var final: Buffer = cipher.final();
         return Buffer.concat([update, final]);
+    }
+
+    private calculateNonce(iv: Buffer, packetNumber: PacketNumber): Bignum {
+        var pnb = packetNumber.getPacketNumber();
+        var ivb = new Bignum(iv, iv.byteLength);
+        ivb.xor(pnb);
+        return ivb;
+    }
+
+    private calculateAssociatedData(header: BaseHeader) {
+        return header.toBuffer();
     }
 }

@@ -37,6 +37,14 @@ export class Bignum {
     }
 
     /**
+     * Exclusive or operation
+     * @param num 
+     */
+    public xor(num: Bignum) {
+        this.bignum = this.bignum.xor(num.bignum);
+    }
+
+    /**
      * Method to perform left shifts
      * @param num any number
      */
