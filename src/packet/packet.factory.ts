@@ -40,9 +40,11 @@ export class PacketFactory {
         var header = new LongHeader(LongHeaderType.Initial, connectionID, packetNumber, version);
         var transportParameters: TransportParameters = new TransportParameters(false, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
         var transportParamBuffer: Buffer = transportParameters.toBuffer();
-        var transportExt = Buffer.alloc(transportParamBuffer.byteLength + 4);
-        transportExt.write(Constants.getActiveVersion());
-        transportParamBuffer.copy(transportExt, 4);
+        // value of 6 is: 4 for version and 2 for length
+        var transportExt = Buffer.alloc(transportParamBuffer.byteLength + 6);
+        transportExt.write(Constants.getActiveVersion(), undefined, undefined, 'hex');
+        transportExt.writeUInt16BE(transportParamBuffer.byteLength, 4);
+        transportParamBuffer.copy(transportExt, 6);
         qtls.setTransportParameters(transportExt);
         var clientInitial = qtls.getClientInitial();
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
