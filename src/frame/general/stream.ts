@@ -64,7 +64,7 @@ export class StreamFrame extends BaseFrame {
         if (this.fin) {
             type += 0x01;
         }
-        if (!this.len) {
+        if (this.len) {
             type += 0x02;
         }
         if (this.off) {
