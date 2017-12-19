@@ -33,18 +33,13 @@ export class ClientInitialPacket extends BasePacket {
         var dataBuffer = Buffer.alloc(Constants.CLIENT_INITIAL_MIN_SIZE);
         streamBuffer.copy(dataBuffer, 0);
         paddingFrame.toBuffer().copy(dataBuffer, streamBuffer.byteLength);
-        var connectionid = this.getHeader().getConnectionID();
-        if(connectionid !== undefined) {
-            dataBuffer = this.aead.clearTextEncrypt(connectionid, dataBuffer, EndpointType.Client);
-        }
+        dataBuffer = this.aead.clearTextEncrypt(this.getHeader(), dataBuffer, EndpointType.Client);
 
-        var buffer = Buffer.alloc(headerBuffer.byteLength + Constants.CLIENT_INITIAL_MIN_SIZE);
+        var buffer = Buffer.alloc(headerBuffer.byteLength + dataBuffer.byteLength);
         var offset = 0;
         headerBuffer.copy(buffer, offset);
         offset += headerBuffer.byteLength;
-        streamBuffer.copy(buffer, offset);
-        offset += streamBuffer.byteLength;
-        paddingFrame.toBuffer().copy(buffer, offset);
+        dataBuffer.copy(buffer, offset);
         
         return buffer;
     }

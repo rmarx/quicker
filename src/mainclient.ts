@@ -1,4 +1,7 @@
 import { Client } from "./quicker/client";
+import { AEAD } from "./crypto/aead";
+import { ConnectionID } from "./packet/header/base.header";
+import { EndpointType } from "./quicker/type";
 
 
 var client = new Client();

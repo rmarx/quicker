@@ -41,6 +41,7 @@ export class Server extends EventEmitter{
             var packetOffset: PacketOffset = this.packetParser.parse(msg);
 
             // debugging reasons;
+            console.log("type: " + packetOffset.packet.getHeader().getPacketType());
             var header = packetOffset.packet.getHeader();
             var longHeader: LongHeader = <LongHeader>header
             var connectionId = longHeader.getConnectionID();

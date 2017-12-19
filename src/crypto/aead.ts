@@ -23,24 +23,28 @@ export class AEAD {
         var clearTextSecret = this.getClearTextSecret(hkdf, connectionId, encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
-        var nonce = this.calculateNonce(iv, header.getPacketNumber());
+        var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
-        return this._encrypt(Constants.DEFAULT_AEAD, key, iv, payload);
+        return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
     }
-
     /**
      * Method to decrypt the payload (cleartext)
      * @param connectionID ConnectionID from the connection
      * @param encryptedPayload Payload that needs to be decrypted
      * @param encryptingEndpoint The endpoint that encrypted the payload
      */
-    public clearTextDecrypt(connectionID: ConnectionID, encryptedPayload: Buffer, encryptingEndpoint: EndpointType) {
+    public clearTextDecrypt(header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType) {
         var hkdf = new HKDF("sha256");
-        var clearTextSecret = this.getClearTextSecret(hkdf, connectionID, encryptingEndpoint);
-
+        var connectionId = header.getConnectionID();
+        if (connectionId === undefined) {
+            throw Error("No conenction ID set in header in function clearTextEncrypt");
+        }
+        var clearTextSecret = this.getClearTextSecret(hkdf, connectionId, encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
-        return this._decrypt(Constants.DEFAULT_AEAD, key, iv, encryptedPayload);
+        var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();
+        var ad = this.calculateAssociatedData(header);
+        return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
     }
 
     /**
@@ -52,9 +56,9 @@ export class AEAD {
     private getClearTextSecret(hkdf: HKDF, connectionID: ConnectionID, encryptingEndpoint: EndpointType): any {
         var quicVersionSalt = Buffer.from(Constants.getVersionSalt(Constants.getActiveVersion()),'hex');
         var clearTextSecret = hkdf.extract(quicVersionSalt, connectionID.toBuffer())
-        var label = "QUIC client cleartext Secret";
+        var label = "QUIC client handshake secret";
         if(encryptingEndpoint === EndpointType.Server) {
-            label = "QUIC server cleartext Secret";
+            label = "QUIC server handshake secret";
         }
         return hkdf.expandLabel(clearTextSecret, label , "", 32);
     }
@@ -66,8 +70,9 @@ export class AEAD {
      * @param iv 
      * @param payload 
      */
-    private _encrypt(algorithm: string, key: Buffer, iv: Buffer, payload: Buffer) {
-        var cipher = createCipheriv(algorithm, key, iv);
+    private _encrypt(algorithm: string, key: Buffer, nonce: Buffer,ad:Buffer, payload: Buffer) {
+        var cipher = createCipheriv(algorithm, key, nonce);
+        cipher.setAAD(ad);
         var update: Buffer = cipher.update(payload);
         var final: Buffer = cipher.final();
         return Buffer.concat([update, final, cipher.getAuthTag()]);
@@ -80,8 +85,9 @@ export class AEAD {
      * @param iv 
      * @param encryptedPayload 
      */
-    private _decrypt(algorithm: string, key: Buffer, iv: Buffer, encryptedPayload: Buffer) {
-        var cipher = createDecipheriv(algorithm, key, iv);
+    private _decrypt(algorithm: string, key: Buffer, nonce: Buffer,ad: Buffer, encryptedPayload: Buffer) {
+        var cipher = createDecipheriv(algorithm, key, nonce);
+        cipher.setAAD(ad);
         var authTag = encryptedPayload.slice(encryptedPayload.length - 16, encryptedPayload.length);
         var encPayload = encryptedPayload.slice(0, encryptedPayload.length - 16);
         cipher.setAuthTag(authTag);
