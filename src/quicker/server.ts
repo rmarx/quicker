@@ -1,3 +1,4 @@
+import {Connection} from './connection';
 import { Socket, createSocket, SocketType, RemoteInfo } from "dgram";
 import { PacketParser, PacketOffset } from "../packet/packet.parser";
 import { BasePacket } from "../packet/base.packet";
@@ -38,8 +39,10 @@ export class Server extends EventEmitter{
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
+        var connection = new Connection(rinfo, EndpointType.Server, {key: '../keys/key.pem', cert: '../keys.cert.pem'});
+        connection.setSocket(this.server);
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client, undefined);
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client, connection);
 
             // debugging reasons;
             console.log("type: " + packetOffset.packet.getHeader().getPacketType());
@@ -57,7 +60,7 @@ export class Server extends EventEmitter{
             var header = (new HeaderParser()).parse(msg).header;
             if (header.getHeaderType() === HeaderType.LongHeader) {
                 var longHeader: LongHeader = <LongHeader>header;
-                this.sendVersionNegotiationPacket(rinfo, longHeader);
+                this.sendVersionNegotiationPacket(connection, longHeader);
             }
             return;
         }
@@ -75,12 +78,12 @@ export class Server extends EventEmitter{
         console.log("listening");
     }
 
-    private sendVersionNegotiationPacket(rinfo: RemoteInfo, header: LongHeader) {
+    private sendVersionNegotiationPacket(connection: Connection, header: LongHeader) {
         var connectionID = header.getConnectionID();
         if (connectionID !== undefined) {
             var packetNumber = PacketNumber.randomPacketNumber();
-            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber);
-            this.server.send(p.toBuffer(),rinfo.port, rinfo.address);
+            var p = PacketFactory.createVersionNegotiationPacket(connection, packetNumber);
+            this.server.send(p.toBuffer(),connection.getRemoteInfo().port, connection.getRemoteInfo().address);
         }
     }
 }

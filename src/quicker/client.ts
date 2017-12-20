@@ -10,41 +10,49 @@ import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
 import { EndpointType } from './type';
+import { Connection } from './connection';
+import { PacketHandler } from './../packet/packet.handler';
 
 
 export class Client {
         
     private port: number;
     private hostname: string;
-    private client: Socket;
 
     private packetParser: PacketParser;
-    private qtls: QTLS;
-    private connectionID: ConnectionID;
+    private packetHandler: PacketHandler;
+
+    private connection: Connection;
 
     constructor() {
         this.packetParser = new PacketParser();
-        this.qtls = new QTLS(false, {key: fs.readFileSync('./../keys/key.pem'), cert: fs.readFileSync('./../keys/cert.pem')});
+        this.packetHandler = new PacketHandler();
     }
 
     public connect(hostname: string, port: number) {
         this.hostname = hostname;
         this.port = port;
-        this.client = createSocket("udp4");
-        this.client.on('error',(err) => {this.onError(err)});
-        this.client.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
-        this.client.on('close',() => {this.onClose()});
+        var socket = createSocket("udp4");
+        socket.on('error',(err) => {this.onError(err)});
+        socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        socket.on('close',() => {this.onClose()});
+        var remoteInfo: RemoteInfo = {
+            address: hostname,
+            port: port, 
+            family: 'IPv4'
+        };
+        this.connection = new Connection(remoteInfo, EndpointType.Client);
+        this.connection.setConnectionID(ConnectionID.randomConnectionID());
+        this.connection.setSocket(socket);
     }
 
-    public testSend() {;
-        var connectionID = ConnectionID.randomConnectionID();
-        this.connectionID = connectionID;
+    public testSend() {
         var packetNumber = PacketNumber.randomPacketNumber();
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        console.log("connectionid: " + connectionID.toString());
+        console.log("connectionid: " + this.connection.getConnectionID().toString());
         console.log("packet number: " + packetNumber.toString());
-        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(connectionID, packetNumber, version, this.qtls);
-        this.client.send(clientInitial.toBuffer(), this.port, this.hostname);
+        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection, packetNumber, version);
+        this.connection.getSocket().send(clientInitial.toBuffer(), this.port, this.hostname);
     }
 
     public getPort(): number {
@@ -58,7 +66,8 @@ export class Client {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, this.connectionID);
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, this.connection);
+            this.packetHandler.handle(this.connection, packetOffset.packet);
             console.log("received packettype: " + packetOffset.packet.getPacketType());
             
         }catch(err) {
