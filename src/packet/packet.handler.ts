@@ -49,5 +49,6 @@ export class PacketHandler {
                 default:
                     //ignore
             }
-        }
+        });
+    }
 }
