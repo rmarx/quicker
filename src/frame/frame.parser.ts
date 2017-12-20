@@ -14,7 +14,7 @@ import {ConnectionID} from '../packet/header/base.header';
 import {NewConnectionIdFrame} from './general/new.connection.id';
 import {StopSendingFrame} from './general/stop.sending';
 import {StreamFrame} from './general/stream';
-
+import { AckBlock, AckFrame } from './general/ack';
 
 
 export class FrameParser {
@@ -224,8 +224,26 @@ export class FrameParser {
     }
 
     private parseAck(buffer: Buffer, offset: number): FrameOffset {
-        // TODO
-        throw new Error("not implemented");
+        var largestAcknowledged: Bignum = VLIE.decode(buffer, offset);
+        offset += largestAcknowledged.getByteLength();
+        var ackDelay: Bignum = VLIE.decode(buffer, offset);
+        offset += ackDelay.getByteLength();
+        var ackBlockCount: Bignum = VLIE.decode(buffer, offset);
+
+        var firstAckBlock: Bignum = VLIE.decode(buffer, offset);
+        offset += firstAckBlock.getByteLength();
+        var ackBlocks: AckBlock[] = [];
+        for(var i = Bignum.fromNumber(1); i.lessThan(ackBlockCount); i.add(1)) {
+            var gap = VLIE.decode(buffer, offset);
+            offset += gap.getByteLength();
+            var block = VLIE.decode(buffer, offset);
+            offset += gap.getByteLength();
+            ackBlocks.push(new AckBlock(gap, block));
+        }
+        return {
+            frame: new AckFrame(largestAcknowledged, ackDelay, ackBlockCount, firstAckBlock, ackBlocks),
+            offset: offset
+        };
     }
 
     private parseStream(type: FrameType, buffer: Buffer, offset: number): FrameOffset {
@@ -267,8 +285,6 @@ export class FrameParser {
         };
     }
 }
-
-
 
 
 export interface FrameOffset {

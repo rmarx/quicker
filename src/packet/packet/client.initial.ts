@@ -1,4 +1,4 @@
-import { BasePacket } from "../base.packet";
+import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 import { StreamFrame } from "./../../frame/general/stream";
 import { PaddingFrame } from "./../../frame/general/padding";
@@ -13,7 +13,7 @@ export class ClientInitialPacket extends BasePacket {
     private aead: AEAD;
     
     public constructor(header: BaseHeader, streamFrame: StreamFrame) {
-        super( header);
+        super(PacketType.Initial,header);
         this.streamFrame = streamFrame;
         this.aead = new AEAD();
     }

@@ -8,6 +8,7 @@ import { Version, LongHeader } from "../packet/header/long.header";
 import { PacketFactory } from "../packet/packet.factory";
 import { PacketNumber, BaseHeader, HeaderType } from "../packet/header/base.header";
 import { HeaderParser } from "../packet/header/header.parser";
+import { EndpointType } from "./type";
 
 export class Server extends EventEmitter{
     private server: Socket;
@@ -38,7 +39,7 @@ export class Server extends EventEmitter{
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg);
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client);
 
             // debugging reasons;
             console.log("type: " + packetOffset.packet.getHeader().getPacketType());

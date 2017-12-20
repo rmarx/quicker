@@ -1,10 +1,19 @@
-import { BasePacket } from "../base.packet";
+import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
+import { BaseFrame } from "../../frame/base.frame";
 
 export class HandshakePacket extends BasePacket {
     
-    public constructor(header: BaseHeader) {
-        super(header);
+    // can contains Streamframes, ack frames and padding frames
+    private frames: BaseFrame[];
+
+    public constructor(header: BaseHeader, frames: BaseFrame[]) {
+        super(PacketType.Handshake,header);
+        this.frames = frames;
+    }
+
+    public getFrames(): BaseFrame[] {
+        return this.frames;
     }
 
     /**

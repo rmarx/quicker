@@ -9,6 +9,7 @@ import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
 import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
+import { EndpointType } from './type';
 
 
 export class Client {
@@ -55,24 +56,13 @@ export class Client {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg);
-
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server);
+            console.log("received packettype: " + packetOffset.packet.getPacketType());
             
         }catch(err) {
             // packet not parseable yet.
             console.log("parse error: " + err.message);
             return;
-        }
-        var packet: BasePacket = packetOffset.packet;
-        // TODO parse frames
-        console.log("Packet number: " + packet.getHeader().getPacketNumber().toString());
-        // TODO ACK 
-        var connectionID = packet.getHeader().getConnectionID();
-        var packetNumber = PacketNumber.randomPacketNumber();
-        if(connectionID !== undefined) {
-            console.log("Connection ID: " + connectionID.toString());
-            var p = PacketFactory.createVersionNegotiationPacket(connectionID, packetNumber);
-            this.client.send(p.toBuffer(),rinfo.port, rinfo.address);
         }
     }
 

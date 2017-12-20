@@ -1,4 +1,4 @@
-import { BasePacket } from "../base.packet";
+import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 import { Version } from "../header/long.header";
 import { Constants } from "../../utilities/constants";
@@ -9,7 +9,7 @@ export class VersionNegotiationPacket extends BasePacket {
     private versions: Version[];
     
     public constructor(header: BaseHeader, versions: Version[] = []) {
-        super(header);
+        super(PacketType.VersionNegotiation, header);
         this.versions = versions;
     }
 
