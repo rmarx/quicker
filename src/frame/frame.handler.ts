@@ -23,7 +23,7 @@ export class FrameHandler {
             case FrameType.PONG:
             case FrameType.ACK:
         }
-        if (type >= FrameType.STREAM) {
+        if (frame.getType() >= FrameType.STREAM) {
         }
     }
 }
