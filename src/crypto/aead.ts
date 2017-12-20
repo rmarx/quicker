@@ -14,13 +14,9 @@ export class AEAD {
      * @param payload Payload that needs to be send
      * @param encryptingEndpoint the encrypting endpoint
      */
-    public clearTextEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
+    public clearTextEncrypt(clientConnectionId: ConnectionID, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
-        var connectionId = header.getConnectionID();
-        if (connectionId === undefined) {
-            throw Error("No conenction ID set in header in function clearTextEncrypt");
-        }
-        var clearTextSecret = this.getClearTextSecret(hkdf, connectionId, encryptingEndpoint);
+        var clearTextSecret = this.getClearTextSecret(hkdf, clientConnectionId, encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
         var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();
@@ -33,13 +29,9 @@ export class AEAD {
      * @param encryptedPayload Payload that needs to be decrypted
      * @param encryptingEndpoint The endpoint that encrypted the payload
      */
-    public clearTextDecrypt(header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType) {
-        var hkdf = new HKDF("sha256");
-        var connectionId = header.getConnectionID();
-        if (connectionId === undefined) {
-            throw Error("No conenction ID set in header in function clearTextEncrypt");
-        }
-        var clearTextSecret = this.getClearTextSecret(hkdf, connectionId, encryptingEndpoint);
+    public clearTextDecrypt(clientConnectionId: ConnectionID, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType) {
+        var hkdf = new HKDF(Constants.DEFAULT_HASH);
+        var clearTextSecret = this.getClearTextSecret(hkdf, clientConnectionId, encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", 16);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
         var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();

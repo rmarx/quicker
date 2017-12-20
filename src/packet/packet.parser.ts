@@ -1,13 +1,13 @@
-import { HeaderParser } from "./header/header.parser";
-import { BasePacket } from "./base.packet";
-import { HeaderType, BaseHeader } from "./header/base.header";
-import { LongHeader, LongHeaderType, Version } from "./header/long.header";
-import { VersionNegotiationPacket } from "./packet/version.negotiation";
-import { Constants } from "../utilities/constants";
-import { AEAD } from "../crypto/aead";
-import { EndpointType } from "../quicker/type";
-import { FrameParser } from "../frame/frame.parser";
-import { HandshakePacket } from "./packet/handshake";
+import {HeaderParser} from './header/header.parser';
+import {BasePacket} from './base.packet';
+import {ConnectionID, HeaderType, BaseHeader} from './header/base.header';
+import {LongHeader, LongHeaderType, Version} from './header/long.header';
+import {VersionNegotiationPacket} from './packet/version.negotiation';
+import {Constants} from '../utilities/constants';
+import {AEAD} from '../crypto/aead';
+import {EndpointType} from '../quicker/type';
+import {FrameParser} from '../frame/frame.parser';
+import {HandshakePacket} from './packet/handshake';
 
 
 export class PacketParser {
@@ -21,16 +21,16 @@ export class PacketParser {
         this.frameParser = new FrameParser();
     }
 
-    public parse(msg: Buffer, endpoint: EndpointType): PacketOffset {
+    public parse(clientConnectionID: ConnectionID, msg: Buffer, endpoint: EndpointType): PacketOffset {
         var headerOffset = this.headerParser.parse(msg);
         var header = headerOffset.header;
         if (header.getHeaderType() === HeaderType.LongHeader) {
-            return this.parseLongHeaderPacket(header, msg, endpoint)
+            return this.parseLongHeaderPacket(clientConnectionID, header, msg, endpoint)
         }
         return this.parseShortHeaderPacket(header, msg, headerOffset.offset);
     }
 
-    private parseLongHeaderPacket(header: BaseHeader, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+    private parseLongHeaderPacket(clientConnectionID: ConnectionID, header: BaseHeader, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var longheader = <LongHeader>header;
         var offset = Constants.LONG_HEADER_SIZE;
         switch (header.getPacketType()) {
@@ -42,7 +42,7 @@ export class PacketParser {
                 // 0-RTT Protected
                 throw new Error("Method not implemented.");
             case LongHeaderType.Handshake:
-                return this.parseHandshakePacket(header, buffer, offset, endpoint);
+                return this.parseHandshakePacket(clientConnectionID, header, buffer, offset, endpoint);
             default:
                 // Version negotiation packet
                 console.log("version: " + longheader.getVersion().toString());
@@ -71,10 +71,10 @@ export class PacketParser {
         };
     }
 
-    private parseHandshakePacket(header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
+    private parseHandshakePacket(clientConnectionID: ConnectionID, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
         var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
         buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = this.aead.clearTextDecrypt(header, dataBuffer, endpoint);
+        dataBuffer = this.aead.clearTextDecrypt(clientConnectionID, header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new HandshakePacket(header, frames),

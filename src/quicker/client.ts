@@ -20,6 +20,7 @@ export class Client {
 
     private packetParser: PacketParser;
     private qtls: QTLS;
+    private connectionId: ConnectionID;
 
     constructor() {
         this.packetParser = new PacketParser();
@@ -56,7 +57,7 @@ export class Client {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server);
+            var packetOffset: PacketOffset = this.packetParser.parse(this.connectionId, msg, EndpointType.Server);
             console.log("received packettype: " + packetOffset.packet.getPacketType());
             
         }catch(err) {

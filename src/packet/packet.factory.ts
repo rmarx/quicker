@@ -9,6 +9,7 @@ import {StreamFrame} from '../frame/general/stream';
 import {Bignum} from '../utilities/bignum';
 import {ServerStatelessRetryPacket} from './packet/server.stateless.retry';
 import {HandshakePacket} from './packet/handshake';
+import { BaseFrame } from './../frame/base.frame';
 
 
 export class PacketFactory {
@@ -73,8 +74,8 @@ export class PacketFactory {
      * @param packetNumber 
      * @param version 
      */
-    public static createHandshakePacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version): HandshakePacket {
+    public static createHandshakePacket(connectionID: ConnectionID, packetNumber: PacketNumber, version: Version, frames: BaseFrame[]): HandshakePacket {
         var header = new LongHeader(LongHeaderType.Handshake, connectionID, packetNumber, version);
-        return new HandshakePacket(header);
+        return new HandshakePacket(header, frames);
     }
 }
