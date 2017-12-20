@@ -21,10 +21,14 @@ export class PacketParser {
         this.frameParser = new FrameParser();
     }
 
-    public parse(clientConnectionID: ConnectionID, msg: Buffer, endpoint: EndpointType): PacketOffset {
+    public parse(msg: Buffer, endpoint: EndpointType, clientConnectionID?: ConnectionID): PacketOffset {
         var headerOffset = this.headerParser.parse(msg);
         var header = headerOffset.header;
         if (header.getHeaderType() === HeaderType.LongHeader) {
+            clientConnectionID = clientConnectionID === undefined ? header.getConnectionID() : clientConnectionID;
+            if(clientConnectionID === undefined) {
+                throw Error("Connection ID is undefined");
+            }
             return this.parseLongHeaderPacket(clientConnectionID, header, msg, endpoint)
         }
         return this.parseShortHeaderPacket(header, msg, headerOffset.offset);

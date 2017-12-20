@@ -25,6 +25,10 @@ export class ClientInitialPacket extends BasePacket {
         if (this.getHeader() === undefined) {
             throw Error("Header is not defined");
         }
+        var connectionID = this.getHeader().getConnectionID();
+        if (connectionID === undefined) {
+            throw Error("ConnectionID is undefined");
+        }
         var headerBuffer = this.getHeader().toBuffer();
         var streamBuffer = this.streamFrame.toBuffer();
         var paddingSize = Constants.CLIENT_INITIAL_MIN_SIZE - streamBuffer.byteLength;
@@ -33,7 +37,7 @@ export class ClientInitialPacket extends BasePacket {
         var dataBuffer = Buffer.alloc(Constants.CLIENT_INITIAL_MIN_SIZE);
         streamBuffer.copy(dataBuffer, 0);
         paddingFrame.toBuffer().copy(dataBuffer, streamBuffer.byteLength);
-        dataBuffer = this.aead.clearTextEncrypt(this.getHeader(), dataBuffer, EndpointType.Client);
+        dataBuffer = this.aead.clearTextEncrypt(connectionID, this.getHeader(), dataBuffer, EndpointType.Client);
 
         var buffer = Buffer.alloc(headerBuffer.byteLength + dataBuffer.byteLength);
         var offset = 0;

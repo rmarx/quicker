@@ -20,7 +20,7 @@ export class Client {
 
     private packetParser: PacketParser;
     private qtls: QTLS;
-    private connectionId: ConnectionID;
+    private connectionID: ConnectionID;
 
     constructor() {
         this.packetParser = new PacketParser();
@@ -38,6 +38,7 @@ export class Client {
 
     public testSend() {;
         var connectionID = ConnectionID.randomConnectionID();
+        this.connectionID = connectionID;
         var packetNumber = PacketNumber.randomPacketNumber();
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         console.log("connectionid: " + connectionID.toString());
@@ -57,7 +58,7 @@ export class Client {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(this.connectionId, msg, EndpointType.Server);
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, this.connectionID);
             console.log("received packettype: " + packetOffset.packet.getPacketType());
             
         }catch(err) {

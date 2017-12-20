@@ -39,7 +39,7 @@ export class Server extends EventEmitter{
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client);
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client, undefined);
 
             // debugging reasons;
             console.log("type: " + packetOffset.packet.getHeader().getPacketType());
