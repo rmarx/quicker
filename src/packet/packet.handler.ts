@@ -5,6 +5,7 @@ import { HandshakePacket } from './packet/handshake';
 import { EndpointType } from './../quicker/type';
 import { FrameHandler } from './../frame/frame.handler';
 import { StreamFrame } from './../frame/general/stream';
+import { PacketFactory } from './packet.factory';
 
 
 export class PacketHandler {
@@ -32,14 +33,19 @@ export class PacketHandler {
 
     public handleHandshakePacket(connection: Connection, packet: BasePacket): void {
         var handshakePacket: HandshakePacket = <HandshakePacket>packet;
+        var connectionID = packet.getHeader().getConnectionID();
+        if (connectionID === undefined) {
+            throw Error("No ConnectionID defined");
+        }
+        connection.setConnectionID(connectionID);
         handshakePacket.getFrames().forEach((baseFrame: BaseFrame) => {
-
             if (baseFrame.getType() >= FrameType.STREAM) {
                 var stream = <StreamFrame> baseFrame;
                 connection.getQuicTLS().writeHandshake(stream.getData());
                 var data = connection.getQuicTLS().readHandshake();
                 var str = new StreamFrame(stream.getStreamID(), data);
-                connection.getSocket().send(str.toBuffer(), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+                var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
+                connection.getSocket().send(handshakePacket.toBuffer(), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
                 return;
             }
             switch (baseFrame.getType()) {

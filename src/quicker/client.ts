@@ -48,6 +48,7 @@ export class Client {
 
     public testSend() {
         var packetNumber = PacketNumber.randomPacketNumber();
+        this.connection.setPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         console.log("connectionid: " + this.connection.getConnectionID().toString());
         console.log("packet number: " + packetNumber.toString());
@@ -68,7 +69,6 @@ export class Client {
         try {
             var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, this.connection);
             this.packetHandler.handle(this.connection, packetOffset.packet);
-            console.log("received packettype: " + packetOffset.packet.getPacketType());
             
         }catch(err) {
             // packet not parseable yet.

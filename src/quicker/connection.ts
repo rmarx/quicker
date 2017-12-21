@@ -1,9 +1,11 @@
 import {QTLS} from '../crypto/qtls';
-import {ConnectionID} from '../packet/header/base.header';
+import {ConnectionID, PacketNumber} from '../packet/header/base.header';
 import {Bignum} from '../utilities/bignum';
 import { RemoteInfo, Socket } from "dgram";
 import {Stream} from './stream';
 import { EndpointType } from './type';
+import { Constants } from './../utilities/constants';
+import { Version } from './../packet/header/long.header';
 
 export class Connection {
 
@@ -14,6 +16,7 @@ export class Connection {
     private streams: Stream[];
     private qtls: QTLS;
     private socket: Socket;
+    private packetNumber: PacketNumber;
 
     public constructor(remoteInfo: RemoteInfo, endpointType: EndpointType, options?: any) {
         this.remoteInfo = remoteInfo;
@@ -60,6 +63,23 @@ export class Connection {
 
     public getSocket(): Socket {
         return this.socket;
+    }
+
+    public getPacketNumber(): PacketNumber {
+        return this.packetNumber;
+    }
+
+    public setPacketNumber(packetNumber: PacketNumber) {
+        this.packetNumber = packetNumber;
+    }
+
+    public getNextPacketNumber(): PacketNumber {
+        this.packetNumber.getPacketNumber().add(1);
+        return this.packetNumber;
+    }
+
+    public getVersion(): Version {
+        return new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
     }
 
     public setSocket(socket: Socket) {

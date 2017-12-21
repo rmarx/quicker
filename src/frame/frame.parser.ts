@@ -33,7 +33,7 @@ export class FrameParser {
 
 
     private parseFrame(buffer: Buffer, offset: number): FrameOffset | undefined {
-        if (buffer.byteLength >= offset) {
+        if (buffer.byteLength <= offset) {
             return undefined;
         }
         var type = buffer.readUInt8(offset);
