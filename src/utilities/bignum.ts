@@ -147,7 +147,7 @@ export class Bignum {
      */
     public static fromNumber(num: number): Bignum {
         var bn = new BN(num);
-        var bignum = new Bignum(bn.toBuffer('be'), bn.byteLength());
+        var bignum = new Bignum(bn.toBuffer('be'));
         return bignum;
     }
 

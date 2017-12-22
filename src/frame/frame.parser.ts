@@ -259,7 +259,7 @@ export class FrameParser {
         }
         var streamId = VLIE.decode(buffer, offset);
         offset += streamId.getByteLength();
-        var dataLength = Bignum.fromNumber(buffer.length - offset);
+        var dataLength = Bignum.fromNumber(0);
         var dataOffset = Bignum.fromNumber(0);
         if (len) {
             dataLength = VLIE.decode(buffer, offset);
