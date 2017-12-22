@@ -261,13 +261,13 @@ export class FrameParser {
         offset += streamId.getByteLength();
         var dataLength = Bignum.fromNumber(0);
         var dataOffset = Bignum.fromNumber(0);
-        if (len) {
-            dataLength = VLIE.decode(buffer, offset);
-            offset += dataLength.getByteLength();
-        }
         if (off) {
             dataOffset = VLIE.decode(buffer, offset);
             offset += dataOffset.getByteLength();
+        }
+        if (len) {
+            dataLength = VLIE.decode(buffer, offset);
+            offset += dataLength.getByteLength();
         }
         var data = Buffer.alloc(dataLength.toNumber());
         buffer.copy(data, 0, offset, dataLength.toNumber() + offset);

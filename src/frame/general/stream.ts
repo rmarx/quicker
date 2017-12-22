@@ -47,13 +47,13 @@ export class StreamFrame extends BaseFrame {
         buffer.writeUInt8(type, offset++);
         streamIDBuffer.copy(buffer, offset);
         offset += streamIDBuffer.byteLength;
-        if (this.len && lengthBuffer !== undefined) {
-            lengthBuffer.copy(buffer, offset);
-            offset += lengthBuffer.byteLength;
-        }
         if (this.off && offsetBuffer !== undefined) {
             offsetBuffer.copy(buffer, offset);
             offset += offsetBuffer.byteLength;
+        }
+        if (this.len && lengthBuffer !== undefined) {
+            lengthBuffer.copy(buffer, offset);
+            offset += lengthBuffer.byteLength;
         }
         this.data.copy(buffer, offset);
         return buffer;

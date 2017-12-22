@@ -50,13 +50,15 @@ export class PacketHandler {
                 connectionStream.addRemoteOffset(stream.getLength());
                 connection.getQuicTLS().writeHandshake(stream.getData());
                 var data = connection.getQuicTLS().readHandshake();
-                var str = new StreamFrame(stream.getStreamID(), data);
-                str.setOff(true);
-                str.setOffset(connectionStream.getLocalOffset());
-                str.setLen(true);
-                str.setLength(Bignum.fromNumber(data.byteLength));
-                var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
-                connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+                if (data.byteLength > 0) {
+                    var str = new StreamFrame(stream.getStreamID(), data);
+                    str.setOff(true);
+                    str.setOffset(connectionStream.getLocalOffset());
+                    str.setLen(true);
+                    str.setLength(Bignum.fromNumber(data.byteLength));
+                    var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
+                    connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+                }
                 return;
             }
             switch (baseFrame.getType()) {
