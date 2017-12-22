@@ -90,12 +90,13 @@ export class Connection {
     }
 
     public getStream(streamId: Bignum): Stream | undefined {
+        var res = undefined;
         this.streams.forEach((stream: Stream) => {
             if (stream.getStreamID().equals(streamId)) {
-                return stream;
+                res = stream;
             }
         });
-        return undefined;
+        return res;
     }
 
     public addStream(stream: Stream): void {
