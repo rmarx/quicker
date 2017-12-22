@@ -56,7 +56,7 @@ export class HandshakePacket extends BasePacket {
             frame.toBuffer().copy(dataBuffer, offset);
             offset += frame.toBuffer().byteLength;
         });
-        this.aead.clearTextEncrypt(connection.getFirstConnectionID(), header, dataBuffer, connection.getEndpointType());
+        dataBuffer = this.aead.clearTextEncrypt(connection.getFirstConnectionID(), header, dataBuffer, connection.getEndpointType());
         return dataBuffer;
     }
 }

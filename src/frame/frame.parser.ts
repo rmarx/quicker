@@ -36,7 +36,7 @@ export class FrameParser {
         if (buffer.byteLength <= offset) {
             return undefined;
         }
-        var type = buffer.readUInt8(offset);
+        var type = buffer.readUInt8(offset++);
         switch (type) {
             case FrameType.PADDING:
                 // doesn't need parsing and don't need it
@@ -246,7 +246,7 @@ export class FrameParser {
         };
     }
 
-    private parseStream(type: FrameType, buffer: Buffer, offset: number): FrameOffset {
+    private parseStream(type: number, buffer: Buffer, offset: number): FrameOffset {
         var fin = false, len = false, off = false;
         if (type & 0x01) {
             fin = true;

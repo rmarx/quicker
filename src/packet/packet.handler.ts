@@ -6,6 +6,8 @@ import { EndpointType } from './../quicker/type';
 import { FrameHandler } from './../frame/frame.handler';
 import { StreamFrame } from './../frame/general/stream';
 import { PacketFactory } from './packet.factory';
+import { Stream } from './../quicker/stream';
+import { Bignum } from './../utilities/bignum';
 
 
 export class PacketHandler {
@@ -41,12 +43,18 @@ export class PacketHandler {
         handshakePacket.getFrames().forEach((baseFrame: BaseFrame) => {
             if (baseFrame.getType() >= FrameType.STREAM) {
                 var stream = <StreamFrame> baseFrame;
-                connection.getStream(stream.getStreamID()).addRemoteOffset(stream.getLength());
+                var connectionStream = connection.getStream(stream.getStreamID());
+                if (connectionStream === undefined) {
+                    connectionStream = new Stream(stream.getStreamID());
+                }
+                connectionStream.addRemoteOffset(stream.getLength());
                 connection.getQuicTLS().writeHandshake(stream.getData());
                 var data = connection.getQuicTLS().readHandshake();
                 var str = new StreamFrame(stream.getStreamID(), data);
                 str.setOff(true);
-                str.setOffset(connection.getStream(stream.getStreamID()).getLocalOffset());
+                str.setOffset(connectionStream.getLocalOffset());
+                str.setLen(true);
+                str.setLength(Bignum.fromNumber(data.byteLength));
                 var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
                 connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
                 return;

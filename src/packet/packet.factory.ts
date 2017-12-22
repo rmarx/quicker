@@ -11,6 +11,7 @@ import {StreamFrame} from '../frame/general/stream';
 import {Bignum} from '../utilities/bignum';
 import {ServerStatelessRetryPacket} from './packet/server.stateless.retry';
 import {HandshakePacket} from './packet/handshake';
+import { Stream } from './../quicker/stream';
 
 
 export class PacketFactory {
@@ -54,6 +55,9 @@ export class PacketFactory {
         streamFrame.setLen(true);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
         var stream = connection.getStream(Bignum.fromNumber(0));
+        if (stream === undefined) {
+            stream = new Stream(Bignum.fromNumber(0));
+        }
         stream.addLocalOffset(streamFrame.getLength());
         return new ClientInitialPacket(header, streamFrame);
     }

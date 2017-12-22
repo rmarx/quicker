@@ -24,7 +24,8 @@ export class Connection {
     public constructor(remoteInfo: RemoteInfo, endpointType: EndpointType, options?: any) {
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
-        this.qtls = new QTLS(endpointType === EndpointType.Server, options)
+        this.qtls = new QTLS(endpointType === EndpointType.Server, options);
+        this.streams = [];
     }
 
     public getRemoteInfo(): RemoteInfo {
@@ -88,14 +89,13 @@ export class Connection {
         this.socket = socket;
     }
 
-    public getStream(streamId: Bignum): Stream {
+    public getStream(streamId: Bignum): Stream | undefined {
         this.streams.forEach((stream: Stream) => {
             if (stream.getStreamID().equals(streamId)) {
                 return stream;
             }
         });
-        //return undefined;
-        throw Error("Stream not found");
+        return undefined;
     }
 
     public addStream(stream: Stream): void {

@@ -118,7 +118,10 @@ export class Bignum {
     }
 
     public getByteLength(): number {
-        return this.byteSize !== undefined ? this.byteSize : this.bignum.byteLength();
+        var byteLength = this.byteSize !== undefined ? this.byteSize : this.bignum.byteLength();
+        if (byteLength === 0)
+            byteLength++;
+        return byteLength;
     }
 
     /**

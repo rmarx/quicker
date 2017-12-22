@@ -21,6 +21,10 @@ export class AEAD {
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", 12);
         var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
+        console.log("Key: " + key.toString('hex'));
+        console.log("IV: " + iv.toString('hex'));
+        console.log("nonce: " + nonce.toString('hex'));
+        console.log("AD: " + ad.toString('hex'));
         return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
     }
     /**
@@ -67,7 +71,9 @@ export class AEAD {
         cipher.setAAD(ad);
         var update: Buffer = cipher.update(payload);
         var final: Buffer = cipher.final();
-        return Buffer.concat([update, final, cipher.getAuthTag()]);
+        var authTag = cipher.getAuthTag();
+        console.log("tag: " + authTag.toString('hex'));
+        return Buffer.concat([update, final, authTag]);
     }
 
     /**
