@@ -1,3 +1,6 @@
+import {PacketHandler} from '../packet/packet.handler';
+import {Bignum} from '../utilities/bignum';
+import {Stream} from './stream';
 import {Constants} from '../utilities/constants';
 import {Version} from '../packet/header/long.header';
 import {ClientInitialPacket} from '../packet/packet/client.initial';
@@ -9,9 +12,8 @@ import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
 import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
-import { EndpointType } from './type';
-import { Connection } from './connection';
-import { PacketHandler } from './../packet/packet.handler';
+import {EndpointType} from './type';
+import {Connection} from './connection';
 
 
 export class Client {
@@ -53,6 +55,7 @@ export class Client {
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         console.log("connectionid: " + this.connection.getConnectionID().toString());
         console.log("packet number: " + packetNumber.toString());
+        this.connection.addStream(new Stream(Bignum.fromNumber(0)));
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection, packetNumber, version);
         this.connection.getSocket().send(clientInitial.toBuffer(this.connection), this.port, this.hostname);
     }

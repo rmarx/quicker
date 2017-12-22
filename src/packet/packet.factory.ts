@@ -53,6 +53,8 @@ export class PacketFactory {
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLen(true);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
+        var stream = connection.getStream(Bignum.fromNumber(0));
+        stream.addLocalOffset(streamFrame.getLength());
         return new ClientInitialPacket(header, streamFrame);
     }
 

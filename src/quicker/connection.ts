@@ -9,15 +9,17 @@ import { Version } from './../packet/header/long.header';
 
 export class Connection {
 
-    private endpointType: EndpointType;
-    private firstConnectionID: ConnectionID;
-    private connectionID: ConnectionID;
-    private remoteInfo: RemoteInfo;
-    private state: ConnectionState;
-    private streams: Stream[];
     private qtls: QTLS;
     private socket: Socket;
+    private remoteInfo: RemoteInfo;
+    private endpointType: EndpointType;
+
+    private firstConnectionID: ConnectionID;
+    private connectionID: ConnectionID;
     private packetNumber: PacketNumber;
+
+    private state: ConnectionState;
+    private streams: Stream[];
 
     public constructor(remoteInfo: RemoteInfo, endpointType: EndpointType, options?: any) {
         this.remoteInfo = remoteInfo;
@@ -53,15 +55,6 @@ export class Connection {
         this.state = connectionState;
     }
 
-    public getStream(streamId: Bignum): Stream | undefined {
-        this.streams.forEach((stream: Stream) => {
-            if (stream.getStreamID().equals(streamId)) {
-                return stream;
-            }
-        });
-        return undefined;
-    }
-
     public getEndpointType(): EndpointType {
         return this.endpointType;
     }
@@ -93,6 +86,16 @@ export class Connection {
 
     public setSocket(socket: Socket) {
         this.socket = socket;
+    }
+
+    public getStream(streamId: Bignum): Stream {
+        this.streams.forEach((stream: Stream) => {
+            if (stream.getStreamID().equals(streamId)) {
+                return stream;
+            }
+        });
+        //return undefined;
+        throw Error("Stream not found");
     }
 
     public addStream(stream: Stream): void {
