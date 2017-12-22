@@ -45,7 +45,7 @@ export class PacketHandler {
                 var data = connection.getQuicTLS().readHandshake();
                 var str = new StreamFrame(stream.getStreamID(), data);
                 var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
-                connection.getSocket().send(handshakePacket.toBuffer(), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+                connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
                 return;
             }
             switch (baseFrame.getType()) {

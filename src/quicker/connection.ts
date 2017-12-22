@@ -10,6 +10,7 @@ import { Version } from './../packet/header/long.header';
 export class Connection {
 
     private endpointType: EndpointType;
+    private firstConnectionID: ConnectionID;
     private connectionID: ConnectionID;
     private remoteInfo: RemoteInfo;
     private state: ConnectionState;
@@ -26,6 +27,14 @@ export class Connection {
 
     public getRemoteInfo(): RemoteInfo {
         return this.remoteInfo;
+    }
+
+    public getFirstConnectionID(): ConnectionID {
+        return this.firstConnectionID;
+    }
+
+    public setFirstConnectionID(connectionID: ConnectionID): void{
+        this.firstConnectionID = connectionID;
     }
 
     public getConnectionID(): ConnectionID {

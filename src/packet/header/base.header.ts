@@ -122,8 +122,6 @@ export class PacketNumber extends BaseProperty {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
         this.getProperty().toBuffer().copy(buf, 0, 8-size, 8);
-        console.log("before: " + this.getProperty().toString('hex'));
-        console.log("result: " + buf.toString('hex'))
         return buf;
     }
 

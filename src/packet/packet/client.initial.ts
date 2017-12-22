@@ -6,6 +6,7 @@ import { Constants } from "./../../utilities/constants";
 import { AEAD } from "./../../crypto/aead";
 import { EndpointType } from "./../../quicker/type";
 import { assert } from "console";
+import { Connection } from "./../../quicker/connection";
 
 export class ClientInitialPacket extends BasePacket {
 
@@ -21,14 +22,11 @@ export class ClientInitialPacket extends BasePacket {
     /**
      * Method to get buffer object from a ClientInitialPacket object
      */
-    public toBuffer() {
+    public toBuffer(connection: Connection) {
         if (this.getHeader() === undefined) {
             throw Error("Header is not defined");
         }
-        var connectionID = this.getHeader().getConnectionID();
-        if (connectionID === undefined) {
-            throw Error("ConnectionID is undefined");
-        }
+
         var headerBuffer = this.getHeader().toBuffer();
         var streamBuffer = this.streamFrame.toBuffer();
         var paddingSize = Constants.CLIENT_INITIAL_MIN_SIZE - streamBuffer.byteLength;
@@ -37,7 +35,7 @@ export class ClientInitialPacket extends BasePacket {
         var dataBuffer = Buffer.alloc(Constants.CLIENT_INITIAL_MIN_SIZE);
         streamBuffer.copy(dataBuffer, 0);
         paddingFrame.toBuffer().copy(dataBuffer, streamBuffer.byteLength);
-        dataBuffer = this.aead.clearTextEncrypt(connectionID, this.getHeader(), dataBuffer, EndpointType.Client);
+        dataBuffer = this.aead.clearTextEncrypt(connection.getFirstConnectionID(), this.getHeader(), dataBuffer, connection.getEndpointType());
 
         var buffer = Buffer.alloc(headerBuffer.byteLength + dataBuffer.byteLength);
         var offset = 0;

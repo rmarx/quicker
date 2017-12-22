@@ -51,7 +51,6 @@ export class PacketParser {
                 return this.parseHandshakePacket(connection, header, buffer, offset, endpoint);
             default:
                 // Version negotiation packet
-                console.log("version: " + longheader.getVersion().toString());
                 if (longheader.getVersion().toString() === "00000000") {
                     return this.parseVersionNegotiationPacket(header, buffer, offset);
                 }
@@ -80,7 +79,7 @@ export class PacketParser {
     private parseHandshakePacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
         var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
         buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = this.aead.clearTextDecrypt(connection.getConnectionID(), header, dataBuffer, endpoint);
+        dataBuffer = this.aead.clearTextDecrypt(connection.getFirstConnectionID(), header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new HandshakePacket(header, frames),

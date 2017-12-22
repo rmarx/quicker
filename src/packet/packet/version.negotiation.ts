@@ -4,6 +4,7 @@ import { Version } from "../header/long.header";
 import { Constants } from "../../utilities/constants";
 import { AEAD } from "../../crypto/aead";
 import { EndpointType } from "../../quicker/type";
+import { Connection } from "./../../quicker/connection";
 
 export class VersionNegotiationPacket extends BasePacket {
     private versions: Version[];
@@ -24,7 +25,7 @@ export class VersionNegotiationPacket extends BasePacket {
     /**
      * Method to get buffer object from a VersionNegotiationPacket object
      */
-    public toBuffer() {
+    public toBuffer(connection: Connection) {
         if (this.getHeader() === undefined) {
             throw Error("Header is not defined");
         }

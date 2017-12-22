@@ -1,5 +1,6 @@
 import { BaseHeader, ConnectionID, PacketNumber, HeaderType } from "./header/base.header";
 import { Version, LongHeader } from "./header/long.header";
+import { Connection } from "./../quicker/connection";
 
 
 export abstract class BasePacket {
@@ -25,7 +26,7 @@ export abstract class BasePacket {
         return this.packetType;
     }
 
-    abstract toBuffer(): Buffer;
+    abstract toBuffer(connection: Connection): Buffer;
 }
 
 export enum PacketType {

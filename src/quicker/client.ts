@@ -43,6 +43,7 @@ export class Client {
         };
         this.connection = new Connection(remoteInfo, EndpointType.Client);
         this.connection.setConnectionID(ConnectionID.randomConnectionID());
+        this.connection.setFirstConnectionID(this.connection.getConnectionID());
         this.connection.setSocket(socket);
     }
 
@@ -53,7 +54,7 @@ export class Client {
         console.log("connectionid: " + this.connection.getConnectionID().toString());
         console.log("packet number: " + packetNumber.toString());
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection, packetNumber, version);
-        this.connection.getSocket().send(clientInitial.toBuffer(), this.port, this.hostname);
+        this.connection.getSocket().send(clientInitial.toBuffer(this.connection), this.port, this.hostname);
     }
 
     public getPort(): number {
