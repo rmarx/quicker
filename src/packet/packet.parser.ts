@@ -9,6 +9,8 @@ import {AEAD} from '../crypto/aead';
 import {EndpointType} from '../quicker/type';
 import {FrameParser} from '../frame/frame.parser';
 import {HandshakePacket} from './packet/handshake';
+import { ClientInitialPacket } from './packet/client.initial';
+import { StreamFrame } from './../frame/general/stream';
 
 
 export class PacketParser {
@@ -40,7 +42,8 @@ export class PacketParser {
                 if (connectionID === undefined) {
                     throw Error("No connectionID set in header");
                 }
-                connection.setConnectionID(connectionID);
+                connection.setFirstConnectionID(connectionID);
+                return this.parseClientInitialPacket(connection, header, buffer, offset, endpoint);
                 // Initial
             case LongHeaderType.Retry:
             // Server Stateless Retry
@@ -61,6 +64,17 @@ export class PacketParser {
 
     private parseShortHeaderPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
         throw new Error("Method not implemented.");
+    }
+
+    private parseClientInitialPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
+        var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
+        buffer.copy(dataBuffer, 0, offset);
+        dataBuffer = this.aead.clearTextDecrypt(connection.getFirstConnectionID(), header, dataBuffer, endpoint);
+        var frames = this.frameParser.parse(dataBuffer, 0);
+        return {
+            packet: new ClientInitialPacket(header, frames),
+            offset: offset
+        };
     }
 
     private parseVersionNegotiationPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {

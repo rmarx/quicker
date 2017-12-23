@@ -50,15 +50,14 @@ export class Server extends EventEmitter{
             connection.setSocket(this.server);
             this.connections[JSON.stringify(rinfo)] = connection;
         }
-        
-        console.log("on message");
         try {
             var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, connection);
             this.packetHandler.handle(connection, packetOffset.packet);
             
         }catch(err) {
             // packet not parseable yet.
-            console.log("parse error: " + err.message);
+            console.log("Error: " + err.message);
+            console.log("Stack: " + err.stack);
             return;
         }
     }

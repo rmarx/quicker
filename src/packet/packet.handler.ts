@@ -9,7 +9,7 @@ import { StreamFrame } from './../frame/general/stream';
 import { PacketFactory } from './packet.factory';
 import { Stream } from './../quicker/stream';
 import { Bignum } from './../utilities/bignum';
-import { ClientInitialPacket } from 'src/packet/packet/client.initial';
+import { ClientInitialPacket } from './packet/client.initial';
 
 
 export class PacketHandler {
@@ -37,9 +37,10 @@ export class PacketHandler {
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
         }
-        connection.setFirstConnectionID(connectionID);
         connection.setConnectionID(ConnectionID.randomConnectionID());
-        this.handleHandshakeFrames(connection, clientInitialPacket.getStreamFrame());        
+        clientInitialPacket.getFrames().forEach((baseFrame: BaseFrame) => {
+            this.handleHandshakeFrames(connection, baseFrame);
+        });
     }
 
     public handleHandshakePacket(connection: Connection, packet: BasePacket): void {

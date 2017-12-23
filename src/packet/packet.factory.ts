@@ -59,7 +59,7 @@ export class PacketFactory {
             stream = new Stream(Bignum.fromNumber(0));
         }
         stream.addLocalOffset(streamFrame.getLength());
-        return new ClientInitialPacket(header, streamFrame);
+        return new ClientInitialPacket(header, [streamFrame]);
     }
 
     /**
