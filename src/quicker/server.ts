@@ -1,3 +1,4 @@
+import {PacketHandler} from '../packet/packet.handler';
 import {Connection} from './connection';
 import { Socket, createSocket, SocketType, RemoteInfo } from "dgram";
 import { PacketParser, PacketOffset } from "../packet/packet.parser";
@@ -17,10 +18,14 @@ export class Server extends EventEmitter{
     private host: string;
 
     private packetParser: PacketParser;
+    private packetHandler: PacketHandler;
+
+    private connections: { [email: string]: Connection; } = { }
 
     public constructor() {
         super();
         this.packetParser = new PacketParser();
+        this.packetHandler = new PacketHandler();
     }
 
     public listen(host: string, port: number) {
@@ -39,29 +44,21 @@ export class Server extends EventEmitter{
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
-        var connection = new Connection(rinfo, EndpointType.Server, {key: '../keys/key.pem', cert: '../keys.cert.pem'});
-        connection.setSocket(this.server);
+        var connection = this.connections[JSON.stringify(rinfo)];
+        if (connection === undefined) {
+            connection = new Connection(rinfo, EndpointType.Server, {key: '../keys/key.pem', cert: '../keys.cert.pem'});
+            connection.setSocket(this.server);
+            this.connections[JSON.stringify(rinfo)] = connection;
+        }
+        
+        console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client, connection);
-
-            // debugging reasons;
-            console.log("type: " + packetOffset.packet.getHeader().getPacketType());
-            var header = packetOffset.packet.getHeader();
-            var longHeader: LongHeader = <LongHeader>header
-            var connectionId = longHeader.getConnectionID();
-            if(connectionId !== undefined) {
-                console.log("connectionid: " + connectionId.toString());
-                console.log("packet number: " + longHeader.getPacketNumber().toString());
-                console.log("version: " + longHeader.getVersion().toString());
-            }
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, connection);
+            this.packetHandler.handle(connection, packetOffset.packet);
+            
         }catch(err) {
             // packet not parseable yet.
             console.log("parse error: " + err.message);
-            var header = (new HeaderParser()).parse(msg).header;
-            if (header.getHeaderType() === HeaderType.LongHeader) {
-                var longHeader: LongHeader = <LongHeader>header;
-                this.sendVersionNegotiationPacket(connection, longHeader);
-            }
             return;
         }
     }

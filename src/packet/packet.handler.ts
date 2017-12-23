@@ -1,3 +1,4 @@
+import {ConnectionID} from './header/base.header';
 import {FrameType, BaseFrame} from '../frame/base.frame';
 import { Connection } from '../quicker/connection';
 import { BasePacket, PacketType } from './base.packet';
@@ -8,6 +9,7 @@ import { StreamFrame } from './../frame/general/stream';
 import { PacketFactory } from './packet.factory';
 import { Stream } from './../quicker/stream';
 import { Bignum } from './../utilities/bignum';
+import { ClientInitialPacket } from 'src/packet/packet/client.initial';
 
 
 export class PacketHandler {
@@ -30,7 +32,14 @@ export class PacketHandler {
     }
 
     public handleInitialPacket(connection: Connection, packet: BasePacket): void {
-        throw new Error("Method not implemented.");
+        var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket> packet;
+        var connectionID = packet.getHeader().getConnectionID();
+        if (connectionID === undefined) {
+            throw Error("No ConnectionID defined");
+        }
+        connection.setFirstConnectionID(connectionID);
+        connection.setConnectionID(ConnectionID.randomConnectionID());
+        this.handleHandshakeFrames(connection, clientInitialPacket.getStreamFrame());        
     }
 
     public handleHandshakePacket(connection: Connection, packet: BasePacket): void {
@@ -41,33 +50,37 @@ export class PacketHandler {
         }
         connection.setConnectionID(connectionID);
         handshakePacket.getFrames().forEach((baseFrame: BaseFrame) => {
-            if (baseFrame.getType() >= FrameType.STREAM) {
-                var stream = <StreamFrame> baseFrame;
-                var connectionStream = connection.getStream(stream.getStreamID());
-                if (connectionStream === undefined) {
-                    connectionStream = new Stream(stream.getStreamID());
-                }
-                connectionStream.addRemoteOffset(stream.getLength());
-                connection.getQuicTLS().writeHandshake(stream.getData());
-                var data = connection.getQuicTLS().readHandshake();
-                if (data.byteLength > 0) {
-                    var str = new StreamFrame(stream.getStreamID(), data);
-                    str.setOff(true);
-                    str.setOffset(connectionStream.getLocalOffset());
-                    str.setLen(true);
-                    str.setLength(Bignum.fromNumber(data.byteLength));
-                    var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
-                    connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
-                }
-                return;
-            }
-            switch (baseFrame.getType()) {
-                case FrameType.PADDING:
-                case FrameType.ACK:
-                    throw Error("Not implemented");
-                default:
-                    //ignore
-            }
+            this.handleHandshakeFrames(connection, baseFrame);
         });
+    }
+
+    private handleHandshakeFrames(connection: Connection, baseFrame: BaseFrame) {
+        if (baseFrame.getType() >= FrameType.STREAM) {
+            var stream = <StreamFrame> baseFrame;
+            var connectionStream = connection.getStream(stream.getStreamID());
+            if (connectionStream === undefined) {
+                connectionStream = new Stream(stream.getStreamID());
+            }
+            connectionStream.addRemoteOffset(stream.getLength());
+            connection.getQuicTLS().writeHandshake(stream.getData());
+            var data = connection.getQuicTLS().readHandshake();
+            if (data.byteLength > 0) {
+                var str = new StreamFrame(stream.getStreamID(), data);
+                str.setOff(true);
+                str.setOffset(connectionStream.getLocalOffset());
+                str.setLen(true);
+                str.setLength(Bignum.fromNumber(data.byteLength));
+                var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
+                connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+            }
+            return;
+        }
+        switch (baseFrame.getType()) {
+            case FrameType.PADDING:
+            case FrameType.ACK:
+                throw Error("Not implemented");
+            default:
+                //ignore
+        }
     }
 }
