@@ -11,6 +11,7 @@ import { PacketFactory } from "../packet/packet.factory";
 import { PacketNumber, BaseHeader, HeaderType } from "../packet/header/base.header";
 import { HeaderParser } from "../packet/header/header.parser";
 import { EndpointType } from "./type";
+import { readFileSync } from "fs";
 
 export class Server extends EventEmitter{
     private server: Socket;
@@ -20,7 +21,7 @@ export class Server extends EventEmitter{
     private packetParser: PacketParser;
     private packetHandler: PacketHandler;
 
-    private connections: { [email: string]: Connection; } = { }
+    private connections: { [key: string]: Connection; } = { }
 
     public constructor() {
         super();
@@ -43,15 +44,10 @@ export class Server extends EventEmitter{
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        var connection = this.getConnection(rinfo);
         console.log("on message");
-        var connection = this.connections[JSON.stringify(rinfo)];
-        if (connection === undefined) {
-            connection = new Connection(rinfo, EndpointType.Server, {key: '../keys/key.pem', cert: '../keys.cert.pem'});
-            connection.setSocket(this.server);
-            this.connections[JSON.stringify(rinfo)] = connection;
-        }
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, connection);
+            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client, connection);
             this.packetHandler.handle(connection, packetOffset.packet);
             
         }catch(err) {
@@ -72,6 +68,21 @@ export class Server extends EventEmitter{
 
     private onListening(): any {
         console.log("listening");
+    }
+
+    private getConnection(rinfo: RemoteInfo): Connection {
+        var remoteInfo = {
+            address: rinfo.address,
+            port: rinfo.port,
+            family: rinfo.family
+        };
+        var connection = this.connections[JSON.stringify(remoteInfo)];
+        if (connection === undefined) {
+            connection = new Connection(remoteInfo, EndpointType.Server, {key: readFileSync('../keys/key.pem'), cert: readFileSync('../keys/cert.pem')});
+            connection.setSocket(this.server);
+            this.connections[JSON.stringify(remoteInfo)] = connection;
+        }
+        return connection;
     }
 
     private sendVersionNegotiationPacket(connection: Connection, header: LongHeader) {

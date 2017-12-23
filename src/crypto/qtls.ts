@@ -15,6 +15,7 @@ export class QTLS {
     public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
         this.options = options;
+        this.qtlsHelper = new QuicTLS(this.isServer, this.options);
     }
 
     public setTransportParameters(buffer: Buffer, createNewHelper: boolean = true) {

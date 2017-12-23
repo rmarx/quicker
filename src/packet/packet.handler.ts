@@ -61,6 +61,7 @@ export class PacketHandler {
             var connectionStream = connection.getStream(stream.getStreamID());
             if (connectionStream === undefined) {
                 connectionStream = new Stream(stream.getStreamID());
+                connection.addStream(connectionStream);
             }
             connectionStream.addRemoteOffset(stream.getLength());
             connection.getQuicTLS().writeHandshake(stream.getData());

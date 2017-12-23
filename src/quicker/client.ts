@@ -13,7 +13,7 @@ import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
 import {EndpointType} from './type';
-import {Connection} from './connection';
+import {Connection, RemoteInformation} from './connection';
 
 
 export class Client {
@@ -38,7 +38,7 @@ export class Client {
         socket.on('error',(err) => {this.onError(err)});
         socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
         socket.on('close',() => {this.onClose()});
-        var remoteInfo: RemoteInfo = {
+        var remoteInfo: RemoteInformation = {
             address: hostname,
             port: port, 
             family: 'IPv4'

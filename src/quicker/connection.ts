@@ -11,7 +11,7 @@ export class Connection {
 
     private qtls: QTLS;
     private socket: Socket;
-    private remoteInfo: RemoteInfo;
+    private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
 
     private firstConnectionID: ConnectionID;
@@ -21,7 +21,7 @@ export class Connection {
     private state: ConnectionState;
     private streams: Stream[];
 
-    public constructor(remoteInfo: RemoteInfo, endpointType: EndpointType, options?: any) {
+    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
@@ -77,6 +77,10 @@ export class Connection {
     }
 
     public getNextPacketNumber(): PacketNumber {
+        if (this.packetNumber === undefined) {
+            this.packetNumber = PacketNumber.randomPacketNumber();
+            return this.packetNumber;
+        }
         this.packetNumber.getPacketNumber().add(1);
         return this.packetNumber;
     }
@@ -122,6 +126,12 @@ export class Connection {
             this.streams.splice(index, 1);
         }
     }
+}
+
+export interface RemoteInformation {
+    address: string;
+    port: number, 
+    family: string
 }
 
 export enum ConnectionState {
