@@ -16,6 +16,7 @@ export class Connection {
 
     private firstConnectionID: ConnectionID;
     private connectionID: ConnectionID;
+    private initialPacketNumber: PacketNumber;
     private packetNumber: PacketNumber;
 
     private state: ConnectionState;
@@ -79,6 +80,7 @@ export class Connection {
     public getNextPacketNumber(): PacketNumber {
         if (this.packetNumber === undefined) {
             this.packetNumber = PacketNumber.randomPacketNumber();
+            this.initialPacketNumber = this.packetNumber;
             return this.packetNumber;
         }
         this.packetNumber.getPacketNumber().add(1);

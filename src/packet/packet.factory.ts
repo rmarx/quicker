@@ -1,31 +1,29 @@
+import {Stream} from '../quicker/stream';
 import {Connection} from '../quicker/connection';
-import {BaseFrame} from '../frame/base.frame';
-import {PacketNumber, ConnectionID} from './header/base.header';
+import {PacketNumber} from './header/base.header';
 import {VersionNegotiationPacket} from './packet/version.negotiation';
 import {Version, LongHeader, LongHeaderType} from './header/long.header';
 import {Constants} from '../utilities/constants';
-import {QTLS} from '../crypto/qtls';
-import {TransportParameters} from '../crypto/transport.parameters';
 import {ClientInitialPacket} from './packet/client.initial';
 import {StreamFrame} from '../frame/general/stream';
 import {Bignum} from '../utilities/bignum';
 import {ServerStatelessRetryPacket} from './packet/server.stateless.retry';
+import {BaseFrame} from '../frame/base.frame';
 import {HandshakePacket} from './packet/handshake';
-import { Stream } from './../quicker/stream';
+import { ShortHeaderPacket } from './packet/short.header.packet';
+
 
 
 export class PacketFactory {
 
     /**
-     *  Method to create a Version Negotiation packet, given connectionID, packetnumber and version
+     *  Method to create a Version Negotiation packet, given the connection
      * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
+     * @param connection
      */
-    public static createVersionNegotiationPacket(connection: Connection, packetNumber: PacketNumber): VersionNegotiationPacket {
+    public static createVersionNegotiationPacket(connection: Connection): VersionNegotiationPacket {
         var version = new Version(Buffer.from('00000000', 'hex'));
-        var header = new LongHeader(LongHeaderType.Default, connection.getConnectionID(), packetNumber, version);
+        var header = new LongHeader(LongHeaderType.Default, connection.getConnectionID(), connection.getNextPacketNumber(), version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
@@ -34,14 +32,12 @@ export class PacketFactory {
     }
 
     /**
-     *  Method to create a Client Initial packet, given connectionID, packetnumber and version
+     *  Method to create a Client Initial packet, given the connection object and frames
      * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
+     * @param connection
      */
-    public static createClientInitialPacket(connection: Connection, packetNumber: PacketNumber, version: Version): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), packetNumber, version);
+    public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
+        var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion(),);
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLen(true);
@@ -55,26 +51,27 @@ export class PacketFactory {
     }
 
     /**
-     *  Method to create a Server Stateless Retry Packet, given connectionID, packetnumber and version
+     *  Method to create a Server Stateless Retry Packet, given the connection
      * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
+     * @param connection
      */
-    public static createServerStatelessRetryPacket(connection: Connection, packetNumber: PacketNumber, version: Version): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), packetNumber, version);
+    public static createServerStatelessRetryPacket(connection: Connection): ServerStatelessRetryPacket {
+        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion(),);
         return new ServerStatelessRetryPacket(header);
     }
 
     /**
-     *  Method to create a Handshake Packet, given connectionID, packetnumber and version
+     *  Method to create a Handshake Packet, given the connection object and frames
      * 
-     * @param connectionID 
-     * @param packetNumber 
-     * @param version 
+     * @param connection 
+     * @param frames 
      */
-    public static createHandshakePacket(connection: Connection, packetNumber: PacketNumber, version: Version, frames: BaseFrame[]): HandshakePacket {
-        var header = new LongHeader(LongHeaderType.Handshake, connection.getConnectionID(), packetNumber, version);
+    public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
+        var header = new LongHeader(LongHeaderType.Handshake, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion(),);
         return new HandshakePacket(header, frames);
+    }
+
+    public static createShortHeaderPacket(conenction: Connection, frames: BaseFrame[]): ShortHeaderPacket {
+        throw Error("Not implemented");
     }
 }

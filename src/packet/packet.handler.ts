@@ -10,6 +10,7 @@ import { PacketFactory } from './packet.factory';
 import { Stream } from './../quicker/stream';
 import { Bignum } from './../utilities/bignum';
 import { ClientInitialPacket } from './packet/client.initial';
+import { HandshakeState } from './../crypto/qtls';
 
 
 export class PacketHandler {
@@ -72,8 +73,13 @@ export class PacketHandler {
                 str.setOffset(connectionStream.getLocalOffset());
                 str.setLen(true);
                 str.setLength(Bignum.fromNumber(data.byteLength));
-                var handshakePacket = PacketFactory.createHandshakePacket(connection, connection.getNextPacketNumber(), connection.getVersion(), [str]);
-                connection.getSocket().send(handshakePacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+                var packet: BasePacket;
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.NEW_SESSION_TICKET) {
+                    packet = PacketFactory.createShortHeaderPacket(connection, [str]);
+                } else {
+                    packet = PacketFactory.createHandshakePacket(connection, [str]);
+                }
+                connection.getSocket().send(packet.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
             }
             return;
         }

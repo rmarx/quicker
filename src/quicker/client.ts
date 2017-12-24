@@ -56,7 +56,7 @@ export class Client {
         console.log("connectionid: " + this.connection.getConnectionID().toString());
         console.log("packet number: " + packetNumber.toString());
         this.connection.addStream(new Stream(Bignum.fromNumber(0)));
-        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection, packetNumber, version);
+        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
         this.connection.getSocket().send(clientInitial.toBuffer(this.connection), this.port, this.hostname);
     }
 
