@@ -1,6 +1,7 @@
+import {Bignum} from '../utilities/bignum';
 import {Constants} from '../utilities/constants';
 import {Connection} from '../quicker/connection';
-import {TransportParameters} from './transport.parameters';
+import {TransportParameters, TransportParameterType} from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
 
 /**
@@ -104,6 +105,9 @@ export class QTLS {
     private getTransportParameters() {
         if (this.transportParameters === undefined) {
             this.transportParameters = new TransportParameters(false, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
+            if (this.isServer) {
+                this.transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
+            }
         }
         return this.transportParameters;
     }
