@@ -78,11 +78,11 @@ export class FrameParser {
 
     private parseRstStream(buffer: Buffer, offset: number): FrameOffset {
         var streamID: Bignum = VLIE.decode(buffer, offset);
-        offset += streamID.getByteLength();
+        offset += VLIE.getEncodedByteLength(streamID);
         var applicationErrorCode = buffer.readUInt16BE(offset);
         offset += 2;
         var finalOffset = VLIE.decode(buffer, offset);
-        offset += finalOffset.getByteLength();
+        offset += VLIE.getEncodedByteLength(finalOffset);
         return {
             frame: new RstStreamFrame(streamID, applicationErrorCode, finalOffset),
             offset: offset
@@ -93,7 +93,7 @@ export class FrameParser {
         var errorCode = buffer.readUInt16BE(offset);
         offset += 2;
         var phraseLength = VLIE.decode(buffer, offset);
-        offset += phraseLength.getByteLength();
+        offset += VLIE.getEncodedByteLength(phraseLength);
         var phrase = buffer.toString('utf8', offset, phraseLength.toNumber());
         offset += phraseLength.toNumber();
         if (type === FrameType.APPLICATION_CLOSE) {
@@ -112,7 +112,7 @@ export class FrameParser {
 
     private parseMaxData(buffer: Buffer, offset: number): FrameOffset {
         var maxData = VLIE.decode(buffer, offset);
-        offset += maxData.getByteLength();
+        offset += VLIE.getEncodedByteLength(maxData);
         return {
             frame: new MaxDataFrame(maxData),
             offset: offset
@@ -121,9 +121,9 @@ export class FrameParser {
 
     private parseMaxStreamData(buffer: Buffer, offset: number): FrameOffset {
         var streamId = VLIE.decode(buffer, offset);
-        offset += streamId.getByteLength();
+        offset += VLIE.getEncodedByteLength(streamId);
         var maxStreamData = VLIE.decode(buffer, offset);
-        offset += maxStreamData.getByteLength();
+        offset += VLIE.getEncodedByteLength(maxStreamData);
         return {
             frame: new MaxStreamFrame(streamId, maxStreamData),
             offset: offset
@@ -133,7 +133,7 @@ export class FrameParser {
 
     private parseMaxStreamId(buffer: Buffer, offset: number): FrameOffset {
         var maxStreamId = VLIE.decode(buffer, offset);
-        offset += maxStreamId.getByteLength();
+        offset += VLIE.getEncodedByteLength(maxStreamId);
         return {
             frame: new MaxStreamIdFrame(maxStreamId),
             offset: offset
@@ -154,7 +154,7 @@ export class FrameParser {
 
     private parseBlocked(buffer: Buffer, offset: number): FrameOffset {
         var blockedOffset = VLIE.decode(buffer, offset);
-        offset += blockedOffset.getByteLength();
+        offset += VLIE.getEncodedByteLength(blockedOffset);
         return {
             frame: new BlockedFrame(blockedOffset),
             offset: offset
@@ -163,9 +163,9 @@ export class FrameParser {
 
     private parseStreamBlocked(buffer: Buffer, offset: number): FrameOffset {
         var streamId = VLIE.decode(buffer, offset);
-        offset += streamId.getByteLength();
+        offset += VLIE.getEncodedByteLength(streamId);
         var blockedOffset = VLIE.decode(buffer, offset);
-        offset += blockedOffset.getByteLength();
+        offset += VLIE.getEncodedByteLength(blockedOffset);
         return {
             frame: new StreamBlockedFrame(streamId, blockedOffset),
             offset: offset
@@ -174,7 +174,7 @@ export class FrameParser {
 
     private parseStreamIdBlocked(buffer: Buffer, offset: number): FrameOffset {
         var streamId = VLIE.decode(buffer, offset);
-        offset += streamId.getByteLength();
+        offset += VLIE.getEncodedByteLength(streamId);
         return {
             frame: new StreamIdBlockedFrame(streamId),
             offset: offset
@@ -183,7 +183,7 @@ export class FrameParser {
 
     private parseNewConnectionId(buffer: Buffer, offset: number): FrameOffset {
         var sequence = VLIE.decode(buffer, offset);
-        offset += sequence.getByteLength();
+        offset += VLIE.getEncodedByteLength(sequence);
         var connectionIdBuffer = Buffer.alloc(8);
         buffer.copy(connectionIdBuffer, 0, offset, offset + 8)
         offset += 8;
@@ -199,7 +199,7 @@ export class FrameParser {
 
     private parseStopSending(buffer: Buffer, offset: number): FrameOffset {
         var streamId = VLIE.decode(buffer, offset);
-        offset += streamId.getByteLength();
+        offset += VLIE.getEncodedByteLength(streamId);
         var appErrorCode = buffer.readUInt16BE(offset);
         offset += 2;
         return {
@@ -225,19 +225,20 @@ export class FrameParser {
 
     private parseAck(buffer: Buffer, offset: number): FrameOffset {
         var largestAcknowledged: Bignum = VLIE.decode(buffer, offset);
-        offset += largestAcknowledged.getByteLength();
+        offset += VLIE.getEncodedByteLength(largestAcknowledged);
         var ackDelay: Bignum = VLIE.decode(buffer, offset);
-        offset += ackDelay.getByteLength();
+        offset += VLIE.getEncodedByteLength(ackDelay);
         var ackBlockCount: Bignum = VLIE.decode(buffer, offset);
+        offset += VLIE.getEncodedByteLength(ackBlockCount);
 
         var firstAckBlock: Bignum = VLIE.decode(buffer, offset);
-        offset += firstAckBlock.getByteLength();
+        offset += VLIE.getEncodedByteLength(firstAckBlock);
         var ackBlocks: AckBlock[] = [];
         for(var i = Bignum.fromNumber(1); i.lessThan(ackBlockCount); i.add(1)) {
             var gap = VLIE.decode(buffer, offset);
-            offset += gap.getByteLength();
+            offset += VLIE.getEncodedByteLength(gap);
             var block = VLIE.decode(buffer, offset);
-            offset += gap.getByteLength();
+            offset += VLIE.getEncodedByteLength(block);
             ackBlocks.push(new AckBlock(gap, block));
         }
         return {
@@ -258,16 +259,16 @@ export class FrameParser {
             off = true;
         }
         var streamId = VLIE.decode(buffer, offset);
-        offset += streamId.getByteLength();
+        offset += VLIE.getEncodedByteLength(streamId);
         var dataLength = Bignum.fromNumber(0);
         var dataOffset = Bignum.fromNumber(0);
         if (off) {
             dataOffset = VLIE.decode(buffer, offset);
-            offset += dataOffset.getByteLength();
+            offset += VLIE.getEncodedByteLength(dataOffset);
         }
         if (len) {
             dataLength = VLIE.decode(buffer, offset);
-            offset += dataLength.getByteLength();
+            offset += VLIE.getEncodedByteLength(dataLength);
         }
         var data = Buffer.alloc(dataLength.toNumber());
         buffer.copy(data, 0, offset, dataLength.toNumber() + offset);
