@@ -86,6 +86,7 @@ export class QTLS {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
                 transportExt.write(Constants.getActiveVersion(), offset, undefined, 'hex');
                 offset += 4;
+                transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
                 Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
                     transportExt.write(version, offset, undefined, 'hex');
                     offset += 4;
@@ -110,7 +111,7 @@ export class QTLS {
     private getExtensionDataSize(transportParamBuffer: Buffer) {
         if (this.isServer) {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
-                transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 6;
+                transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 4 + 1;
             }
             return transportParamBuffer.byteLength;
         }
