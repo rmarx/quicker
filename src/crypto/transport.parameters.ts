@@ -60,7 +60,7 @@ export class TransportParameters {
         bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_DATA, bufferOffset.buffer, bufferOffset.offset);
         bufferOffset = this.writeTransportParameter(TransportParameterType.IDLE_TIMEOUT, bufferOffset.buffer, bufferOffset.offset);
         if (this.isServer) {
-            this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset.buffer, bufferOffset.offset);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset.buffer, bufferOffset.offset);
         }
         if (this.maxStreamIdBidi !== undefined) {
             bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI,bufferOffset.buffer, bufferOffset.offset);

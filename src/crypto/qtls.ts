@@ -53,7 +53,7 @@ export class QTLS {
     }
 
     public writeHandshake(connection: Connection, buffer: Buffer) {
-        if (this.isServer && HandshakeState.HANDSHAKE) {
+        if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
             this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
         } else {
             this.handshakeState = HandshakeState.HANDSHAKE;
@@ -85,16 +85,16 @@ export class QTLS {
         var offset = 0;
         if (this.isServer) {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
-                transportExt.write(Constants.getActiveVersion(), offset, undefined, 'hex');
+                transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
                 offset += 4;
                 transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
                 Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-                    transportExt.write(version, offset, undefined, 'hex');
+                    transportExt.write(version, offset, 4, 'hex');
                     offset += 4;
                 });
             }
         } else {
-            transportExt.write(Constants.getActiveVersion(), undefined, undefined, 'hex');
+            transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
             offset += 4;
         }
         transportExt.writeUInt16BE(transportParamBuffer.byteLength, offset);
@@ -104,7 +104,7 @@ export class QTLS {
     }
     private getTransportParameters() {
         if (this.transportParameters === undefined) {
-            this.transportParameters = new TransportParameters(false, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
+            this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
             if (this.isServer) {
                 this.transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
             }
@@ -115,7 +115,7 @@ export class QTLS {
     private getExtensionDataSize(transportParamBuffer: Buffer) {
         if (this.isServer) {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
-                transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 4 + 1;
+                return transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 4 + 1;
             }
             return transportParamBuffer.byteLength;
         }
