@@ -9,7 +9,7 @@ import { Constants } from "../utilities/constants";
 import { Version, LongHeader } from "../packet/header/long.header";
 import { PacketFactory } from "../packet/packet.factory";
 import { PacketNumber, BaseHeader, HeaderType } from "../packet/header/base.header";
-import { HeaderParser } from "../packet/header/header.parser";
+import { HeaderParser, HeaderOffset } from "../packet/header/header.parser";
 import { EndpointType } from "./type";
 import { readFileSync } from "fs";
 
@@ -18,6 +18,7 @@ export class Server extends EventEmitter{
     private port: number;
     private host: string;
 
+    private headerParser: HeaderParser;
     private packetParser: PacketParser;
     private packetHandler: PacketHandler;
 
@@ -44,10 +45,11 @@ export class Server extends EventEmitter{
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        var connection = this.getConnection(rinfo);
+        var connection: Connection = this.getConnection(rinfo);
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Client, connection);
+            var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+            var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet);
             
         }catch(err) {

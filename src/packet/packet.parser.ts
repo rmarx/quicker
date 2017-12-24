@@ -1,31 +1,27 @@
-import {Connection} from '../quicker/connection';
-import {HeaderParser} from './header/header.parser';
-import {BasePacket} from './base.packet';
-import {ConnectionID, HeaderType, BaseHeader} from './header/base.header';
-import {LongHeader, LongHeaderType, Version} from './header/long.header';
-import {VersionNegotiationPacket} from './packet/version.negotiation';
-import {Constants} from '../utilities/constants';
-import {AEAD} from '../crypto/aead';
-import {EndpointType} from '../quicker/type';
 import {FrameParser} from '../frame/frame.parser';
+import {AEAD} from '../crypto/aead';
+import {Connection} from '../quicker/connection';
+import {HeaderOffset} from './header/header.parser';
+import {EndpointType} from '../quicker/type';
+import {HeaderType, BaseHeader} from './header/base.header';
+import {LongHeader, LongHeaderType, Version} from './header/long.header';
+import {Constants} from '../utilities/constants';
+import {ClientInitialPacket} from './packet/client.initial';
+import {VersionNegotiationPacket} from './packet/version.negotiation';
 import {HandshakePacket} from './packet/handshake';
-import { ClientInitialPacket } from './packet/client.initial';
-import { StreamFrame } from './../frame/general/stream';
+import {BasePacket} from './base.packet';
 
 
 export class PacketParser {
-    private headerParser: HeaderParser;
     private frameParser: FrameParser;
     private aead: AEAD;
 
     public constructor() {
-        this.headerParser = new HeaderParser();
         this.aead = new AEAD();
         this.frameParser = new FrameParser();
     }
 
-    public parse(msg: Buffer, endpoint: EndpointType, connection: Connection): PacketOffset {
-        var headerOffset = this.headerParser.parse(msg);
+    public parse(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, endpoint: EndpointType): PacketOffset {
         var header = headerOffset.header;
         if (header.getHeaderType() === HeaderType.LongHeader) {
             return this.parseLongHeaderPacket(connection, header, msg, endpoint)

@@ -14,6 +14,7 @@ import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
 import {EndpointType} from './type';
 import {Connection, RemoteInformation} from './connection';
+import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 
 
 export class Client {
@@ -21,6 +22,7 @@ export class Client {
     private port: number;
     private hostname: string;
 
+    private headerParser: HeaderParser;
     private packetParser: PacketParser;
     private packetHandler: PacketHandler;
 
@@ -71,7 +73,8 @@ export class Client {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
-            var packetOffset: PacketOffset = this.packetParser.parse(msg, EndpointType.Server, this.connection);
+            var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+            var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
             this.packetHandler.handle(this.connection, packetOffset.packet);
             
         }catch(err) {
