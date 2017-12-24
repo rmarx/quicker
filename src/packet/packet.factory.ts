@@ -42,15 +42,7 @@ export class PacketFactory {
      */
     public static createClientInitialPacket(connection: Connection, packetNumber: PacketNumber, version: Version): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), packetNumber, version);
-        var transportParameters: TransportParameters = new TransportParameters(false, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
-        var transportParamBuffer: Buffer = transportParameters.toBuffer();
-        // value of 6 is: 4 for version and 2 for length
-        var transportExt = Buffer.alloc(transportParamBuffer.byteLength + 6);
-        transportExt.write(Constants.getActiveVersion(), undefined, undefined, 'hex');
-        transportExt.writeUInt16BE(transportParamBuffer.byteLength, 4);
-        transportParamBuffer.copy(transportExt, 6);
-        connection.getQuicTLS().setTransportParameters(transportExt);
-        var clientInitial = connection.getQuicTLS().getClientInitial();
+        var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLen(true);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
