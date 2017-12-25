@@ -31,6 +31,7 @@ export class Client {
     constructor() {
         this.packetParser = new PacketParser();
         this.packetHandler = new PacketHandler();
+        this.headerParser = new HeaderParser();
     }
 
     public connect(hostname: string, port: number) {

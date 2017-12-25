@@ -34,11 +34,6 @@ export class PacketParser {
         var offset = Constants.LONG_HEADER_SIZE;
         switch (header.getPacketType()) {
             case LongHeaderType.Initial:
-                var connectionID = header.getConnectionID();
-                if (connectionID === undefined) {
-                    throw Error("No connectionID set in header");
-                }
-                connection.setFirstConnectionID(connectionID);
                 return this.parseClientInitialPacket(connection, header, buffer, offset, endpoint);
                 // Initial
             case LongHeaderType.Retry:

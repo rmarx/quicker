@@ -1,5 +1,5 @@
-import {PacketHandler} from '../packet/packet.handler';
-import {Connection} from './connection';
+import { PacketHandler } from '../packet/packet.handler';
+import { Connection } from './connection';
 import { Socket, createSocket, SocketType, RemoteInfo } from "dgram";
 import { PacketParser, PacketOffset } from "../packet/packet.parser";
 import { BasePacket } from "../packet/base.packet";
@@ -8,12 +8,13 @@ import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
 import { Constants } from "../utilities/constants";
 import { Version, LongHeader } from "../packet/header/long.header";
 import { PacketFactory } from "../packet/packet.factory";
-import { PacketNumber, BaseHeader, HeaderType } from "../packet/header/base.header";
+import {ConnectionID, PacketNumber,  BaseHeader,  HeaderType} from '../packet/header/base.header';
 import { HeaderParser, HeaderOffset } from "../packet/header/header.parser";
 import { EndpointType } from "./type";
 import { readFileSync } from "fs";
+import { ShortHeader } from './../packet/header/short.header';
 
-export class Server extends EventEmitter{
+export class Server extends EventEmitter {
     private server: Socket;
     private port: number;
     private host: string;
@@ -22,12 +23,14 @@ export class Server extends EventEmitter{
     private packetParser: PacketParser;
     private packetHandler: PacketHandler;
 
-    private connections: { [key: string]: Connection; } = { }
+    private connections: { [key: string]: Connection; } = {};
+    private omittedConnections: { [key: string]: Connection; } = {};
 
     public constructor() {
         super();
         this.packetParser = new PacketParser();
         this.packetHandler = new PacketHandler();
+        this.headerParser = new HeaderParser();
     }
 
     public listen(host: string, port: number) {
@@ -37,22 +40,22 @@ export class Server extends EventEmitter{
          * TODO: Check if host is ipv6 or ipv4
          */
         this.server = createSocket('udp4');
-        this.server.on('error',(err) => {this.onError(err)});
-        this.server.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
-        this.server.on('listening',() => {this.onListening()});
-        this.server.on('close',() => {this.onClose()});
+        this.server.on('error', (err) => { this.onError(err) });
+        this.server.on('message', (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        this.server.on('listening', () => { this.onListening() });
+        this.server.on('close', () => { this.onClose() });
         this.server.bind(this.port, this.host);
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        var connection: Connection = this.getConnection(rinfo);
         console.log("on message");
         try {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+            var connection: Connection = this.getConnection(headerOffset, rinfo);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet);
-            
-        }catch(err) {
+
+        } catch (err) {
             // packet not parseable yet.
             console.log("Error: " + err.message);
             console.log("Stack: " + err.stack);
@@ -72,18 +75,53 @@ export class Server extends EventEmitter{
         console.log("listening");
     }
 
-    private getConnection(rinfo: RemoteInfo): Connection {
+    private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {
+        var header: BaseHeader = headerOffset.header;
+        var connectionID = header.getConnectionID();
+        if (connectionID === undefined) {
+            throw Error("No connectionID supplied");
+        }
+        if (header.getHeaderType() === HeaderType.LongHeader) {
+            if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
+                return this.connections[connectionID.toString()];
+            }
+        } else {
+            var shortHeader = <ShortHeader>header;
+            if (shortHeader.getConnectionIDOmitted()) {
+                var connection = this.getConnectionByRemoteInformation(rinfo);
+                if (connection !== undefined) {
+                    return connection;
+                }
+            } else {
+                if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
+                    return this.connections[connectionID.toString()];
+                }
+            }
+        }
+        var connection = this.createConnection(connectionID, rinfo);
+        return connection;
+    }
+
+    private getConnectionByRemoteInformation(rinfo: RemoteInfo): Connection {
         var remoteInfo = {
             address: rinfo.address,
             port: rinfo.port,
             family: rinfo.family
         };
-        var connection = this.connections[JSON.stringify(remoteInfo)];
-        if (connection === undefined) {
-            connection = new Connection(remoteInfo, EndpointType.Server, {key: readFileSync('../keys/key.pem'), cert: readFileSync('../keys/cert.pem')});
-            connection.setSocket(this.server);
-            this.connections[JSON.stringify(remoteInfo)] = connection;
-        }
+        var connection = this.omittedConnections[JSON.stringify(remoteInfo)];
+        return connection;
+    }
+
+    private createConnection(connectionID: ConnectionID, rinfo: RemoteInfo): Connection {
+        var remoteInfo = {
+            address: rinfo.address,
+            port: rinfo.port,
+            family: rinfo.family
+        };
+        var connection = new Connection(remoteInfo, EndpointType.Server, { key: readFileSync('../keys/key.pem'), cert: readFileSync('../keys/cert.pem') });
+        connection.setSocket(this.server);
+        connection.setFirstConnectionID(connectionID);
+        this.connections[connectionID.toString()] = connection;
         return connection;
     }
 
@@ -92,7 +130,7 @@ export class Server extends EventEmitter{
         if (connectionID !== undefined) {
             var packetNumber = PacketNumber.randomPacketNumber();
             var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
-            this.server.send(versionNegotiationPacket.toBuffer(connection),connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+            this.server.send(versionNegotiationPacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
         }
     }
 }
