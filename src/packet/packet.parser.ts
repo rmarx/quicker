@@ -10,6 +10,7 @@ import {ClientInitialPacket} from './packet/client.initial';
 import {VersionNegotiationPacket} from './packet/version.negotiation';
 import {HandshakePacket} from './packet/handshake';
 import {BasePacket} from './base.packet';
+import { ShortHeaderPacket } from './packet/short.header.packet';
 
 
 export class PacketParser {
@@ -24,7 +25,7 @@ export class PacketParser {
         if (header.getHeaderType() === HeaderType.LongHeader) {
             return this.parseLongHeaderPacket(connection, header, msg, endpoint)
         }
-        return this.parseShortHeaderPacket(header, msg, headerOffset.offset);
+        return this.parseShortHeaderPacket(connection, headerOffset, msg, endpoint);
     }
 
     private parseLongHeaderPacket(connection: Connection, header: BaseHeader, buffer: Buffer, endpoint: EndpointType): PacketOffset {
@@ -51,8 +52,15 @@ export class PacketParser {
         }
     }
 
-    private parseShortHeaderPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
-        throw new Error("Method not implemented.");
+    private parseShortHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
+        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        dataBuffer = connection.getAEAD().protected1RTTDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
+        var frames = this.frameParser.parse(dataBuffer, 0);
+        return {
+            packet: new ShortHeaderPacket(headerOffset.header, frames),
+            offset: headerOffset.offset
+        };
     }
 
     private parseClientInitialPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
