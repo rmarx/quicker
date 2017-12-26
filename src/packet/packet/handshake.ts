@@ -8,12 +8,10 @@ export class HandshakePacket extends BasePacket {
     
     // can contains Streamframes, ack frames and padding frames
     private frames: BaseFrame[];
-    private aead: AEAD;
 
     public constructor(header: BaseHeader, frames: BaseFrame[]) {
         super(PacketType.Handshake,header);
         this.frames = frames;
-        this.aead = new AEAD();
     }
 
     public getFrames(): BaseFrame[] {
@@ -56,7 +54,7 @@ export class HandshakePacket extends BasePacket {
             frame.toBuffer().copy(dataBuffer, offset);
             offset += frame.toBuffer().byteLength;
         });
-        dataBuffer = this.aead.clearTextEncrypt(connection.getFirstConnectionID(), header, dataBuffer, connection.getEndpointType());
+        dataBuffer = connection.getAEAD().clearTextEncrypt(connection.getFirstConnectionID(), header, dataBuffer, connection.getEndpointType());
         return dataBuffer;
     }
 }

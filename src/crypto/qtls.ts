@@ -3,6 +3,7 @@ import {Constants} from '../utilities/constants';
 import {Connection} from '../quicker/connection';
 import {TransportParameters, TransportParameterType} from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
+import {createHash, createCipheriv} from "crypto";
 
 /**
  * QuicTLS Wrapper
@@ -15,6 +16,7 @@ export class QTLS {
     private transportParameters: TransportParameters;
 
     private cipher: string;
+    private onHandshakeDoneCb: Function;
 
     public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
@@ -25,9 +27,12 @@ export class QTLS {
         } else {
             this.handshakeState = HandshakeState.CLIENT_HELLO;
         }
+        this.qtlsHelper.on('onhandshakedone', () => {
+            this.handleHandshakeDone();
+        });
     }
 
-    public setTransportParameters(buffer: Buffer, createNew: boolean = false) {
+    protected setTransportParameters(buffer: Buffer, createNew: boolean = false) {
         if (this.qtlsHelper === undefined || createNew) {
             this.qtlsHelper = new QuicTLS(this.isServer, this.options);
         }
@@ -53,10 +58,12 @@ export class QTLS {
     }
 
     public writeHandshake(connection: Connection, buffer: Buffer) {
-        if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
-            this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
-        } else {
-            this.handshakeState = HandshakeState.HANDSHAKE;
+        if (this.handshakeState !== HandshakeState.COMPLETED) {
+            if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
+                this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
+            } else {
+                this.handshakeState = HandshakeState.HANDSHAKE;
+            }
         }
         // only servers needs to add extension data here
         if (this.isServer) {
@@ -70,13 +77,55 @@ export class QTLS {
         return this.handshakeState;
     }
 
-    public getCipher() {
-        return this.cipher;
+    public getHash(): string {
+        switch(this.cipher) {
+            case "TLS_AES_128_GCM_SHA256":
+            case "TLS_CHACHA20_POLY1305_SHA256":
+                return "sha256";
+            case "TLS_AES_256_GCM_SHA384":
+                return "sha384";
+        }
+        throw new Error("Unsupported hash function");
     }
 
-    public setCipher(cipher: string) {
-        this.cipher = cipher;
+    public getHashLength(): number {
+        return createHash(this.getHash()).digest().length;
     }
+
+    public getAEAD(): string {
+        switch(this.cipher) {
+            case "TLS_AES_128_GCM_SHA256":
+                return "aes-128-gcm";
+            case "TLS_CHACHA20_POLY1305_SHA256":
+                return "chacha20-poly1305";
+            case "TLS_AES_256_GCM_SHA384":
+                return "aes-256-gcm";
+        }
+        throw new Error("Unsupported aead function");
+
+    }
+
+    public getAEADKeyLength(): number {
+        var aead = this.getAEAD();
+        switch(aead) {
+            case "aes-128-gcm":
+                return 16;
+            case "aes-256-gcm":
+                return 32;
+            case "chacha20-poly1305":
+                return 32;
+        }
+        throw new Error("Unsupported aead function");
+    }
+
+    public setOnHandshakeDoneCallback(callback: Function) {
+        this.onHandshakeDoneCb = callback;
+    }
+
+    public exportKeyingMaterial(label: string): Buffer {
+        return this.qtlsHelper.exportKeyingMaterial(Buffer.from(label), this.getHashLength());
+    }
+
 
     private getExtensionData(connection: Connection): Buffer {
         var transportParamBuffer: Buffer = this.getTransportParameters().toBuffer();
@@ -120,6 +169,14 @@ export class QTLS {
             return transportParamBuffer.byteLength;
         }
         return transportParamBuffer.byteLength + 6;
+    }
+
+    private handleHandshakeDone() {
+        this.handshakeState = HandshakeState.COMPLETED;
+        this.cipher = this.qtlsHelper.getNegotiatedCipher();
+        if (this.onHandshakeDoneCb !== undefined) {
+            this.onHandshakeDoneCb();
+        }
     }
 }
 

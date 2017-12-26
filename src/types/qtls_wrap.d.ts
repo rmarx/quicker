@@ -9,4 +9,7 @@ export class QuicTLS {
     writeHandshakeData(buffer: Buffer): number;
     getClientInitial(): Buffer;
     setTransportParameters(buffer: Buffer): void;
+    on(event: string, callback: Function): void;
+    exportKeyingMaterial(buffer: Buffer, hashsize: number): Buffer;
+    getNegotiatedCipher(): string;
 }

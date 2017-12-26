@@ -1,3 +1,4 @@
+import {AEAD} from '../crypto/aead';
 import {QTLS} from '../crypto/qtls';
 import {ConnectionID, PacketNumber} from '../packet/header/base.header';
 import {Bignum} from '../utilities/bignum';
@@ -10,6 +11,7 @@ import { Version } from './../packet/header/long.header';
 export class Connection {
 
     private qtls: QTLS;
+    private aead: AEAD;
     private socket: Socket;
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
@@ -26,7 +28,11 @@ export class Connection {
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
+        this.aead = new AEAD();
         this.streams = [];
+        this.qtls.setOnHandshakeDoneCallback(() => {
+            this.aead.generateProtected1RTTSecrets(this.qtls);
+        });
     }
 
     public getRemoteInfo(): RemoteInfo {
@@ -63,6 +69,10 @@ export class Connection {
 
     public getQuicTLS(): QTLS {
         return this.qtls;
+    }
+
+    public getAEAD(): AEAD {
+        return this.aead;
     }
 
     public getSocket(): Socket {

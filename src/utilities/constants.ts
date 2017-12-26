@@ -19,7 +19,11 @@ export class Constants {
      * Default algorithm for cleartext encryption/decryption in QUIC
      */
     public static readonly DEFAULT_AEAD = 'aes-128-gcm';
+    public static readonly DEFAULT_AEAD_LENGTH = 16;
     public static readonly DEFAULT_HASH = 'sha256';
+    public static readonly DEFAULT_HASH_SIZE = 32;
+    public static readonly IV_LENGTH = 12;
+    public static readonly TAG_LENGTH = 16;
 
 
     /**
