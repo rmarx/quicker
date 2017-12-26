@@ -80,7 +80,8 @@ export class Client {
             
         }catch(err) {
             // packet not parseable yet.
-            console.log("parse error: " + err.message);
+            console.log("Error: " + err.message);
+            console.log("Stack: " + err.stack);
             return;
         }
     }

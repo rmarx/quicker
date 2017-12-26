@@ -56,7 +56,7 @@ export class HeaderParser {
             offset = offset + 8;
         }
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
-        offset = offset + (1 << (type - 1));
+        offset = offset + (1 << ((type - 0x20) * -1));
         return { header: new ShortHeader(type, connectionId, packetNumber, connectionIdOmitted, keyPhaseBit), offset: offset };
     }
 

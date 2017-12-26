@@ -27,7 +27,7 @@ export class QTLS {
         } else {
             this.handshakeState = HandshakeState.CLIENT_HELLO;
         }
-        this.qtlsHelper.on('onhandshakedone', () => {
+        this.qtlsHelper.on('handshakedone', () => {
             this.handleHandshakeDone();
         });
     }
@@ -79,13 +79,13 @@ export class QTLS {
 
     public getHash(): string {
         switch(this.cipher) {
-            case "TLS_AES_128_GCM_SHA256":
-            case "TLS_CHACHA20_POLY1305_SHA256":
+            case "TLS13-AES-128-GCM-SHA256":
+            case "TLS13-CHACHA20-POLY1305-SHA256":
                 return "sha256";
-            case "TLS_AES_256_GCM_SHA384":
+            case "TLS13-AES-256-GCM-SHA384":
                 return "sha384";
         }
-        throw new Error("Unsupported hash function");
+        throw new Error("Unsupported hash function " + this.cipher);
     }
 
     public getHashLength(): number {
@@ -94,14 +94,14 @@ export class QTLS {
 
     public getAEAD(): string {
         switch(this.cipher) {
-            case "TLS_AES_128_GCM_SHA256":
+            case "TLS13-AES-128-GCM-SHA256":
                 return "aes-128-gcm";
-            case "TLS_CHACHA20_POLY1305_SHA256":
+            case "TLS13-CHACHA20-POLY1305-SHA256":
                 return "chacha20-poly1305";
-            case "TLS_AES_256_GCM_SHA384":
+            case "TLS13-AES-256-GCM-SHA384":
                 return "aes-256-gcm";
         }
-        throw new Error("Unsupported aead function");
+        throw new Error("Unsupported aead function " + this.cipher);
 
     }
 

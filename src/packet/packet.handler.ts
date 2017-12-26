@@ -74,7 +74,7 @@ export class PacketHandler {
                 str.setLen(true);
                 str.setLength(Bignum.fromNumber(data.byteLength));
                 var packet: BasePacket;
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.NEW_SESSION_TICKET) {
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Server) {
                     packet = PacketFactory.createShortHeaderPacket(connection, [str]);
                 } else {
                     packet = PacketFactory.createHandshakePacket(connection, [str]);

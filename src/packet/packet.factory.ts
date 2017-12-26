@@ -11,6 +11,7 @@ import {ServerStatelessRetryPacket} from './packet/server.stateless.retry';
 import {BaseFrame} from '../frame/base.frame';
 import {HandshakePacket} from './packet/handshake';
 import { ShortHeaderPacket } from './packet/short.header.packet';
+import { ShortHeader, ShortHeaderType } from './header/short.header';
 
 
 
@@ -71,7 +72,14 @@ export class PacketFactory {
         return new HandshakePacket(header, frames);
     }
 
-    public static createShortHeaderPacket(conenction: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        throw Error("Not implemented");
+    /**
+     *  Method to create a ShortHeader Packet, given the connection object and frames
+     * TODO: dynamic shortheader type, connection omitted and keyphasebit
+     * @param connection 
+     * @param frames 
+     */
+    public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), false, false)
+        return new ShortHeaderPacket(header, frames);
     }
 }
