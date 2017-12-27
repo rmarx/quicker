@@ -12,6 +12,7 @@ import {BaseFrame} from '../frame/base.frame';
 import {HandshakePacket} from './packet/handshake';
 import { ShortHeaderPacket } from './packet/short.header.packet';
 import { ShortHeader, ShortHeaderType } from './header/short.header';
+import { TransportParameterType } from './../crypto/transport.parameters';
 
 
 
@@ -38,7 +39,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion(),);
+        var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLen(true);
@@ -74,12 +75,12 @@ export class PacketFactory {
 
     /**
      *  Method to create a ShortHeader Packet, given the connection object and frames
-     * TODO: dynamic shortheader type, connection omitted and keyphasebit
+     * TODO: dynamic shortheader type and keyphasebit
      * @param connection 
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), false, false)
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getTransportParameter(TransportParameterType.OMIT_CONNECTION_ID), false)
         return new ShortHeaderPacket(header, frames);
     }
 }

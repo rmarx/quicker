@@ -79,6 +79,9 @@ export class PacketHandler {
                 } else {
                     packet = PacketFactory.createHandshakePacket(connection, [str]);
                 }
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                    //
+                }
                 connection.getSocket().send(packet.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
             }
             return;

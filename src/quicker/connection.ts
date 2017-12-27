@@ -1,3 +1,4 @@
+import {TransportParameterType} from '../crypto/transport.parameters';
 import {AEAD} from '../crypto/aead';
 import {QTLS} from '../crypto/qtls';
 import {ConnectionID, PacketNumber} from '../packet/header/base.header';
@@ -7,6 +8,7 @@ import {Stream} from './stream';
 import { EndpointType } from './type';
 import { Constants } from './../utilities/constants';
 import { Version } from './../packet/header/long.header';
+import { TransportParameters } from './../crypto/transport.parameters';
 
 export class Connection {
 
@@ -20,6 +22,8 @@ export class Connection {
     private connectionID: ConnectionID;
     private initialPacketNumber: PacketNumber;
     private packetNumber: PacketNumber;
+    private transportParameters: TransportParameters;
+    private version: Version;
 
     private state: ConnectionState;
     private streams: Stream[];
@@ -27,6 +31,7 @@ export class Connection {
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
+        this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
         this.aead = new AEAD();
         this.streams = [];
@@ -72,6 +77,22 @@ export class Connection {
         return this.aead;
     }
 
+    public getTransportParameter(type: TransportParameterType): any {
+        return this.transportParameters.getTransportParameter(type);
+    }
+
+    public setTransportParameter(type: TransportParameterType, value: any): void {
+        this.transportParameters.setTransportParameter(type, value);
+    }
+
+    public getTransportParameters(): TransportParameters {
+        return this.transportParameters;
+    }
+
+    public setTransportParameters(transportParameters: TransportParameters): void {
+        this.transportParameters = transportParameters;
+    }
+
     public getSocket(): Socket {
         return this.socket;
     }
@@ -95,10 +116,14 @@ export class Connection {
     }
 
     public getVersion(): Version {
-        return new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
+        return this.version;
     }
 
-    public setSocket(socket: Socket) {
+    public setVersion(version: Version): void {
+        this.version = version;
+    }
+
+    public setSocket(socket: Socket): void {
         this.socket = socket;
     }
 

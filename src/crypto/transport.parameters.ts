@@ -52,6 +52,30 @@ export class TransportParameters {
                 break;
         }
     }
+
+    public getTransportParameter(type: TransportParameterType): any {
+        switch(type) {
+            case TransportParameterType.MAX_STREAM_DATA:
+                return this.maxStreamData;
+            case TransportParameterType.MAX_DATA:
+                return this.maxData;
+            case TransportParameterType.STATELESS_RESET_TOKEN:
+                return this.statelessResetToken;
+            case TransportParameterType.IDLE_TIMEOUT:
+                return this.idleTimeout;
+            case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
+                return this.maxStreamIdBidi;
+            case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
+                return this.maxStreamIdUni;
+            case TransportParameterType.MAX_PACKET_SIZE:
+                return this.maxPacketSize;
+            case TransportParameterType.ACK_DELAY_EXPONENT:
+                return this.ackDelayExponent;
+            case TransportParameterType.OMIT_CONNECTION_ID:
+                return this.omitConnectionId;
+        }
+        return undefined;
+    }
         
     public toBuffer(): Buffer {
         var buffer = Buffer.alloc(this.getBufferSize());
