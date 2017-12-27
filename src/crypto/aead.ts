@@ -45,6 +45,9 @@ export class AEAD {
     }
 
     public protected1RTTEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
+            this.generateProtected1RTTSecrets(connection.getQuicTLS());
+        }
         var hkdf = new HKDF(connection.getQuicTLS().getHash());
         if (encryptingEndpoint === EndpointType.Client) {
             var key = hkdf.expandLabel(this.protected1RTTClientSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
@@ -59,6 +62,9 @@ export class AEAD {
     }
 
     public protected1RTTDecrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
+            this.generateProtected1RTTSecrets(connection.getQuicTLS());
+        }
         var hkdf = new HKDF(connection.getQuicTLS().getHash());
         if (encryptingEndpoint === EndpointType.Client) {
             var key = hkdf.expandLabel(this.protected1RTTClientSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());

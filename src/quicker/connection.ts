@@ -30,9 +30,6 @@ export class Connection {
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
         this.aead = new AEAD();
         this.streams = [];
-        this.qtls.setOnHandshakeDoneCallback(() => {
-            this.aead.generateProtected1RTTSecrets(this.qtls);
-        });
     }
 
     public getRemoteInfo(): RemoteInfo {

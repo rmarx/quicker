@@ -32,7 +32,6 @@ export class ShortHeader extends BaseHeader {
     }
 
     public toBuffer(): Buffer {
-        console.log("creating short header");
         var size = this.calculateHeaderSize();
         var buffer = Buffer.alloc(size);
         var offset = 0;

@@ -16,7 +16,6 @@ export class QTLS {
     private transportParameters: TransportParameters;
 
     private cipher: string;
-    private onHandshakeDoneCb: Function;
 
     public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
@@ -118,11 +117,8 @@ export class QTLS {
         throw new Error("Unsupported aead function");
     }
 
-    public setOnHandshakeDoneCallback(callback: Function) {
-        this.onHandshakeDoneCb = callback;
-    }
-
     public exportKeyingMaterial(label: string): Buffer {
+        console.log("label: " + label);
         return this.qtlsHelper.exportKeyingMaterial(Buffer.from(label), this.getHashLength());
     }
 
@@ -174,9 +170,6 @@ export class QTLS {
     private handleHandshakeDone() {
         this.handshakeState = HandshakeState.COMPLETED;
         this.cipher = this.qtlsHelper.getNegotiatedCipher();
-        if (this.onHandshakeDoneCb !== undefined) {
-            this.onHandshakeDoneCb();
-        }
     }
 }
 
