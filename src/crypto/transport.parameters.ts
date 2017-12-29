@@ -1,3 +1,5 @@
+import {Connection} from '../types/connection';
+import { EndpointType } from '../types/endpoint.type';
 
 
 export class TransportParameters {
@@ -213,6 +215,33 @@ export class TransportParameters {
             size += 2 + 2 + 16;
         }
         return size;
+    }
+
+    public static fromBuffer(connection: Connection, buffer: Buffer): TransportParameters {
+        var values: { [index: number]: any; } = [];
+        var offset = 0;
+        var transportParameters = new TransportParameters(connection.getEndpointType() === EndpointType.Server, -1, -1, -1);
+        while (offset < buffer.byteLength) {
+            console.log("offset: " + offset);
+            console.log("buffer length: " + buffer.byteLength);
+            var type = buffer.readUInt16BE(offset);
+            offset += 2;
+            var len = buffer.readUInt16BE(offset);
+            offset += 2;
+            var value = buffer.readUIntBE(offset, len);
+            offset += len;
+            if (type in values) {
+                throw Error("TRANSPORT_PARAMETER_ERROR");
+            }
+            values[type] = value;
+        }
+        for (let key in values) {
+            // Ignore unknown transport parameters
+            if (key in TransportParameterType) {
+                transportParameters.setTransportParameter(Number(key), values[key]);
+            }
+        }
+        return transportParameters;
     }
 }
 

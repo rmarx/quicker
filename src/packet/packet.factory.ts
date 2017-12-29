@@ -42,11 +42,10 @@ export class PacketFactory {
         var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
-        streamFrame.setLen(true);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
         var stream = connection.getStream(Bignum.fromNumber(0));
         if (stream === undefined) {
-            stream = new Stream(Bignum.fromNumber(0), connection.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+            stream = new Stream(Bignum.fromNumber(0), connection.getClientTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         }
         stream.addLocalOffset(streamFrame.getLength());
         return new ClientInitialPacket(header, [streamFrame]);
@@ -80,7 +79,7 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getTransportParameter(TransportParameterType.OMIT_CONNECTION_ID), false)
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getServerTransportParameter(TransportParameterType.OMIT_CONNECTION_ID), false)
         return new ShortHeaderPacket(header, frames);
     }
 }

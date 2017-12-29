@@ -276,8 +276,6 @@ export class FrameParser {
 
         var streamFrame = new StreamFrame(streamId, data);
         streamFrame.setFin(fin);
-        streamFrame.setLen(len);
-        streamFrame.setOff(off);
         streamFrame.setLength(dataLength);
         streamFrame.setOffset(dataOffset);
         return {

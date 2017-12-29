@@ -1,3 +1,4 @@
+import {BaseEncryptedPacket} from './base.encrypted.packet';
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {ConnectionID} from './../types/header.properties';
 import {FrameType, BaseFrame} from '../frame/base.frame';
@@ -12,6 +13,7 @@ import { Stream } from '../types/stream';
 import { Bignum } from '../types/bignum';
 import { ClientInitialPacket } from './packet/client.initial';
 import { HandshakeState } from './../crypto/qtls';
+import { ShortHeaderPacket } from './packet/short.header.packet';
 
 
 export class PacketHandler {
@@ -25,74 +27,44 @@ export class PacketHandler {
     public handle(connection: Connection, packet: BasePacket) {
         switch (packet.getPacketType()) {
             case PacketType.Initial:
-                this.handleInitialPacket(connection, packet);
+                var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket> packet;
+                this.handleInitialPacket(connection, clientInitialPacket);
                 break;
             case PacketType.Handshake:
-                this.handleHandshakePacket(connection, packet);
+                var handshakePacket: HandshakePacket = <HandshakePacket>packet;
+                this.handleHandshakePacket(connection, handshakePacket);
                 break;
+            case PacketType.Protected1RTT:
+                var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
+                this.handleProtected1RTTPacket(connection, shortHeaderPacket);
         }
     }
 
-    public handleInitialPacket(connection: Connection, packet: BasePacket): void {
-        var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket> packet;
-        var connectionID = packet.getHeader().getConnectionID();
+    public handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
+        var connectionID = clientInitialPacket.getHeader().getConnectionID();
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
         }
         connection.setConnectionID(ConnectionID.randomConnectionID());
-        clientInitialPacket.getFrames().forEach((baseFrame: BaseFrame) => {
-            this.handleHandshakeFrames(connection, baseFrame);
-        });
+        this.handleFrames(connection, clientInitialPacket);
     }
 
-    public handleHandshakePacket(connection: Connection, packet: BasePacket): void {
-        var handshakePacket: HandshakePacket = <HandshakePacket>packet;
-        var connectionID = packet.getHeader().getConnectionID();
+    public handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
+        var connectionID = handshakePacket.getHeader().getConnectionID();
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
         }
         connection.setConnectionID(connectionID);
-        handshakePacket.getFrames().forEach((baseFrame: BaseFrame) => {
-            this.handleHandshakeFrames(connection, baseFrame);
-        });
+        this.handleFrames(connection, handshakePacket);
     }
 
-    private handleHandshakeFrames(connection: Connection, baseFrame: BaseFrame) {
-        if (baseFrame.getType() >= FrameType.STREAM) {
-            var stream = <StreamFrame> baseFrame;
-            var connectionStream = connection.getStream(stream.getStreamID());
-            if (connectionStream === undefined) {
-                connectionStream = new Stream(stream.getStreamID(), connection.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
-                connection.addStream(connectionStream);
-            }
-            connectionStream.addRemoteOffset(stream.getLength());
-            connection.getQuicTLS().writeHandshake(connection, stream.getData());
-            var data = connection.getQuicTLS().readHandshake();
-            if (data.byteLength > 0) {
-                var str = new StreamFrame(stream.getStreamID(), data);
-                str.setOff(true);
-                str.setOffset(connectionStream.getLocalOffset());
-                str.setLen(true);
-                str.setLength(Bignum.fromNumber(data.byteLength));
-                var packet: BasePacket;
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Server) {
-                    packet = PacketFactory.createShortHeaderPacket(connection, [str]);
-                } else {
-                    packet = PacketFactory.createHandshakePacket(connection, [str]);
-                }
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-                    //
-                }
-                connection.getSocket().send(packet.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
-            }
-            return;
-        }
-        switch (baseFrame.getType()) {
-            case FrameType.PADDING:
-            case FrameType.ACK:
-                throw Error("Not implemented");
-            default:
-                //ignore
-        }
+    public handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket) {
+        this.handleFrames(connection, shortHeaderPacket);
+    }
+
+    private handleFrames(connection: Connection, packet: BaseEncryptedPacket) {
+        packet.getFrames().forEach((baseFrame: BaseFrame) => {
+            this.frameHandler.handle(connection, baseFrame);
+        });
     }
 }

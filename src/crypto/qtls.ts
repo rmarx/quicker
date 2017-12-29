@@ -31,16 +31,21 @@ export class QTLS {
         });
     }
 
-    protected setTransportParameters(buffer: Buffer, createNew: boolean = false) {
+    protected setTransportParameters(buffer: Buffer, createNew: boolean = false): void {
         if (this.qtlsHelper === undefined || createNew) {
             this.qtlsHelper = new QuicTLS(this.isServer, this.options);
         }
         this.qtlsHelper.setTransportParameters(buffer);
     }
 
+    public getExtensionData(): Buffer {
+        return this.qtlsHelper.getTransportParameters();
+    }
+
     public getClientInitial(connection: Connection): Buffer {
-        var transportParams = this.getExtensionData(connection);
+        var transportParams = this.generateExtensionData(connection);
         this.setTransportParameters(transportParams);
+        connection.setClientTransportParameters(this.getTransportParameters());
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         if (clientInitialBuffer === undefined) {
             throw new Error("Client initial failed");
@@ -56,7 +61,7 @@ export class QTLS {
         return handshakeBuffer;
     }
 
-    public writeHandshake(connection: Connection, buffer: Buffer) {
+    public writeHandshake(connection: Connection, buffer: Buffer): void {
         if (this.handshakeState !== HandshakeState.COMPLETED) {
             if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
                 this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
@@ -66,8 +71,9 @@ export class QTLS {
         }
         // only servers needs to add extension data here
         if (this.isServer) {
-            var transportParams = this.getExtensionData(connection);
+            var transportParams = this.generateExtensionData(connection);
             this.setTransportParameters(transportParams);
+            connection.setServerTransportParameters(this.getTransportParameters());
         }
         this.qtlsHelper.writeHandshakeData(buffer);
     }
@@ -123,7 +129,7 @@ export class QTLS {
     }
 
 
-    private getExtensionData(connection: Connection): Buffer {
+    private generateExtensionData(connection: Connection): Buffer {
         var transportParamBuffer: Buffer = this.getTransportParameters().toBuffer();
         // value of 6 is: 4 for version and 2 for length
         var transportExt = Buffer.alloc(this.getExtensionDataSize(transportParamBuffer));
@@ -147,7 +153,7 @@ export class QTLS {
         transportParamBuffer.copy(transportExt, offset);
         return transportExt;
     }
-    private getTransportParameters() {
+    private getTransportParameters(): TransportParameters {
         if (this.transportParameters === undefined) {
             this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
             if (this.isServer) {
@@ -157,17 +163,17 @@ export class QTLS {
         return this.transportParameters;
     }
 
-    private getExtensionDataSize(transportParamBuffer: Buffer) {
+    private getExtensionDataSize(transportParamBuffer: Buffer): number {
         if (this.isServer) {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
                 return transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 4 + 1;
             }
-            return transportParamBuffer.byteLength;
+            return transportParamBuffer.byteLength + 2;
         }
         return transportParamBuffer.byteLength + 6;
     }
 
-    private handleHandshakeDone() {
+    private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
         this.cipher = this.qtlsHelper.getNegotiatedCipher();
     }

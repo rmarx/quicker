@@ -21,7 +21,8 @@ export class Connection {
     private connectionID: ConnectionID;
     private initialPacketNumber: PacketNumber;
     private packetNumber: PacketNumber;
-    private transportParameters: TransportParameters;
+    private serverTransportParameters: TransportParameters;
+    private clientTransportParameters: TransportParameters;
     private version: Version;
 
     private state: ConnectionState;
@@ -76,20 +77,36 @@ export class Connection {
         return this.aead;
     }
 
-    public getTransportParameter(type: TransportParameterType): any {
-        return this.transportParameters.getTransportParameter(type);
+    public getServerTransportParameter(type: TransportParameterType): any {
+        return this.serverTransportParameters.getTransportParameter(type);
     }
 
-    public setTransportParameter(type: TransportParameterType, value: any): void {
-        this.transportParameters.setTransportParameter(type, value);
+    public setServerTransportParameter(type: TransportParameterType, value: any): void {
+        this.serverTransportParameters.setTransportParameter(type, value);
     }
 
-    public getTransportParameters(): TransportParameters {
-        return this.transportParameters;
+    public getServerTransportParameters(): TransportParameters {
+        return this.serverTransportParameters;
     }
 
-    public setTransportParameters(transportParameters: TransportParameters): void {
-        this.transportParameters = transportParameters;
+    public setServerTransportParameters(transportParameters: TransportParameters): void {
+        this.serverTransportParameters = transportParameters;
+    }
+
+    public getClientTransportParameter(type: TransportParameterType): any {
+        return this.clientTransportParameters.getTransportParameter(type);
+    }
+
+    public setClientTransportParameter(type: TransportParameterType, value: any): void {
+        this.clientTransportParameters.setTransportParameter(type, value);
+    }
+
+    public getClientTransportParameters(): TransportParameters {
+        return this.clientTransportParameters;
+    }
+
+    public setClientTransportParameters(transportParameters: TransportParameters): void {
+        this.clientTransportParameters = transportParameters;
     }
 
     public getSocket(): Socket {

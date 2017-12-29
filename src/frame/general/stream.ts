@@ -115,6 +115,7 @@ export class StreamFrame extends BaseFrame {
     }
 
     public setLength(value: Bignum) {
+        this.len = true;
         this.length = value;
     }
 
@@ -123,6 +124,7 @@ export class StreamFrame extends BaseFrame {
     }
 
     public setOffset(value: Bignum) {
+        this.off = true;
         this.offset = value;
     }
 
