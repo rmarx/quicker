@@ -46,7 +46,7 @@ export class PacketFactory {
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
         var stream = connection.getStream(Bignum.fromNumber(0));
         if (stream === undefined) {
-            stream = new Stream(Bignum.fromNumber(0));
+            stream = new Stream(Bignum.fromNumber(0), connection.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         }
         stream.addLocalOffset(streamFrame.getLength());
         return new ClientInitialPacket(header, [streamFrame]);

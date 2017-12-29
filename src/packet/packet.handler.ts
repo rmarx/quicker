@@ -1,3 +1,4 @@
+import {TransportParameterType} from '../crypto/transport.parameters';
 import {ConnectionID} from './../types/header.properties';
 import {FrameType, BaseFrame} from '../frame/base.frame';
 import { Connection } from '../types/connection';
@@ -61,7 +62,7 @@ export class PacketHandler {
             var stream = <StreamFrame> baseFrame;
             var connectionStream = connection.getStream(stream.getStreamID());
             if (connectionStream === undefined) {
-                connectionStream = new Stream(stream.getStreamID());
+                connectionStream = new Stream(stream.getStreamID(), connection.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
                 connection.addStream(connectionStream);
             }
             connectionStream.addRemoteOffset(stream.getLength());

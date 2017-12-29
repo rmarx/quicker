@@ -7,11 +7,13 @@ export class Stream {
 	
 	private localOffset: Bignum;
 	private remoteOffset: Bignum;
+	private maxStreamData: Bignum;
 
-    public constructor(streamID: Bignum) {
+    public constructor(streamID: Bignum, maxStreamData: Bignum) {
 		this.streamID = streamID;
 		this.localOffset = Bignum.fromNumber(0);
 		this.remoteOffset = Bignum.fromNumber(0);
+		this.maxStreamData = maxStreamData;
     }
 
 	public getStreamID(): Bignum {
@@ -36,6 +38,14 @@ export class Stream {
 
 	public addRemoteOffset(offset: Bignum) {
 		this.remoteOffset.add(offset);
+	}
+
+	public setMaxStreamData(maxStreamData: Bignum) {
+		this.maxStreamData = maxStreamData;
+	}
+
+	public getMaxStreamData(): Bignum {
+		return this.maxStreamData;
 	}
     
 }
