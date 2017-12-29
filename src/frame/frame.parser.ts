@@ -1,5 +1,5 @@
 import {BaseFrame, FrameType} from './base.frame';
-import {Bignum} from '../utilities/bignum';
+import {Bignum} from '../types/bignum';
 import {VLIE} from '../crypto/vlie';
 import {RstStreamFrame} from './general/rst.stream';
 import {ApplicationCloseFrame, ConnectionCloseFrame} from './general/close';
@@ -10,7 +10,7 @@ import {PingFrame, PongFrame} from './general/ping';
 import {BlockedFrame} from './general/blocked';
 import {StreamBlockedFrame} from './general/stream.blocked';
 import {StreamIdBlockedFrame} from './general/stream.id.blocked';
-import {ConnectionID} from '../packet/header/base.header';
+import {ConnectionID} from './../types/header.properties';
 import {NewConnectionIdFrame} from './general/new.connection.id';
 import {StopSendingFrame} from './general/stop.sending';
 import {StreamFrame} from './general/stream';

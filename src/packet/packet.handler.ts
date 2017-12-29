@@ -1,14 +1,14 @@
-import {ConnectionID} from './header/base.header';
+import {ConnectionID} from './../types/header.properties';
 import {FrameType, BaseFrame} from '../frame/base.frame';
-import { Connection } from '../quicker/connection';
+import { Connection } from '../types/connection';
 import { BasePacket, PacketType } from './base.packet';
 import { HandshakePacket } from './packet/handshake';
-import { EndpointType } from './../quicker/type';
+import { EndpointType } from '../types/endpoint.type';
 import { FrameHandler } from './../frame/frame.handler';
 import { StreamFrame } from './../frame/general/stream';
 import { PacketFactory } from './packet.factory';
-import { Stream } from './../quicker/stream';
-import { Bignum } from './../utilities/bignum';
+import { Stream } from '../types/stream';
+import { Bignum } from '../types/bignum';
 import { ClientInitialPacket } from './packet/client.initial';
 import { HandshakeState } from './../crypto/qtls';
 

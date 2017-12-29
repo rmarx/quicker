@@ -1,4 +1,4 @@
-import {Bignum} from '../../utilities/bignum';
+import {Bignum} from '../../types/bignum';
 import {VLIE} from '../../crypto/vlie';
 import {BaseFrame, FrameType} from '../base.frame';
 

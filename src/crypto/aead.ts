@@ -1,10 +1,11 @@
 import {QTLS} from './qtls';
-import {Connection} from '../quicker/connection';
-import {Bignum} from '../utilities/bignum';
-import {ConnectionID, BaseHeader, PacketNumber} from '../packet/header/base.header';
+import {Connection} from '../types/connection';
+import {Bignum} from '../types/bignum';
+import {BaseHeader} from '../packet/header/base.header';
+import {ConnectionID, PacketNumber} from "./../types/header.properties";
 import {HKDF} from './hkdf';
 import {Constants} from '../utilities/constants';
-import {EndpointType} from '../quicker/type';
+import {EndpointType} from '../types/endpoint.type';
 import { createCipheriv, createDecipheriv } from "crypto";
 
 

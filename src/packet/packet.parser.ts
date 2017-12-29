@@ -1,10 +1,11 @@
 import {FrameParser} from '../frame/frame.parser';
 import {AEAD} from '../crypto/aead';
-import {Connection} from '../quicker/connection';
+import {Connection} from '../types/connection';
 import {HeaderOffset} from './header/header.parser';
-import {EndpointType} from '../quicker/type';
+import {EndpointType} from '../types/endpoint.type';
 import {HeaderType, BaseHeader} from './header/base.header';
-import {LongHeader, LongHeaderType, Version} from './header/long.header';
+import {LongHeader, LongHeaderType} from './header/long.header';
+import {Version} from "./../types/header.properties";
 import {Constants} from '../utilities/constants';
 import {ClientInitialPacket} from './packet/client.initial';
 import {VersionNegotiationPacket} from './packet/version.negotiation';

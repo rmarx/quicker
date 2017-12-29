@@ -1,9 +1,10 @@
 import { BitOperation } from "./../../utilities/bit.operation";
 import { BasePacket } from "../base.packet";
-import { BaseHeader, ConnectionID, PacketNumber } from "./base.header";
-import { LongHeader, Version } from "./long.header";
+import { BaseHeader } from "./base.header";
+import { LongHeader } from "./long.header";
 import { ShortHeader, ShortHeaderType } from "./short.header";
 import { Constants } from "../../utilities/constants";
+import {ConnectionID, PacketNumber, Version} from '../../types/header.properties';
 
 
 export class HeaderParser {

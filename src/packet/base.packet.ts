@@ -1,6 +1,7 @@
-import { BaseHeader, ConnectionID, PacketNumber, HeaderType } from "./header/base.header";
-import { Version, LongHeader } from "./header/long.header";
-import { Connection } from "./../quicker/connection";
+import {Connection} from '../types/connection';
+import {BaseHeader} from './header/base.header';
+import { LongHeader } from "./header/long.header";
+
 
 
 export abstract class BasePacket {

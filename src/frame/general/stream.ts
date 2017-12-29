@@ -1,5 +1,5 @@
 import {VLIE} from '../../crypto/vlie';
-import {Bignum} from '../../utilities/bignum';
+import {Bignum} from '../../types/bignum';
 import {BaseFrame, FrameType} from '../base.frame';
 
 

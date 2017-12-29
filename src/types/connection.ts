@@ -1,14 +1,13 @@
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {AEAD} from '../crypto/aead';
 import {QTLS} from '../crypto/qtls';
-import {ConnectionID, PacketNumber} from '../packet/header/base.header';
-import {Bignum} from '../utilities/bignum';
+import {ConnectionID, PacketNumber, Version} from '../types/header.properties';
+import {Bignum} from './bignum';
 import { RemoteInfo, Socket } from "dgram";
 import {Stream} from './stream';
-import { EndpointType } from './type';
-import { Constants } from './../utilities/constants';
-import { Version } from './../packet/header/long.header';
-import { TransportParameters } from './../crypto/transport.parameters';
+import { EndpointType } from './endpoint.type';
+import { Constants } from '../utilities/constants';
+import { TransportParameters } from '../crypto/transport.parameters';
 
 export class Connection {
 

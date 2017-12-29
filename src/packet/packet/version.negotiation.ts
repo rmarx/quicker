@@ -1,9 +1,9 @@
 import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
-import { Version } from "../header/long.header";
+import { Version } from "./../../types/header.properties";
 import { Constants } from "../../utilities/constants";
-import { EndpointType } from "../../quicker/type";
-import { Connection } from "./../../quicker/connection";
+import { EndpointType } from "../../types/endpoint.type";
+import { Connection } from "../../types/connection";
 
 export class VersionNegotiationPacket extends BasePacket {
     private versions: Version[];

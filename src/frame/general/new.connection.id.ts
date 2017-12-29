@@ -1,4 +1,4 @@
-import {ConnectionID} from '../../packet/header/base.header';
+import {ConnectionID} from '../../types/header.properties';
 import {BaseFrame, FrameType} from '../base.frame';
 
 

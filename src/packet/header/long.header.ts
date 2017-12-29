@@ -1,5 +1,6 @@
-import { BaseHeader, BaseProperty, ConnectionID, PacketNumber, HeaderType } from "./base.header";
-import { Bignum } from "../../utilities/bignum";
+import { BaseHeader, HeaderType } from "./base.header";
+import {ConnectionID, PacketNumber, Version} from '../../types/header.properties';
+import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
 
 /**        0              1-7                 8-12           13 - 16          17-*  
@@ -50,19 +51,4 @@ export enum LongHeaderType {
     Handshake = 0x7D,
     Protected0RTT = 0x7C,
     Default = 0x00  // when it is not one of the above
-}
-
-export class Version extends BaseProperty {
-    
-    public constructor(buffer: Buffer) {
-        super(buffer);
-    }
-
-    public getVersion(): Bignum {
-        return this.getProperty();
-    }
-
-    public setVersion(bignum: Bignum) {
-        this.setProperty(bignum);
-    }
 }

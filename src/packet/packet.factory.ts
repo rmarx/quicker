@@ -1,12 +1,12 @@
-import {Stream} from '../quicker/stream';
-import {Connection} from '../quicker/connection';
-import {PacketNumber} from './header/base.header';
+import {Stream} from '../types/stream';
+import {Connection} from '../types/connection';
+import {PacketNumber, Version} from './../types/header.properties';
 import {VersionNegotiationPacket} from './packet/version.negotiation';
-import {Version, LongHeader, LongHeaderType} from './header/long.header';
+import {LongHeader, LongHeaderType} from './header/long.header';
 import {Constants} from '../utilities/constants';
 import {ClientInitialPacket} from './packet/client.initial';
 import {StreamFrame} from '../frame/general/stream';
-import {Bignum} from '../utilities/bignum';
+import {Bignum} from '../types/bignum';
 import {ServerStatelessRetryPacket} from './packet/server.stateless.retry';
 import {BaseFrame} from '../frame/base.frame';
 import {HandshakePacket} from './packet/handshake';

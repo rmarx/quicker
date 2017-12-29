@@ -1,4 +1,4 @@
-import {Connection} from '../quicker/connection';
+import {Connection} from '../types/connection';
 import {BaseFrame, FrameType} from './base.frame';
 
 

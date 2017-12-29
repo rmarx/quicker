@@ -1,5 +1,5 @@
-import {Bignum} from '../utilities/bignum';
-import {Stream} from "./../quicker/stream";
+import {Bignum} from '../types/bignum';
+import {Stream} from "../types/stream";
 import {StreamFrame} from './general/stream';
 import { PaddingFrame } from './general/padding';
 

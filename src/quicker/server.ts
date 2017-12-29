@@ -1,18 +1,17 @@
-import { PacketHandler } from '../packet/packet.handler';
-import { Connection } from './connection';
-import { Socket, createSocket, SocketType, RemoteInfo } from "dgram";
-import { PacketParser, PacketOffset } from "../packet/packet.parser";
-import { BasePacket } from "../packet/base.packet";
-import { EventEmitter } from "events";
-import { VersionNegotiationPacket } from "../packet/packet/version.negotiation";
-import { Constants } from "../utilities/constants";
-import { Version, LongHeader } from "../packet/header/long.header";
-import { PacketFactory } from "../packet/packet.factory";
-import {ConnectionID, PacketNumber,  BaseHeader,  HeaderType} from '../packet/header/base.header';
-import { HeaderParser, HeaderOffset } from "../packet/header/header.parser";
-import { EndpointType } from "./type";
-import { readFileSync } from "fs";
-import { ShortHeader } from './../packet/header/short.header';
+import {HeaderParser, HeaderOffset} from '../packet/header/header.parser';
+import {PacketParser, PacketOffset} from '../packet/packet.parser';
+import {PacketHandler} from '../packet/packet.handler';
+import {Connection} from './../types/connection';
+import {EndpointType} from './../types/endpoint.type';
+import {BaseHeader,   HeaderType} from '../packet/header/base.header';
+import {ConnectionID, PacketNumber} from "./../types/header.properties";
+import {ShortHeader} from '../packet/header/short.header';
+import {LongHeader} from '../packet/header/long.header';
+import {PacketFactory} from '../packet/packet.factory';
+import { EventEmitter } from 'events';
+import { Socket, RemoteInfo, createSocket } from 'dgram';
+import { readFileSync } from 'fs';
+
 
 export class Server extends EventEmitter {
     private server: Socket;

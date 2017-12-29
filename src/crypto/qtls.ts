@@ -1,6 +1,6 @@
-import {Bignum} from '../utilities/bignum';
+import {Bignum} from '../types/bignum';
 import {Constants} from '../utilities/constants';
-import {Connection} from '../quicker/connection';
+import {Connection} from '../types/connection';
 import {TransportParameters, TransportParameterType} from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
 import {createHash, createCipheriv} from "crypto";

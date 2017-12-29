@@ -1,4 +1,4 @@
-import {Bignum} from '../utilities/bignum';
+import {Bignum} from './bignum';
 
 
 

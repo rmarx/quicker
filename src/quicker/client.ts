@@ -1,19 +1,18 @@
+import {PacketNumber, ConnectionID, Version} from '../types/header.properties';
 import {PacketHandler} from '../packet/packet.handler';
-import {Bignum} from '../utilities/bignum';
-import {Stream} from './stream';
+import {Bignum} from '../types/bignum';
+import {Stream} from '../types/stream';
 import {Constants} from '../utilities/constants';
-import {Version} from '../packet/header/long.header';
 import {ClientInitialPacket} from '../packet/packet/client.initial';
 import {PacketParser, PacketOffset} from '../packet/packet.parser';
 import {PacketFactory} from '../packet/packet.factory';
 import {QTLS} from '../crypto/qtls';
-import {ConnectionID, PacketNumber} from '../packet/header/base.header';
 import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
 import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
-import {EndpointType} from './type';
-import {Connection, RemoteInformation} from './connection';
+import {EndpointType} from '../types/endpoint.type';
+import {Connection, RemoteInformation} from '../types/connection';
 import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 
 
