@@ -57,18 +57,19 @@ export class FrameHandler {
         }
         connectionStream.addRemoteOffset(streamFrame.getLength());
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
-        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.HANDSHAKE || connection.getEndpointType() === EndpointType.Client) {
-            var extensionData = connection.getQuicTLS().getExtensionData();
-            var transportParameters: TransportParameters = this.handshakeValidator.validateExtensionData(connection, extensionData);
-            //TODO validate
-            if (connection.getEndpointType() === EndpointType.Client) {
-                connection.setServerTransportParameters(transportParameters);
-            } else {
-                connection.setClientTransportParameters(transportParameters);
-            }
-        }
         var data = connection.getQuicTLS().readHandshake();
         if (data.byteLength > 0) {
+            if (connection.getQuicTLS().getHandshakeState() === HandshakeState.HANDSHAKE || connection.getEndpointType() === EndpointType.Client) {
+                var extensionData = connection.getQuicTLS().getExtensionData();
+                var transportParameters: TransportParameters = this.handshakeValidator.validateExtensionData(connection, extensionData);
+                //TODO validate
+                if (connection.getEndpointType() === EndpointType.Client) {
+                    connection.setServerTransportParameters(transportParameters);
+                } else {
+                    connection.setClientTransportParameters(transportParameters);
+                }
+            }
+
             var str = new StreamFrame(streamFrame.getStreamID(), data);
             str.setOffset(connectionStream.getLocalOffset());
             str.setLength(Bignum.fromNumber(data.byteLength));

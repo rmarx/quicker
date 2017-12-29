@@ -228,7 +228,13 @@ export class TransportParameters {
             offset += 2;
             var len = buffer.readUInt16BE(offset);
             offset += 2;
-            var value = buffer.readUIntBE(offset, len);
+            var value = undefined;
+            if (len > 4) {
+                value = Buffer.alloc(len);
+                buffer.copy(value, 0, offset, offset + len);
+            } else {
+                value = buffer.readUIntBE(offset, len);
+            }
             offset += len;
             if (type in values) {
                 throw Error("TRANSPORT_PARAMETER_ERROR");

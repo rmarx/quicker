@@ -15,12 +15,12 @@ export class HandshakeValidation {
         if (connection.getEndpointType() === EndpointType.Server) {
             var version = extensionData.readUInt32BE(offset);
             offset += 4;
-        } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.HANDSHAKE) {
+        } else if (connection.getServerTransportParameters() === undefined) {
             var version = extensionData.readUInt32BE(offset);
             offset += 4;
             var versionLength = extensionData.readUInt8(offset++);
             var negotiatedVersions = [];
-            for (var i = 0; i < versionLength; i++) {
+            for (var i = 0; i < (versionLength / 4); i++) {
                 negotiatedVersions.push(extensionData.readUInt32BE(offset));
                 offset += 4;
             }
