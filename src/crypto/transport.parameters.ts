@@ -106,80 +106,65 @@ export class TransportParameters {
         return bufferOffset.buffer;
     }
 
+    private writeTypeAndLength(type: TransportParameterType, buffer: Buffer, offset: number, length: number): BufferOffset {
+        buffer.writeUInt16BE(type, offset);
+        offset += 2;
+        buffer.writeUInt16BE(length, offset);
+        offset += 2;
+        return {
+            buffer: buffer, 
+            offset: offset
+        }
+    }
+
     private writeTransportParameter(type: TransportParameterType, buffer: Buffer, offset: number): BufferOffset {
+        var bufferOffset: BufferOffset = {buffer: buffer, offset: offset};
         switch(type) {
             case TransportParameterType.MAX_STREAM_DATA:
-                buffer.writeUInt16BE(TransportParameterType.MAX_STREAM_DATA, offset);
-                offset += 2;
-                buffer.writeUInt16BE(4, offset);
-                offset += 2;
-                buffer.writeUInt32BE(this.maxStreamData, offset);
-                offset += 4;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxStreamData, offset);
+                bufferOffset.offset += 4;
                 break;
             case TransportParameterType.MAX_DATA:
-                buffer.writeUInt16BE(TransportParameterType.MAX_DATA, offset);
-                offset += 2;
-                buffer.writeUInt16BE(4, offset);
-                offset += 2;
-                buffer.writeUInt32BE(this.maxData, offset);
-                offset += 4;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxData, offset);
+                bufferOffset.offset += 4;
                 break;
             case TransportParameterType.STATELESS_RESET_TOKEN:
-                buffer.writeUInt16BE(TransportParameterType.STATELESS_RESET_TOKEN, offset);
-                offset += 2;
-                buffer.writeUInt16BE(16, offset);
-                offset += 2;
-                this.statelessResetToken.copy(buffer, offset);
-                offset += 16;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 16);
+                this.statelessResetToken.copy(bufferOffset.buffer, bufferOffset.offset);
+                bufferOffset.offset += 16;
                 break;
             case TransportParameterType.IDLE_TIMEOUT:
-                buffer.writeUInt16BE(TransportParameterType.IDLE_TIMEOUT, offset);
-                offset += 2;
-                buffer.writeUInt16BE(2, offset);
-                offset += 2;
-                buffer.writeUInt16BE(this.idleTimeout, offset);
-                offset += 2;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 2);
+                bufferOffset.buffer.writeUInt16BE(this.idleTimeout, offset);
+                bufferOffset.offset += 2;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
-                buffer.writeUInt16BE(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, offset);
-                offset += 2;
-                buffer.writeUInt16BE(4, offset);
-                offset += 2;
-                buffer.writeUInt32BE(this.maxStreamIdBidi, offset);
-                offset += 4;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdBidi, offset);
+                bufferOffset.offset += 4;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
-                buffer.writeUInt16BE(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, offset);
-                offset += 2;
-                buffer.writeUInt16BE(4, offset);
-                offset += 2;
-                buffer.writeUInt32BE(this.maxStreamIdUni, offset);
-                offset += 4;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdUni, offset);
+                bufferOffset.offset += 4;
                 break;
             case TransportParameterType.MAX_PACKET_SIZE:
-                buffer.writeUInt16BE(TransportParameterType.MAX_PACKET_SIZE, offset);
-                offset += 2;
-                buffer.writeUInt16BE(2, offset);
-                offset += 2;
-                buffer.writeUInt16BE(this.maxPacketSize, offset);
-                offset += 2;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 2);
+                bufferOffset.buffer.writeUInt16BE(this.maxPacketSize, offset);
+                bufferOffset.offset += 2;
                 break;
             case TransportParameterType.ACK_DELAY_EXPONENT:
-                buffer.writeUInt16BE(TransportParameterType.ACK_DELAY_EXPONENT, offset);
-                offset += 2;
-                buffer.writeUInt16BE(1, offset);
-                offset += 2;
-                buffer.writeUInt8(this.ackDelayExponent, offset);
-                offset += 1;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 1);
+                bufferOffset.buffer.writeUInt8(this.ackDelayExponent, offset);
+                bufferOffset.offset += 1;
                 break;
             case TransportParameterType.OMIT_CONNECTION_ID:
-                buffer.writeUInt16BE(TransportParameterType.OMIT_CONNECTION_ID, offset);
-                offset += 2;
-                buffer.writeUInt16BE(0, offset);
-                offset += 2;
+                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 0);
                 break;
         }
-        return {buffer: buffer, offset: offset};
+        return bufferOffset;
     }
 
     private getBufferSize(): number {
