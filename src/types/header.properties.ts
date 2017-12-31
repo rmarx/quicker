@@ -84,7 +84,7 @@ export class PacketNumber extends BaseProperty {
         }
         var current = Bignum.and(this.getPacketNumber(), mask);
         var next = Bignum.and(packetNumber.getPacketNumber(), mask);
-        if (next.gt(current)) {
+        if (next.greaterThan(current)) {
             this.setPacketNumber(next);
         }
     }

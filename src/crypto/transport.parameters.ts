@@ -121,47 +121,47 @@ export class TransportParameters {
         var bufferOffset: BufferOffset = {buffer: buffer, offset: offset};
         switch(type) {
             case TransportParameterType.MAX_STREAM_DATA:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxStreamData, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxStreamData, bufferOffset.offset);
                 bufferOffset.offset += 4;
                 break;
             case TransportParameterType.MAX_DATA:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxData, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxData, bufferOffset.offset);
                 bufferOffset.offset += 4;
                 break;
             case TransportParameterType.STATELESS_RESET_TOKEN:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 16);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 16);
                 this.statelessResetToken.copy(bufferOffset.buffer, bufferOffset.offset);
                 bufferOffset.offset += 16;
                 break;
             case TransportParameterType.IDLE_TIMEOUT:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 2);
-                bufferOffset.buffer.writeUInt16BE(this.idleTimeout, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, offset, 2);
+                bufferOffset.buffer.writeUInt16BE(this.idleTimeout, bufferOffset.offset);
                 bufferOffset.offset += 2;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdBidi, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdBidi, bufferOffset.offset);
                 bufferOffset.offset += 4;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdUni, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
+                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdUni, bufferOffset.offset);
                 bufferOffset.offset += 4;
                 break;
             case TransportParameterType.MAX_PACKET_SIZE:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 2);
-                bufferOffset.buffer.writeUInt16BE(this.maxPacketSize, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
+                bufferOffset.buffer.writeUInt16BE(this.maxPacketSize, bufferOffset.offset);
                 bufferOffset.offset += 2;
                 break;
             case TransportParameterType.ACK_DELAY_EXPONENT:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 1);
-                bufferOffset.buffer.writeUInt8(this.ackDelayExponent, offset);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 1);
+                bufferOffset.buffer.writeUInt8(this.ackDelayExponent, bufferOffset.offset);
                 bufferOffset.offset += 1;
                 break;
             case TransportParameterType.OMIT_CONNECTION_ID:
-                bufferOffset = this.writeTypeAndLength(type, buffer, offset, 0);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 0);
                 break;
         }
         return bufferOffset;
@@ -207,8 +207,6 @@ export class TransportParameters {
         var offset = 0;
         var transportParameters = new TransportParameters(connection.getEndpointType() === EndpointType.Server, -1, -1, -1);
         while (offset < buffer.byteLength) {
-            console.log("offset: " + offset);
-            console.log("buffer length: " + buffer.byteLength);
             var type = buffer.readUInt16BE(offset);
             offset += 2;
             var len = buffer.readUInt16BE(offset);

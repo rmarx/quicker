@@ -1,4 +1,3 @@
-import { BitOperation } from "./../../utilities/bit.operation";
 import { BasePacket } from "../base.packet";
 import { BaseHeader } from "./base.header";
 import { LongHeader } from "./long.header";
@@ -16,7 +15,7 @@ export class HeaderParser {
      */
     public parse(buf: Buffer): HeaderOffset {
         var type = buf.readUIntBE(0, 1);
-        if (BitOperation.isBitSet(type, 8)) {
+        if ((type & 0x80) === 0x80) {
             return this.parseLongHeader(buf);
         }
         return this.parseShortHeader(buf);
@@ -47,8 +46,8 @@ export class HeaderParser {
         console.log("parsing short header");
         var offset = 1;
         var type = buf.readUIntBE(0, 1);
-        var connectionIdOmitted = !(BitOperation.isBitSet(type, 7));
-        var keyPhaseBit = BitOperation.isBitSet(type, 6);
+        var connectionIdOmitted: boolean = (type & 0x40) === 0x40;
+        var keyPhaseBit = (type & 0x20) === 0x20;
         var connectionId = undefined;
 
         type = this.correctShortHeaderType(type, connectionIdOmitted, keyPhaseBit);
@@ -56,10 +55,8 @@ export class HeaderParser {
             connectionId = new ConnectionID(buf.slice(offset, offset + 8));
             offset = offset + 8;
         }
-        console.log("offset: " + offset);
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
         offset = offset + (1 << (0x1f - type));
-        console.log("offset: " + offset);
         return { header: new ShortHeader(type, connectionId, packetNumber, connectionIdOmitted, keyPhaseBit), offset: offset };
     }
 

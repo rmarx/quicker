@@ -124,7 +124,6 @@ export class QTLS {
     }
 
     public exportKeyingMaterial(label: string): Buffer {
-        console.log("label: " + label);
         return this.qtlsHelper.exportKeyingMaterial(Buffer.from(label), this.getHashLength());
     }
 
