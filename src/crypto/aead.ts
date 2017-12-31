@@ -57,7 +57,7 @@ export class AEAD {
             var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv" , "", Constants.IV_LENGTH);
         }
-        var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(connection.getQuicTLS().getAEAD(), key, nonce, ad, payload);
     }
@@ -74,7 +74,7 @@ export class AEAD {
             var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv" , "", Constants.IV_LENGTH);
         }
-        var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         console.log("key: " + key.toString('hex'));
         console.log("iv: " + iv.toString('hex'));
