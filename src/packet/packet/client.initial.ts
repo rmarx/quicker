@@ -24,6 +24,6 @@ export class ClientInitialPacket extends BaseEncryptedPacket {
     }
 
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {
-        return connection.getAEAD().clearTextEncrypt(connection.getFirstConnectionID(), header, dataBuffer, connection.getEndpointType());
+        return connection.getAEAD().clearTextEncrypt(connection, header, dataBuffer, connection.getEndpointType());
     }
 }

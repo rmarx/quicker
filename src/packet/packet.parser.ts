@@ -67,7 +67,7 @@ export class PacketParser {
     private parseClientInitialPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
         var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
         buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getFirstConnectionID(), header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new ClientInitialPacket(header, frames),
@@ -91,7 +91,7 @@ export class PacketParser {
     private parseHandshakePacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
         var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
         buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getFirstConnectionID(), header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new HandshakePacket(header, frames),

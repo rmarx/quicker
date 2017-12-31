@@ -20,12 +20,12 @@ export class AEAD {
      * @param payload Payload that needs to be send
      * @param encryptingEndpoint the encrypting endpoint
      */
-    public clearTextEncrypt(clientConnectionId: ConnectionID, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+    public clearTextEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
-        var clearTextSecret = this.getClearTextSecret(hkdf, clientConnectionId, encryptingEndpoint);
+        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", Constants.IV_LENGTH);
-        var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
     }
@@ -35,12 +35,12 @@ export class AEAD {
      * @param encryptedPayload Payload that needs to be decrypted
      * @param encryptingEndpoint The endpoint that encrypted the payload
      */
-    public clearTextDecrypt(clientConnectionId: ConnectionID, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+    public clearTextDecrypt(connection: Connection, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
-        var clearTextSecret = this.getClearTextSecret(hkdf, clientConnectionId, encryptingEndpoint);
+        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key" , "", Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.expandLabel(clearTextSecret, "iv" , "", Constants.IV_LENGTH);
-        var nonce = this.calculateNonce(iv, header.getPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
     }
@@ -57,7 +57,7 @@ export class AEAD {
             var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv" , "", Constants.IV_LENGTH);
         }
-        var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(connection.getQuicTLS().getAEAD(), key, nonce, ad, payload);
     }

@@ -161,4 +161,8 @@ export class Bignum {
         var bn = bn1.bignum.and(bn2.bignum);
         return new Bignum(bn.toBuffer('be'));
     }
+
+    public static mask(bn: Bignum, bytesize: number) {
+        return new Bignum(bn.bignum.maskn(bytesize * 8).toBuffer('be'));
+    }
 }
