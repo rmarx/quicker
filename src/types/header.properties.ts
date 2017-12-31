@@ -74,10 +74,27 @@ export class PacketNumber extends BaseProperty {
         return buf;
     }
 
+    public adjustNumber(packetNumber: PacketNumber, size: number) {
+        var mask = Bignum.fromNumber(1);
+        for(var i = 0; i < 63; i++) {
+            mask.shiftLeft(1);
+            if (63 - i > size) {
+                mask.add(1);
+            }
+        }
+        var current = Bignum.and(this.getPacketNumber(), mask);
+        var next = Bignum.and(packetNumber.getPacketNumber(), mask);
+        if (next.gt(current)) {
+            this.setPacketNumber(next);
+        }
+    }
+
     public static randomPacketNumber(): PacketNumber {
         var randomBignum = Bignum.random('fffffc00', 8);
         return new PacketNumber(randomBignum.toBuffer());
     }
+
+
 }
 
 

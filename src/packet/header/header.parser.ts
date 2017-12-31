@@ -72,13 +72,7 @@ export class HeaderParser {
      * @param keyPhaseBit 
      */
     private correctShortHeaderType(type: number, connectionIdOmitted: boolean, keyPhaseBit: boolean): number {
-        if (!connectionIdOmitted) {
-            type = type - 0x40;
-        }
-        if (keyPhaseBit) {
-            type = type - 0x20;
-        }
-        return type;
+        return type & 0x1f;
     }
 
     /**

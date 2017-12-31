@@ -147,8 +147,7 @@ export class Bignum {
      */
     public static fromNumber(num: number): Bignum {
         var bn = new BN(num);
-        var bignum = new Bignum(bn.toBuffer('be'));
-        return bignum;
+        return new Bignum(bn.toBuffer('be'));
     }
 
     /**
@@ -156,5 +155,10 @@ export class Bignum {
      */
     private static mathRandom(): BN {
         return new BN(Math.random() * 256);
+    }
+
+    public static and(bn1: Bignum, bn2: Bignum) {
+        var bn = bn1.bignum.and(bn2.bignum);
+        return new Bignum(bn.toBuffer('be'));
     }
 }
