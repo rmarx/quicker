@@ -16,7 +16,7 @@ export class LongHeader extends BaseHeader {
         this.version = version;
     }
 
-    public getVersion() {
+    public getVersion(): Version {
         return this.version;
     }
 
@@ -42,6 +42,10 @@ export class LongHeader extends BaseHeader {
         offset += 4; // 13
         this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
         return buf;
+    }
+
+    public getPacketNumberSize(): number {
+        return Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
     }
 }
 

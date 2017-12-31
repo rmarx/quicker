@@ -20,7 +20,8 @@ export class Connection {
     private firstConnectionID: ConnectionID;
     private connectionID: ConnectionID;
     private initialPacketNumber: PacketNumber;
-    private packetNumber: PacketNumber;
+    private localPacketNumber: PacketNumber;
+    private remotePacketNumber: PacketNumber;
     private serverTransportParameters: TransportParameters;
     private clientTransportParameters: TransportParameters;
     private version: Version;
@@ -113,22 +114,30 @@ export class Connection {
         return this.socket;
     }
 
-    public getPacketNumber(): PacketNumber {
-        return this.packetNumber;
+    public getLocalPacketNumber(): PacketNumber {
+        return this.localPacketNumber;
     }
 
-    public setPacketNumber(packetNumber: PacketNumber) {
-        this.packetNumber = packetNumber;
+    public setLocalPacketNumber(packetNumber: PacketNumber) {
+        this.localPacketNumber = packetNumber;
     }
 
     public getNextPacketNumber(): PacketNumber {
-        if (this.packetNumber === undefined) {
-            this.packetNumber = PacketNumber.randomPacketNumber();
-            this.initialPacketNumber = this.packetNumber;
-            return this.packetNumber;
+        if (this.localPacketNumber === undefined) {
+            this.localPacketNumber = PacketNumber.randomPacketNumber();
+            this.initialPacketNumber = this.localPacketNumber;
+            return this.localPacketNumber;
         }
-        this.packetNumber.getPacketNumber().add(1);
-        return this.packetNumber;
+        this.localPacketNumber.getPacketNumber().add(1);
+        return this.localPacketNumber;
+    }
+
+    public getRemotePacketNumber(): PacketNumber {
+        return this.remotePacketNumber;
+    }
+
+    public setRemotePacketNumber(packetNumber: PacketNumber) {
+        this.remotePacketNumber = packetNumber;
     }
 
     public getVersion(): Version {

@@ -17,6 +17,7 @@ export abstract class BaseHeader {
     }
 
     abstract toBuffer(): Buffer;
+    abstract getPacketNumberSize(): number;
 
     public getPacketType(): number {
         return this.packetType;

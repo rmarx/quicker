@@ -61,7 +61,7 @@ export class ShortHeader extends BaseHeader {
         return type;
     }
 
-    private getPacketNumberSize(): number {
+    public getPacketNumberSize(): number {
         switch(this.getPacketType()) {
             case ShortHeaderType.OneOctet:
                 return 1;

@@ -14,6 +14,7 @@ export class Constants {
     }
     
     public static readonly LONG_HEADER_SIZE = 17;
+    public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 
     /**
      * Default algorithm for cleartext encryption/decryption in QUIC

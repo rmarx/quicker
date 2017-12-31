@@ -11,6 +11,7 @@ import {PacketFactory} from '../packet/packet.factory';
 import { EventEmitter } from 'events';
 import { Socket, RemoteInfo, createSocket } from 'dgram';
 import { readFileSync } from 'fs';
+import { HeaderHandler } from './../packet/header/header.handler';
 
 
 export class Server extends EventEmitter {
@@ -19,6 +20,7 @@ export class Server extends EventEmitter {
     private host: string;
 
     private headerParser: HeaderParser;
+    private headerHandler: HeaderHandler;
     private packetParser: PacketParser;
     private packetHandler: PacketHandler;
 
@@ -27,9 +29,10 @@ export class Server extends EventEmitter {
 
     public constructor() {
         super();
+        this.headerParser = new HeaderParser();
+        this.headerHandler = new HeaderHandler();
         this.packetParser = new PacketParser();
         this.packetHandler = new PacketHandler();
-        this.headerParser = new HeaderParser();
     }
 
     public listen(host: string, port: number) {
@@ -51,6 +54,7 @@ export class Server extends EventEmitter {
         try {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             var connection: Connection = this.getConnection(headerOffset, rinfo);
+            this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet);
 

@@ -14,6 +14,7 @@ import * as fs from 'fs';
 import {EndpointType} from '../types/endpoint.type';
 import {Connection, RemoteInformation} from '../types/connection';
 import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
+import { HeaderHandler } from './../packet/header/header.handler';
 
 
 export class Client {
@@ -23,14 +24,16 @@ export class Client {
 
     private headerParser: HeaderParser;
     private packetParser: PacketParser;
+    private headerHandler: HeaderHandler;
     private packetHandler: PacketHandler;
 
     private connection: Connection;
 
     constructor() {
+        this.headerParser = new HeaderParser();
+        this.headerHandler = new HeaderHandler();
         this.packetParser = new PacketParser();
         this.packetHandler = new PacketHandler();
-        this.headerParser = new HeaderParser();
     }
 
     public connect(hostname: string, port: number) {
@@ -53,7 +56,7 @@ export class Client {
 
     public testSend() {
         var packetNumber = PacketNumber.randomPacketNumber();
-        this.connection.setPacketNumber(packetNumber);
+        this.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         console.log("connectionid: " + this.connection.getConnectionID().toString());
         console.log("packet number: " + packetNumber.toString());
@@ -74,6 +77,7 @@ export class Client {
         console.log("on message");
         try {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+            this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
             this.packetHandler.handle(this.connection, packetOffset.packet);
             
