@@ -82,19 +82,12 @@ export class PacketNumber extends BaseProperty {
                 mask.add(1);
             }
         }
-        console.log("mask: " + mask.toString());
-        console.log("size: " + size);
-        console.log("current: " + this.getPacketNumber().toString());
-        console.log("headerpn: " + packetNumber.getPacketNumber().toString());
         var maskedResult = Bignum.and(this.getPacketNumber(), mask);
         var next = Bignum.mask(packetNumber.getPacketNumber(), size);
         next.add(maskedResult);
-        console.log("current: " + this.getPacketNumber().toString('hex'));
-        console.log("next: " + next.toString('hex'));
         if (next.greaterThan(this.getPacketNumber())) {
             this.setPacketNumber(next);
         }
-        console.log("output: " + this.getPacketNumber().toString());
     }
 
     public static randomPacketNumber(): PacketNumber {

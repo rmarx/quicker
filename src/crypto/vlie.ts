@@ -7,7 +7,7 @@ import { Buffer } from "buffer";
 export class VLIE {
 
     public static getEncodedByteLength(bignum: Bignum) {
-        return this.getBytesNeeded(bignum) + 1;
+        return 2 ** this.getBytesNeeded(bignum);
     }
 
     static encode(bignum: Bignum): Buffer;

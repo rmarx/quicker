@@ -52,7 +52,7 @@ export class ShortHeader extends BaseHeader {
 
     private getType(): number {
         var type = this.getPacketType();
-        if (!this.connectionIDOmitted) {
+        if (this.connectionIDOmitted) {
             type += 0x40;
         }
         if (this.keyPhaseBit) {
