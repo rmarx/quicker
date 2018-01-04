@@ -1,6 +1,6 @@
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {AEAD} from '../crypto/aead';
-import {QTLS} from '../crypto/qtls';
+import {QTLS, HandshakeState} from '../crypto/qtls';
 import {ConnectionID, PacketNumber, Version} from '../types/header.properties';
 import {Bignum} from './bignum';
 import { RemoteInfo, Socket } from "dgram";
@@ -196,7 +196,7 @@ export class Connection {
     }
 
     public sendPacket(basePacket: BasePacket): void {
-        if (basePacket.getPacketType() !== PacketType.VersionNegotiation && basePacket.getPacketType() !== PacketType.Retry) {
+        if (basePacket.getPacketType() !== PacketType.VersionNegotiation && basePacket.getPacketType() !== PacketType.Retry && this.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket> basePacket;
             baseEncryptedPacket.getFrames().push(this.ackHandler.getAckFrame(this));
         }
