@@ -39,7 +39,7 @@ export class Connection {
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
         this.aead = new AEAD();
-        this.ackHandler = new AckHandler();
+        this.ackHandler = new AckHandler(this);
         this.streams = [];
     }
 
