@@ -5,21 +5,39 @@ import { BasePacket } from '../packet/base.packet';
 import { AckFrame, AckBlock } from '../frame/general/ack';
 import { TimeFormat, Time } from './time';
 import { TransportParameterType } from '../crypto/transport.parameters';
+import { Alarm } from '../loss-detection/alarm';
+import { PacketFactory } from '../packet/packet.factory';
+import { BaseFrame } from '../frame/base.frame';
 
 
 export class AckHandler {
     private receivedPackets: { [key: string]: ReceivedPacket };
     private latestPacketNumber: Bignum;
+    private alarm: Alarm;
+    private connection: Connection;
+    // ack wait in ms
+    private static readonly ACK_WAIT = 25;
 
-    public constructor() {
+    public constructor(connection: Connection) {
+        this.connection = connection;
         this.receivedPackets = {};
+        this.alarm = new Alarm();
+        this.alarm.on("timeout", () => {
+            var baseFrames: BaseFrame[] = [];
+            baseFrames.push(this.getAckFrame(this.connection));
+            PacketFactory.createShortHeaderPacket(this.connection, baseFrames);
+        });
     }
 
     public onPacketReceived(packet: BasePacket, time: number): void {
+        this.alarm.reset();
         var pn = packet.getHeader().getPacketNumber().getPacketNumber();
         this.latestPacketNumber = pn;
         this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
+        this.alarm.set(AckHandler.ACK_WAIT);
     }
+
+
 
     public getAckFrame(connection: Connection): AckFrame {
         var doneTime = Time.now(TimeFormat.MicroSeconds);
