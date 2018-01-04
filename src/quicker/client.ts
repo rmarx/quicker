@@ -81,8 +81,8 @@ export class Client {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
-            this.connection.getAckHandler().onPacketReceived(packetOffset.packet, receivedTime);
             this.packetHandler.handle(this.connection, packetOffset.packet);
+            this.connection.getAckHandler().onPacketReceived(packetOffset.packet, receivedTime);
             
         }catch(err) {
             // packet not parseable yet.
