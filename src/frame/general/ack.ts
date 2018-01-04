@@ -1,3 +1,4 @@
+import {VLIE} from '../../crypto/vlie';
 import {Bignum} from '../../types/bignum';
 import {BaseFrame, FrameType} from '../base.frame';
 
@@ -11,10 +12,6 @@ export class AckFrame extends BaseFrame {
     
     private firstAckBlock: Bignum;
     private ackBlocks: AckBlock[];
-
-    public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
-    }
 
     public constructor(largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]) {
         super(FrameType.ACK);
@@ -44,6 +41,44 @@ export class AckFrame extends BaseFrame {
     public getFirstAckBlock(): Bignum {
         return this.firstAckBlock;
     }
+
+    public toBuffer(): Buffer {
+        var offset = 0;
+        var laBuffer: Buffer = VLIE.encode(this.largestAcknowledged);
+        var ackDelayBuffer: Buffer = VLIE.encode(this.ackDelay);
+        var ackBlockCount: Buffer = VLIE.encode(this.ackBlockCount);
+        var firstAckBlockBuffer: Buffer = VLIE.encode(this.firstAckBlock);
+        var ackBlockBuffers: Buffer[] = [];
+        var ackBlockByteSize = 0;
+        this.ackBlocks.forEach((ackBlock: AckBlock) => {
+            var ackBlockBuffer: Buffer = ackBlock.toBuffer();
+            ackBlockByteSize += ackBlockBuffer.byteLength;
+            ackBlockBuffers.push(ackBlockBuffer);
+        });
+
+        var size = 0;
+        size += VLIE.getEncodedByteLength(this.largestAcknowledged);
+        size += VLIE.getEncodedByteLength(this.ackDelay);
+        size += VLIE.getEncodedByteLength(this.ackBlockCount);
+        size += VLIE.getEncodedByteLength(this.firstAckBlock);
+        size += ackBlockByteSize;
+    
+        var returnBuffer: Buffer = Buffer.alloc(size);
+        laBuffer.copy(returnBuffer, offset);
+        offset += laBuffer.byteLength;
+        ackDelayBuffer.copy(returnBuffer, offset);
+        offset += ackDelayBuffer.byteLength;
+        ackBlockCount.copy(returnBuffer, offset);
+        offset += ackBlockCount.byteLength;
+        firstAckBlockBuffer.copy(returnBuffer, offset);
+        offset += firstAckBlockBuffer.byteLength;
+        ackBlockBuffers.forEach((ackBlockBuffer: Buffer) => {
+            ackBlockBuffer.copy(returnBuffer, offset);
+            offset += ackBlockBuffer.byteLength;
+        });
+
+        return returnBuffer;
+    }
 }
 
 export class AckBlock {
@@ -55,11 +90,22 @@ export class AckBlock {
         this.block = block;
     }
 
-    private getGap(): Bignum {
+    public getGap(): Bignum {
         return this.gap;
     }
 
-    private getBlock(): Bignum {
+    public getBlock(): Bignum {
         return this.block;
+    }
+
+    public toBuffer(): Buffer {
+        var offset = 0;
+        var gapBuffer: Buffer = VLIE.encode(this.gap);
+        var blockBuffer: Buffer = VLIE.encode(this.block);
+        var returnBuffer: Buffer = Buffer.alloc(gapBuffer.byteLength + blockBuffer.byteLength);
+        gapBuffer.copy(returnBuffer, offset);
+        offset += VLIE.getEncodedByteLength(this.gap);
+        blockBuffer.copy(returnBuffer, offset);
+        return returnBuffer;
     }
 }

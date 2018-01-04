@@ -1,13 +1,14 @@
 import { VLIE } from '../crypto/vlie';
 import { Connection } from '../types/connection';
 import { Bignum } from '../types/bignum';
-import { BasePacket } from '../packet/base.packet';
+import { BasePacket, PacketType } from '../packet/base.packet';
 import { AckFrame, AckBlock } from '../frame/general/ack';
 import { TimeFormat, Time } from './time';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { Alarm } from '../loss-detection/alarm';
 import { PacketFactory } from '../packet/packet.factory';
-import { BaseFrame } from '../frame/base.frame';
+import { BaseFrame, FrameType } from '../frame/base.frame';
+import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 
 
 export class AckHandler {
@@ -26,7 +27,8 @@ export class AckHandler {
             console.log("on timeout");
             var baseFrames: BaseFrame[] = [];
             baseFrames.push(this.getAckFrame(this.connection));
-            PacketFactory.createShortHeaderPacket(this.connection, baseFrames);
+            var packet = PacketFactory.createShortHeaderPacket(this.connection, baseFrames);
+            this.connection.sendPacket(packet);
         });
     }
 
@@ -35,8 +37,24 @@ export class AckHandler {
         this.alarm.reset();
         var pn = packet.getHeader().getPacketNumber().getPacketNumber();
         this.latestPacketNumber = pn;
-        this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
-        this.alarm.set(AckHandler.ACK_WAIT);
+        var isAckOnly = true;
+        if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
+            var baseEncryptedPacket = <BaseEncryptedPacket> packet;
+            if (baseEncryptedPacket.getFrames().length === 0) {
+                isAckOnly = false;
+            }
+            baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
+                if (frame.getType() !== FrameType.ACK) {
+                    isAckOnly = false;
+                }
+            });
+        } else {
+            isAckOnly = false;
+        }
+        if (!isAckOnly) {
+            this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
+            this.alarm.set(AckHandler.ACK_WAIT);
+        }
     }
 
 
