@@ -51,8 +51,8 @@ export class AckHandler {
         } else {
             isAckOnly = false;
         }
+        this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
         if (!isAckOnly) {
-            this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
             this.alarm.set(AckHandler.ACK_WAIT);
         }
     }
