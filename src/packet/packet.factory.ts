@@ -39,7 +39,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.Initial, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));

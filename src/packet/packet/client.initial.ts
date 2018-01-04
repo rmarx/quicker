@@ -10,7 +10,7 @@ import {BaseEncryptedPacket} from "./../base.encrypted.packet";
 export class ClientInitialPacket extends BaseEncryptedPacket {
     
     public constructor(header: BaseHeader, frames: BaseFrame[]) {
-        super(PacketType.Handshake,header, frames);
+        super(PacketType.Initial,header, frames);
     }
 
     protected getFrameSizes(): number {

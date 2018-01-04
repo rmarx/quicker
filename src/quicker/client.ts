@@ -30,7 +30,7 @@ export class Client {
 
     private connection: Connection;
 
-    constructor() {
+    public constructor() {
         this.headerParser = new HeaderParser();
         this.headerHandler = new HeaderHandler();
         this.packetParser = new PacketParser();
@@ -50,8 +50,7 @@ export class Client {
             family: 'IPv4'
         };
         this.connection = new Connection(remoteInfo, EndpointType.Client);
-        this.connection.setConnectionID(ConnectionID.randomConnectionID());
-        this.connection.setFirstConnectionID(this.connection.getConnectionID());
+        this.connection.setFirstConnectionID(ConnectionID.randomConnectionID());
         this.connection.setSocket(socket);
     }
 
@@ -59,8 +58,6 @@ export class Client {
         var packetNumber = PacketNumber.randomPacketNumber();
         this.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        console.log("connectionid: " + this.connection.getConnectionID().toString());
-        console.log("packet number: " + packetNumber.toString());
         this.connection.addStream(new Stream(Bignum.fromNumber(0), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA)));
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
         this.connection.getSocket().send(clientInitial.toBuffer(this.connection), this.port, this.hostname);

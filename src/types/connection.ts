@@ -198,7 +198,10 @@ export class Connection {
     public sendPacket(basePacket: BasePacket): void {
         if (basePacket.getPacketType() === PacketType.Protected1RTT && this.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket> basePacket;
-            baseEncryptedPacket.getFrames().push(this.ackHandler.getAckFrame(this));
+            var ackFrame = this.ackHandler.getAckFrame(this);
+            if (ackFrame !== undefined) {
+                baseEncryptedPacket.getFrames().push();
+            }
         }
         this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
     }

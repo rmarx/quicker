@@ -121,10 +121,11 @@ export class Server extends EventEmitter {
             port: rinfo.port,
             family: rinfo.family
         };
-        var connection = new Connection(remoteInfo, EndpointType.Server, { key: readFileSync('./keys/key.pem'), cert: readFileSync('./keys/cert.pem') });
+        var connection = new Connection(remoteInfo, EndpointType.Server, { key: readFileSync('../keys/key.pem'), cert: readFileSync('../keys/cert.pem') });
         connection.setSocket(this.server);
         connection.setFirstConnectionID(connectionID);
-        this.connections[connectionID.toString()] = connection;
+        connection.setConnectionID(ConnectionID.randomConnectionID());
+        this.connections[connection.getConnectionID().toString()] = connection;
         return connection;
     }
 

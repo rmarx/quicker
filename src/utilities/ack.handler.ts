@@ -9,6 +9,7 @@ import { Alarm } from '../loss-detection/alarm';
 import { PacketFactory } from '../packet/packet.factory';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
+import { HandshakeState } from '../crypto/qtls';
 
 
 export class AckHandler {
@@ -55,7 +56,7 @@ export class AckHandler {
             isAckOnly = false;
         }
         this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
-        if (!isAckOnly) {
+        if (!isAckOnly && this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
             this.alarm.set(AckHandler.ACK_WAIT);
         }
     }

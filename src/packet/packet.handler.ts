@@ -45,7 +45,6 @@ export class PacketHandler {
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
         }
-        connection.setConnectionID(ConnectionID.randomConnectionID());
         this.handleFrames(connection, clientInitialPacket);
     }
 
