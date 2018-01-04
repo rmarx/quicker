@@ -76,6 +76,10 @@ export class Bignum {
         return this.bignum.lt(num.bignum);
     }
 
+    public compare(num: Bignum): number {
+        return this.bignum.cmp(num.bignum);
+    }
+
     /**
      * Get the buffer from the bignum object
      */
@@ -164,5 +168,9 @@ export class Bignum {
 
     public static mask(bn: Bignum, bytesize: number) {
         return new Bignum(bn.bignum.maskn(bytesize * 8).toBuffer('be'));
+    }
+
+    public static subtract(bn1: Bignum, bn2: Bignum): Bignum {
+        return new Bignum(bn1.bignum.sub(bn2.bignum).toBuffer('be'));
     }
 }

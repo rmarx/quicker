@@ -82,7 +82,7 @@ export class FrameHandler {
             if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 //
             }
-            connection.getSocket().send(packet.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
+            connection.sendPacket(packet);
         }
     }
 

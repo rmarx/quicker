@@ -54,7 +54,9 @@ export class PacketHandler {
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
         }
-        connection.setConnectionID(connectionID);
+        if (connection.getEndpointType() === EndpointType.Client) {
+            connection.setConnectionID(connectionID);
+        }
         this.handleFrames(connection, handshakePacket);
     }
 

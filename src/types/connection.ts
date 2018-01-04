@@ -8,6 +8,9 @@ import {Stream} from './stream';
 import { EndpointType } from './endpoint.type';
 import { Constants } from '../utilities/constants';
 import { TransportParameters } from '../crypto/transport.parameters';
+import { BasePacket, PacketType } from './../packet/base.packet';
+import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
+import { AckHandler } from '../utilities/ack.handler';
 
 export class Connection {
 
@@ -16,6 +19,7 @@ export class Connection {
     private socket: Socket;
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
+    private ackHandler: AckHandler;
 
     private firstConnectionID: ConnectionID;
     private connectionID: ConnectionID;
@@ -35,6 +39,7 @@ export class Connection {
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
         this.aead = new AEAD();
+        this.ackHandler = new AckHandler();
         this.streams = [];
     }
 
@@ -76,6 +81,10 @@ export class Connection {
 
     public getAEAD(): AEAD {
         return this.aead;
+    }
+
+    public getAckHandler(): AckHandler {
+        return this.ackHandler;
     }
 
     public getServerTransportParameter(type: TransportParameterType): any {
@@ -184,6 +193,14 @@ export class Connection {
         if (index > -1) {
             this.streams.splice(index, 1);
         }
+    }
+
+    public sendPacket(basePacket: BasePacket): void {
+        if (basePacket.getPacketType() !== PacketType.VersionNegotiation && basePacket.getPacketType() !== PacketType.Retry) {
+            var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket> basePacket;
+            baseEncryptedPacket.getFrames().push(this.ackHandler.getAckFrame(this));
+        }
+        this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
     }
 }
 

@@ -15,6 +15,7 @@ import {EndpointType} from '../types/endpoint.type';
 import {Connection, RemoteInformation} from '../types/connection';
 import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 import { HeaderHandler } from './../packet/header/header.handler';
+import { Time, TimeFormat } from '../utilities/time';
 
 
 export class Client {
@@ -76,6 +77,7 @@ export class Client {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         console.log("on message");
         try {
+            var receivedTime = Time.now(TimeFormat.MicroSeconds);
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
