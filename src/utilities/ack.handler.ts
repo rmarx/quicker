@@ -26,9 +26,12 @@ export class AckHandler {
         this.alarm.on("timeout", () => {
             console.log("on timeout");
             var baseFrames: BaseFrame[] = [];
-            baseFrames.push(this.getAckFrame(this.connection));
-            var packet = PacketFactory.createShortHeaderPacket(this.connection, baseFrames);
-            this.connection.sendPacket(packet);
+            var ackFrame = this.getAckFrame(this.connection);
+            if (ackFrame !== undefined) {
+                baseFrames.push(ackFrame);
+                var packet = PacketFactory.createShortHeaderPacket(this.connection, baseFrames);
+                this.connection.sendPacket(packet);
+            }
         });
     }
 
@@ -59,7 +62,11 @@ export class AckHandler {
 
 
 
-    public getAckFrame(connection: Connection): AckFrame {
+    public getAckFrame(connection: Connection): AckFrame | undefined {
+        if (Object.keys(this.receivedPackets).length === 0) {
+            return undefined;
+        }
+
         var doneTime = Time.now(TimeFormat.MicroSeconds);
         var ackDelay = doneTime - this.receivedPackets[this.latestPacketNumber.toString()].receiveTime;
         ackDelay = ackDelay / (2 ** connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT));
@@ -93,8 +100,8 @@ export class AckHandler {
             var ackBlock = new AckBlock(Bignum.fromNumber(gaps[i - 1]), Bignum.fromNumber(blocks[i]));
         }
 
-
-        return new AckFrame(this.latestPacketNumber, Bignum.fromNumber(ackDelay), Bignum.fromNumber(ackBlockCount), firstAckBlock, ackBlocks);
+        var latestPacketNumber = this.latestPacketNumber;
+        return new AckFrame(latestPacketNumber, Bignum.fromNumber(ackDelay), Bignum.fromNumber(ackBlockCount), firstAckBlock, ackBlocks);
     }
 }
 
