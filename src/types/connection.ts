@@ -204,7 +204,7 @@ export class Connection {
                 baseEncryptedPacket.getFrames().push();
             }
         }
-        PacketLogging.logOutgoingPacket(this, basePacket);
+        PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
         this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
     }
 }

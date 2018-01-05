@@ -61,7 +61,7 @@ export class Client {
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         this.connection.addStream(new Stream(Bignum.fromNumber(0), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA)));
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
-        this.connection.getSocket().send(clientInitial.toBuffer(this.connection), this.port, this.hostname);
+        this.connection.sendPacket(clientInitial);
     }
 
     public getPort(): number {
@@ -79,7 +79,7 @@ export class Client {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
-            PacketLogging.logIncomingPacket(this.connection, packetOffset.packet);
+            PacketLogging.getInstance().logIncomingPacket(this.connection, packetOffset.packet);
             this.packetHandler.handle(this.connection, packetOffset.packet);
             this.connection.getAckHandler().onPacketReceived(packetOffset.packet, receivedTime);
             
