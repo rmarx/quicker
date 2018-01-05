@@ -23,6 +23,8 @@ import {AckFrame} from '../../frame/general/ack';
 import {StreamFrame} from '../../frame/general/stream';
 import { configure, getLogger, Logger } from 'log4js';
 import {TransportParameterType} from '../../crypto/transport.parameters';
+import { HeaderType } from '../../packet/header/base.header';
+import { LongHeader } from '../../packet/header/long.header';
 
 
 
@@ -84,8 +86,12 @@ export class PacketLogging {
     private logPackets(connection: Connection, basePacket: BasePacket, packetNumber: PacketNumber, direction: string, color: ConsoleColor): void {
         var connectionID = basePacket.getHeader().getConnectionID();
         var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
-        this.startOutput.debug(this.getSpaces(2) + "%s " + color + "%s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s, " + color + "PKN: %s" + ConsoleColor.Reset + " ",
-            direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString, packetNumber.getPacketNumber().toDecimalString());
+        var format = this.getSpaces(2) + "%s " + color + "%s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s, " + color + "PKN: %s" + ConsoleColor.Reset + " ";
+        if (basePacket.getHeader().getHeaderType() === HeaderType.LongHeader) {
+            var lh: LongHeader = <LongHeader> (basePacket.getHeader());
+            format += "Version: Ox" + lh.getVersion().getVersion().toString();
+        }
+        this.startOutput.debug(format, direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString, packetNumber.getPacketNumber().toDecimalString());
 
         switch (basePacket.getPacketType()) {
             case PacketType.Retry:
