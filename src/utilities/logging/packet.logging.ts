@@ -1,25 +1,28 @@
+import {Constants} from '../constants';
+import {HandshakeState} from '../../crypto/qtls';
+import {PacketNumber} from '../../types/header.properties';
 import {Bignum} from '../../types/bignum';
-import { Connection } from '../../types/connection';
-import { BasePacket, PacketType } from '../../packet/base.packet';
-import { ConsoleColor } from './colors';
-import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
-import { BaseFrame, FrameType } from '../../frame/base.frame';
-import { PaddingFrame } from '../../frame/general/padding';
-import { RstStreamFrame } from '../../frame/general/rst.stream';
-import { ConnectionCloseFrame, ApplicationCloseFrame } from '../../frame/general/close';
-import { MaxDataFrame } from '../../frame/general/max.data';
-import { MaxStreamFrame } from '../../frame/general/max.stream';
-import { MaxStreamIdFrame } from '../../frame/general/max.stream.id';
-import { PingFrame, PongFrame } from '../../frame/general/ping';
-import { BlockedFrame } from '../../frame/general/blocked';
-import { StreamBlockedFrame } from '../../frame/general/stream.blocked';
-import { StreamIdBlockedFrame } from '../../frame/general/stream.id.blocked';
-import { NewConnectionIdFrame } from '../../frame/general/new.connection.id';
-import { StopSendingFrame } from '../../frame/general/stop.sending';
-import { AckFrame } from '../../frame/general/ack';
-import { StreamFrame } from '../../frame/general/stream';
+import {Connection} from '../../types/connection';
+import {BasePacket, PacketType} from '../../packet/base.packet';
+import {ConsoleColor} from './colors';
+import {BaseEncryptedPacket} from '../../packet/base.encrypted.packet';
+import {BaseFrame, FrameType} from '../../frame/base.frame';
+import {PaddingFrame} from '../../frame/general/padding';
+import {RstStreamFrame} from '../../frame/general/rst.stream';
+import {ConnectionCloseFrame, ApplicationCloseFrame} from '../../frame/general/close';
+import {MaxDataFrame} from '../../frame/general/max.data';
+import {MaxStreamFrame} from '../../frame/general/max.stream';
+import {MaxStreamIdFrame} from '../../frame/general/max.stream.id';
+import {PingFrame, PongFrame} from '../../frame/general/ping';
+import {BlockedFrame} from '../../frame/general/blocked';
+import {StreamBlockedFrame} from '../../frame/general/stream.blocked';
+import {StreamIdBlockedFrame} from '../../frame/general/stream.id.blocked';
+import {NewConnectionIdFrame} from '../../frame/general/new.connection.id';
+import {StopSendingFrame} from '../../frame/general/stop.sending';
+import {AckFrame} from '../../frame/general/ack';
+import {StreamFrame} from '../../frame/general/stream';
 import { configure, getLogger, Logger } from 'log4js';
-import { TransportParameterType } from '../../crypto/transport.parameters';
+import {TransportParameterType} from '../../crypto/transport.parameters';
 
 
 
@@ -71,19 +74,18 @@ export class PacketLogging {
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
-        this.logPackets(connection, basePacket, "RX", ConsoleColor.FgBlue);
+        this.logPackets(connection, basePacket, connection.getRemotePacketNumber(), "RX", ConsoleColor.FgBlue);
     }
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
-        this.logPackets(connection, basePacket, "TX", ConsoleColor.FgRed);
+        this.logPackets(connection, basePacket, connection.getLocalPacketNumber(), "TX", ConsoleColor.FgRed);
     }
 
-    private logPackets(connection: Connection, basePacket: BasePacket, direction: string, color: ConsoleColor): void {
+    private logPackets(connection: Connection, basePacket: BasePacket, packetNumber: PacketNumber, direction: string, color: ConsoleColor): void {
         var connectionID = basePacket.getHeader().getConnectionID();
         var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
-        var pn = basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString();
         this.startOutput.debug(this.getSpaces(2) + "%s " + color + "%s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s, " + color + "PKN: %s" + ConsoleColor.Reset + " ",
-            direction, PacketType[basePacket.getPacketType()], basePacket.getHeader().getPacketType().toString(16), connectionIDString, pn);
+            direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString, packetNumber.getPacketNumber().toDecimalString());
 
         switch (basePacket.getPacketType()) {
             case PacketType.Retry:
@@ -233,7 +235,11 @@ export class PacketLogging {
     }
 
     private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): void {
-        var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT));
+        var ackExponent = Constants.DEFAULT_ACK_EXPONENT;
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            ackExponent = connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+        }
+        var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackExponent);
 
         this.continuedOutput.debug(this.getSpaces(4) + "largest acknowledged=%s", ackFrame.getLargestAcknowledged().toDecimalString());
         this.continuedOutput.debug(this.getSpaces(4) + "ack delay=%d", ackDelay);

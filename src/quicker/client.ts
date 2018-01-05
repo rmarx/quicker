@@ -91,7 +91,7 @@ export class Client {
     }
 
     private onError(error: Error): any {
-        console.log("error");
+        console.log("error: " + error.message);
     }
 
     private onClose(): any {
