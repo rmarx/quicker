@@ -11,6 +11,7 @@ import { TransportParameters } from '../crypto/transport.parameters';
 import { BasePacket, PacketType } from './../packet/base.packet';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { AckHandler } from '../utilities/ack.handler';
+import { PacketLogging } from '../utilities/logging/packet.logging';
 
 export class Connection {
 
@@ -203,6 +204,7 @@ export class Connection {
                 baseEncryptedPacket.getFrames().push();
             }
         }
+        PacketLogging.logOutgoingPacket(this, basePacket);
         this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
     }
 }

@@ -12,6 +12,7 @@ import { EventEmitter } from 'events';
 import { Socket, RemoteInfo, createSocket } from 'dgram';
 import { readFileSync } from 'fs';
 import { HeaderHandler } from './../packet/header/header.handler';
+import { PacketLogging } from './../utilities/logging/packet.logging';
 
 
 export class Server extends EventEmitter {
@@ -56,6 +57,7 @@ export class Server extends EventEmitter {
             var connection: Connection = this.getConnection(headerOffset, rinfo);
             this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
+            PacketLogging.logIncomingPacket(connection, packetOffset.packet);
             this.packetHandler.handle(connection, packetOffset.packet);
 
         } catch (err) {

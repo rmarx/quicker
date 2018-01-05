@@ -16,6 +16,7 @@ import {Connection, RemoteInformation} from '../types/connection';
 import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { Time, TimeFormat } from '../utilities/time';
+import { PacketLogging } from '../utilities/logging/packet.logging';
 
 
 export class Client {
@@ -78,6 +79,7 @@ export class Client {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
+            PacketLogging.logIncomingPacket(this.connection, packetOffset.packet);
             this.packetHandler.handle(this.connection, packetOffset.packet);
             this.connection.getAckHandler().onPacketReceived(packetOffset.packet, receivedTime);
             

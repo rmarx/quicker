@@ -104,7 +104,11 @@ export class Bignum {
      */
     public toString(encoding: string = 'hex', size?: number): string {
         var bSize = size === undefined ? this.byteSize : size;
-        return this.bignum.toBuffer('be', bSize).toString('hex');
+        return this.bignum.toBuffer('be', bSize).toString(encoding);
+    }
+
+    public toDecimalString(): string {
+        return this.bignum.toString(10);
     }
 
     /**
