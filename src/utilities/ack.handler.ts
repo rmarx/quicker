@@ -38,7 +38,7 @@ export class AckHandler {
 
     public onPacketReceived(packet: BasePacket, time: number): void {
         this.alarm.reset();
-        var pn = packet.getHeader().getPacketNumber().getPacketNumber();
+        var pn = this.connection.getRemotePacketNumber().getPacketNumber();
         this.latestPacketNumber = pn;
         var isAckOnly = true;
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
