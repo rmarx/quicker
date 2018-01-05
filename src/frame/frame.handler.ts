@@ -73,6 +73,7 @@ export class FrameHandler {
             var str = new StreamFrame(streamFrame.getStreamID(), data);
             str.setOffset(connectionStream.getLocalOffset());
             str.setLength(Bignum.fromNumber(data.byteLength));
+
             var packet: BasePacket;
             if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Server) {
                 packet = PacketFactory.createShortHeaderPacket(connection, [str]);
@@ -83,6 +84,7 @@ export class FrameHandler {
                 //
             }
             connection.sendPacket(packet);
+            connectionStream.addLocalOffset(Bignum.fromNumber(data.byteLength));
         }
     }
 

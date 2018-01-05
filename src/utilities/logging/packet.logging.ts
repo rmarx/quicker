@@ -1,3 +1,4 @@
+import {EndpointType} from '../../types/endpoint.type';
 import {Constants} from '../constants';
 import {HandshakeState} from '../../crypto/qtls';
 import {PacketNumber} from '../../types/header.properties';
@@ -61,18 +62,18 @@ export class PacketLogging {
             categories: { 
                 start: { 
                     appenders: ['startOut'], 
-                    level: 'debug' 
+                    level: Constants.LOG_LEVEL 
                 },
                 default: {
                     appenders: ['continuedOut'], 
-                    level: 'debug' 
+                    level: Constants.LOG_LEVEL 
                 }
             }
         });
         this.startOutput = getLogger("start");
-        this.startOutput.level = 'debug';
+        this.startOutput.level = Constants.LOG_LEVEL;
         this.continuedOutput = getLogger();
-        this.continuedOutput.level = 'debug';
+        this.continuedOutput.level = Constants.LOG_LEVEL;
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
@@ -249,11 +250,15 @@ export class PacketLogging {
     }
 
     private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): void {
-        var ackExponent = Constants.DEFAULT_ACK_EXPONENT;
-        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-            ackExponent = connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+        var ackDelayExponent = Constants.DEFAULT_ACK_EXPONENT;
+        
+        if (connection.getEndpointType() === EndpointType.Client) {
+            ackDelayExponent = connection.getClientTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
+        } else {
+            ackDelayExponent = connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
         }
-        var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackExponent);
+
+        var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackDelayExponent);
 
         this.continuedOutput.debug(this.getSpaces(4) + "largest acknowledged=%s", ackFrame.getLargestAcknowledged().toDecimalString());
         this.continuedOutput.debug(this.getSpaces(4) + "ack delay=%d", ackDelay);

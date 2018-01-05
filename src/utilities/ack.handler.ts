@@ -1,3 +1,4 @@
+import {EndpointType} from '../types/endpoint.type';
 import { VLIE } from '../crypto/vlie';
 import { Connection } from '../types/connection';
 import { Bignum } from '../types/bignum';
@@ -54,7 +55,7 @@ export class AckHandler {
             isAckOnly = false;
         }
         this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
-        if (!isAckOnly && this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+        if (!isAckOnly) {
             this.alarm.set(AckHandler.ACK_WAIT);
         }
     }
@@ -62,13 +63,20 @@ export class AckHandler {
 
 
     public getAckFrame(connection: Connection): AckFrame | undefined {
+        this.alarm.reset();
         if (Object.keys(this.receivedPackets).length === 0) {
             return undefined;
+        }
+        var ackDelayExponent = 0;
+        if (connection.getEndpointType() === EndpointType.Client) {
+            ackDelayExponent = connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
+        } else {
+            ackDelayExponent = connection.getClientTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
         }
 
         var doneTime = Time.now(TimeFormat.MicroSeconds);
         var ackDelay = doneTime - this.receivedPackets[this.latestPacketNumber.toString()].receiveTime;
-        ackDelay = ackDelay / (2 ** connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT));
+        ackDelay = ackDelay / (2 ** ackDelayExponent);
         
         var packetnumbers: Bignum[] = [];
         Object.keys(this.receivedPackets).forEach((key) => packetnumbers.push(new Bignum(Buffer.from(key,'hex'))));
@@ -82,6 +90,7 @@ export class AckHandler {
         var blocks = [];
         var gaps = [];
         blocks.push(0);
+        
         for(var i = 1; i < packetnumbers.length; i++) {
             var bn = Bignum.subtract(packetnumbers[i - 1], packetnumbers[i]);
             if (bn === Bignum.fromNumber(0)) {

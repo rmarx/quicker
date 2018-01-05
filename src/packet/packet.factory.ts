@@ -14,6 +14,7 @@ import {HandshakePacket} from './packet/handshake';
 import { ShortHeaderPacket } from './packet/short.header.packet';
 import { ShortHeader, ShortHeaderType } from './header/short.header';
 import { TransportParameterType } from './../crypto/transport.parameters';
+import { EndpointType } from '../types/endpoint.type';
 
 
 
@@ -86,7 +87,13 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getServerTransportParameter(TransportParameterType.OMIT_CONNECTION_ID), false)
+        var omitConnectionID: boolean = false;
+        if (connection.getEndpointType() === EndpointType.Client) {
+            omitConnectionID = connection.getServerTransportParameter(TransportParameterType.OMIT_CONNECTION_ID)
+        } else {
+            omitConnectionID = connection.getClientTransportParameter(TransportParameterType.OMIT_CONNECTION_ID)
+        }
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), omitConnectionID, false)
         return new ShortHeaderPacket(header, frames);
     }
 }

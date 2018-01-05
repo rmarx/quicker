@@ -6,6 +6,8 @@ export class Constants {
         'ff000008'
     ];
 
+    public static readonly LOG_LEVEL = 'debug';
+
     /**
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
