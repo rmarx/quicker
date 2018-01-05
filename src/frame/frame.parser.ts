@@ -15,6 +15,7 @@ import {NewConnectionIdFrame} from './general/new.connection.id';
 import {StopSendingFrame} from './general/stop.sending';
 import {StreamFrame} from './general/stream';
 import { AckBlock, AckFrame } from './general/ack';
+import { PaddingFrame } from './general/padding';
 
 
 export class FrameParser {
@@ -39,8 +40,7 @@ export class FrameParser {
         var type = buffer.readUInt8(offset++);
         switch (type) {
             case FrameType.PADDING:
-                // doesn't need parsing and don't need it
-                return undefined;
+                return this.parsePadding(buffer, offset);
             case FrameType.RST_STREAM:
                 return this.parseRstStream(buffer, offset);
             case FrameType.CONNECTION_CLOSE:
@@ -74,6 +74,14 @@ export class FrameParser {
             return this.parseStream(type, buffer, offset);
         }
         return undefined;
+    }
+
+    private parsePadding(buffer: Buffer, offset: number): FrameOffset {
+        var paddingSize = buffer.byteLength - offset;
+        return {
+            frame: new PaddingFrame(paddingSize),
+            offset: buffer.byteLength
+        };
     }
 
     private parseRstStream(buffer: Buffer, offset: number): FrameOffset {

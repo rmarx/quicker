@@ -1,3 +1,4 @@
+import {PaddingFrame} from '../frame/general/padding';
 import {Stream} from '../types/stream';
 import {Connection} from '../types/connection';
 import {PacketNumber, Version} from './../types/header.properties';
@@ -47,8 +48,14 @@ export class PacketFactory {
         if (stream === undefined) {
             stream = new Stream(Bignum.fromNumber(0), connection.getClientTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         }
+        var size = streamFrame.toBuffer().byteLength;
+        var frames: BaseFrame[] = [streamFrame];
+        if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
+            var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size)
+            frames.push(padding);
+        }
         stream.addLocalOffset(streamFrame.getLength());
-        return new ClientInitialPacket(header, [streamFrame]);
+        return new ClientInitialPacket(header, frames);
     }
 
     /**

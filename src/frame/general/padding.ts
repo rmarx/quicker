@@ -1,17 +1,21 @@
 import {BaseFrame, FrameType} from '../base.frame';
 
 export class PaddingFrame extends BaseFrame{
-    private paddingSize: number;
+    private paddingLength: number;
 
     public constructor(paddingSize: number) {
         super(FrameType.PADDING);
-        this.paddingSize = paddingSize;
+        this.paddingLength = paddingSize;
     }
 
     public toBuffer(): Buffer {
-        var buffer = Buffer.alloc(this.paddingSize + 1);
+        var buffer = Buffer.alloc(this.paddingLength + 1);
         buffer.fill(0);
         buffer.writeUInt8(this.getType(), 0);
         return buffer;
+    }
+
+    public getLength(): number {
+        return this.paddingLength;
     }
 }

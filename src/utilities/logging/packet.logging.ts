@@ -175,6 +175,7 @@ export class PacketLogging {
     }
 
     private logPaddingFrame(paddingFrame: PaddingFrame, color: ConsoleColor): void {
+        this.continuedOutput.debug(this.getSpaces(4) + "length=%d ", paddingFrame.getLength());
     }
 
     private logRstStreamFrame(rstStreamFrame: RstStreamFrame, color: ConsoleColor): void {
