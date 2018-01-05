@@ -19,4 +19,8 @@ export class StreamIdBlockedFrame extends BaseFrame {
         streamIDBuffer.copy(returnBuffer, offset);
         return returnBuffer;
     }
+
+    public getStreamId(): Bignum {
+        return this.streamID;
+    }
 }

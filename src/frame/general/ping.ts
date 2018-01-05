@@ -19,6 +19,14 @@ abstract class BasePingFrame extends BaseFrame {
         this.data.copy(buffer, 2);
         return buffer;
     }
+
+    public getLength(): number {
+        return this.length;
+    }
+
+    public getData(): Buffer {
+        return this.data;
+    }
 }
 
 export class PingFrame extends BasePingFrame {

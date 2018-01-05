@@ -26,4 +26,12 @@ export class StopSendingFrame extends BaseFrame {
         buffer.writeUInt16BE(this.applicationErrorCode, offset);
         return buffer;
     }
+
+    public getStreamId(): Bignum {
+        return this.streamID;
+    }
+
+    public getApplicationErrorCode(): number {
+        return this.applicationErrorCode;
+    }
 }

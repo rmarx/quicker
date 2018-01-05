@@ -24,4 +24,12 @@ export class MaxStreamFrame extends BaseFrame {
         maxDataBuffer.copy(returnBuffer, offset);
         return returnBuffer;
     }
+
+    public getMaxData(): Bignum {
+        return this.maxData;
+    }
+
+    public getStreamId(): Bignum {
+        return this.streamID;
+    }
 }

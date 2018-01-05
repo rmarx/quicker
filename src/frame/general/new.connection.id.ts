@@ -21,4 +21,12 @@ export class NewConnectionIdFrame extends BaseFrame {
         this.statelessResetToken.copy(buffer, 9);
         return buffer;
     }
+
+    public getConnectionId(): ConnectionID {
+        return this.connectionID;
+    }
+
+    public getStatelessResetToken(): Buffer {
+        return this.statelessResetToken;
+    }
 }

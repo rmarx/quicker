@@ -1,3 +1,4 @@
+import {VLIE} from '../../crypto/vlie';
 import {Bignum} from '../../types/bignum';
 import {BaseFrame, FrameType} from '../base.frame';
 
@@ -12,6 +13,14 @@ export class BlockedFrame extends BaseFrame {
     }
     
     public toBuffer(): Buffer {
-        throw new Error("Method not implemented.");
+        var blockedBuffer: Buffer = VLIE.encode(this.blockedOffset);
+        var returnBuffer: Buffer = Buffer.alloc(blockedBuffer.byteLength + 1);
+        returnBuffer.writeUInt8(this.getType(), 0);
+        blockedBuffer.copy(returnBuffer, 1);
+        return returnBuffer;
+    }
+
+    public getBlockedOffset(): Bignum {
+        return this.blockedOffset;
     }
 }

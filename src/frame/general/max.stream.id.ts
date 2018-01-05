@@ -18,4 +18,8 @@ export class MaxStreamIdFrame extends BaseFrame {
         maxStreamIDBuffer.copy(returnBuffer, 1);
         return returnBuffer;
     }
+
+    public getMaxStreamId(): Bignum {
+        return this.maxStreamID;
+    }
 }

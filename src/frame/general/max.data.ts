@@ -19,4 +19,8 @@ export class MaxDataFrame extends BaseFrame {
         maxDataBuffer.copy(returnBuffer, 1);
         return returnBuffer;
     }
+
+    public getMaxData(): Bignum {
+        return this.maxData;
+    }
 }

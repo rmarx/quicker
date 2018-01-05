@@ -25,4 +25,12 @@ export class StreamBlockedFrame extends BaseFrame {
         blockedOffsetBuffer.copy(returnBuffer, offset);
         return returnBuffer;
     }
+
+    public getStreamId(): Bignum {
+        return this.streamID;
+    }
+
+    public getBlockedOffset(): Bignum {
+        return this.blockedOffset;
+    }
 }

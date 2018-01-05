@@ -31,4 +31,16 @@ export class RstStreamFrame extends BaseFrame {
         eFinalOffset.copy(buffer, offset);
         return buffer;
     }
+
+    public getStreamId(): Bignum {
+        return this.streamID;
+    }
+
+    public getApplicationErrorCode(): number {
+        return this.applicationErrorCode;
+    }
+
+    public getFinalOffset(): Bignum {
+        return this.finalOffset;
+    }
 }

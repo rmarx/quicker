@@ -23,6 +23,14 @@ abstract class BaseCloseFrame extends BaseFrame {
         phraseBuffer.copy(buf, 3 + phraseLengthBuffer.byteLength);
         return buf;
     }
+
+    public getErrorCode(): number {
+        return this.errorCode;
+    }
+    
+    public getErrorPhrase(): string {
+        return this.phrase;
+    }
 }
 
 export class ConnectionCloseFrame extends BaseCloseFrame {
