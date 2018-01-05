@@ -49,7 +49,7 @@ export class PacketLogging {
                 startOut: {
                     type: 'stdout', layout: {
                         type: 'pattern',
-                        pattern: '%[%d%] %n%m'
+                        pattern: '%d %n%m'
                     }
                 },
                 continuedOut: {
@@ -77,7 +77,7 @@ export class PacketLogging {
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
-        this.logPackets(connection, basePacket, connection.getRemotePacketNumber(), "RX", ConsoleColor.FgBlue);
+        this.logPackets(connection, basePacket, connection.getRemotePacketNumber(), "RX", ConsoleColor.FgCyan);
     }
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
@@ -87,7 +87,7 @@ export class PacketLogging {
     private logPackets(connection: Connection, basePacket: BasePacket, packetNumber: PacketNumber, direction: string, color: ConsoleColor): void {
         var connectionID = basePacket.getHeader().getConnectionID();
         var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
-        var format = this.getSpaces(2) + "%s " + color + "%s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s, " + color + "PKN: %s" + ConsoleColor.Reset + " ";
+        var format = this.getSpaces(2) + color + "%s %s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s, " + color + "PKN: %s" + ConsoleColor.Reset + " ";
         if (basePacket.getHeader().getHeaderType() === HeaderType.LongHeader) {
             var lh: LongHeader = <LongHeader> (basePacket.getHeader());
             format += "Version: Ox" + lh.getVersion().getVersion().toString();
