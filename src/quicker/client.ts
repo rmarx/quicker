@@ -73,7 +73,6 @@ export class Client {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        console.log("on message");
         try {
             var receivedTime = Time.now(TimeFormat.MicroSeconds);
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);

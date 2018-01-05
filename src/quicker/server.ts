@@ -51,7 +51,6 @@ export class Server extends EventEmitter {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        console.log("on message");
         try {
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             var connection: Connection = this.getConnection(headerOffset, rinfo);

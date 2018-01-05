@@ -43,7 +43,7 @@ export class AckFrame extends BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        var offset = 0;
+        var offset = 1;
         var laBuffer: Buffer = VLIE.encode(this.largestAcknowledged);
         var ackDelayBuffer: Buffer = VLIE.encode(this.ackDelay);
         var ackBlockCount: Buffer = VLIE.encode(this.ackBlockCount);
@@ -64,6 +64,7 @@ export class AckFrame extends BaseFrame {
         size += ackBlockByteSize;
     
         var returnBuffer: Buffer = Buffer.alloc(size);
+        returnBuffer.writeUInt8(this.getType(), 0);
         laBuffer.copy(returnBuffer, offset);
         offset += laBuffer.byteLength;
         ackDelayBuffer.copy(returnBuffer, offset);

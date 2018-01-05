@@ -21,7 +21,6 @@ export class Alarm extends EventEmitter {
     }
 
     private onTimeout() {
-        console.log("timeout event emitted");
         this.emit("timeout");
     }
 }

@@ -25,7 +25,6 @@ export class AckHandler {
         this.receivedPackets = {};
         this.alarm = new Alarm();
         this.alarm.on("timeout", () => {
-            console.log("on timeout");
             var baseFrames: BaseFrame[] = [];
             var ackFrame = this.getAckFrame(this.connection);
             if (ackFrame !== undefined) {
@@ -37,7 +36,6 @@ export class AckHandler {
     }
 
     public onPacketReceived(packet: BasePacket, time: number): void {
-        console.log("on packet received");
         this.alarm.reset();
         var pn = packet.getHeader().getPacketNumber().getPacketNumber();
         this.latestPacketNumber = pn;

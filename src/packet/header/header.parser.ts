@@ -27,7 +27,6 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseLongHeader(buf: Buffer): HeaderOffset {
-        console.log("parsing long header");
         var type = (buf.readUIntBE(0, 1) - 0x80);
         var connectionId = new ConnectionID(buf.slice(1, 9));
         var version = new Version(buf.slice(9, 13));
@@ -43,7 +42,6 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseShortHeader(buf: Buffer): HeaderOffset {
-        console.log("parsing short header");
         var offset = 1;
         var type = buf.readUIntBE(0, 1);
         var connectionIdOmitted: boolean = (type & 0x40) === 0x40;
