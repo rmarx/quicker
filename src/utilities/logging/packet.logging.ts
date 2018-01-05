@@ -1,3 +1,4 @@
+import {Bignum} from '../../types/bignum';
 import { Connection } from '../../types/connection';
 import { BasePacket, PacketType } from '../../packet/base.packet';
 import { ConsoleColor } from './colors';
@@ -18,6 +19,7 @@ import { StopSendingFrame } from '../../frame/general/stop.sending';
 import { AckFrame } from '../../frame/general/ack';
 import { StreamFrame } from '../../frame/general/stream';
 import { configure, getLogger, Logger } from 'log4js';
+import { TransportParameterType } from '../../crypto/transport.parameters';
 
 
 
@@ -92,17 +94,17 @@ export class PacketLogging {
             case PacketType.Handshake:
             case PacketType.Protected1RTT:
                 var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-                this.logFrames(baseEncryptedPacket, color);
+                this.logFrames(connection, baseEncryptedPacket, color);
         }
     }
 
-    private logFrames(baseEncryptedPacket: BaseEncryptedPacket, color: ConsoleColor): void {
+    private logFrames(connection: Connection, baseEncryptedPacket: BaseEncryptedPacket, color: ConsoleColor): void {
         baseEncryptedPacket.getFrames().forEach((baseFrame) => {
-            this.logFrame(baseFrame, color);
+            this.logFrame(connection, baseFrame, color);
         });
     }
 
-    private logFrame(baseFrame: BaseFrame, color: ConsoleColor): void {
+    private logFrame(connection: Connection, baseFrame: BaseFrame, color: ConsoleColor): void {
         if (baseFrame.getType() < FrameType.STREAM) {
             this.continuedOutput.debug(this.getSpaces(4) + color + "%s (0x%s)" + ConsoleColor.Reset, FrameType[baseFrame.getType()], baseFrame.getType().toString(16));
         }
@@ -165,7 +167,7 @@ export class PacketLogging {
                 break;
             case FrameType.ACK:
                 var ackFrame: AckFrame = <AckFrame>baseFrame;
-                this.logAckFrame(ackFrame, color);
+                this.logAckFrame(connection, ackFrame, color);
                 break;
         }
         if (baseFrame.getType() >= FrameType.STREAM) {
@@ -230,8 +232,13 @@ export class PacketLogging {
 
     }
 
-    private logAckFrame(ackFrame: AckFrame, color: ConsoleColor): void {
+    private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): void {
+        var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT));
 
+        this.continuedOutput.debug(this.getSpaces(4) + "largest acknowledged=%s", ackFrame.getLargestAcknowledged().toDecimalString());
+        this.continuedOutput.debug(this.getSpaces(4) + "ack delay=%d", ackDelay);
+        this.continuedOutput.debug(this.getSpaces(4) + "ack block count=%s", ackFrame.getAckBlockCount().toDecimalString());
+        this.continuedOutput.debug(this.getSpaces(4) + "first ackblock=%s", ackFrame.getFirstAckBlock().toDecimalString());
     }
 
     private logStreamFrame(streamFrame: StreamFrame, color: ConsoleColor): void {

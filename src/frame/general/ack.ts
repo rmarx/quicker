@@ -56,7 +56,7 @@ export class AckFrame extends BaseFrame {
             ackBlockBuffers.push(ackBlockBuffer);
         });
 
-        var size = 0;
+        var size = 1;
         size += VLIE.getEncodedByteLength(this.largestAcknowledged);
         size += VLIE.getEncodedByteLength(this.ackDelay);
         size += VLIE.getEncodedByteLength(this.ackBlockCount);

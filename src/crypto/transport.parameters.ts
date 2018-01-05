@@ -1,3 +1,4 @@
+import {Constants} from '../utilities/constants';
 import {Connection} from '../types/connection';
 import { EndpointType } from '../types/endpoint.type';
 
@@ -72,7 +73,7 @@ export class TransportParameters {
             case TransportParameterType.MAX_PACKET_SIZE:
                 return this.maxPacketSize;
             case TransportParameterType.ACK_DELAY_EXPONENT:
-                return this.ackDelayExponent;
+                return this.ackDelayExponent === undefined ? Constants.DEFAULT_ACK_EXPONENT : this.ackDelayExponent;
             case TransportParameterType.OMIT_CONNECTION_ID:
                 return this.omitConnectionId;
         }
