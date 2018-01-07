@@ -41,13 +41,24 @@ export class Client {
     public connect(hostname: string, port: number) {
         this.hostname = hostname;
         this.port = port;
+        this.init();
+
+        var packetNumber = PacketNumber.randomPacketNumber();
+        this.connection.setLocalPacketNumber(packetNumber);
+        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
+        this.connection.addStream(new Stream(Bignum.fromNumber(0), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA)));
+        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
+        this.connection.sendPacket(clientInitial);
+    }
+
+    private init(): void {
         var socket = createSocket("udp4");
         socket.on('error',(err) => {this.onError(err)});
         socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
         socket.on('close',() => {this.onClose()});
         var remoteInfo: RemoteInformation = {
-            address: hostname,
-            port: port, 
+            address: this.hostname,
+            port: this.port, 
             family: 'IPv4'
         };
         this.connection = new Connection(remoteInfo, EndpointType.Client);
@@ -56,12 +67,7 @@ export class Client {
     }
 
     public testSend() {
-        var packetNumber = PacketNumber.randomPacketNumber();
-        this.connection.setLocalPacketNumber(packetNumber);
-        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        this.connection.addStream(new Stream(Bignum.fromNumber(0), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA)));
-        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
-        this.connection.sendPacket(clientInitial);
+        // Dummy, here comes the part of requesting resources
     }
 
     public getPort(): number {
@@ -83,15 +89,14 @@ export class Client {
             this.packetHandler.handle(this.connection, packetOffset.packet);
             
         }catch(err) {
-            // packet not parseable yet.
-            console.log("Error: " + err.message);
-            console.log("Stack: " + err.stack);
+            this.onError(err);
             return;
         }
     }
 
     private onError(error: Error): any {
-        console.log("error: " + error.message);
+        console.log("Error: " + error.message);
+        console.log("Stack: " + error.stack);
     }
 
     private onClose(): any {

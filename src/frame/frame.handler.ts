@@ -55,7 +55,7 @@ export class FrameHandler {
             connectionStream = new Stream(streamFrame.getStreamID(), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA));
             connection.addStream(connectionStream);
         }
-        connectionStream.addRemoteOffset(streamFrame.getLength());
+        connectionStream.addLocalOffset(streamFrame.getLength());
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
         var data = connection.getQuicTLS().readHandshake();
         if (data.byteLength > 0) {
@@ -71,7 +71,7 @@ export class FrameHandler {
             }
 
             var str = new StreamFrame(streamFrame.getStreamID(), data);
-            str.setOffset(connectionStream.getLocalOffset());
+            str.setOffset(connectionStream.getRemoteOffset());
             str.setLength(Bignum.fromNumber(data.byteLength));
 
             var packet: BasePacket;
@@ -84,7 +84,7 @@ export class FrameHandler {
                 //
             }
             connection.sendPacket(packet);
-            connectionStream.addLocalOffset(Bignum.fromNumber(data.byteLength));
+            connectionStream.addRemoteOffset(Bignum.fromNumber(data.byteLength));
         }
     }
 

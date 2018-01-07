@@ -55,7 +55,7 @@ export class PacketFactory {
             var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size)
             frames.push(padding);
         }
-        stream.addLocalOffset(streamFrame.getLength());
+        stream.addRemoteOffset(streamFrame.getLength());
         return new ClientInitialPacket(header, frames);
     }
 

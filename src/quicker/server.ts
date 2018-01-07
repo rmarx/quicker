@@ -10,7 +10,7 @@ import {ShortHeader} from '../packet/header/short.header';
 import {LongHeader} from '../packet/header/long.header';
 import {PacketFactory} from '../packet/packet.factory';
 import { EventEmitter } from 'events';
-import { Socket, RemoteInfo, createSocket } from 'dgram';
+import { Socket, RemoteInfo, createSocket, SocketType } from 'dgram';
 import { readFileSync } from 'fs';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { PacketLogging } from './../utilities/logging/packet.logging';
@@ -40,10 +40,12 @@ export class Server extends EventEmitter {
     public listen(host: string, port: number) {
         this.host = host;
         this.port = port;
-        /**
-         * TODO: Check if host is ipv6 or ipv4
-         */
-        this.server = createSocket('udp4');
+        
+        this.init("udp4");
+    }
+
+    private init(socketType: SocketType) {
+        this.server = createSocket(socketType);
         this.server.on('error', (err) => { this.onError(err) });
         this.server.on('message', (msg, rinfo) => { this.onMessage(msg, rinfo) });
         this.server.on('listening', () => { this.onListening() });
@@ -63,15 +65,14 @@ export class Server extends EventEmitter {
             this.packetHandler.handle(connection, packetOffset.packet);
 
         } catch (err) {
-            // packet not parseable yet.
-            console.log("Error: " + err.message);
-            console.log("Stack: " + err.stack);
+            this.onError(err);
             return;
         }
     }
 
     private onError(error: Error): any {
-        console.log("error: " + error.message);
+        console.log("Error: " + error.message);
+        console.log("Stack: " + error.stack);
     }
 
     private onClose(): any {
@@ -131,14 +132,5 @@ export class Server extends EventEmitter {
         connection.setConnectionID(ConnectionID.randomConnectionID());
         this.connections[connection.getConnectionID().toString()] = connection;
         return connection;
-    }
-
-    private sendVersionNegotiationPacket(connection: Connection, header: LongHeader) {
-        var connectionID = header.getConnectionID();
-        if (connectionID !== undefined) {
-            var packetNumber = PacketNumber.randomPacketNumber();
-            var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
-            this.server.send(versionNegotiationPacket.toBuffer(connection), connection.getRemoteInfo().port, connection.getRemoteInfo().address);
-        }
     }
 }
