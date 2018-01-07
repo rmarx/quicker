@@ -28,8 +28,8 @@ export class Connection extends FlowControlledObject{
     private initialPacketNumber: PacketNumber;
     private localPacketNumber: PacketNumber;
     private remotePacketNumber: PacketNumber;
-    private serverTransportParameters: TransportParameters;
-    private clientTransportParameters: TransportParameters;
+    private localTransportParameters: TransportParameters;
+    private remoteTransportParameters: TransportParameters;
     private version: Version;
 
     private state: ConnectionState;
@@ -91,36 +91,36 @@ export class Connection extends FlowControlledObject{
         return this.ackHandler;
     }
 
-    public getServerTransportParameter(type: TransportParameterType): any {
-        return this.serverTransportParameters.getTransportParameter(type);
+    public getLocalTransportParameter(type: TransportParameterType): any {
+        return this.localTransportParameters.getTransportParameter(type);
     }
 
-    public setServerTransportParameter(type: TransportParameterType, value: any): void {
-        this.serverTransportParameters.setTransportParameter(type, value);
+    public setLocalTransportParameter(type: TransportParameterType, value: any): void {
+        this.localTransportParameters.setTransportParameter(type, value);
     }
 
-    public getServerTransportParameters(): TransportParameters {
-        return this.serverTransportParameters;
+    public getLocalTransportParameters(): TransportParameters {
+        return this.localTransportParameters;
     }
 
-    public setServerTransportParameters(transportParameters: TransportParameters): void {
-        this.serverTransportParameters = transportParameters;
+    public setLocalTransportParameters(transportParameters: TransportParameters): void {
+        this.localTransportParameters = transportParameters;
     }
 
-    public getClientTransportParameter(type: TransportParameterType): any {
-        return this.clientTransportParameters.getTransportParameter(type);
+    public getRemoteTransportParameter(type: TransportParameterType): any {
+        return this.remoteTransportParameters.getTransportParameter(type);
     }
 
-    public setClientTransportParameter(type: TransportParameterType, value: any): void {
-        this.clientTransportParameters.setTransportParameter(type, value);
+    public setRemoteTransportParameter(type: TransportParameterType, value: any): void {
+        this.remoteTransportParameters.setTransportParameter(type, value);
     }
 
-    public getClientTransportParameters(): TransportParameters {
-        return this.clientTransportParameters;
+    public getRemoteTransportParameters(): TransportParameters {
+        return this.remoteTransportParameters;
     }
 
-    public setClientTransportParameters(transportParameters: TransportParameters): void {
-        this.clientTransportParameters = transportParameters;
+    public setRemoteTransportParameters(transportParameters: TransportParameters): void {
+        this.remoteTransportParameters = transportParameters;
     }
 
     public getSocket(): Socket {

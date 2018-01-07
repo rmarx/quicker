@@ -250,14 +250,7 @@ export class PacketLogging {
     }
 
     private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): void {
-        var ackDelayExponent = Constants.DEFAULT_ACK_EXPONENT;
-        
-        if (connection.getEndpointType() === EndpointType.Client) {
-            ackDelayExponent = connection.getClientTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
-        } else {
-            ackDelayExponent = connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
-        }
-
+        var ackDelayExponent = connection.getLocalTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
         var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackDelayExponent);
 
         this.continuedOutput.debug(this.getSpaces(4) + "largest acknowledged=%s", ackFrame.getLargestAcknowledged().toDecimalString());

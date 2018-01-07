@@ -67,12 +67,7 @@ export class AckHandler {
         if (Object.keys(this.receivedPackets).length === 0) {
             return undefined;
         }
-        var ackDelayExponent = 0;
-        if (connection.getEndpointType() === EndpointType.Client) {
-            ackDelayExponent = connection.getServerTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
-        } else {
-            ackDelayExponent = connection.getClientTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT)
-        }
+        var ackDelayExponent = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
 
         var doneTime = Time.now(TimeFormat.MicroSeconds);
         var ackDelay = doneTime - this.receivedPackets[this.latestPacketNumber.toString()].receiveTime;

@@ -15,7 +15,7 @@ export class HandshakeValidation {
         if (connection.getEndpointType() === EndpointType.Server) {
             var version = extensionData.readUInt32BE(offset);
             offset += 4;
-        } else if (connection.getServerTransportParameters() === undefined) {
+        } else if (connection.getRemoteTransportParameters() === undefined) {
             var version = extensionData.readUInt32BE(offset);
             offset += 4;
             var versionLength = extensionData.readUInt8(offset++);

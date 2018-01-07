@@ -17,13 +17,8 @@ export abstract class FlowControlledObject {
     protected init(connection: Connection) {
 		this.localOffset = Bignum.fromNumber(0);
 		this.remoteOffset = Bignum.fromNumber(0);
-		if (connection.getEndpointType() === EndpointType.Client) {
-			this.localOffset = connection.getClientTransportParameter(TransportParameterType.MAX_STREAM_DATA);
-			this.remoteOffset = connection.getServerTransportParameter(TransportParameterType.MAX_STREAM_DATA);
-		} else {
-			this.remoteOffset = connection.getClientTransportParameter(TransportParameterType.MAX_STREAM_DATA);
-			this.localOffset = connection.getServerTransportParameter(TransportParameterType.MAX_STREAM_DATA);
-		}
+        this.localOffset = connection.getLocalTransportParameter(TransportParameterType.MAX_STREAM_DATA);
+        this.remoteOffset = connection.getRemoteTransportParameter(TransportParameterType.MAX_STREAM_DATA);
     }
 
     public getLocalOffset(): Bignum {
