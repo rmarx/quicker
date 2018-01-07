@@ -46,7 +46,7 @@ export class Client {
         var packetNumber = PacketNumber.randomPacketNumber();
         this.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        this.connection.addStream(new Stream(Bignum.fromNumber(0), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA)));
+        var stream = this.connection.getStream(Bignum.fromNumber(0));
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
         this.connection.sendPacket(clientInitial);
     }

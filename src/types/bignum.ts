@@ -21,35 +21,87 @@ export class Bignum {
      * Add function to add the value of the parameter bignum to the value of the bignum object from this instance
      * @param num with type Bignum
      */
-    add(num: Bignum): void;
+    add(num: Bignum): Bignum;
     /**
      * Add function to add the value a number to the instance bignum value
      * @param num 
      */
-    add(num: number): void;
+    add(num: number): Bignum;
 
-    public add(num: any): void {
+    public add(num: any): Bignum {
+        var bn = Bignum.fromNumber(0);
         if (num instanceof Bignum) {
-            this.bignum = this.bignum.add(num.bignum);
+            bn.bignum = this.bignum.add(num.bignum);
         } else {
-            this.bignum = this.bignum.add(new BN(num));
+            bn.bignum = this.bignum.add(new BN(num));
         }
+        return bn;
+    }
+
+    public subtract(num: number): Bignum;
+    public subtract(num: Bignum): Bignum;
+    public subtract(num: any): Bignum {
+        var bn = Bignum.fromNumber(0);
+        if (num instanceof Bignum) {
+            bn.bignum = this.bignum.sub(num.bignum);
+        } else {
+            bn.bignum = this.bignum.sub(new BN(num));
+        }
+        return bn;
+    }
+
+    public multiply(num: number): Bignum;
+    public multiply(num: Bignum): Bignum;
+    public multiply(num: any): Bignum {
+        var bn = Bignum.fromNumber(0);
+        if (num instanceof Bignum) {
+            bn.bignum = this.bignum.mul(num.bignum);
+        } else {
+            bn.bignum = this.bignum.mul(new BN(num));
+        }
+        return bn;
+    }
+
+    public divide(num: number): Bignum;
+    public divide(num: Bignum): Bignum;
+    public divide(num: any): Bignum {
+        var bn = Bignum.fromNumber(0);
+        if (num instanceof Bignum) {
+            bn.bignum = this.bignum.div(num.bignum);
+        } else {
+            bn.bignum = this.bignum.div(new BN(num));
+        }
+        return bn;
+    }
+    
+
+    public and(num: Bignum): Bignum {
+        var bn = this.bignum.and(num.bignum);
+        return new Bignum(bn.toBuffer('be'));
+    }
+
+    public mask(bytesize: number): Bignum {
+        return new Bignum(this.bignum.maskn(bytesize * 8).toBuffer('be'));
     }
 
     /**
      * Exclusive or operation
      * @param num 
      */
-    public xor(num: Bignum) {
-        this.bignum = this.bignum.xor(num.bignum);
+    public xor(num: Bignum): Bignum {
+        var bn = Bignum.fromNumber(0);
+        bn.bignum = this.bignum.xor(num.bignum);
+        return bn;
     }
 
     /**
      * Method to perform left shifts
      * @param num any number
      */
-    public shiftLeft(num: number): void {
-        this.bignum = this.bignum.shln(num);
+    public shiftLeft(num: number): Bignum {
+        var bn = Bignum.fromNumber(0);
+        bn.bignum = this.bignum.shln(num);
+        return bn;
     }
 
     /**
@@ -66,6 +118,10 @@ export class Bignum {
      */
     public greaterThan(num: Bignum): boolean {
         return this.bignum.gt(num.bignum);
+    }
+
+    public greaterThanOrEqual(num: Bignum): boolean {
+        return this.bignum.gte(num.bignum);
     }
 
     /**
@@ -163,18 +219,5 @@ export class Bignum {
      */
     private static mathRandom(): BN {
         return new BN(Math.random() * 256);
-    }
-
-    public static and(bn1: Bignum, bn2: Bignum) {
-        var bn = bn1.bignum.and(bn2.bignum);
-        return new Bignum(bn.toBuffer('be'));
-    }
-
-    public static mask(bn: Bignum, bytesize: number) {
-        return new Bignum(bn.bignum.maskn(bytesize * 8).toBuffer('be'));
-    }
-
-    public static subtract(bn1: Bignum, bn2: Bignum): Bignum {
-        return new Bignum(bn1.bignum.sub(bn2.bignum).toBuffer('be'));
     }
 }

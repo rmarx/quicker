@@ -92,7 +92,7 @@ export class AckHandler {
         blocks.push(0);
         
         for(var i = 1; i < packetnumbers.length; i++) {
-            var bn = Bignum.subtract(packetnumbers[i - 1], packetnumbers[i]);
+            var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
             if (bn === Bignum.fromNumber(0)) {
                 gaps.push(bn.toNumber());
                 ackBlockCount++;

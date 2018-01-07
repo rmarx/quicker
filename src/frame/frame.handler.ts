@@ -52,7 +52,7 @@ export class FrameHandler {
     private handleTlsStreamFrames(connection: Connection, streamFrame: StreamFrame): void {
         var connectionStream = connection.getStream(streamFrame.getStreamID());
         if (connectionStream === undefined) {
-            connectionStream = new Stream(streamFrame.getStreamID(), Bignum.fromNumber(Constants.DEFAULT_MAX_STREAM_DATA));
+            connectionStream = new Stream(connection, streamFrame.getStreamID());
             connection.addStream(connectionStream);
         }
         connectionStream.addLocalOffset(streamFrame.getLength());

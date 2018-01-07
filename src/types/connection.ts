@@ -12,8 +12,9 @@ import { BasePacket, PacketType } from './../packet/base.packet';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { AckHandler } from '../utilities/ack.handler';
 import { PacketLogging } from '../utilities/logging/packet.logging';
+import { FlowControlledObject } from '../types/flow.controlled';
 
-export class Connection {
+export class Connection extends FlowControlledObject{
 
     private qtls: QTLS;
     private aead: AEAD;
@@ -35,6 +36,8 @@ export class Connection {
     private streams: Stream[];
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
+        super();
+        super.init(this);
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
@@ -138,7 +141,8 @@ export class Connection {
             this.initialPacketNumber = this.localPacketNumber;
             return this.localPacketNumber;
         }
-        this.localPacketNumber.getPacketNumber().add(1);
+        var bn = this.localPacketNumber.getPacketNumber().add(1);
+        this.localPacketNumber.setPacketNumber(bn);
         return this.localPacketNumber;
     }
 
@@ -162,7 +166,16 @@ export class Connection {
         this.socket = socket;
     }
 
-    public getStream(streamId: Bignum): Stream | undefined {
+    public getStream(streamId: Bignum): Stream {
+        var stream = this._getStream(streamId);
+        if (stream === undefined) {
+            stream = new Stream(this, streamId);
+            this.addStream(stream);
+        }
+        return stream;
+    }
+
+    private _getStream(streamId: Bignum): Stream | undefined {
         var res = undefined;
         this.streams.forEach((stream: Stream) => {
             if (stream.getStreamID().equals(streamId)) {
@@ -173,7 +186,7 @@ export class Connection {
     }
 
     public addStream(stream: Stream): void {
-        if (this.getStream(stream.getStreamID()) === undefined) {
+        if (this._getStream(stream.getStreamID()) === undefined) {
             this.streams.push(stream);
         }
     }
@@ -183,7 +196,7 @@ export class Connection {
     public deleteStream(obj: any): void {
         var stream = undefined;
         if (obj instanceof Bignum) {
-            stream = this.getStream(obj);
+            stream = this._getStream(obj);
         } else {
             stream = obj;
         }

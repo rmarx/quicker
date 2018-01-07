@@ -77,14 +77,14 @@ export class PacketNumber extends BaseProperty {
     public adjustNumber(packetNumber: PacketNumber, size: number) {
         var mask = Bignum.fromNumber(1);
         for(var i = 0; i < 63; i++) {
-            mask.shiftLeft(1);
+            mask = mask.shiftLeft(1);
             if (63 - i > (size * 8)) {
-                mask.add(1);
+                mask = mask.add(1);
             }
         }
-        var maskedResult = Bignum.and(this.getPacketNumber(), mask);
-        var next = Bignum.mask(packetNumber.getPacketNumber(), size);
-        next.add(maskedResult);
+        var maskedResult = this.getPacketNumber().and(mask);
+        var next = packetNumber.getPacketNumber().mask(size);
+        next = next.add(maskedResult);
         if (next.greaterThan(this.getPacketNumber())) {
             this.setPacketNumber(next);
         }

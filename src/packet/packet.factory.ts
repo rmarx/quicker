@@ -46,9 +46,6 @@ export class PacketFactory {
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
         var stream = connection.getStream(Bignum.fromNumber(0));
-        if (stream === undefined) {
-            stream = new Stream(Bignum.fromNumber(0), connection.getClientTransportParameter(TransportParameterType.MAX_STREAM_DATA));
-        }
         var size = streamFrame.toBuffer().byteLength;
         var frames: BaseFrame[] = [streamFrame];
         if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {

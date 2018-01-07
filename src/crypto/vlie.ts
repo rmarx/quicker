@@ -32,10 +32,10 @@ export class VLIE {
         var count = this.getBytesNeeded(bignum);
         var bn = Bignum.fromNumber(count);
         for(var i = 0; i < (2**count - 1); i++) {
-            bn.shiftLeft(8);
+            bn = bn.shiftLeft(8);
         }
-        bn.shiftLeft(6);
-        bn.add(bignum);
+        bn = bn.shiftLeft(6);
+        bn = bn.add(bignum);
         return bn.toBuffer(2**count);
     }
 
@@ -52,8 +52,8 @@ export class VLIE {
         }
         var bn = Bignum.fromNumber(msb);
         for(var i = 1; i < 2**count; i++) {
-            bn.shiftLeft(8);
-            bn.add(buffer.readUInt8(offset + i));
+            bn = bn.shiftLeft(8);
+            bn = bn.add(buffer.readUInt8(offset + i));
         }
         return bn;
     }
