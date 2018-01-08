@@ -21,7 +21,7 @@ export class FlowControl {
     }
 
     public onPacketSend(basePacket: BasePacket): BasePacket | undefined {
-        if (basePacket.getPacketType() === PacketType.Retry && basePacket.getPacketType() === PacketType.VersionNegotiation) {
+        if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return basePacket;
         }
         var baseEncryptedPacket = <BaseEncryptedPacket> basePacket;
@@ -29,9 +29,9 @@ export class FlowControl {
         baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame> frame;
+                var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
                 var streamFrameBuffer = streamFrame.toBuffer();
-                if (streamFrame.getStreamID() !== Bignum.fromNumber(0)) {
-                    var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
+                if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
                     dataAvailable = this.checkRemoteStreamLimit(stream, streamFrame, streamFrameBuffer);
                     if (!dataAvailable) {
                         var streamBlockedFrame = this.getStreamBlocked(stream);
@@ -49,6 +49,8 @@ export class FlowControl {
                         this.addBufferedStreamFrame(streamFrame);
                         baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
                     }
+                } else {
+                    stream.addRemoteOffset(streamFrame.getLength());
                 }
             }
         });
@@ -65,11 +67,10 @@ export class FlowControl {
         baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame> frame;
-                var streamFrameBuffer = streamFrame.toBuffer();
-                if (streamFrame.getStreamID() !== Bignum.fromNumber(0)) {
+                if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
                     var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
-                    this.checkLocalStreamLimit(stream, streamFrameBuffer);
-                    this.checkLocalConnectionLimit(streamFrameBuffer);
+                    this.checkLocalStreamLimit(stream, streamFrame);
+                    this.checkLocalConnectionLimit(streamFrame);
                 }
             }
         });
@@ -84,8 +85,8 @@ export class FlowControl {
         return true;
     }
 
-    public checkLocalStreamLimit(stream: Stream, streamBuffer: Buffer): boolean {
-        stream.addLocalOffset(streamBuffer.byteLength);
+    public checkLocalStreamLimit(stream: Stream, streamFrame: StreamFrame): boolean {
+        stream.addLocalOffset(streamFrame.getLength());
         if (stream.isLocalLimitExceeded()) {
             // sent flow control error
             // start connection closing state
@@ -98,8 +99,8 @@ export class FlowControl {
         return true;
     }
 
-    public checkLocalConnectionLimit(streamBuffer: Buffer): boolean {
-        this.connection.addLocalOffset(streamBuffer.byteLength);
+    public checkLocalConnectionLimit(streamFrame: StreamFrame): boolean {
+        this.connection.addLocalOffset(streamFrame.getLength());
         if (this.connection.isLocalLimitExceeded()) {
             // sent flow control error
             // start connection closing state

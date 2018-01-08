@@ -193,7 +193,6 @@ export class FrameHandler {
                 //
             }
             connection.sendPacket(packet);
-            connectionStream.addRemoteOffset(Bignum.fromNumber(data.byteLength));
         }
     }
 
