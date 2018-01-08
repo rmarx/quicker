@@ -9,6 +9,7 @@ import { FlowControlledObject } from './flow.controlled';
 export class Stream extends FlowControlledObject{
 	
 	private streamID: Bignum;
+	private blockedSent: boolean;
 	
     public constructor(connection: Connection, streamID: Bignum) {
 		super();
@@ -20,7 +21,15 @@ export class Stream extends FlowControlledObject{
 		return this.streamID;
 	}
 
-	public setStreamID(value: Bignum) {
+	public setStreamID(value: Bignum): void {
 		this.streamID = value;
+	}
+
+	public getBlockedSent(): boolean {
+		return this.blockedSent;
+	}
+
+	public setBlockedSent(value: boolean): void {
+		this.blockedSent = value;
 	}
 }

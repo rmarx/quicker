@@ -1,4 +1,4 @@
-import {Bignum} from './bignum';
+import { Bignum } from './bignum';
 
 
 export class BaseProperty {
@@ -57,6 +57,7 @@ export class PacketNumber extends BaseProperty {
     }
 
     public setPacketNumber(bignum: Bignum) {
+        bignum.setByteLength(8);
         this.setProperty(bignum);
     }
 
@@ -70,13 +71,13 @@ export class PacketNumber extends BaseProperty {
     public getLeastSignificantBits(size: number = 4): Buffer {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
-        this.getProperty().toBuffer().copy(buf, 0, 8-size, 8);
+        this.getProperty().toBuffer().copy(buf, 0, 8 - size, 8);
         return buf;
     }
 
     public adjustNumber(packetNumber: PacketNumber, size: number) {
         var mask = Bignum.fromNumber(1);
-        for(var i = 0; i < 63; i++) {
+        for (var i = 0; i < 63; i++) {
             mask = mask.shiftLeft(1);
             if (63 - i > (size * 8)) {
                 mask = mask.add(1);
@@ -100,7 +101,7 @@ export class PacketNumber extends BaseProperty {
 
 
 export class Version extends BaseProperty {
-    
+
     public constructor(buffer: Buffer) {
         super(buffer);
     }

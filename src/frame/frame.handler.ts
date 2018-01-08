@@ -71,16 +71,20 @@ export class FrameHandler {
     }
 
     private handleMaxDataFrame(connection: Connection, maxDataFrame: MaxDataFrame) {
-        if (connection.getRemoteTransportParameter(TransportParameterType.MAX_DATA).lessThan(maxDataFrame.getMaxData())) {
-            connection.setRemoteTransportParameter(TransportParameterType.MAX_DATA, maxDataFrame.getMaxData());
+        if (connection.getRemoteMaxData().lessThan(maxDataFrame.getMaxData())) {
+            connection.setRemoteMaxData(maxDataFrame.getMaxData());
         }
+        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, connection.getFlowControl().getAllBufferedStreamFrames());
+        connection.sendPacket(shortHeaderPacket);
     }
 
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
         var stream = connection.getStream(maxDataStreamFrame.getStreamId());
-        if (stream.getRemoteMaxStreamData().lessThan(maxDataStreamFrame.getMaxData())) {
-            stream.setRemoteMaxStreamData(maxDataStreamFrame.getMaxData());
+        if (stream.getRemoteMaxData().lessThan(maxDataStreamFrame.getMaxData())) {
+            stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
         }
+        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, connection.getFlowControl().getBufferedStreamFrames(stream.getStreamID()));
+        connection.sendPacket(shortHeaderPacket);
     }
 
     private handleTlsStreamFrames(connection: Connection, streamFrame: StreamFrame): void {
@@ -93,6 +97,7 @@ export class FrameHandler {
                 var transportParameters: TransportParameters = this.handshakeValidator.validateExtensionData(connection, extensionData);
                 //TODO validate
                 connection.setRemoteTransportParameters(transportParameters);
+                connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             }
 
             var str = new StreamFrame(streamFrame.getStreamID(), data);

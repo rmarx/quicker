@@ -7,9 +7,9 @@ export abstract class FlowControlledObject {
 
 	private localOffset: Bignum;
 	private remoteOffset: Bignum;
-	private localMaxStreamData: Bignum;
-    private remoteMaxStreamData: Bignum;
-    
+	private localMaxData: Bignum;
+    private remoteMaxData: Bignum;
+
     public constructor() {
         //
     }
@@ -17,8 +17,6 @@ export abstract class FlowControlledObject {
     protected init(connection: Connection) {
 		this.localOffset = Bignum.fromNumber(0);
 		this.remoteOffset = Bignum.fromNumber(0);
-        this.localOffset = connection.getLocalTransportParameter(TransportParameterType.MAX_STREAM_DATA);
-        this.remoteOffset = connection.getRemoteTransportParameter(TransportParameterType.MAX_STREAM_DATA);
     }
 
     public getLocalOffset(): Bignum {
@@ -41,46 +39,46 @@ export abstract class FlowControlledObject {
 		this.remoteOffset = this.remoteOffset.add(offset);
 	}
 
-	public setRemoteMaxStreamData(maxStreamData: Bignum) {
-		this.remoteMaxStreamData = maxStreamData;
+	public setRemoteMaxData(maxData: Bignum) {
+		this.remoteMaxData = maxData;
 	}
 
-	public getRemoteMaxStreamData(): Bignum {
-		return this.remoteMaxStreamData;
+	public getRemoteMaxData(): Bignum {
+		return this.remoteMaxData;
 	}
 
-	public setLocalMaxStreamData(maxStreamData: Bignum) {
-		this.localMaxStreamData = maxStreamData;
+	public setLocalMaxData(maxData: Bignum) {
+		this.localMaxData = maxData;
 	}
 
-	public getLocalMaxStreamData(): Bignum {
-		return this.localMaxStreamData;
+	public getLocalMaxata(): Bignum {
+		return this.localMaxData;
 	}
 
     public isLocalLimitExceeded(): boolean {
-		return this.isLimitExeeded(this.remoteMaxStreamData, this.remoteOffset);
+		return this.isLimitExeeded(this.localMaxData, this.remoteOffset);
 	}
 
     public isRemoteLimitExceeded(): boolean {
-		return this.isLimitExeeded(this.remoteMaxStreamData, this.remoteOffset);
+		return this.isLimitExeeded(this.remoteMaxData, this.remoteOffset);
 	}
 
-	private isLimitExeeded(maxStreamData: Bignum, offset: Bignum): boolean {
-		return offset.greaterThanOrEqual(maxStreamData);
+	private isLimitExeeded(maxData: Bignum, offset: Bignum): boolean {
+		return offset.greaterThanOrEqual(maxData);
 	}
 
     public isLocalLimitAlmostExceeded(): boolean {
-		return this.isLimitAlmostExceeded(this.remoteMaxStreamData, this.remoteOffset);
+		return this.isLimitAlmostExceeded(this.localMaxData, this.remoteOffset);
 	}
 
     public isRemoteLimitAlmostExceeded(added: any): boolean {
-		return this.isLimitAlmostExceeded(this.remoteMaxStreamData, this.remoteOffset);
+		return this.isLimitAlmostExceeded(this.remoteMaxData, this.remoteOffset);
 	}
 
-	private isLimitAlmostExceeded(maxStreamData: Bignum, offset: Bignum): boolean {
-		var perc = maxStreamData.divide(10);
+	private isLimitAlmostExceeded(maxData: Bignum, offset: Bignum): boolean {
+		var perc = maxData.divide(10);
 		var temp = offset.add(perc);
-		return temp.greaterThanOrEqual(maxStreamData);
+		return temp.greaterThanOrEqual(maxData);
 	}
 
 }

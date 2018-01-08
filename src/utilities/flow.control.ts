@@ -5,17 +5,59 @@ import {BasePacket, PacketType} from '../packet/base.packet';
 import {StreamFrame} from '../frame/general/stream';
 import {BaseEncryptedPacket} from '../packet/base.encrypted.packet';
 import {BaseFrame, FrameType} from '../frame/base.frame';
+import { StreamBlockedFrame } from '../frame/general/stream.blocked';
+import { PacketFactory } from '../packet/packet.factory';
+import { BlockedFrame } from '../frame/general/blocked';
 
 
 export class FlowControl {
     
-    private bufferedStreamFrames: StreamFrame[];
+    private bufferedStreamFrames: {[key: string]: StreamFrame[]};
+    private connection: Connection;
 
-    public constructor() {
-        this.bufferedStreamFrames = [];
+    public constructor(connection: Connection) {
+        this.bufferedStreamFrames = {};
+        this.connection = connection;
     }
 
-    public onPacketReceived(connection: Connection, basePacket: BasePacket) {
+    public onPacketSend(basePacket: BasePacket): BasePacket | undefined {
+        if (basePacket.getPacketType() === PacketType.Retry && basePacket.getPacketType() === PacketType.VersionNegotiation) {
+            return basePacket;
+        }
+        var baseEncryptedPacket = <BaseEncryptedPacket> basePacket;
+        var dataAvailable = true;
+        baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
+            if (frame.getType() >= FrameType.STREAM) {
+                var streamFrame = <StreamFrame> frame;
+                var streamFrameBuffer = streamFrame.toBuffer();
+                if (streamFrame.getStreamID() !== Bignum.fromNumber(0)) {
+                    var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
+                    dataAvailable = this.checkRemoteStreamLimit(stream, streamFrame, streamFrameBuffer);
+                    if (!dataAvailable) {
+                        var streamBlockedFrame = this.getStreamBlocked(stream);
+                        if (streamBlockedFrame !== undefined) {
+                            baseEncryptedPacket.getFrames().push(streamBlockedFrame);
+                        }
+                        this.addBufferedStreamFrame(streamFrame);
+                        baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
+                        return;
+                    }
+                    dataAvailable = this.checkRemoteConnectionLimit(streamFrame, streamFrameBuffer);
+                    if (!dataAvailable) {
+                        var blockedFrame = this.getBlocked();
+                        baseEncryptedPacket.getFrames().push(blockedFrame);
+                        this.addBufferedStreamFrame(streamFrame);
+                        baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
+                    }
+                }
+            }
+        });
+        if (baseEncryptedPacket.getFrames().length > 0)
+            return basePacket;
+        return undefined;
+    }
+
+    public onPacketReceived(basePacket: BasePacket): void {
         if (basePacket.getPacketType() === PacketType.Retry && basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
@@ -25,35 +67,81 @@ export class FlowControl {
                 var streamFrame = <StreamFrame> frame;
                 var streamFrameBuffer = streamFrame.toBuffer();
                 if (streamFrame.getStreamID() !== Bignum.fromNumber(0)) {
-                    var stream: Stream = connection.getStream(streamFrame.getStreamID());
-                    this.checkStreamLimit(connection, stream, streamFrameBuffer);
-                    this.checkConnectionLimit(connection, streamFrameBuffer);
+                    var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
+                    this.checkLocalStreamLimit(stream, streamFrameBuffer);
+                    this.checkLocalConnectionLimit(streamFrameBuffer);
                 }
             }
         });
     }
 
-    public checkStreamLimit(connection: Connection, stream: Stream, streamBuffer: Buffer) {
+    public checkRemoteStreamLimit(stream: Stream, streamFrame: StreamFrame, streamBuffer: Buffer): boolean {
+        
+        return true;
+    }
+
+    public checkRemoteConnectionLimit(streamFrame: StreamFrame, streamBuffer: Buffer): boolean {
+        return true;
+    }
+
+    public checkLocalStreamLimit(stream: Stream, streamBuffer: Buffer): boolean {
         stream.addLocalOffset(streamBuffer.byteLength);
         if (stream.isLocalLimitExceeded()) {
             // sent flow control error
             // start connection closing state
-            return;
+            return false;
         }
         if (stream.isLocalLimitAlmostExceeded()) {
             // sent max stream data frame
+            return true;
         }
+        return true;
     }
 
-    public checkConnectionLimit(connection: Connection, streamBuffer: Buffer) {
-        connection.addLocalOffset(streamBuffer.byteLength);
-        if (connection.isLocalLimitExceeded()) {
+    public checkLocalConnectionLimit(streamBuffer: Buffer): boolean {
+        this.connection.addLocalOffset(streamBuffer.byteLength);
+        if (this.connection.isLocalLimitExceeded()) {
             // sent flow control error
             // start connection closing state
-            return;
+            return false;
         }
-        if (connection.isLocalLimitAlmostExceeded()) {
+        if (this.connection.isLocalLimitAlmostExceeded()) {
             // sent max stream data frame
+            return true;
         }
+        return true;
+    }
+
+    public getBufferedStreamFrames(streamId: Bignum): StreamFrame[] {
+        var key = streamId.toDecimalString();
+        return this.bufferedStreamFrames[key];
+    }
+
+    public getAllBufferedStreamFrames(): StreamFrame[] {
+        var all: StreamFrame[] = [];
+        for(var k in this.bufferedStreamFrames) {
+            all = all.concat(this.bufferedStreamFrames[k]);
+        }
+        return all;
+    }
+
+    private addBufferedStreamFrame(streamFrame: StreamFrame): void {
+        var key = streamFrame.getStreamID().toDecimalString();
+        if (this.bufferedStreamFrames[key] === undefined) {
+            this.bufferedStreamFrames[key] = [];
+        }
+        this.bufferedStreamFrames[key].push(streamFrame);
+    }
+
+    private getStreamBlocked(stream: Stream): StreamBlockedFrame | undefined {
+        if (!stream.getBlockedSent()) {
+            stream.setBlockedSent(true);
+            return new StreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset());
+        }
+        return undefined;
+    }
+
+    private getBlocked(): BlockedFrame {
+        return new BlockedFrame(this.connection.getRemoteOffset());
     }
 }

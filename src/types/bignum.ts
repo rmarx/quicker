@@ -77,11 +77,11 @@ export class Bignum {
 
     public and(num: Bignum): Bignum {
         var bn = this.bignum.and(num.bignum);
-        return new Bignum(bn.toBuffer('be'));
+        return Bignum.fromBN(bn);
     }
 
     public mask(bytesize: number): Bignum {
-        return new Bignum(this.bignum.maskn(bytesize * 8).toBuffer('be'));
+        return Bignum.fromBN(this.bignum.maskn(bytesize * 8));
     }
 
     /**
@@ -188,6 +188,10 @@ export class Bignum {
         return byteLength;
     }
 
+    public setByteLength(value: number): void {
+        this.byteSize = value;
+    }
+
     /**
      * Creates a Bignum object with a random value between 0 and highHex
      * @param highHex  upperbound (in hex)
@@ -202,7 +206,7 @@ export class Bignum {
         }
         num = num.mod(high.bignum);
 
-        return new Bignum(num.toBuffer('be'), byteSize, 10);
+        return this.fromBN(num);
     }
 
     /**
@@ -219,5 +223,11 @@ export class Bignum {
      */
     private static mathRandom(): BN {
         return new BN(Math.random() * 256);
+    }
+
+    private static fromBN(bn: BN): Bignum {
+        var bignum = this.fromNumber(0);
+        bignum.bignum = bn;
+        return bignum;
     }
 }

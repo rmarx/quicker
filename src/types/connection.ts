@@ -12,7 +12,8 @@ import { BasePacket, PacketType } from './../packet/base.packet';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { AckHandler } from '../utilities/ack.handler';
 import { PacketLogging } from '../utilities/logging/packet.logging';
-import { FlowControlledObject } from '../types/flow.controlled';
+import { FlowControlledObject } from './flow.controlled';
+import { FlowControl } from '../utilities/flow.control';
 
 export class Connection extends FlowControlledObject{
 
@@ -22,6 +23,7 @@ export class Connection extends FlowControlledObject{
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
     private ackHandler: AckHandler;
+    private flowControl: FlowControl;
 
     private firstConnectionID: ConnectionID;
     private connectionID: ConnectionID;
@@ -44,6 +46,7 @@ export class Connection extends FlowControlledObject{
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
         this.aead = new AEAD();
         this.ackHandler = new AckHandler(this);
+        this.flowControl = new FlowControl(this);
         this.streams = [];
     }
 
@@ -89,6 +92,10 @@ export class Connection extends FlowControlledObject{
 
     public getAckHandler(): AckHandler {
         return this.ackHandler;
+    }
+
+    public getFlowControl(): FlowControl {
+        return this.flowControl;
     }
 
     public getLocalTransportParameter(type: TransportParameterType): any {
@@ -217,8 +224,11 @@ export class Connection extends FlowControlledObject{
                 baseEncryptedPacket.getFrames().push(ackFrame);
             }
         }
-        PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
-        this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
+        var packet = this.flowControl.onPacketSend(basePacket);
+        if (packet !== undefined) {
+            PacketLogging.getInstance().logOutgoingPacket(this, packet);
+            this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
+        }
     }
 }
 
