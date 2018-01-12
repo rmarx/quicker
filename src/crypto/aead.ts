@@ -7,7 +7,6 @@ import {HKDF} from './hkdf';
 import {Constants} from '../utilities/constants';
 import {EndpointType} from '../types/endpoint.type';
 import { createCipheriv, createDecipheriv } from "crypto";
-import { logMethod } from './../utilities/decorators/log.decorator';
 
 export class AEAD {
 
