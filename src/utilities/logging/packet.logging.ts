@@ -92,7 +92,7 @@ export class PacketLogging {
             var lh: LongHeader = <LongHeader> (basePacket.getHeader());
             format += "Version: Ox" + lh.getVersion().getVersion().toString();
         }
-        this.startOutput.debug(format, direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString, packetNumber.getPacketNumber().toDecimalString());
+        this.startOutput.info(format, direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString, packetNumber.getPacketNumber().toDecimalString());
 
         switch (basePacket.getPacketType()) {
             case PacketType.Retry:
@@ -115,7 +115,7 @@ export class PacketLogging {
 
     private logFrame(connection: Connection, baseFrame: BaseFrame, color: ConsoleColor): void {
         if (baseFrame.getType() < FrameType.STREAM) {
-            this.continuedOutput.debug(this.getSpaces(4) + color + "%s (0x%s)" + ConsoleColor.Reset, FrameType[baseFrame.getType()], baseFrame.getType().toString(16));
+            this.continuedOutput.info(this.getSpaces(4) + color + "%s (0x%s)" + ConsoleColor.Reset, FrameType[baseFrame.getType()], baseFrame.getType().toString(16));
         }
         switch (baseFrame.getType()) {
             case FrameType.PADDING:
@@ -186,82 +186,82 @@ export class PacketLogging {
     }
 
     private logPaddingFrame(paddingFrame: PaddingFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "length=%d ", paddingFrame.getLength());
+        this.continuedOutput.info(this.getSpaces(4) + "length=%d ", paddingFrame.getLength());
     }
 
     private logRstStreamFrame(rstStreamFrame: RstStreamFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "StreamID=Ox%s ", rstStreamFrame.getStreamId().toString());
-        this.continuedOutput.debug(this.getSpaces(4) + "Error code=%d ", rstStreamFrame.getApplicationErrorCode());
-        this.continuedOutput.debug(this.getSpaces(4) + "Final offset=%s ", rstStreamFrame.getFinalOffset().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + "StreamID=Ox%s ", rstStreamFrame.getStreamId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Error code=%d ", rstStreamFrame.getApplicationErrorCode());
+        this.continuedOutput.info(this.getSpaces(4) + "Final offset=%s ", rstStreamFrame.getFinalOffset().toDecimalString());
     }
 
     private logConnectionCloseFrame(connectionCloseFrame: ConnectionCloseFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "Error code=%d ", connectionCloseFrame.getErrorCode());
-        this.continuedOutput.debug(this.getSpaces(4) + "Error phrase=%s ", connectionCloseFrame.getErrorPhrase());
+        this.continuedOutput.info(this.getSpaces(4) + "Error code=%d ", connectionCloseFrame.getErrorCode());
+        this.continuedOutput.info(this.getSpaces(4) + "Error phrase=%s ", connectionCloseFrame.getErrorPhrase());
     }
 
     private logApplicationCloseFrame(applicationCloseFrame: ApplicationCloseFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "Error code=%d ", applicationCloseFrame.getErrorCode());
-        this.continuedOutput.debug(this.getSpaces(4) + "Error phrase=%s ", applicationCloseFrame.getErrorPhrase());
+        this.continuedOutput.info(this.getSpaces(4) + "Error code=%d ", applicationCloseFrame.getErrorCode());
+        this.continuedOutput.info(this.getSpaces(4) + "Error phrase=%s ", applicationCloseFrame.getErrorPhrase());
     }
 
     private logMaxDataFrame(maxDataFrame: MaxDataFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "Max data=Ox%s ", maxDataFrame.getMaxData().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Max data=Ox%s ", maxDataFrame.getMaxData().toString());
     }
 
     private logMaxStreamFrame(maxStreamFrame: MaxStreamFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "StreamID=Ox%s ", maxStreamFrame.getStreamId().toString());
-        this.continuedOutput.debug(this.getSpaces(4) + "Max data=Ox%s ", maxStreamFrame.getMaxData().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "StreamID=Ox%s ", maxStreamFrame.getStreamId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Max data=Ox%s ", maxStreamFrame.getMaxData().toString());
     }
 
     private logMaxStreamIdFrame(maxStreamIdFrame: MaxStreamIdFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "Max streamID=Ox%s ", maxStreamIdFrame.getMaxStreamId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Max streamID=Ox%s ", maxStreamIdFrame.getMaxStreamId().toString());
     }
 
     private logPingFrame(pingFrame: PingFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "length=%d ", pingFrame.getLength());
+        this.continuedOutput.info(this.getSpaces(4) + "length=%d ", pingFrame.getLength());
     }
 
     private logBlockedFrame(blockedFrame: BlockedFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "Blocked offset=%s ", blockedFrame.getBlockedOffset().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + "Blocked offset=%s ", blockedFrame.getBlockedOffset().toDecimalString());
     }
 
     private logStreamBlockedFrame(streamBlockedFrame: StreamBlockedFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "StreamID=Ox%s ", streamBlockedFrame.getStreamId().toString());
-        this.continuedOutput.debug(this.getSpaces(4) + "Blocked offset=%s ", streamBlockedFrame.getBlockedOffset().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + "StreamID=Ox%s ", streamBlockedFrame.getStreamId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Blocked offset=%s ", streamBlockedFrame.getBlockedOffset().toDecimalString());
     }
 
     private logStreamIdBlockedFrame(streamIdBlockedFrame: StreamIdBlockedFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "StreamID=Ox%s ", streamIdBlockedFrame.getStreamId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "StreamID=Ox%s ", streamIdBlockedFrame.getStreamId().toString());
     }
 
     private logNewConnectionIdFrame(newConnectionIdFrame: NewConnectionIdFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "ConnectionID=Ox%s ", newConnectionIdFrame.getConnectionId().toString());
-        this.continuedOutput.debug(this.getSpaces(4) + "Stateless Reset Token=Ox%s ", newConnectionIdFrame.getStatelessResetToken().toString('hex'));
+        this.continuedOutput.info(this.getSpaces(4) + "ConnectionID=Ox%s ", newConnectionIdFrame.getConnectionId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Stateless Reset Token=Ox%s ", newConnectionIdFrame.getStatelessResetToken().toString('hex'));
     }
 
     private logStopSendingFrame(stopSendingFrame: StopSendingFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "StreamID=Ox%s ", stopSendingFrame.getStreamId().toString());
-        this.continuedOutput.debug(this.getSpaces(4) + "Application error code=%d ", stopSendingFrame.getApplicationErrorCode());
+        this.continuedOutput.info(this.getSpaces(4) + "StreamID=Ox%s ", stopSendingFrame.getStreamId().toString());
+        this.continuedOutput.info(this.getSpaces(4) + "Application error code=%d ", stopSendingFrame.getApplicationErrorCode());
     }
 
     private logPongFrame(pongFrame: PongFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + "length=%d ", pongFrame.getLength());
+        this.continuedOutput.info(this.getSpaces(4) + "length=%d ", pongFrame.getLength());
     }
 
     private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): void {
         var ackDelayExponent = connection.getLocalTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
         var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackDelayExponent);
 
-        this.continuedOutput.debug(this.getSpaces(4) + "largest acknowledged=%s", ackFrame.getLargestAcknowledged().toDecimalString());
-        this.continuedOutput.debug(this.getSpaces(4) + "ack delay=%d", ackDelay);
-        this.continuedOutput.debug(this.getSpaces(4) + "ack block count=%s", ackFrame.getAckBlockCount().toDecimalString());
-        this.continuedOutput.debug(this.getSpaces(4) + "first ackblock=%s", ackFrame.getFirstAckBlock().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + "largest acknowledged=%s", ackFrame.getLargestAcknowledged().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + "ack delay=%d", ackDelay);
+        this.continuedOutput.info(this.getSpaces(4) + "ack block count=%s", ackFrame.getAckBlockCount().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + "first ackblock=%s", ackFrame.getFirstAckBlock().toDecimalString());
     }
 
     private logStreamFrame(streamFrame: StreamFrame, color: ConsoleColor): void {
-        this.continuedOutput.debug(this.getSpaces(4) + color + "STREAM (0x%s) " + ConsoleColor.Reset + " FIN=%d LEN=%d OFF=%d", streamFrame.getType().toString(16), streamFrame.getFin(), streamFrame.getLen(), streamFrame.getOff());
-        this.continuedOutput.debug(this.getSpaces(4) + "StreamID (0x%s) length=%s offset=%s", streamFrame.getStreamID().toDecimalString(), streamFrame.getLength().toDecimalString(), streamFrame.getOffset().toDecimalString());
+        this.continuedOutput.info(this.getSpaces(4) + color + "STREAM (0x%s) " + ConsoleColor.Reset + " FIN=%d LEN=%d OFF=%d", streamFrame.getType().toString(16), streamFrame.getFin(), streamFrame.getLen(), streamFrame.getOff());
+        this.continuedOutput.info(this.getSpaces(4) + "StreamID (0x%s) length=%s offset=%s", streamFrame.getStreamID().toDecimalString(), streamFrame.getLength().toDecimalString(), streamFrame.getOffset().toDecimalString());
 
     }
 

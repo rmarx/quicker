@@ -1,7 +1,7 @@
-import { Connection } from '../types/connection';
-import { EndpointType } from '../types/endpoint.type';
-import { HandshakeState } from '../crypto/qtls';
-import { TransportParameters } from '../crypto/transport.parameters';
+import { Connection } from '../../types/connection';
+import { EndpointType } from '../../types/endpoint.type';
+import { HandshakeState } from '../../crypto/qtls';
+import { TransportParameters } from '../../crypto/transport.parameters';
 
 
 export class HandshakeValidation {

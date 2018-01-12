@@ -1,25 +1,26 @@
-import { HandshakeValidation } from '../validation/handshake.validation';
-import { Connection } from '../types/connection';
-import { BaseFrame, FrameType } from './base.frame';
-import { RstStreamFrame } from './general/rst.stream';
-import { ConnectionCloseFrame, ApplicationCloseFrame } from './general/close';
-import { MaxDataFrame } from './general/max.data';
-import { MaxStreamFrame } from './general/max.stream';
-import { MaxStreamIdFrame } from './general/max.stream.id';
-import { PingFrame, PongFrame } from './general/ping';
-import { BlockedFrame } from './general/blocked';
-import { StreamBlockedFrame } from './general/stream.blocked';
-import { StreamIdBlockedFrame } from './general/stream.id.blocked';
-import { NewConnectionIdFrame } from './general/new.connection.id';
-import { StopSendingFrame } from './general/stop.sending';
-import { AckFrame } from './general/ack';
-import { StreamFrame } from './general/stream';
-import { Bignum } from '../types/bignum';
-import { PacketFactory } from '../packet/packet.factory';
-import { HandshakeState } from '../crypto/qtls';
-import { EndpointType } from '../types/endpoint.type';
-import { TransportParameters, TransportParameterType } from '../crypto/transport.parameters';
-import { BasePacket } from '../packet/base.packet';
+import {Stream} from '../types/stream';
+import {HandshakeValidation} from '../utilities/validation/handshake.validation';
+import {Connection} from '../types/connection';
+import {BaseFrame, FrameType} from './base.frame';
+import {RstStreamFrame} from './general/rst.stream';
+import {ConnectionCloseFrame, ApplicationCloseFrame} from './general/close';
+import {MaxDataFrame} from './general/max.data';
+import {MaxStreamFrame} from './general/max.stream';
+import {MaxStreamIdFrame} from './general/max.stream.id';
+import {PingFrame, PongFrame} from './general/ping';
+import {BlockedFrame} from './general/blocked';
+import {StreamBlockedFrame} from './general/stream.blocked';
+import {StreamIdBlockedFrame} from './general/stream.id.blocked';
+import {NewConnectionIdFrame} from './general/new.connection.id';
+import {StopSendingFrame} from './general/stop.sending';
+import {AckFrame} from './general/ack';
+import {StreamFrame} from './general/stream';
+import {PacketFactory} from '../packet/packet.factory';
+import {Bignum} from '../types/bignum';
+import {HandshakeState} from '../crypto/qtls';
+import {EndpointType} from '../types/endpoint.type';
+import {TransportParameters, TransportParameterType} from '../crypto/transport.parameters';
+import {BasePacket} from '../packet/base.packet';
 
 
 
@@ -95,11 +96,7 @@ export class FrameHandler {
         }
         if (frame.getType() >= FrameType.STREAM) {
             var streamFrame = <StreamFrame>frame;
-            if (streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
-                this.handleTlsStreamFrames(connection, streamFrame);
-            } else {
-                this.handleRegularStreamFrames(connection, streamFrame);
-            }
+            this.handleStreamFrame(connection, streamFrame);
         }
     }
 
@@ -139,7 +136,7 @@ export class FrameHandler {
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
-
+        
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
@@ -166,8 +163,22 @@ export class FrameHandler {
 
     }
 
-    private handleTlsStreamFrames(connection: Connection, streamFrame: StreamFrame): void {
-        var connectionStream = connection.getStream(streamFrame.getStreamID());
+    private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
+        var stream = connection.getStream(streamFrame.getStreamID());
+        if (stream.getLocalOffset().greaterThan(streamFrame.getOffset())) {
+            return;
+        }
+        
+        // TODO: check less than ==> buffer
+
+        if (streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
+            this.handleTlsStreamFrame(connection, stream, streamFrame);
+        } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            this.handleRegularStreamFrame(connection, stream, streamFrame);
+        }
+    }
+
+    private handleTlsStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
         var data = connection.getQuicTLS().readHandshake();
         if (data.byteLength > 0) {
@@ -180,23 +191,21 @@ export class FrameHandler {
             }
 
             var str = new StreamFrame(streamFrame.getStreamID(), data);
-            str.setOffset(connectionStream.getRemoteOffset());
+            str.setOffset(stream.getRemoteOffset());
             str.setLength(Bignum.fromNumber(data.byteLength));
 
             var packet: BasePacket;
             if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Server) {
                 packet = PacketFactory.createShortHeaderPacket(connection, [str]);
+                connection.sendPacket(packet);
             } else {
                 packet = PacketFactory.createHandshakePacket(connection, [str]);
+                connection.sendPacket(packet);
             }
-            if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-                //
-            }
-            connection.sendPacket(packet);
         }
     }
 
-    private handleRegularStreamFrames(connection: Connection, streamFrame: StreamFrame): void {
+    private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
 
     }
 }
