@@ -40,7 +40,7 @@ export class FlowControl {
 
                     if (streamAvailable !== FlowControlState.Ok || connectionAvailable !== FlowControlState.Ok) {
                         if (streamAvailable !== FlowControlState.Ok) {
-                            var streamBlockedFrame = FrameFactory.createStreamBlocked(stream);
+                            var streamBlockedFrame = FrameFactory.createStreamBlockedFrame(stream);
                             // returns undefined when streamblockedframe is already sent for this stream
                             if (streamBlockedFrame !== undefined) {
                                 baseEncryptedPacket.getFrames().push(streamBlockedFrame);
@@ -48,7 +48,7 @@ export class FlowControl {
                         }
                         // addedBlockedFrame check to make sure, only 1 blockedframe is added to the packet
                         if (connectionAvailable !== FlowControlState.Ok && !addedBlockedFrame) {
-                            var blockedFrame = FrameFactory.createBlocked(this.connection);
+                            var blockedFrame = FrameFactory.createBlockedFrame(this.connection);
                             baseEncryptedPacket.getFrames().push(blockedFrame);
                         }
                         this.addBufferedStreamFrame(streamFrame);
@@ -88,11 +88,11 @@ export class FlowControl {
                             throw Error("FINAL_OFFSET_ERROR");
                         }
                         if (streamCheck === FlowControlState.MaxStreamData) {
-                            var maxStreamDataFrame = FrameFactory.createMaxStreamData(stream);
+                            var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
                             frames.push(maxStreamDataFrame);
                         }
                         if (connectionCheck === FlowControlState.MaxData && !addedMaxData) {
-                            var maxDataFrame = FrameFactory.createMaxData(this.connection);
+                            var maxDataFrame = FrameFactory.createMaxDataFrame(this.connection);
                             frames.push(maxDataFrame);
                         }
                     }

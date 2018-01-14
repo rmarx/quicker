@@ -1,5 +1,5 @@
 import {logMethod} from '../utilities/decorators/log.decorator';
-import {Stream} from '../types/stream';
+import {Stream, StreamState} from '../types/stream';
 import {HandshakeValidation} from '../utilities/validation/handshake.validation';
 import {Connection} from '../types/connection';
 import {BaseFrame, FrameType} from './base.frame';
@@ -22,6 +22,7 @@ import {HandshakeState} from '../crypto/qtls';
 import {EndpointType} from '../types/endpoint.type';
 import {TransportParameters, TransportParameterType} from '../crypto/transport.parameters';
 import {BasePacket} from '../packet/base.packet';
+import { FrameFactory } from './frame.factory';
 
 
 export class FrameHandler {
@@ -100,7 +101,12 @@ export class FrameHandler {
     }
 
     private handleRstStreamFrame(connection: Connection, rstStreamFrame: RstStreamFrame) {
-
+        var stream = connection.getStream(rstStreamFrame.getStreamId());
+        if (stream.getStreamState() === StreamState.Open) {
+            stream.setStreamState(StreamState.RemoteClosed);
+        } else if (stream.getStreamState() === StreamState.LocalClosed) {
+            stream.setStreamState(StreamState.Closed);
+        }
     }
     private handleConnectionCloseFrame(connection: Connection, connectionCloseFrame: ConnectionCloseFrame) {
 
@@ -132,15 +138,26 @@ export class FrameHandler {
     }
 
     private handlePingFrame(connection: Connection, pingFrame: PingFrame) {
-
+        if (pingFrame.getLength() > 0) {
+            var pongFrame = FrameFactory.createPongFrame(pingFrame.getData());
+            var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, [pongFrame]);
+            connection.sendPacket(shortHeaderPacket);
+        }
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
-        
+        var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
+        connection.setLocalMaxData(maxDataFrame.getMaxData());
+        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, [maxDataFrame]);
+        connection.sendPacket(shortHeaderPacket);
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
-
+        var stream = connection.getStream(streamBlocked.getStreamId());
+        var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
+        stream.setLocalMaxData(maxStreamDataFrame.getMaxData());
+        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, [maxStreamDataFrame]);
+        connection.sendPacket(shortHeaderPacket);
     }
 
     private handleStreamIdBlockedFrame(connection: Connection, streamIdBlocked: StreamIdBlockedFrame) {
@@ -148,15 +165,27 @@ export class FrameHandler {
     }
 
     private handleNewConnectionIdFrame(connection: Connection, newConnectionIdFrame: NewConnectionIdFrame) {
-
+        
     }
 
     private handleStopSendingFrame(connection: Connection, stopSendingFrame: StopSendingFrame) {
-
+        var stream = connection.getStream(stopSendingFrame.getStreamId());
+        if (stream.getStreamState() === StreamState.Open) {
+            stream.setStreamState(StreamState.LocalClosed);
+        } else if (stream.getStreamState() === StreamState.RemoteClosed) {
+            stream.setStreamState(StreamState.Closed);
+        }
+        stream.setRemoteFinalOffset(stream.getRemoteOffset());
+        var rstStreamFrame = FrameFactory.createRstStreamFrame(stream, 0);
     }
 
     private handlePongFrame(connection: Connection, pongFrame: PongFrame) {
-
+        if (pongFrame.getLength() === 0) {
+            throw Error("FRAME_ERROR");
+        }
+        // not yet checking with pingframes sent, because these aren't kept at the moment 
+        // draft states: the endpoint MAY generate a connection error of type UNSOLICITED_PONG
+        // so not doing anything at the moment
     }
 
     private handleAckFrame(connection: Connection, ackFrame: AckFrame) {

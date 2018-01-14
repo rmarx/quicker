@@ -7,6 +7,8 @@ import {Stream} from '../types/stream';
 import {StreamFrame} from './general/stream';
 import {PaddingFrame} from './general/padding';
 import { MaxStreamFrame } from './general/max.stream';
+import { PingFrame, PongFrame } from './general/ping';
+import { RstStreamFrame } from './general/rst.stream';
 
 
 export class FrameFactory {
@@ -27,7 +29,7 @@ export class FrameFactory {
         return new PaddingFrame(paddingSize);
     }
 
-    public static createStreamBlocked(stream: Stream): StreamBlockedFrame | undefined {
+    public static createStreamBlockedFrame(stream: Stream): StreamBlockedFrame | undefined {
         if (!stream.getBlockedSent()) {
             stream.setBlockedSent(true);
             return new StreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset());
@@ -35,17 +37,29 @@ export class FrameFactory {
         return undefined;
     }
 
-    public static createBlocked(connection: Connection): BlockedFrame {
+    public static createBlockedFrame(connection: Connection): BlockedFrame {
         return new BlockedFrame(connection.getRemoteOffset());
     }
 
-    public static createMaxStreamData(stream: Stream): MaxStreamFrame {
+    public static createMaxStreamDataFrame(stream: Stream): MaxStreamFrame {
         var newMaxStreamData = stream.getLocalMaxData().multiply(2);
         return new MaxStreamFrame(stream.getStreamID(), newMaxStreamData);
     }
 
-    public static createMaxData(connection: Connection): MaxDataFrame {
+    public static createMaxDataFrame(connection: Connection): MaxDataFrame {
         var newMaxData = connection.getLocalMaxData().multiply(2);
         return new MaxDataFrame(newMaxData);
+    }
+
+    public static createPingFrame(data: Buffer): PingFrame {
+        return new PingFrame(data.byteLength, data);
+    }
+
+    public static createPongFrame(data: Buffer): PongFrame {
+        return new PongFrame(data.byteLength, data);
+    }
+
+    public static createRstStreamFrame(stream: Stream, errorCode: number): RstStreamFrame {
+        return new RstStreamFrame(stream.getStreamID(), errorCode, stream.getRemoteFinalOffset());
     }
 }
