@@ -72,3 +72,10 @@ export enum StreamState {
 	// Remote and Local closed
 	Closed
 }
+
+export enum StreamType {
+	ClientBidi = 0x00, 
+	ServerBidi = 0x01,
+	ClientUni = 0x02,
+	ServerUni = 0x03
+}

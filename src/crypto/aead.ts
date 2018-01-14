@@ -48,34 +48,34 @@ export class AEAD {
         if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
             this.generateProtected1RTTSecrets(connection.getQuicTLS());
         }
-        var hkdf = new HKDF(connection.getQuicTLS().getHash());
+        var hkdf = new HKDF(connection.getQuicTLS().getCipher().getHash());
         if (encryptingEndpoint === EndpointType.Client) {
-            var key = hkdf.expandLabel(this.protected1RTTClientSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
+            var key = hkdf.expandLabel(this.protected1RTTClientSecret, "key" , "", connection.getQuicTLS().getCipher().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTClientSecret, "iv" , "", Constants.IV_LENGTH);
         } else {
-            var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
+            var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getCipher().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv" , "", Constants.IV_LENGTH);
         }
         var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
-        return this._encrypt(connection.getQuicTLS().getAEAD(), key, nonce, ad, payload);
+        return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
 
     public protected1RTTDecrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
             this.generateProtected1RTTSecrets(connection.getQuicTLS());
         }
-        var hkdf = new HKDF(connection.getQuicTLS().getHash());
+        var hkdf = new HKDF(connection.getQuicTLS().getCipher().getHash());
         if (encryptingEndpoint === EndpointType.Client) {
-            var key = hkdf.expandLabel(this.protected1RTTClientSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
+            var key = hkdf.expandLabel(this.protected1RTTClientSecret, "key" , "", connection.getQuicTLS().getCipher().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTClientSecret, "iv" , "", Constants.IV_LENGTH);
         } else {
-            var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getAEADKeyLength());
+            var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key" , "", connection.getQuicTLS().getCipher().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv" , "", Constants.IV_LENGTH);
         }
         var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
-        return this._decrypt(connection.getQuicTLS().getAEAD(), key, nonce, ad, payload);
+        return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
 
     public generateProtected1RTTSecrets(qtls: QTLS): void {
@@ -84,9 +84,9 @@ export class AEAD {
     }
 
     public updateProtected1RTTSecret(qtls: QTLS): void {
-        var hkdf = new HKDF(qtls.getHash());
-        this.protected1RTTClientSecret = hkdf.expandLabel(this.protected1RTTClientSecret, "QUIC client 1-RTT Secret" , "", qtls.getHashLength());
-        this.protected1RTTServerSecret = hkdf.expandLabel(this.protected1RTTClientSecret, "QUIC server 1-RTT Secret" , "", qtls.getHashLength());
+        var hkdf = new HKDF(qtls.getCipher().getHash());
+        this.protected1RTTClientSecret = hkdf.expandLabel(this.protected1RTTClientSecret, "QUIC client 1-RTT Secret" , "", qtls.getCipher().getHashLength());
+        this.protected1RTTServerSecret = hkdf.expandLabel(this.protected1RTTClientSecret, "QUIC server 1-RTT Secret" , "", qtls.getCipher().getHashLength());
     }
 
     /**

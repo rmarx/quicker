@@ -3,7 +3,7 @@ import {Constants} from '../utilities/constants';
 import {Connection} from '../types/connection';
 import {TransportParameters, TransportParameterType} from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
-import {createHash, createCipheriv} from "crypto";
+import { Cipher } from './cipher';
 
 /**
  * QuicTLS Wrapper
@@ -15,7 +15,7 @@ export class QTLS {
     private options: any;
     private transportParameters: TransportParameters;
 
-    private cipher: string;
+    private cipher: Cipher;
 
     public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
@@ -82,49 +82,12 @@ export class QTLS {
         return this.handshakeState;
     }
 
-    public getHash(): string {
-        switch(this.cipher) {
-            case "TLS13-AES-128-GCM-SHA256":
-            case "TLS13-CHACHA20-POLY1305-SHA256":
-                return "sha256";
-            case "TLS13-AES-256-GCM-SHA384":
-                return "sha384";
-        }
-        throw new Error("Unsupported hash function " + this.cipher);
-    }
-
-    public getHashLength(): number {
-        return createHash(this.getHash()).digest().length;
-    }
-
-    public getAEAD(): string {
-        switch(this.cipher) {
-            case "TLS13-AES-128-GCM-SHA256":
-                return "aes-128-gcm";
-            case "TLS13-CHACHA20-POLY1305-SHA256":
-                return "chacha20-poly1305";
-            case "TLS13-AES-256-GCM-SHA384":
-                return "aes-256-gcm";
-        }
-        throw new Error("Unsupported aead function " + this.cipher);
-
-    }
-
-    public getAEADKeyLength(): number {
-        var aead = this.getAEAD();
-        switch(aead) {
-            case "aes-128-gcm":
-                return 16;
-            case "aes-256-gcm":
-                return 32;
-            case "chacha20-poly1305":
-                return 32;
-        }
-        throw new Error("Unsupported aead function");
-    }
-
     public exportKeyingMaterial(label: string): Buffer {
-        return this.qtlsHelper.exportKeyingMaterial(Buffer.from(label), this.getHashLength());
+        return this.qtlsHelper.exportKeyingMaterial(Buffer.from(label), this.cipher.getHashLength());
+    }
+
+    public getCipher(): Cipher {
+        return this.cipher;
     }
 
 
@@ -152,6 +115,7 @@ export class QTLS {
         transportParamBuffer.copy(transportExt, offset);
         return transportExt;
     }
+
     private getTransportParameters(): TransportParameters {
         if (this.transportParameters === undefined) {
             this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
@@ -180,7 +144,7 @@ export class QTLS {
 
     private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
-        this.cipher = this.qtlsHelper.getNegotiatedCipher();
+        this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
     }
 }
 
