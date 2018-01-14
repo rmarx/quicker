@@ -155,8 +155,14 @@ export class QTLS {
     private getTransportParameters(): TransportParameters {
         if (this.transportParameters === undefined) {
             this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
+            this.transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
             if (this.isServer) {
+                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
+                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
                 this.transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
+            } else {
+                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
+                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
             }
         }
         return this.transportParameters;

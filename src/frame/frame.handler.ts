@@ -24,8 +24,6 @@ import {TransportParameters, TransportParameterType} from '../crypto/transport.p
 import {BasePacket} from '../packet/base.packet';
 
 
-
-
 export class FrameHandler {
 
     private handshakeValidator: HandshakeValidation;
@@ -184,7 +182,6 @@ export class FrameHandler {
         }
     }
 
-    @logMethod()
     private handleTlsStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
         var data = connection.getQuicTLS().readHandshake();
@@ -192,7 +189,6 @@ export class FrameHandler {
             if (connection.getQuicTLS().getHandshakeState() === HandshakeState.HANDSHAKE || connection.getEndpointType() === EndpointType.Client) {
                 var extensionData = connection.getQuicTLS().getExtensionData();
                 var transportParameters: TransportParameters = this.handshakeValidator.validateExtensionData(connection, extensionData);
-                //TODO validate
                 connection.setRemoteTransportParameters(transportParameters);
                 connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             }
