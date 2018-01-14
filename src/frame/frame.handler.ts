@@ -242,6 +242,11 @@ export class FrameHandler {
         stream.emit("data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());
+            if (stream.getStreamState() === StreamState.Open) {
+                stream.setStreamState(StreamState.LocalClosed);
+            } else if (stream.getStreamState() === StreamState.RemoteClosed) {
+                stream.setStreamState(StreamState.Closed);
+            }
             stream.emit("end");
         }
     }
