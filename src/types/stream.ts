@@ -6,15 +6,19 @@ import { FlowControlledObject } from './flow.controlled';
 
 
 
-export class Stream extends FlowControlledObject{
+export class Stream extends FlowControlledObject {
 	
 	private streamID: Bignum;
 	private blockedSent: boolean;
+	private streamState: StreamState;
+	private localFinalOffset: Bignum;
+	private remoteFinalOffset: Bignum;
 	
     public constructor(connection: Connection, streamID: Bignum) {
 		super();
         super.init(connection);
 		this.streamID = streamID;
+		this.streamState = StreamState.Open;
     }
 
 	public getStreamID(): Bignum {
@@ -32,4 +36,39 @@ export class Stream extends FlowControlledObject{
 	public setBlockedSent(value: boolean): void {
 		this.blockedSent = value;
 	}
+
+	public getStreamState(): StreamState {
+		return this.streamState;
+	}
+
+	public setStreamState(state: StreamState): void {
+		this.streamState = state;
+	}
+
+	public getLocalFinalOffset(): Bignum {
+		return this.localFinalOffset;
+	}
+
+	public setLocalFinalOffset(finalOffset: Bignum): void {
+		this.localFinalOffset = finalOffset;
+	}
+
+	public getRemoteFinalOffset(): Bignum {
+		return this.remoteFinalOffset;
+	}
+
+	public setRemoteFinalOffset(finalOffset: Bignum): void {
+		this.remoteFinalOffset = finalOffset;
+	}
+}
+
+export enum StreamState {
+	// Remote and Local open
+	Open, 
+	// Remote closed, Local open
+	RemoteClosed, 
+	// Local closed, Remote open
+	LocalClosed, 
+	// Remote and Local closed
+	Closed
 }

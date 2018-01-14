@@ -1,10 +1,10 @@
-import {TransportParameterType} from '../crypto/transport.parameters';
-import {AEAD} from '../crypto/aead';
-import {QTLS, HandshakeState} from '../crypto/qtls';
-import {ConnectionID, PacketNumber, Version} from '../types/header.properties';
-import {Bignum} from './bignum';
+import { TransportParameterType } from '../crypto/transport.parameters';
+import { AEAD } from '../crypto/aead';
+import { QTLS, HandshakeState } from '../crypto/qtls';
+import { ConnectionID, PacketNumber, Version } from '../types/header.properties';
+import { Bignum } from './bignum';
 import { RemoteInfo, Socket } from "dgram";
-import {Stream} from './stream';
+import { Stream } from './stream';
 import { EndpointType } from './endpoint.type';
 import { Constants } from '../utilities/constants';
 import { TransportParameters } from '../crypto/transport.parameters';
@@ -15,7 +15,7 @@ import { PacketLogging } from '../utilities/logging/packet.logging';
 import { FlowControlledObject } from './flow.controlled';
 import { FlowControl } from '../utilities/flow.control';
 
-export class Connection extends FlowControlledObject{
+export class Connection extends FlowControlledObject {
 
     private qtls: QTLS;
     private aead: AEAD;
@@ -58,7 +58,7 @@ export class Connection extends FlowControlledObject{
         return this.firstConnectionID;
     }
 
-    public setFirstConnectionID(connectionID: ConnectionID): void{
+    public setFirstConnectionID(connectionID: ConnectionID): void {
         this.firstConnectionID = connectionID;
     }
 
@@ -216,9 +216,14 @@ export class Connection extends FlowControlledObject{
         }
     }
 
+    /**
+     * Method to send a packet
+     * TODO: Should create a sendFrame method and/or put a timer on this,when for example 2 ShortHeaderPackets are sent, bundle the frames and send as one packet
+     * @param basePacket packet to send
+     */
     public sendPacket(basePacket: BasePacket): void {
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket> basePacket;
+            var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             var ackFrame = this.ackHandler.getAckFrame(this);
             if (ackFrame !== undefined) {
                 baseEncryptedPacket.getFrames().push(ackFrame);
@@ -234,7 +239,7 @@ export class Connection extends FlowControlledObject{
 
 export interface RemoteInformation {
     address: string;
-    port: number, 
+    port: number,
     family: string
 }
 

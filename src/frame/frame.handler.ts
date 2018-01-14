@@ -1,3 +1,4 @@
+import {logMethod} from '../utilities/decorators/log.decorator';
 import {Stream} from '../types/stream';
 import {HandshakeValidation} from '../utilities/validation/handshake.validation';
 import {Connection} from '../types/connection';
@@ -122,6 +123,7 @@ export class FrameHandler {
         var stream = connection.getStream(maxDataStreamFrame.getStreamId());
         if (stream.getRemoteMaxData().lessThan(maxDataStreamFrame.getMaxData())) {
             stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
+            stream.setBlockedSent(false);
         }
         var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, connection.getFlowControl().getBufferedStreamFrames(stream.getStreamID()));
         connection.sendPacket(shortHeaderPacket);
@@ -169,7 +171,11 @@ export class FrameHandler {
             return;
         }
         
-        // TODO: check less than ==> buffer
+        if (stream.getLocalOffset().lessThan(streamFrame.getOffset())) {
+            // TODO: check less than ==> buffer
+            return;
+        }
+        stream.addLocalOffset(streamFrame.getLength());
 
         if (streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
             this.handleTlsStreamFrame(connection, stream, streamFrame);
@@ -178,6 +184,7 @@ export class FrameHandler {
         }
     }
 
+    @logMethod()
     private handleTlsStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
         var data = connection.getQuicTLS().readHandshake();
@@ -207,5 +214,10 @@ export class FrameHandler {
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
 
+        stream.emit("data",streamFrame.getData());
+        if (streamFrame.getFin()) {
+            stream.setLocalFinalOffset(stream.getLocalOffset());
+            stream.emit("end");
+        }
     }
 }

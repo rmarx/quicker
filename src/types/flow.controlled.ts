@@ -2,8 +2,9 @@ import {Connection} from './connection';
 import {EndpointType} from './endpoint.type';
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {Bignum} from './bignum';
+import { EventEmitter } from 'events';
 
-export abstract class FlowControlledObject {
+export abstract class FlowControlledObject extends EventEmitter {
 
 	private localOffset: Bignum;
 	private remoteOffset: Bignum;
@@ -11,6 +12,7 @@ export abstract class FlowControlledObject {
     private remoteMaxData: Bignum;
 
     public constructor() {
+		super();
         //
     }
 
@@ -51,32 +53,36 @@ export abstract class FlowControlledObject {
 		this.localMaxData = maxData;
 	}
 
-	public getLocalMaxata(): Bignum {
+	public getLocalMaxData(): Bignum {
 		return this.localMaxData;
 	}
 
-    public isLocalLimitExceeded(): boolean {
-		return this.isLimitExeeded(this.localMaxData, this.remoteOffset);
+    public isLocalLimitExceeded(added: any): boolean {
+		var temp = this.localOffset.add(added);
+		return this.isLimitExeeded(this.localMaxData, temp);
 	}
 
-    public isRemoteLimitExceeded(): boolean {
-		return this.isLimitExeeded(this.remoteMaxData, this.remoteOffset);
+    public isRemoteLimitExceeded(added: any): boolean {
+		var temp = this.remoteOffset.add(added);
+		return this.isLimitExeeded(this.remoteMaxData, temp);
 	}
 
 	private isLimitExeeded(maxData: Bignum, offset: Bignum): boolean {
 		return offset.greaterThanOrEqual(maxData);
 	}
 
-    public isLocalLimitAlmostExceeded(): boolean {
-		return this.isLimitAlmostExceeded(this.localMaxData, this.remoteOffset);
+    public isLocalLimitAlmostExceeded(added: any): boolean {
+		var temp = this.localOffset.add(added);
+		return this.isLimitAlmostExceeded(this.localMaxData, temp);
 	}
 
     public isRemoteLimitAlmostExceeded(added: any): boolean {
-		return this.isLimitAlmostExceeded(this.remoteMaxData, this.remoteOffset);
+		var temp = this.remoteOffset.add(added);
+		return this.isLimitAlmostExceeded(this.remoteMaxData, temp);
 	}
 
 	private isLimitAlmostExceeded(maxData: Bignum, offset: Bignum): boolean {
-		var perc = maxData.divide(10);
+		var perc = maxData.divide(5);
 		var temp = offset.add(perc);
 		return temp.greaterThanOrEqual(maxData);
 	}
