@@ -1,3 +1,4 @@
+import {PacketLogging} from '../utilities/logging/packet.logging';
 import {BaseEncryptedPacket} from './base.encrypted.packet';
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {ConnectionID} from './../types/header.properties';
@@ -24,7 +25,7 @@ export class PacketHandler {
         this.frameHandler = new FrameHandler();
     }
 
-    public handle(connection: Connection, packet: BasePacket) {
+    public handle(connection: Connection, packet: BasePacket, receivedTime: number) {
         switch (packet.getPacketType()) {
             case PacketType.Initial:
                 var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket> packet;
@@ -40,7 +41,7 @@ export class PacketHandler {
         }
     }
 
-    public handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
+    private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
         var connectionID = clientInitialPacket.getHeader().getConnectionID();
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
@@ -48,7 +49,7 @@ export class PacketHandler {
         this.handleFrames(connection, clientInitialPacket);
     }
 
-    public handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
+    private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
         var connectionID = handshakePacket.getHeader().getConnectionID();
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
@@ -59,7 +60,7 @@ export class PacketHandler {
         this.handleFrames(connection, handshakePacket);
     }
 
-    public handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket) {
+    private handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket) {
         this.handleFrames(connection, shortHeaderPacket);
     }
 
@@ -67,5 +68,11 @@ export class PacketHandler {
         packet.getFrames().forEach((baseFrame: BaseFrame) => {
             this.frameHandler.handle(connection, baseFrame);
         });
+    }
+
+    private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: number): void {
+        connection.getAckHandler().onPacketReceived(packet, receivedTime);
+        connection.getFlowControl().onPacketReceived(packet);
+        PacketLogging.getInstance().logIncomingPacket(connection, packet);
     }
 }

@@ -60,9 +60,7 @@ export class Server extends EventEmitter {
             var connection: Connection = this.getConnection(headerOffset, rinfo);
             this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
-            connection.getAckHandler().onPacketReceived(packetOffset.packet, receivedTime);
-            PacketLogging.getInstance().logIncomingPacket(connection, packetOffset.packet);
-            this.packetHandler.handle(connection, packetOffset.packet);
+            this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
 
         } catch (err) {
             this.onError(err);

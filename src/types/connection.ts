@@ -244,8 +244,9 @@ export interface RemoteInformation {
 }
 
 export enum ConnectionState {
-    HANDSHAKE,
-    OPEN,
-    CLOSING,
-    CLOSED
+    Handshake,
+    Open,
+    Closing,
+    Draining,
+    Closed
 }
