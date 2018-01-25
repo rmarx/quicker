@@ -1,7 +1,7 @@
 import {EndpointType} from '../../types/endpoint.type';
 import {Constants} from '../constants';
 import {HandshakeState} from '../../crypto/qtls';
-import {PacketNumber} from '../../types/header.properties';
+import {PacketNumber, Version} from '../../types/header.properties';
 import {Bignum} from '../../types/bignum';
 import {Connection} from '../../types/connection';
 import {BasePacket, PacketType} from '../../packet/base.packet';
@@ -26,6 +26,7 @@ import { configure, getLogger, Logger } from 'log4js';
 import {TransportParameterType} from '../../crypto/transport.parameters';
 import { HeaderType } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
+import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
 
 
 
@@ -98,6 +99,8 @@ export class PacketLogging {
             case PacketType.Retry:
                 break;
             case PacketType.VersionNegotiation:
+                var vnPacket: VersionNegotiationPacket = <VersionNegotiationPacket>basePacket;
+                this.logVersionNegotiationPacket(vnPacket);
                 break;
             case PacketType.Initial:
             case PacketType.Handshake:
@@ -105,6 +108,12 @@ export class PacketLogging {
                 var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
                 this.logFrames(connection, baseEncryptedPacket, color);
         }
+    }
+
+    private logVersionNegotiationPacket(vnPacket: VersionNegotiationPacket): void {
+        vnPacket.getVersions().forEach((version: Version) => {
+            this.continuedOutput.info(this.getSpaces(4)  + "version: 0x%s", version.toString());
+        });
     }
 
     private logFrames(connection: Connection, baseEncryptedPacket: BaseEncryptedPacket, color: ConsoleColor): void {

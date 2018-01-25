@@ -1,4 +1,5 @@
-import {EndpointType} from '../types/endpoint.type';
+import { Constants } from './constants';
+import { EndpointType } from '../types/endpoint.type';
 import { VLIE } from '../crypto/vlie';
 import { Connection } from '../types/connection';
 import { Bignum } from '../types/bignum';
@@ -17,32 +18,37 @@ export class AckHandler {
     private receivedPackets: { [key: string]: ReceivedPacket };
     private latestPacketNumber: Bignum;
     private alarm: Alarm;
-    private connection: Connection;
     // ack wait in ms
     private static readonly ACK_WAIT = 25;
 
     public constructor(connection: Connection) {
-        this.connection = connection;
         this.receivedPackets = {};
         this.alarm = new Alarm();
         this.alarm.on("timeout", () => {
             var baseFrames: BaseFrame[] = [];
-            var ackFrame = this.getAckFrame(this.connection);
+            var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 baseFrames.push(ackFrame);
-                var packet = PacketFactory.createShortHeaderPacket(this.connection, baseFrames);
-                this.connection.sendPacket(packet);
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                    var packet: BaseEncryptedPacket = PacketFactory.createShortHeaderPacket(connection, baseFrames);
+                } else {
+                    var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
+                }
+                connection.sendPacket(packet);
             }
         });
     }
 
-    public onPacketReceived(packet: BasePacket, time: number): void {
+    public onPacketReceived(connection: Connection, packet: BasePacket, time: number): void {
+        if (packet.getPacketType() === PacketType.VersionNegotiation) {
+            return;
+        }
         this.alarm.reset();
-        var pn = this.connection.getRemotePacketNumber().getPacketNumber();
+        var pn = connection.getRemotePacketNumber().getPacketNumber();
         this.latestPacketNumber = pn;
         var isAckOnly = true;
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
-            var baseEncryptedPacket = <BaseEncryptedPacket> packet;
+            var baseEncryptedPacket = <BaseEncryptedPacket>packet;
             if (baseEncryptedPacket.getFrames().length === 0) {
                 isAckOnly = false;
             }
@@ -62,19 +68,23 @@ export class AckHandler {
 
 
 
-    public getAckFrame(connection: Connection): AckFrame | undefined {
+    public getAckFrame(connection: Connection): AckFrame | undefined {
         this.alarm.reset();
         if (Object.keys(this.receivedPackets).length === 0) {
             return undefined;
         }
-        var ackDelayExponent = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            var ackDelayExponent: number = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+        } else {
+            var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
+        }
 
         var doneTime = Time.now(TimeFormat.MicroSeconds);
         var ackDelay = doneTime - this.receivedPackets[this.latestPacketNumber.toString()].receiveTime;
         ackDelay = ackDelay / (2 ** ackDelayExponent);
-        
+
         var packetnumbers: Bignum[] = [];
-        Object.keys(this.receivedPackets).forEach((key) => packetnumbers.push(new Bignum(Buffer.from(key,'hex'))));
+        Object.keys(this.receivedPackets).forEach((key) => packetnumbers.push(new Bignum(Buffer.from(key, 'hex'))));
         packetnumbers.sort((a: Bignum, b: Bignum) => {
             return a.compare(b);
         });
@@ -85,8 +95,8 @@ export class AckHandler {
         var blocks = [];
         var gaps = [];
         blocks.push(0);
-        
-        for(var i = 1; i < packetnumbers.length; i++) {
+
+        for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
             if (bn === Bignum.fromNumber(0)) {
                 gaps.push(bn.toNumber());

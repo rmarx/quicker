@@ -13,7 +13,8 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000008': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639'
+        'ff000008': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
+        'abcdef08': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
     }
     
     public static readonly LONG_HEADER_SIZE = 17;
@@ -49,8 +50,8 @@ export class Constants {
     /**
      * Method for testing purposes only
      */
-    public static getActiveVersion() {
-        return Constants.SUPPORTED_VERSIONS[0];
+    public static getActiveVersion(): string {
+        return 'abcdef08';
     }
 
     public static getVersionSalt(version: string): string {

@@ -7,6 +7,7 @@ import {HKDF} from './hkdf';
 import {Constants} from '../utilities/constants';
 import {EndpointType} from '../types/endpoint.type';
 import { createCipheriv, createDecipheriv } from "crypto";
+import { logMethod } from '../utilities/decorators/log.decorator';
 
 export class AEAD {
 
@@ -24,7 +25,7 @@ export class AEAD {
         var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), connection.getVersion(), encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key", "", Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.expandLabel(clearTextSecret, "iv", "", Constants.IV_LENGTH);
-        var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
     }
@@ -39,7 +40,7 @@ export class AEAD {
         var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(),connection.getVersion(), encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, "key", "", Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.expandLabel(clearTextSecret, "iv", "", Constants.IV_LENGTH);
-        var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
     }
@@ -56,7 +57,7 @@ export class AEAD {
             var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key", "", connection.getQuicTLS().getCipher().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv", "", Constants.IV_LENGTH);
         }
-        var nonce = this.calculateNonce(iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
@@ -73,7 +74,7 @@ export class AEAD {
             var key = hkdf.expandLabel(this.protected1RTTServerSecret, "key", "", connection.getQuicTLS().getCipher().getAEADKeyLength());
             var iv = hkdf.expandLabel(this.protected1RTTServerSecret, "iv", "", Constants.IV_LENGTH);
         }
-        var nonce = this.calculateNonce(iv, connection.getRemotePacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
@@ -112,6 +113,7 @@ export class AEAD {
      * @param iv 
      * @param payload 
      */
+    @logMethod()
     private _encrypt(algorithm: string, key: Buffer, nonce: Buffer, ad: Buffer, payload: Buffer): Buffer {
         var cipher = createCipheriv(algorithm, key, nonce);
         cipher.setAAD(ad);
@@ -128,6 +130,7 @@ export class AEAD {
      * @param iv 
      * @param encryptedPayload 
      */
+    @logMethod()
     private _decrypt(algorithm: string, key: Buffer, nonce: Buffer, ad: Buffer, encryptedPayload: Buffer): Buffer {
         var cipher = createDecipheriv(algorithm, key, nonce);
         cipher.setAAD(ad);
@@ -139,8 +142,9 @@ export class AEAD {
         return Buffer.concat([update, final]);
     }
 
-    private calculateNonce(iv: Buffer, packetNumber: PacketNumber): Bignum {
-        var pnb = packetNumber.getPacketNumber();
+    @logMethod()
+    private calculateNonce(header: BaseHeader, iv: Buffer, packetNumber: PacketNumber): Bignum {
+        var pnb = packetNumber.getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
         var ivb = new Bignum(iv, iv.byteLength);
         ivb = ivb.xor(pnb);
         return ivb;

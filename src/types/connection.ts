@@ -46,7 +46,7 @@ export class Connection extends FlowControlledObject {
         this.qtls = new QTLS(endpointType === EndpointType.Server, options);
         this.aead = new AEAD();
         this.ackHandler = new AckHandler(this);
-        this.flowControl = new FlowControl(this);
+        this.flowControl = new FlowControl();
         this.streams = [];
     }
 
@@ -216,6 +216,11 @@ export class Connection extends FlowControlledObject {
         }
     }
 
+    public resetConnectionState() {
+        this.remotePacketNumber = new PacketNumber(Bignum.fromNumber(0).toBuffer());
+        this.resetOffsets();
+    }
+
     /**
      * Method to send a packet
      * TODO: Should create a sendFrame method and/or put a timer on this,when for example 2 ShortHeaderPackets are sent, bundle the frames and send as one packet
@@ -229,7 +234,7 @@ export class Connection extends FlowControlledObject {
                 baseEncryptedPacket.getFrames().push(ackFrame);
             }
         }
-        var packet = this.flowControl.onPacketSend(basePacket);
+        var packet = this.flowControl.onPacketSend(this, basePacket);
         if (packet !== undefined) {
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);

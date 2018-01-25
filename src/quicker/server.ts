@@ -1,14 +1,14 @@
-import {TimeFormat, Time} from '../utilities/time';
-import {HeaderParser, HeaderOffset} from '../packet/header/header.parser';
-import {PacketParser, PacketOffset} from '../packet/packet.parser';
-import {PacketHandler} from '../packet/packet.handler';
-import {Connection} from './../types/connection';
-import {EndpointType} from './../types/endpoint.type';
-import {BaseHeader,   HeaderType} from '../packet/header/base.header';
-import {ConnectionID, PacketNumber} from "./../types/header.properties";
-import {ShortHeader} from '../packet/header/short.header';
-import {LongHeader} from '../packet/header/long.header';
-import {PacketFactory} from '../packet/packet.factory';
+import { TimeFormat, Time } from '../utilities/time';
+import { HeaderParser, HeaderOffset } from '../packet/header/header.parser';
+import { PacketParser, PacketOffset } from '../packet/packet.parser';
+import { PacketHandler } from '../packet/packet.handler';
+import { Connection } from './../types/connection';
+import { EndpointType } from './../types/endpoint.type';
+import { BaseHeader, HeaderType } from '../packet/header/base.header';
+import { ConnectionID, PacketNumber } from "./../types/header.properties";
+import { ShortHeader } from '../packet/header/short.header';
+import { LongHeader } from '../packet/header/long.header';
+import { PacketFactory } from '../packet/packet.factory';
 import { EventEmitter } from 'events';
 import { Socket, RemoteInfo, createSocket, SocketType } from 'dgram';
 import { readFileSync } from 'fs';
@@ -40,7 +40,7 @@ export class Server extends EventEmitter {
     public listen(host: string, port: number) {
         this.host = host;
         this.port = port;
-        
+
         this.init("udp4");
     }
 
@@ -54,17 +54,24 @@ export class Server extends EventEmitter {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        var receivedTime = Time.now(TimeFormat.MicroSeconds);
+        var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+        var connection: Connection = this.getConnection(headerOffset, rinfo);
         try {
-            var receivedTime = Time.now(TimeFormat.MicroSeconds);
-            var headerOffset: HeaderOffset = this.headerParser.parse(msg);
-            var connection: Connection = this.getConnection(headerOffset, rinfo);
             this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
-
         } catch (err) {
-            this.onError(err);
-            return;
+            if (err.message === "UNKNOWN_VERSION") {
+                delete this.connections[connection.getConnectionID().toString()];
+                console.log(this.connections);
+                var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
+                connection.sendPacket(versionNegotiationPacket);
+                return;
+            } else {
+                this.onError(err);
+                return;
+            }
         }
     }
 

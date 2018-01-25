@@ -87,4 +87,12 @@ export abstract class FlowControlledObject extends EventEmitter {
 		return temp.greaterThanOrEqual(maxData);
 	}
 
+	/**
+	 * Used for version negotiation packet received
+	 */
+	protected resetOffsets(): void {
+		this.localOffset = Bignum.fromNumber(0);
+		this.remoteOffset = Bignum.fromNumber(0);
+	}
+
 }

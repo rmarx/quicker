@@ -1,13 +1,13 @@
-import {PacketLogging} from '../utilities/logging/packet.logging';
-import {BaseEncryptedPacket} from './base.encrypted.packet';
-import {TransportParameterType} from '../crypto/transport.parameters';
-import {ConnectionID} from './../types/header.properties';
-import {FrameType, BaseFrame} from '../frame/base.frame';
+import { FrameHandler } from '../frame/frame.handler';
+import { Version, ConnectionID } from '../types/header.properties';
+import { PacketLogging } from '../utilities/logging/packet.logging';
+import { BaseEncryptedPacket } from './base.encrypted.packet';
+import { TransportParameterType } from '../crypto/transport.parameters';
+import { BaseFrame } from '../frame/base.frame';
 import { Connection } from '../types/connection';
 import { BasePacket, PacketType } from './base.packet';
 import { HandshakePacket } from './packet/handshake';
 import { EndpointType } from '../types/endpoint.type';
-import { FrameHandler } from './../frame/frame.handler';
 import { StreamFrame } from './../frame/general/stream';
 import { PacketFactory } from './packet.factory';
 import { Stream } from '../types/stream';
@@ -15,6 +15,11 @@ import { Bignum } from '../types/bignum';
 import { ClientInitialPacket } from './packet/client.initial';
 import { HandshakeState } from './../crypto/qtls';
 import { ShortHeaderPacket } from './packet/short.header.packet';
+import { VersionNegotiationPacket } from './packet/version.negotiation';
+import { LongHeader } from './header/long.header';
+import { Constants } from '../utilities/constants';
+import { HeaderType } from '../packet/header/base.header';
+import { VersionValidation } from '../utilities/validation/version.validation';
 
 
 export class PacketHandler {
@@ -26,9 +31,21 @@ export class PacketHandler {
     }
 
     public handle(connection: Connection, packet: BasePacket, receivedTime: number) {
+        if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
+            var longHeader = <LongHeader>packet.getHeader();
+            var versionSupported = VersionValidation.validateVersion(connection, longHeader);
+            if (!versionSupported) {
+                throw new Error("UNKNOWN_VERSION");
+            }
+        }
+        this.onPacketReceived(connection, packet, receivedTime);
         switch (packet.getPacketType()) {
+            case PacketType.VersionNegotiation:
+                var versionNegotiationPacket: VersionNegotiationPacket = <VersionNegotiationPacket>packet;
+                this.handleVersionNegotiationPacket(connection, versionNegotiationPacket);
+                break;
             case PacketType.Initial:
-                var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket> packet;
+                var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket>packet;
                 this.handleInitialPacket(connection, clientInitialPacket);
                 break;
             case PacketType.Handshake:
@@ -39,6 +56,29 @@ export class PacketHandler {
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
                 this.handleProtected1RTTPacket(connection, shortHeaderPacket);
         }
+    }
+
+    private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
+        var longHeader = <LongHeader>versionNegotiationPacket.getHeader();
+        var connectionId = longHeader.getConnectionID();
+        if (connectionId === undefined || connection.getFirstConnectionID().toString() !== connectionId.toString()) {
+            return;
+        }
+        var negotiatedVersion = undefined;
+        versionNegotiationPacket.getVersions().forEach((version: Version) => {
+            var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
+            if (index > -1) {
+                negotiatedVersion = version;
+                return;
+            }
+        });
+        if (negotiatedVersion === undefined) {
+            throw Error("UNKNOWN_VERSION");
+        }
+        connection.resetConnectionState();
+        connection.setVersion(negotiatedVersion);
+        var clientInitialPacket = PacketFactory.createClientInitialPacket(connection);
+        connection.sendPacket(clientInitialPacket);
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
@@ -71,8 +111,8 @@ export class PacketHandler {
     }
 
     private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: number): void {
-        connection.getAckHandler().onPacketReceived(packet, receivedTime);
-        connection.getFlowControl().onPacketReceived(packet);
+        connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
+        //connection.getFlowControl().onPacketReceived(connection, packet);
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
     }
 }

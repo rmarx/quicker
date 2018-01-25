@@ -91,6 +91,20 @@ export class PacketNumber extends BaseProperty {
         }
     }
 
+    public getAdjustedNumber(packetNumber: PacketNumber, size: number): PacketNumber {
+        var mask = Bignum.fromNumber(1);
+        for (var i = 0; i < 63; i++) {
+            mask = mask.shiftLeft(1);
+            if (63 - i > (size * 8)) {
+                mask = mask.add(1);
+            }
+        }
+        var maskedResult = this.getPacketNumber().and(mask);
+        var next = packetNumber.getPacketNumber().mask(size);
+        next = next.add(maskedResult);
+        return new PacketNumber(next.toBuffer());
+    }
+
     public static randomPacketNumber(): PacketNumber {
         var randomBignum = Bignum.random('fffffc00', 8);
         return new PacketNumber(randomBignum.toBuffer());

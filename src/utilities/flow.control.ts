@@ -16,14 +16,12 @@ import { ShortHeaderPacket } from '../packet/packet/short.header.packet';
 export class FlowControl {
 
     private bufferedStreamFrames: { [key: string]: StreamFrame[] };
-    private connection: Connection;
 
-    public constructor(connection: Connection) {
+    public constructor() {
         this.bufferedStreamFrames = {};
-        this.connection = connection;
     }
 
-    public onPacketSend(basePacket: BasePacket): BasePacket |  undefined {
+    public onPacketSend(connection: Connection, basePacket: BasePacket): BasePacket |  undefined {
         if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return basePacket;
         }
@@ -32,11 +30,11 @@ export class FlowControl {
         baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame>frame;
-                var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
+                var stream: Stream = connection.getStream(streamFrame.getStreamID());
                 var streamFrameBuffer = streamFrame.toBuffer();
                 if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
                     var streamAvailable = this.checkRemoteStreamLimit(stream, streamFrame, streamFrameBuffer);
-                    var connectionAvailable = this.checkRemoteConnectionLimit(streamFrame, streamFrameBuffer);
+                    var connectionAvailable = this.checkRemoteConnectionLimit(connection, streamFrame, streamFrameBuffer);
 
                     if (streamAvailable !== FlowControlState.Ok || connectionAvailable !== FlowControlState.Ok) {
                         if (streamAvailable !== FlowControlState.Ok) {
@@ -48,7 +46,7 @@ export class FlowControl {
                         }
                         // addedBlockedFrame check to make sure, only 1 blockedframe is added to the packet
                         if (connectionAvailable !== FlowControlState.Ok && !addedBlockedFrame) {
-                            var blockedFrame = FrameFactory.createBlockedFrame(this.connection);
+                            var blockedFrame = FrameFactory.createBlockedFrame(connection);
                             baseEncryptedPacket.getFrames().push(blockedFrame);
                         }
                         this.addBufferedStreamFrame(streamFrame);
@@ -56,7 +54,7 @@ export class FlowControl {
                         return;
                     }
                     // Not added when stream id is 0
-                    this.connection.addRemoteOffset(streamFrame.getLength());
+                    connection.addRemoteOffset(streamFrame.getLength());
                 }
                 stream.addRemoteOffset(streamFrame.getLength());
             }
@@ -66,7 +64,7 @@ export class FlowControl {
         return undefined;
     }
 
-    public onPacketReceived(basePacket: BasePacket): void {
+    public onPacketReceived(connection: Connection, basePacket: BasePacket): void {
         if (basePacket.getPacketType() === PacketType.Retry && basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
@@ -77,9 +75,9 @@ export class FlowControl {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame>frame;
                 if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
-                    var stream: Stream = this.connection.getStream(streamFrame.getStreamID());
+                    var stream: Stream = connection.getStream(streamFrame.getStreamID());
                     var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
-                    var connectionCheck = this.checkLocalConnectionLimit(streamFrame);
+                    var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
                     if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
                         if (streamCheck === FlowControlState.Error || connectionCheck === FlowControlState.Error) {
                             throw Error("FLOW_CONTROL_ERROR");
@@ -92,7 +90,7 @@ export class FlowControl {
                             frames.push(maxStreamDataFrame);
                         }
                         if (connectionCheck === FlowControlState.MaxData && !addedMaxData) {
-                            var maxDataFrame = FrameFactory.createMaxDataFrame(this.connection);
+                            var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
                             frames.push(maxDataFrame);
                         }
                     }
@@ -100,8 +98,8 @@ export class FlowControl {
             }
         });
         if (frames.length > 0) {
-            var shortHeaderPacket = PacketFactory.createShortHeaderPacket(this.connection, frames);
-            this.connection.sendPacket(shortHeaderPacket);
+            var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, frames);
+            connection.sendPacket(shortHeaderPacket);
         }
     }
 
@@ -113,8 +111,8 @@ export class FlowControl {
         return FlowControlState.Ok;
     }
 
-    public checkRemoteConnectionLimit(streamFrame: StreamFrame, streamBuffer: Buffer): FlowControlState {
-        if (this.connection.isRemoteLimitExceeded(streamFrame.getLength())) {
+    public checkRemoteConnectionLimit(connection: Connection, streamFrame: StreamFrame, streamBuffer: Buffer): FlowControlState {
+        if (connection.isRemoteLimitExceeded(streamFrame.getLength())) {
             // sent blocked
             return FlowControlState.Blocked;
         }
@@ -137,13 +135,13 @@ export class FlowControl {
         return FlowControlState.Ok;
     }
 
-    public checkLocalConnectionLimit(streamFrame: StreamFrame): FlowControlState {
-        this.connection.addLocalOffset(streamFrame.getLength());
-        if (this.connection.isLocalLimitExceeded(streamFrame.getLength())) {
+    public checkLocalConnectionLimit(connection: Connection, streamFrame: StreamFrame): FlowControlState {
+        connection.addLocalOffset(streamFrame.getLength());
+        if (connection.isLocalLimitExceeded(streamFrame.getLength())) {
             // sent flow control error
             return FlowControlState.Error;
         }
-        if (this.connection.isLocalLimitAlmostExceeded(streamFrame.getLength())) {
+        if (connection.isLocalLimitAlmostExceeded(streamFrame.getLength())) {
             // sent max stream data frame
             return FlowControlState.MaxData;
         }
