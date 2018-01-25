@@ -27,7 +27,7 @@ export class PacketFactory {
      */
     public static createVersionNegotiationPacket(connection: Connection): VersionNegotiationPacket {
         var version = new Version(Buffer.from('00000000', 'hex'));
-        var header = new LongHeader(LongHeaderType.Default, connection.getConnectionID(), connection.getNextPacketNumber(), version);
+        var header = new LongHeader(LongHeaderType.Default, connection.getFirstConnectionID(), connection.getNextPacketNumber(), version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));

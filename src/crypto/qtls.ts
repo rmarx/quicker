@@ -44,7 +44,7 @@ export class QTLS {
 
     public getClientInitial(connection: Connection): Buffer {
         var transportParams = this.generateExtensionData(connection);
-        this.setTransportParameters(transportParams);
+        this.setTransportParameters(transportParams, true);
         connection.setLocalTransportParameters(this.getTransportParameters());
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         if (clientInitialBuffer === undefined) {

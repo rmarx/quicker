@@ -1,7 +1,8 @@
-import { BaseHeader, HeaderType } from "./base.header";
-import { LongHeader } from "./long.header";
-import { ShortHeader } from "./short.header";
-import { Connection } from "./../../types/connection";
+import {Connection} from '../../types/connection';
+import {BaseHeader, HeaderType} from './base.header';
+import {LongHeader} from './long.header';
+import {ShortHeader} from './short.header';
+import { VersionValidation } from '../../utilities/validation/version.validation';
 
 export class HeaderHandler {
 

@@ -27,10 +27,8 @@ import { FrameFactory } from './frame.factory';
 
 export class FrameHandler {
 
-    private handshakeValidator: HandshakeValidation;
-
     public constructor() {
-        this.handshakeValidator = new HandshakeValidation();
+        //
     }
 
     public handle(connection: Connection, frame: BaseFrame) {
@@ -217,7 +215,7 @@ export class FrameHandler {
         if (data.byteLength > 0) {
             if (connection.getQuicTLS().getHandshakeState() === HandshakeState.HANDSHAKE || connection.getEndpointType() === EndpointType.Client) {
                 var extensionData = connection.getQuicTLS().getExtensionData();
-                var transportParameters: TransportParameters = this.handshakeValidator.validateExtensionData(connection, extensionData);
+                var transportParameters: TransportParameters = HandshakeValidation.validateExtensionData(connection, extensionData);
                 connection.setRemoteTransportParameters(transportParameters);
                 connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             }

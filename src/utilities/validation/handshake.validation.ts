@@ -3,14 +3,13 @@ import { EndpointType } from '../../types/endpoint.type';
 import { HandshakeState } from '../../crypto/qtls';
 import { TransportParameters } from '../../crypto/transport.parameters';
 
-
 export class HandshakeValidation {
 
     /**
      * Method to get transportparameters from the extensiondata buffer and validate this data
      * TODO: add validation
      */
-    public validateExtensionData(connection: Connection, extensionData: Buffer): TransportParameters {
+    public static validateExtensionData(connection: Connection, extensionData: Buffer): TransportParameters {
         var offset = 0;
         if (connection.getEndpointType() === EndpointType.Server) {
             var version = extensionData.readUInt32BE(offset);
