@@ -16,7 +16,7 @@ import { HandshakeState } from '../crypto/qtls';
 
 export class AckHandler {
     private receivedPackets: { [key: string]: ReceivedPacket };
-    private latestPacketNumber: Bignum;
+    private largestPacketNumber: Bignum;
     private alarm: Alarm;
     // ack wait in ms
     private static readonly ACK_WAIT = 25;
@@ -44,8 +44,11 @@ export class AckHandler {
             return;
         }
         this.alarm.reset();
-        var pn = connection.getRemotePacketNumber().getPacketNumber();
-        this.latestPacketNumber = pn;
+        var header = packet.getHeader();
+        var pn = connection.getRemotePacketNumber().getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
+        if (pn.greaterThan(this.largestPacketNumber)) {
+            this.largestPacketNumber = pn;
+        }
         var isAckOnly = true;
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket = <BaseEncryptedPacket>packet;
@@ -80,7 +83,7 @@ export class AckHandler {
         }
 
         var doneTime = Time.now(TimeFormat.MicroSeconds);
-        var ackDelay = doneTime - this.receivedPackets[this.latestPacketNumber.toString()].receiveTime;
+        var ackDelay = doneTime - this.receivedPackets[this.largestPacketNumber.toString()].receiveTime;
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
         var packetnumbers: Bignum[] = [];
@@ -95,7 +98,7 @@ export class AckHandler {
         var blocks = [];
         var gaps = [];
         blocks.push(0);
-
+        
         for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
             if (bn === Bignum.fromNumber(0)) {
@@ -113,7 +116,7 @@ export class AckHandler {
             var ackBlock = new AckBlock(Bignum.fromNumber(gaps[i - 1]), Bignum.fromNumber(blocks[i]));
         }
 
-        var latestPacketNumber = this.latestPacketNumber;
+        var latestPacketNumber = this.largestPacketNumber;
         return new AckFrame(latestPacketNumber, Bignum.fromNumber(ackDelay), Bignum.fromNumber(ackBlockCount), firstAckBlock, ackBlocks);
     }
 }
