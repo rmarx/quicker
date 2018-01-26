@@ -11,6 +11,7 @@ import { BlockedFrame } from '../frame/general/blocked';
 import { MaxDataFrame } from '../frame/general/max.data';
 import { FrameFactory } from '../frame/frame.factory';
 import { ShortHeaderPacket } from '../packet/packet/short.header.packet';
+import { logMethod } from './decorators/log.decorator';
 
 
 export class FlowControl {
@@ -64,18 +65,19 @@ export class FlowControl {
         return undefined;
     }
 
+    @logMethod()
     public onPacketReceived(connection: Connection, basePacket: BasePacket): void {
-        if (basePacket.getPacketType() === PacketType.Retry && basePacket.getPacketType() === PacketType.VersionNegotiation) {
+        if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
         var addedMaxData = false;
         var frames: BaseFrame[] = [];
-        var baseEncryptedPacket = <BaseEncryptedPacket>basePacket;
+        var baseEncryptedPacket = <BaseEncryptedPacket> basePacket;
         baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame>frame;
+                var stream: Stream = connection.getStream(streamFrame.getStreamID());
                 if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
-                    var stream: Stream = connection.getStream(streamFrame.getStreamID());
                     var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
                     var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
                     if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
@@ -95,6 +97,8 @@ export class FlowControl {
                         }
                     }
                 }
+                connection.addLocalOffset(streamFrame.getLength());
+                //stream.addLocalOffset(streamFrame.getLength());
             }
         });
         if (frames.length > 0) {
@@ -136,7 +140,6 @@ export class FlowControl {
     }
 
     public checkLocalConnectionLimit(connection: Connection, streamFrame: StreamFrame): FlowControlState {
-        connection.addLocalOffset(streamFrame.getLength());
         if (connection.isLocalLimitExceeded(streamFrame.getLength())) {
             // sent flow control error
             return FlowControlState.Error;

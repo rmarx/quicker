@@ -112,7 +112,7 @@ export class PacketHandler {
 
     private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: number): void {
         connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
-        //connection.getFlowControl().onPacketReceived(connection, packet);
+        connection.getFlowControl().onPacketReceived(connection, packet);
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
     }
 }
