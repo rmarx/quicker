@@ -46,7 +46,7 @@ export class AckHandler {
         this.alarm.reset();
         var header = packet.getHeader();
         var pn = connection.getRemotePacketNumber().getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
-        if (pn.greaterThan(this.largestPacketNumber)) {
+        if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
         }
         var isAckOnly = true;
@@ -101,10 +101,10 @@ export class AckHandler {
         
         for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
-            if (bn === Bignum.fromNumber(0)) {
-                gaps.push(bn.toNumber());
+            if (bn.compare(Bignum.fromNumber(1)) !== 0) {
+                gaps.push(bn.subtract(1).toNumber());
                 ackBlockCount++;
-                blocks[ackBlockCount] = 0;
+                blocks[ackBlockCount] = 1;
             } else {
                 blocks[ackBlockCount] = blocks[ackBlockCount] + 1;
             }
@@ -114,6 +114,7 @@ export class AckHandler {
         var ackBlocks: AckBlock[] = [];
         for (var i = 1; i < blocks.length; i++) {
             var ackBlock = new AckBlock(Bignum.fromNumber(gaps[i - 1]), Bignum.fromNumber(blocks[i]));
+            ackBlocks.push(ackBlock);
         }
 
         var latestPacketNumber = this.largestPacketNumber;

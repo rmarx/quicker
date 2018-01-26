@@ -20,7 +20,7 @@ import {StreamBlockedFrame} from '../../frame/general/stream.blocked';
 import {StreamIdBlockedFrame} from '../../frame/general/stream.id.blocked';
 import {NewConnectionIdFrame} from '../../frame/general/new.connection.id';
 import {StopSendingFrame} from '../../frame/general/stop.sending';
-import {AckFrame} from '../../frame/general/ack';
+import {AckFrame, AckBlock} from '../../frame/general/ack';
 import {StreamFrame} from '../../frame/general/stream';
 import { configure, getLogger, Logger } from 'log4js';
 import {TransportParameterType} from '../../crypto/transport.parameters';
@@ -122,7 +122,7 @@ export class PacketLogging {
         });
     }
 
-    private logFrame(connection: Connection, baseFrame: BaseFrame, color: ConsoleColor): void {
+    public logFrame(connection: Connection, baseFrame: BaseFrame, color: ConsoleColor): void {
         if (baseFrame.getType() < FrameType.STREAM) {
             this.continuedOutput.info(this.getSpaces(4) + color + "%s (0x%s)" + ConsoleColor.Reset, FrameType[baseFrame.getType()], baseFrame.getType().toString(16));
         }
@@ -266,6 +266,9 @@ export class PacketLogging {
         this.continuedOutput.info(this.getSpaces(4) + "ack delay=%d", ackDelay);
         this.continuedOutput.info(this.getSpaces(4) + "ack block count=%s", ackFrame.getAckBlockCount().toDecimalString());
         this.continuedOutput.info(this.getSpaces(4) + "first ackblock=%s", ackFrame.getFirstAckBlock().toDecimalString());
+        ackFrame.getAckBlocks().forEach((ackBlock: AckBlock) => {
+            this.continuedOutput.info(this.getSpaces(6) + "gap=%s, ackblock=%s", ackBlock.getGap().toDecimalString(), ackBlock.getBlock().toDecimalString());
+        });
     }
 
     private logStreamFrame(streamFrame: StreamFrame, color: ConsoleColor): void {
