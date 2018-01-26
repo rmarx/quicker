@@ -113,7 +113,6 @@ export class AEAD {
      * @param iv 
      * @param payload 
      */
-    @logMethod()
     private _encrypt(algorithm: string, key: Buffer, nonce: Buffer, ad: Buffer, payload: Buffer): Buffer {
         var cipher = createCipheriv(algorithm, key, nonce);
         cipher.setAAD(ad);
@@ -130,7 +129,6 @@ export class AEAD {
      * @param iv 
      * @param encryptedPayload 
      */
-    @logMethod()
     private _decrypt(algorithm: string, key: Buffer, nonce: Buffer, ad: Buffer, encryptedPayload: Buffer): Buffer {
         var cipher = createDecipheriv(algorithm, key, nonce);
         cipher.setAAD(ad);
@@ -142,7 +140,6 @@ export class AEAD {
         return Buffer.concat([update, final]);
     }
 
-    @logMethod()
     private calculateNonce(header: BaseHeader, iv: Buffer, packetNumber: PacketNumber): Bignum {
         var pnb = packetNumber.getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
         var ivb = new Bignum(iv, iv.byteLength);
