@@ -98,7 +98,8 @@ export class QTLS {
         var offset = 0;
         if (this.isServer) {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
-                transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
+                // version in the connection holds the negotiated version
+                transportExt.write(connection.getVersion().toString(), offset, 4, 'hex');
                 offset += 4;
                 transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
                 Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
@@ -107,6 +108,8 @@ export class QTLS {
                 });
             }
         } else {
+            // Active version holds the first version that was 'tried' to negotiate
+            // so this is always the initial version
             transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
             offset += 4;
         }
@@ -123,6 +126,7 @@ export class QTLS {
             if (this.isServer) {
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
+                // TODO:  better to calculate this value
                 this.transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
             } else {
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
