@@ -39,7 +39,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         return buffer;
     }
 
-    protected getFrameSizes(): number {
+    public getFrameSizes(): number {
         var size  = 0;
         this.frames.forEach((frame: BaseFrame) => {
             size += frame.toBuffer().byteLength;

@@ -217,7 +217,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public resetConnectionState() {
-        this.remotePacketNumber = new PacketNumber(Bignum.fromNumber(0).toBuffer());
+        this.remotePacketNumber = new PacketNumber(Bignum.fromNumber(-1).toBuffer());
         this.resetOffsets();
     }
 

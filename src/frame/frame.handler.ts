@@ -23,6 +23,7 @@ import {EndpointType} from '../types/endpoint.type';
 import {TransportParameters, TransportParameterType} from '../crypto/transport.parameters';
 import {BasePacket} from '../packet/base.packet';
 import { FrameFactory } from './frame.factory';
+import { Constants } from '../utilities/constants';
 
 
 export class FrameHandler {
@@ -220,18 +221,37 @@ export class FrameHandler {
                 connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             }
 
-            var str = new StreamFrame(streamFrame.getStreamID(), data);
-            str.setOffset(stream.getRemoteOffset());
-            str.setLength(Bignum.fromNumber(data.byteLength));
 
             var packet: BasePacket;
-            if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Server) {
-                packet = PacketFactory.createShortHeaderPacket(connection, [str]);
+            if (connection.getEndpointType() === EndpointType.Client || connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                var str = new StreamFrame(streamFrame.getStreamID(), data);
+                str.setOffset(stream.getRemoteOffset());
+                str.setLength(Bignum.fromNumber(data.byteLength));
+                if (connection.getEndpointType() === EndpointType.Client) {
+                    packet = PacketFactory.createHandshakePacket(connection, [str]);
+                } else {
+                    packet = PacketFactory.createShortHeaderPacket(connection, [str]);
+                }
                 connection.sendPacket(packet);
             } else {
-                packet = PacketFactory.createHandshakePacket(connection, [str]);
-                connection.sendPacket(packet);
+                var dataBuffers: Buffer[] = [];
+                var i = 0;
+                while(i * Constants.CLIENT_INITIAL_MIN_SIZE < data.byteLength) {
+                    var size = (i+1) * Constants.CLIENT_INITIAL_MIN_SIZE < data.byteLength ? Constants.CLIENT_INITIAL_MIN_SIZE : (i+1) * Constants.CLIENT_INITIAL_MIN_SIZE - data.byteLength;
+                    var buffer = Buffer.alloc(size);
+                    data.copy(buffer, 0, i * Constants.CLIENT_INITIAL_MIN_SIZE, i * Constants.CLIENT_INITIAL_MIN_SIZE + size);
+                    dataBuffers.push(buffer);
+                    i++;
+                }
+                dataBuffers.forEach((buf: Buffer) => {
+                    var str = new StreamFrame(streamFrame.getStreamID(), buf);
+                    str.setOffset(stream.getRemoteOffset());
+                    str.setLength(Bignum.fromNumber(buf.byteLength));
+                    packet = PacketFactory.createHandshakePacket(connection, [str]);
+                    connection.sendPacket(packet);
+                });
             }
+            
         }
     }
 

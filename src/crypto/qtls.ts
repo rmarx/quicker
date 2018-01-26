@@ -20,12 +20,16 @@ export class QTLS {
     public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
         this.options = options;
-        this.qtlsHelper = new QuicTLS(this.isServer, this.options);
         if (this.isServer) {
             this.handshakeState = HandshakeState.SERVER_HELLO;
         } else {
             this.handshakeState = HandshakeState.CLIENT_HELLO;
         }
+        this.createQtlsHelper();
+    }
+
+    private createQtlsHelper(): void {
+        this.qtlsHelper = new QuicTLS(this.isServer, this.options);
         this.qtlsHelper.on('handshakedone', () => {
             this.handleHandshakeDone();
         });
@@ -33,7 +37,7 @@ export class QTLS {
 
     protected setTransportParameters(buffer: Buffer, createNew: boolean = false): void {
         if (this.qtlsHelper === undefined || createNew) {
-            this.qtlsHelper = new QuicTLS(this.isServer, this.options);
+            this.createQtlsHelper();
         }
         this.qtlsHelper.setTransportParameters(buffer);
     }
@@ -110,7 +114,7 @@ export class QTLS {
         } else {
             // Active version holds the first version that was 'tried' to negotiate
             // so this is always the initial version
-            transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
+            transportExt.write(connection.getVersion().toString(), offset, 4, 'hex');
             offset += 4;
         }
         transportExt.writeUInt16BE(transportParamBuffer.byteLength, offset);
@@ -126,7 +130,7 @@ export class QTLS {
             if (this.isServer) {
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
-                // TODO:  better to calculate this value
+                // TODO: better to calculate this value
                 this.transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
             } else {
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
@@ -148,6 +152,7 @@ export class QTLS {
 
     private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
+        console.log("setting cipher");
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
     }
 }

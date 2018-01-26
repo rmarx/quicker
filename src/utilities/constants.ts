@@ -45,7 +45,7 @@ export class Constants {
     public static readonly MAX_IDLE_TIMEOUT = 600;
     public static readonly MAX_PACKET_SIZE = 65527;
 
-    public static readonly CLIENT_INITIAL_MIN_SIZE = 1280;
+    public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
 
     /**
      * Method for testing purposes only

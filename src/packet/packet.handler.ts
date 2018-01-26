@@ -34,6 +34,7 @@ export class PacketHandler {
         if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
             var versionSupported = VersionValidation.validateVersion(connection, longHeader);
+            connection.resetConnectionState();
             if (!versionSupported) {
                 throw new Error("UNKNOWN_VERSION");
             }
@@ -76,6 +77,7 @@ export class PacketHandler {
             throw Error("UNKNOWN_VERSION");
         }
         connection.resetConnectionState();
+        connection.deleteStream(Bignum.fromNumber(0));
         connection.setVersion(negotiatedVersion);
         var clientInitialPacket = PacketFactory.createClientInitialPacket(connection);
         connection.sendPacket(clientInitialPacket);
@@ -85,6 +87,9 @@ export class PacketHandler {
         var connectionID = clientInitialPacket.getHeader().getConnectionID();
         if (connectionID === undefined) {
             throw Error("No ConnectionID defined");
+        }
+        if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_SIZE) {
+            throw Error("Client initial to small");
         }
         this.handleFrames(connection, clientInitialPacket);
     }
@@ -111,8 +116,8 @@ export class PacketHandler {
     }
 
     private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: number): void {
+        PacketLogging.getInstance().logIncomingPacket(connection, packet);
         connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
         connection.getFlowControl().onPacketReceived(connection, packet);
-        PacketLogging.getInstance().logIncomingPacket(connection, packet);
     }
 }
