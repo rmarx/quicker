@@ -178,8 +178,16 @@ export class Connection extends FlowControlledObject {
         if (stream === undefined) {
             stream = new Stream(this, streamId);
             this.addStream(stream);
+            if (streamId.compare(Bignum.fromNumber(0)) !== 0) {
+                this.initializeStream(stream);
+            }
         }
         return stream;
+    }
+
+    private initializeStream(stream: Stream): void {
+        stream.setLocalMaxData(this.localTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        stream.setRemoteMaxData(this.remoteTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     private _getStream(streamId: Bignum): Stream | undefined {

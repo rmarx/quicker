@@ -3,6 +3,7 @@ import {EndpointType} from './endpoint.type';
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {Bignum} from './bignum';
 import { EventEmitter } from 'events';
+import { logMethod } from './../utilities/decorators/log.decorator';
 
 export abstract class FlowControlledObject extends EventEmitter {
 
@@ -41,16 +42,26 @@ export abstract class FlowControlledObject extends EventEmitter {
 		this.remoteOffset = this.remoteOffset.add(offset);
 	}
 
-	public setRemoteMaxData(maxData: Bignum) {
-		this.remoteMaxData = maxData;
+	public setRemoteMaxData(maxData: number): void;
+	public setRemoteMaxData(maxData: Bignum): void;
+	public setRemoteMaxData(maxData: any): void {
+		if (maxData instanceof Bignum) {
+			this.remoteMaxData = maxData;
+		}
+		this.remoteMaxData = Bignum.fromNumber(maxData);
 	}
 
 	public getRemoteMaxData(): Bignum {
 		return this.remoteMaxData;
 	}
 
-	public setLocalMaxData(maxData: Bignum) {
-		this.localMaxData = maxData;
+	public setLocalMaxData(maxData: number): void;
+	public setLocalMaxData(maxData: Bignum): void;
+	public setLocalMaxData(maxData: any): void {
+		if (maxData instanceof Bignum) {
+			this.localMaxData = maxData;
+		}
+		this.localMaxData = Bignum.fromNumber(maxData);
 	}
 
 	public getLocalMaxData(): Bignum {

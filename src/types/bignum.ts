@@ -120,8 +120,13 @@ export class Bignum {
         return this.bignum.gt(num.bignum);
     }
 
-    public greaterThanOrEqual(num: Bignum): boolean {
-        return this.bignum.gte(num.bignum);
+    public greaterThanOrEqual(num: number): boolean;
+    public greaterThanOrEqual(num: Bignum): boolean;
+    public greaterThanOrEqual(num: any): boolean {
+        if (num instanceof Bignum) {
+            return this.bignum.gte(num.bignum);
+        }
+        return this.bignum.gte(new BN(num));
     }
 
     /**
