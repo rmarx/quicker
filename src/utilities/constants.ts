@@ -16,6 +16,7 @@ export class Constants {
         'ff000009': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
         'abcdef09': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
     }
+    public static readonly ALPN_LABEL = "hq-08";
     
     public static readonly LONG_HEADER_SIZE = 17;
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
