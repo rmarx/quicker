@@ -47,6 +47,15 @@ export class Constants {
 
     public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
 
+    public static readonly QHKDF_BASE_LABEL = "QUIC ";
+    public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";
+    public static readonly CLIENT_HANDSHAKE_LABEL = "client hs";
+    public static readonly SERVER_HANDSHAKE_LABEL = "server hs";
+    public static readonly CLIENT_1RTT_LABEL = "client 1rtt";
+    public static readonly SERVER_1RTT_LABEL = "server 1rtt";
+    public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
+    public static readonly PACKET_PROTECTION_IV_LABEL = "iv";
+
     /**
      * Method for testing purposes only
      */
