@@ -20,6 +20,11 @@ export class QTLS {
     public constructor(isServer: boolean, options: any) {
         this.isServer = isServer;
         this.options = options;
+        if (this.options === undefined) {
+            this.options = { alpnProtocol: Constants.ALPN_LABEL }
+        } else {
+            this.options.alpnProtocol = Constants.ALPN_LABEL;
+        }
         if (this.isServer) {
             this.handshakeState = HandshakeState.SERVER_HELLO;
         } else {
