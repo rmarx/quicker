@@ -3,7 +3,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff000008'
+        'ff000009'
     ];
 
     public static readonly LOG_LEVEL = 'debug';
@@ -13,8 +13,8 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000008': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
-        'abcdef08': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
+        'ff000009': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
+        'abcdef09': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
     }
     
     public static readonly LONG_HEADER_SIZE = 17;
@@ -60,7 +60,7 @@ export class Constants {
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return 'abcdef08';
+        return 'abcdef09';
     }
 
     public static getVersionSalt(version: string): string {
