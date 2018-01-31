@@ -214,7 +214,7 @@ export class FrameHandler {
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
         var data = connection.getQuicTLS().readHandshake();
         if (data.byteLength > 0) {
-            if (connection.getQuicTLS().getHandshakeState() === HandshakeState.HANDSHAKE || connection.getEndpointType() === EndpointType.Client) {
+            if (connection.getRemoteTransportParameters() === undefined) {
                 var extensionData = connection.getQuicTLS().getExtensionData();
                 var transportParameters: TransportParameters = HandshakeValidation.validateExtensionData(connection, extensionData);
                 connection.setRemoteTransportParameters(transportParameters);

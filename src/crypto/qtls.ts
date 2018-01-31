@@ -1,7 +1,7 @@
-import {Bignum} from '../types/bignum';
-import {Constants} from '../utilities/constants';
-import {Connection} from '../types/connection';
-import {TransportParameters, TransportParameterType} from './transport.parameters';
+import { Bignum } from '../types/bignum';
+import { Constants } from '../utilities/constants';
+import { Connection } from '../types/connection';
+import { TransportParameters, TransportParameterType } from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
 
@@ -57,7 +57,7 @@ export class QTLS {
         return clientInitialBuffer;
     }
 
-    public readHandshake(): Buffer  {
+    public readHandshake(): Buffer {
         var handshakeBuffer = this.qtlsHelper.readHandshakeData();
         if (handshakeBuffer === undefined) {
             throw new Error("Handshake failed");
@@ -71,14 +71,14 @@ export class QTLS {
                 this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
             } else {
                 this.handshakeState = HandshakeState.HANDSHAKE;
+                if (this.isServer) {
+                    var transportParams = this.generateExtensionData(connection);
+                    this.setTransportParameters(transportParams);
+                    connection.setLocalTransportParameters(this.getTransportParameters());
+                }
             }
         }
-        // only servers needs to add extension data here
-        if (this.isServer) {
-            var transportParams = this.generateExtensionData(connection);
-            this.setTransportParameters(transportParams);
-            connection.setLocalTransportParameters(this.getTransportParameters());
-        }
+
         this.qtlsHelper.writeHandshakeData(buffer);
     }
 
@@ -101,16 +101,14 @@ export class QTLS {
         var transportExt = Buffer.alloc(this.getExtensionDataSize(transportParamBuffer));
         var offset = 0;
         if (this.isServer) {
-            if (this.handshakeState === HandshakeState.HANDSHAKE) {
-                // version in the connection holds the negotiated version
-                transportExt.write(connection.getVersion().toString(), offset, 4, 'hex');
+            // version in the connection holds the negotiated version
+            transportExt.write(connection.getVersion().toString(), offset, 4, 'hex');
+            offset += 4;
+            transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
+            Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
+                transportExt.write(version, offset, 4, 'hex');
                 offset += 4;
-                transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
-                Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-                    transportExt.write(version, offset, 4, 'hex');
-                    offset += 4;
-                });
-            }
+            });
         } else {
             // Active version holds the first version that was 'tried' to negotiate
             // so this is always the initial version
