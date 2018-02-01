@@ -22,7 +22,7 @@ export class FlowControl {
         this.bufferedStreamFrames = {};
     }
 
-    public onPacketSend(connection: Connection, basePacket: BasePacket): BasePacket |  undefined {
+    public onPacketSend(connection: Connection, basePacket: BasePacket): BasePacket | undefined {
         if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return basePacket;
         }
@@ -65,18 +65,28 @@ export class FlowControl {
         return undefined;
     }
 
-    @logMethod()
     public onPacketReceived(connection: Connection, basePacket: BasePacket): void {
         if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
         var addedMaxData = false;
         var frames: BaseFrame[] = [];
-        var baseEncryptedPacket = <BaseEncryptedPacket> basePacket;
+        var baseEncryptedPacket = <BaseEncryptedPacket>basePacket;
         baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame>frame;
                 var stream: Stream = connection.getStream(streamFrame.getStreamID());
+
+                if (stream.getLocalOffset().greaterThan(streamFrame.getOffset())) {
+                    baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
+                    return;
+                }
+
+                if (stream.getLocalOffset().lessThan(streamFrame.getOffset())) {
+                    baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
+                    // TODO: check less than ==> buffer
+                    return;
+                }
                 if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
                     var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
                     var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
@@ -98,7 +108,7 @@ export class FlowControl {
                     }
                 }
                 connection.addLocalOffset(streamFrame.getLength());
-                //stream.addLocalOffset(streamFrame.getLength());
+                stream.addLocalOffset(streamFrame.getLength());
             }
         });
         if (frames.length > 0) {

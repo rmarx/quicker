@@ -55,6 +55,7 @@ export class QTLS {
         var transportParams = this.generateExtensionData(connection);
         this.setTransportParameters(transportParams, true);
         connection.setLocalTransportParameters(this.getTransportParameters());
+        connection.setLocalMaxData(connection.getLocalTransportParameter(TransportParameterType.MAX_DATA));
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         if (clientInitialBuffer === undefined) {
             throw new Error("Client initial failed");
@@ -80,10 +81,10 @@ export class QTLS {
                     var transportParams = this.generateExtensionData(connection);
                     this.setTransportParameters(transportParams);
                     connection.setLocalTransportParameters(this.getTransportParameters());
+                    connection.setLocalMaxData(connection.getLocalTransportParameter(TransportParameterType.MAX_DATA));
                 }
             }
         }
-
         this.qtlsHelper.writeHandshakeData(buffer);
     }
 
