@@ -193,15 +193,6 @@ export class FrameHandler {
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
         var stream = connection.getStream(streamFrame.getStreamID());
-        if (stream.getLocalOffset().greaterThan(streamFrame.getOffset())) {
-            return;
-        }
-        
-        if (stream.getLocalOffset().lessThan(streamFrame.getOffset())) {
-            // TODO: check less than ==> buffer
-            return;
-        }
-        stream.addLocalOffset(streamFrame.getLength());
 
         if (streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
             this.handleTlsStreamFrame(connection, stream, streamFrame);
@@ -220,7 +211,6 @@ export class FrameHandler {
                 connection.setRemoteTransportParameters(transportParameters);
                 connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             }
-
 
             var packet: BasePacket;
             if (connection.getEndpointType() === EndpointType.Client || connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
@@ -256,7 +246,7 @@ export class FrameHandler {
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-
+        console.log("data: " + streamFrame.getData());
         stream.emit("data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());

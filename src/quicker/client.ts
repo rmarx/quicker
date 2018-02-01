@@ -17,9 +17,10 @@ import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { Time, TimeFormat } from '../utilities/time';
 import { PacketLogging } from '../utilities/logging/packet.logging';
+import { EventEmitter } from 'events';
 
 
-export class Client {
+export class Client extends EventEmitter{
         
     private port: number;
     private hostname: string;
@@ -32,6 +33,7 @@ export class Client {
     private connection: Connection;
 
     public constructor() {
+        super();
         this.headerParser = new HeaderParser();
         this.headerHandler = new HeaderHandler();
         this.packetParser = new PacketParser();
@@ -95,10 +97,11 @@ export class Client {
     private onError(error: Error): any {
         console.log("Error: " + error.message);
         console.log("Stack: " + error.stack);
+        this.emit("error",error);
     }
 
     private onClose(): any {
-        console.log("close");
+        this.emit("close");
     }
 
 }
