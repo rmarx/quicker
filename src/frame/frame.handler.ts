@@ -111,12 +111,14 @@ export class FrameHandler {
         // incoming connectionclose means that the other endpoint is already in its closing state.
         // it is safe to set the state to draining then.
         connection.setState(ConnectionState.Draining);
+        connection.closeRequested();
         //var frame: ConnectionCloseFrame = FrameFactory.createConnectionCloseFrame();
     }
     private handleApplicationCloseFrame(connection: Connection, applicationCloseFrame: ApplicationCloseFrame) {
         // incoming connectionclose means that the other endpoint is already in its closing state.
         // it is safe to set the state to draining then.
         connection.setState(ConnectionState.Draining);
+        connection.closeRequested();
         //var frame: ConnectionCloseFrame = FrameFactory.createApplicationCloseFrame();
     }
 
@@ -247,15 +249,10 @@ export class FrameHandler {
                     connection.sendPacket(packet);
                 });
             }
-        } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-            var test = FrameFactory.createConnectionCloseFrame(0, "STOPPING");
-            var p = PacketFactory.createShortHeaderPacket(connection, [test]);
-            connection.sendPacket(p);
         }
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-        console.log("data: " + streamFrame.getData());
         stream.emit("data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());

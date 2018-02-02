@@ -48,6 +48,8 @@ export class Constants {
 
     public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
 
+    public static readonly TEMPORARY_DRAINING_TIME = 15000;
+
     /**
      * Method for testing purposes only
      */

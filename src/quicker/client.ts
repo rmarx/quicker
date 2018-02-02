@@ -90,6 +90,9 @@ export class Client extends EventEmitter{
             this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             
         }catch(err) {
+            if (err.message === "REMOVE_CONNECTION") {
+                process.exit(0);
+            }
             this.onError(err);
             return;
         }

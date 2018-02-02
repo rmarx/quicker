@@ -64,11 +64,12 @@ export class Server extends EventEmitter {
         } catch (err) {
             if (err.message === "UNKNOWN_VERSION") {
                 delete this.connections[connection.getConnectionID().toString()];
-                console.log(this.connections);
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);
                 return;
-            } else {
+            } else if (err.message === "REMOVE_CONNECTION") {
+                delete this.connections[connection.getConnectionID().toString()];
+            }else {
                 this.onError(err);
                 return;
             }
