@@ -38,6 +38,8 @@ export class Connection extends FlowControlledObject {
     private state: ConnectionState;
     private streams: Stream[];
 
+    private closePacket: BaseEncryptedPacket;
+
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         super();
         super.init(this);
@@ -249,6 +251,14 @@ export class Connection extends FlowControlledObject {
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
+    }
+
+    public getClosePacket(): BaseEncryptedPacket {
+        return this.closePacket;
+    }
+
+    public setClosePacket(packet: BaseEncryptedPacket): void {
+        this.closePacket = packet;
     }
 
     public closeRequested() {

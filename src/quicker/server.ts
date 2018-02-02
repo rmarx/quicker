@@ -2,7 +2,7 @@ import { TimeFormat, Time } from '../utilities/time';
 import { HeaderParser, HeaderOffset } from '../packet/header/header.parser';
 import { PacketParser, PacketOffset } from '../packet/packet.parser';
 import { PacketHandler } from '../packet/packet.handler';
-import { Connection } from './../types/connection';
+import { Connection, ConnectionState } from './../types/connection';
 import { EndpointType } from './../types/endpoint.type';
 import { BaseHeader, HeaderType } from '../packet/header/base.header';
 import { ConnectionID, PacketNumber } from "./../types/header.properties";
@@ -57,11 +57,21 @@ export class Server extends EventEmitter {
         var receivedTime = Time.now(TimeFormat.MicroSeconds);
         var headerOffset: HeaderOffset = this.headerParser.parse(msg);
         var connection: Connection = this.getConnection(headerOffset, rinfo);
+        if (connection.getState() === ConnectionState.Closing) {
+            var closePacket = connection.getClosePacket();
+            connection.sendPacket(closePacket);
+        }
+        if (connection.getState() === ConnectionState.Draining) {
+            return;
+        }
         try {
             this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
         } catch (err) {
+            /**
+             * TODO change soms errors to events from connections
+             */
             if (err.message === "UNKNOWN_VERSION") {
                 delete this.connections[connection.getConnectionID().toString()];
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);

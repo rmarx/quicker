@@ -12,7 +12,7 @@ import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
 import {EndpointType} from '../types/endpoint.type';
-import {Connection, RemoteInformation} from '../types/connection';
+import {ConnectionState, Connection,  RemoteInformation} from '../types/connection';
 import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { Time, TimeFormat } from '../utilities/time';
@@ -82,6 +82,14 @@ export class Client extends EventEmitter{
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        if (this.connection.getState() === ConnectionState.Closing) {
+            var closePacket = this.connection.getClosePacket();
+            this.connection.sendPacket(closePacket);
+            return;
+        }
+        if (this.connection.getState() === ConnectionState.Draining) {
+            return;
+        }
         try {
             var receivedTime = Time.now(TimeFormat.MicroSeconds);
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
