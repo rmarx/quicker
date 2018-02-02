@@ -18,6 +18,7 @@ import { HeaderHandler } from './../packet/header/header.handler';
 import { Time, TimeFormat } from '../utilities/time';
 import { PacketLogging } from '../utilities/logging/packet.logging';
 import { EventEmitter } from 'events';
+import { FrameFactory } from './../frame/frame.factory';
 
 
 export class Client extends EventEmitter{

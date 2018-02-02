@@ -9,6 +9,7 @@ import {PaddingFrame} from './general/padding';
 import { MaxStreamFrame } from './general/max.stream';
 import { PingFrame, PongFrame } from './general/ping';
 import { RstStreamFrame } from './general/rst.stream';
+import { ConnectionCloseFrame, ApplicationCloseFrame } from './general/close';
 
 
 export class FrameFactory {
@@ -61,5 +62,19 @@ export class FrameFactory {
 
     public static createRstStreamFrame(stream: Stream, errorCode: number): RstStreamFrame {
         return new RstStreamFrame(stream.getStreamID(), errorCode, stream.getRemoteFinalOffset());
+    }
+
+    public static createConnectionCloseFrame(errorCode: number, phrase?: string): ConnectionCloseFrame {
+        if (phrase === undefined) {
+            phrase = "";
+        }
+        return new ConnectionCloseFrame(errorCode, phrase);
+    }
+
+    public static createApplicationCloseFrame(errorCode: number, phrase?: string): ApplicationCloseFrame {
+        if (phrase === undefined) {
+            phrase = "";
+        }
+        return new ApplicationCloseFrame(errorCode, phrase);
     }
 }
