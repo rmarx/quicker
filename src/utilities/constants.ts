@@ -43,7 +43,7 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024 * 1024;
     public static readonly DEFAULT_MAX_DATA = 50 * 1024 * 1024;
     public static readonly DEFAULT_ACK_EXPONENT = 3;
-    public static readonly MAX_IDLE_TIMEOUT = 600;
+    public static readonly MAX_IDLE_TIMEOUT = 30;
     public static readonly MAX_PACKET_SIZE = 65527;
 
     public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
@@ -56,6 +56,9 @@ export class Constants {
     public static readonly SERVER_1RTT_LABEL = "server 1rtt";
     public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
     public static readonly PACKET_PROTECTION_IV_LABEL = "iv";
+    
+    public static readonly TEMPORARY_DRAINING_TIME = 15000;
+
 
     /**
      * Method for testing purposes only

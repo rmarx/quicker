@@ -1,7 +1,7 @@
 import {logMethod} from '../utilities/decorators/log.decorator';
 import {Stream, StreamState} from '../types/stream';
 import {HandshakeValidation} from '../utilities/validation/handshake.validation';
-import {Connection} from '../types/connection';
+import {Connection, ConnectionState} from '../types/connection';
 import {BaseFrame, FrameType} from './base.frame';
 import {RstStreamFrame} from './general/rst.stream';
 import {ConnectionCloseFrame, ApplicationCloseFrame} from './general/close';
@@ -108,10 +108,18 @@ export class FrameHandler {
         }
     }
     private handleConnectionCloseFrame(connection: Connection, connectionCloseFrame: ConnectionCloseFrame) {
-
+        // incoming connectionclose means that the other endpoint is already in its closing state.
+        // it is safe to set the state to draining then.
+        connection.setState(ConnectionState.Draining);
+        connection.closeRequested();
+        //var frame: ConnectionCloseFrame = FrameFactory.createConnectionCloseFrame();
     }
     private handleApplicationCloseFrame(connection: Connection, applicationCloseFrame: ApplicationCloseFrame) {
-
+        // incoming connectionclose means that the other endpoint is already in its closing state.
+        // it is safe to set the state to draining then.
+        connection.setState(ConnectionState.Draining);
+        connection.closeRequested();
+        //var frame: ConnectionCloseFrame = FrameFactory.createApplicationCloseFrame();
     }
 
     private handleMaxDataFrame(connection: Connection, maxDataFrame: MaxDataFrame) {
@@ -241,12 +249,10 @@ export class FrameHandler {
                     connection.sendPacket(packet);
                 });
             }
-            
         }
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-        console.log("data: " + streamFrame.getData());
         stream.emit("data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());

@@ -1,3 +1,4 @@
+import {Alarm} from '../loss-detection/alarm';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { AEAD } from '../crypto/aead';
 import { QTLS, HandshakeState } from '../crypto/qtls';
@@ -36,6 +37,8 @@ export class Connection extends FlowControlledObject {
 
     private state: ConnectionState;
     private streams: Stream[];
+
+    private closePacket: BaseEncryptedPacket;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         super();
@@ -248,6 +251,22 @@ export class Connection extends FlowControlledObject {
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
+    }
+
+    public getClosePacket(): BaseEncryptedPacket {
+        return this.closePacket;
+    }
+
+    public setClosePacket(packet: BaseEncryptedPacket): void {
+        this.closePacket = packet;
+    }
+
+    public closeRequested() {
+        var alarm = new Alarm();
+        alarm.set(Constants.TEMPORARY_DRAINING_TIME);
+        alarm.on('timeout', () => {
+            throw Error("REMOVE_CONNECTION");
+        });
     }
 }
 
