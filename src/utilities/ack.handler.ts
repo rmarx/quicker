@@ -7,7 +7,7 @@ import { BasePacket, PacketType } from '../packet/base.packet';
 import { AckFrame, AckBlock } from '../frame/general/ack';
 import { TimeFormat, Time } from './time';
 import { TransportParameterType } from '../crypto/transport.parameters';
-import { Alarm } from '../loss-detection/alarm';
+import { Alarm } from './alarm';
 import { PacketFactory } from '../packet/packet.factory';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';

@@ -1,4 +1,4 @@
-import {Alarm} from '../loss-detection/alarm';
+import {Alarm} from '../utilities/alarm';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { AEAD } from '../crypto/aead';
 import { QTLS, HandshakeState } from '../crypto/qtls';
@@ -38,6 +38,7 @@ export class Connection extends FlowControlledObject {
     private state: ConnectionState;
     private streams: Stream[];
 
+    private idleTimeoutAlarm: Alarm;
     private closePacket: BaseEncryptedPacket;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
@@ -51,6 +52,7 @@ export class Connection extends FlowControlledObject {
         this.ackHandler = new AckHandler(this);
         this.flowControl = new FlowControl();
         this.streams = [];
+        this.idleTimeoutAlarm = new Alarm();
     }
 
     public getRemoteInfo(): RemoteInfo {
@@ -265,8 +267,21 @@ export class Connection extends FlowControlledObject {
         var alarm = new Alarm();
         alarm.set(Constants.TEMPORARY_DRAINING_TIME);
         alarm.on('timeout', () => {
-            throw Error("REMOVE_CONNECTION");
+            this.emit("con-close");
         });
+    }
+
+    public resetIdleAlarm(): void {
+        this.idleTimeoutAlarm.reset();
+    }
+    public startIdleAlarm(): void {
+        var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
+        this.idleTimeoutAlarm.on('timeout', () => {
+            console.log("Start draining");
+            this.state = ConnectionState.Draining;
+            this.closeRequested();
+        })
+        this.idleTimeoutAlarm.set(time * 1000);
     }
 }
 

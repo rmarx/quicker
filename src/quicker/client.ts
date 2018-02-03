@@ -67,6 +67,13 @@ export class Client extends EventEmitter{
         this.connection = new Connection(remoteInfo, EndpointType.Client);
         this.connection.setFirstConnectionID(ConnectionID.randomConnectionID());
         this.connection.setSocket(socket);
+        this.setupConnectionEvents();
+    }
+
+    private setupConnectionEvents() {
+        this.connection.on('con-close', () => {
+            process.exit(0);
+        })
     }
 
     public testSend() {
@@ -90,17 +97,15 @@ export class Client extends EventEmitter{
         if (this.connection.getState() === ConnectionState.Draining) {
             return;
         }
+        this.connection.resetIdleAlarm();
         try {
             var receivedTime = Time.now(TimeFormat.MicroSeconds);
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
             this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
-            
+            this.connection.startIdleAlarm();
         }catch(err) {
-            if (err.message === "REMOVE_CONNECTION") {
-                process.exit(0);
-            }
             this.onError(err);
             return;
         }

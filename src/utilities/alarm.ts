@@ -8,10 +8,7 @@ export class Alarm extends EventEmitter {
 
     public reset() {
         clearTimeout(this.timer);
-    }
-
-    public cancel() {
-        this.reset();
+        this.removeAllListeners();
     }
 
     public set(timeInMs: number) {

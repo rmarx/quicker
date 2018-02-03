@@ -53,6 +53,13 @@ export class Server extends EventEmitter {
         this.server.bind(this.port, this.host);
     }
 
+    private setupConnectionEvents(connection: Connection) {
+        connection.on('con-close', () => {
+            console.log("closed connection with id " + connection.getConnectionID());
+            delete this.connections[connection.getConnectionID().toString()];
+        });
+    }
+
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         var receivedTime = Time.now(TimeFormat.MicroSeconds);
         var headerOffset: HeaderOffset = this.headerParser.parse(msg);
@@ -64,10 +71,12 @@ export class Server extends EventEmitter {
         if (connection.getState() === ConnectionState.Draining) {
             return;
         }
+        connection.resetIdleAlarm();
         try {
             this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+            connection.startIdleAlarm();
         } catch (err) {
             /**
              * TODO change soms errors to events from connections
@@ -77,8 +86,6 @@ export class Server extends EventEmitter {
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);
                 return;
-            } else if (err.message === "REMOVE_CONNECTION") {
-                delete this.connections[connection.getConnectionID().toString()];
             }else {
                 this.onError(err);
                 return;
@@ -151,6 +158,7 @@ export class Server extends EventEmitter {
         }
         connection.setConnectionID(newConnectionID);
         this.connections[connection.getConnectionID().toString()] = connection;
+        this.setupConnectionEvents(connection);
         return connection;
     }
 }
