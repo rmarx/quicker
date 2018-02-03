@@ -1,3 +1,4 @@
+import {HandshakeState} from '../crypto/qtls';
 import { TimeFormat, Time } from '../utilities/time';
 import { HeaderParser, HeaderOffset } from '../packet/header/header.parser';
 import { PacketParser, PacketOffset } from '../packet/packet.parser';
@@ -14,6 +15,11 @@ import { Socket, RemoteInfo, createSocket, SocketType } from 'dgram';
 import { readFileSync } from 'fs';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { PacketLogging } from './../utilities/logging/packet.logging';
+import { FrameFactory } from './../frame/frame.factory';
+import { QuicError } from "./../utilities/errors/connection.error";
+import { ConnectionCloseFrame } from '../frame/general/close';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 
 
 export class Server extends EventEmitter {
@@ -46,7 +52,7 @@ export class Server extends EventEmitter {
 
     private init(socketType: SocketType) {
         this.server = createSocket(socketType);
-        this.server.on('error', (err) => { this.onError(err) });
+        //this.server.on('error', (err) => { this.onError(err) });
         this.server.on('message', (msg, rinfo) => { this.onMessage(msg, rinfo) });
         this.server.on('listening', () => { this.onListening() });
         this.server.on('close', () => { this.onClose() });
@@ -81,21 +87,34 @@ export class Server extends EventEmitter {
             /**
              * TODO change soms errors to events from connections
              */
-            if (err.message === "UNKNOWN_VERSION") {
+            if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                 delete this.connections[connection.getConnectionID().toString()];
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);
                 return;
             }else {
-                this.onError(err);
+                this.onError(connection, err);
                 return;
             }
         }
     }
 
-    private onError(error: Error): any {
-        console.log("Error: " + error.message);
-        console.log("Stack: " + error.stack);
+    private onError(connection: Connection, error: any): any {
+        var closeFrame: ConnectionCloseFrame;
+        var packet: BaseEncryptedPacket;
+        if (error instanceof QuicError) {
+            closeFrame = FrameFactory.createConnectionCloseFrame(error.getErrorCode(), error.getPhrase());
+        } else {
+            closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR);
+        }
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            packet = PacketFactory.createShortHeaderPacket(connection, [closeFrame]);
+        } else {
+            packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
+        }
+        connection.sendPacket(packet)
+        connection.setState(ConnectionState.Closing);
+        this.emit("error",error);
     }
 
     private onClose(): any {

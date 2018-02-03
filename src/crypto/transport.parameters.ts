@@ -1,6 +1,8 @@
 import {Constants} from '../utilities/constants';
 import {Connection} from '../types/connection';
 import { EndpointType } from '../types/endpoint.type';
+import { QuicError } from '../utilities/errors/connection.error';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
 
 export class TransportParameters {
@@ -221,7 +223,7 @@ export class TransportParameters {
             }
             offset += len;
             if (type in values) {
-                throw Error("TRANSPORT_PARAMETER_ERROR");
+                throw new QuicError(ConnectionErrorCodes.TRANSPORT_PARAMETER_ERROR);
             }
             values[type] = value;
         }

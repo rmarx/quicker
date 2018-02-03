@@ -57,17 +57,11 @@ export class QTLS {
         connection.setLocalTransportParameters(this.getTransportParameters());
         connection.setLocalMaxData(connection.getLocalTransportParameter(TransportParameterType.MAX_DATA));
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
-        if (clientInitialBuffer === undefined) {
-            throw new Error("Client initial failed");
-        }
         return clientInitialBuffer;
     }
 
     public readHandshake(): Buffer  {
         var handshakeBuffer = this.qtlsHelper.readHandshakeData();
-        if (handshakeBuffer === undefined) {
-            throw new Error("Handshake failed");
-        }
         return handshakeBuffer;
     }
 

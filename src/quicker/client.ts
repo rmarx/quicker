@@ -6,7 +6,7 @@ import {Constants} from '../utilities/constants';
 import {ClientInitialPacket} from '../packet/packet/client.initial';
 import {PacketParser, PacketOffset} from '../packet/packet.parser';
 import {PacketFactory} from '../packet/packet.factory';
-import {QTLS} from '../crypto/qtls';
+import {QTLS, HandshakeState} from '../crypto/qtls';
 import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
 import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
@@ -19,6 +19,10 @@ import { Time, TimeFormat } from '../utilities/time';
 import { PacketLogging } from '../utilities/logging/packet.logging';
 import { EventEmitter } from 'events';
 import { FrameFactory } from './../frame/frame.factory';
+import { QuicError } from "./../utilities/errors/connection.error";
+import { ConnectionCloseFrame } from '../frame/general/close';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 
 
 export class Client extends EventEmitter{
@@ -56,18 +60,20 @@ export class Client extends EventEmitter{
 
     private init(): void {
         var socket = createSocket("udp4");
-        socket.on('error',(err) => {this.onError(err)});
-        socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
-        socket.on('close',() => {this.onClose()});
         var remoteInfo: RemoteInformation = {
             address: this.hostname,
             port: this.port, 
             family: 'IPv4'
         };
+        
         this.connection = new Connection(remoteInfo, EndpointType.Client);
         this.connection.setFirstConnectionID(ConnectionID.randomConnectionID());
         this.connection.setSocket(socket);
         this.setupConnectionEvents();
+        
+        socket.on('error',(err) => {this.onError(this.connection, err)});
+        socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        socket.on('close',() => {this.onClose()});
     }
 
     private setupConnectionEvents() {
@@ -106,14 +112,26 @@ export class Client extends EventEmitter{
             this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             this.connection.startIdleAlarm();
         }catch(err) {
-            this.onError(err);
+            this.onError(this.connection, err);
             return;
         }
     }
 
-    private onError(error: Error): any {
-        console.log("Error: " + error.message);
-        console.log("Stack: " + error.stack);
+    private onError(connection: Connection, error: any): any {
+        var closeFrame: ConnectionCloseFrame;
+        var packet: BaseEncryptedPacket;
+        if (error instanceof QuicError) {
+            closeFrame = FrameFactory.createConnectionCloseFrame(error.getErrorCode(), error.getPhrase());
+        } else {
+            closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR);
+        }
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            packet = PacketFactory.createShortHeaderPacket(connection, [closeFrame]);
+        } else {
+            packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
+        }
+        connection.sendPacket(packet)
+        connection.setState(ConnectionState.Closing);
         this.emit("error",error);
     }
 

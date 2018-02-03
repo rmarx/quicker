@@ -4,6 +4,8 @@ import {BaseHeader} from './header/base.header';
 import {Connection} from '../types/connection';
 import {Constants} from '../utilities/constants';
 import {PaddingFrame} from '../frame/general/padding';
+import { QuicError } from '../utilities/errors/connection.error';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
 
 export abstract class BaseEncryptedPacket extends BasePacket {
@@ -25,7 +27,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
      */
     public toBuffer(connection: Connection) {
         if (this.getHeader() === undefined) {
-            throw Error("Header is not defined");
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Header is invalid");
         }
         var headerBuffer = this.getHeader().toBuffer();
         var dataBuffer = this.getFramesBuffer(connection, this.getHeader());

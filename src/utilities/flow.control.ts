@@ -1,3 +1,5 @@
+import {ConnectionErrorCodes} from './errors/connection.codes';
+import {QuicError} from './errors/connection.error';
 import { Bignum } from '../types/bignum';
 import { Connection } from '../types/connection';
 import { Stream } from '../types/stream';
@@ -92,10 +94,10 @@ export class FlowControl {
                     var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
                     if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
                         if (streamCheck === FlowControlState.Error || connectionCheck === FlowControlState.Error) {
-                            throw Error("FLOW_CONTROL_ERROR");
+                            throw new QuicError(ConnectionErrorCodes.FLOW_CONTROL_ERROR);
                         }
                         if (streamCheck === FlowControlState.FinalOffsetError) {
-                            throw Error("FINAL_OFFSET_ERROR");
+                            throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
                         }
                         if (streamCheck === FlowControlState.MaxStreamData) {
                             var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);

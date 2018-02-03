@@ -13,9 +13,6 @@ export class ServerStatelessRetryPacket extends BasePacket {
      * Method to get buffer object from a ServerStatelessRetryPacket object
      */
     public toBuffer(connection: Connection) {
-        if (this.getHeader() === undefined) {
-            throw Error("Header is not defined");
-        }
         var headerBuffer = this.getHeader().toBuffer();
         
         return headerBuffer;
