@@ -57,17 +57,11 @@ export class QTLS {
         connection.setLocalTransportParameters(this.getTransportParameters());
         connection.setLocalMaxData(connection.getLocalTransportParameter(TransportParameterType.MAX_DATA));
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
-        if (clientInitialBuffer === undefined) {
-            throw new Error("Client initial failed");
-        }
         return clientInitialBuffer;
     }
 
     public readHandshake(): Buffer {
         var handshakeBuffer = this.qtlsHelper.readHandshakeData();
-        if (handshakeBuffer === undefined) {
-            throw new Error("Handshake failed");
-        }
         return handshakeBuffer;
     }
 
@@ -129,7 +123,7 @@ export class QTLS {
 
     private getTransportParameters(): TransportParameters {
         if (this.transportParameters === undefined) {
-            this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.MAX_IDLE_TIMEOUT);
+            this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.DEFAULT_IDLE_TIMEOUT);
             this.transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
             if (this.isServer) {
                 this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);

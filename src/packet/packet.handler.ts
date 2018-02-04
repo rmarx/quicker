@@ -20,6 +20,8 @@ import { LongHeader } from './header/long.header';
 import { Constants } from '../utilities/constants';
 import { HeaderType } from '../packet/header/base.header';
 import { VersionValidation } from '../utilities/validation/version.validation';
+import { QuicError } from '../utilities/errors/connection.error';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
 
 export class PacketHandler {
@@ -36,7 +38,7 @@ export class PacketHandler {
             var versionSupported = VersionValidation.validateVersion(connection, longHeader);
             connection.resetConnectionState();
             if (!versionSupported) {
-                throw new Error("UNKNOWN_VERSION");
+                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
             }
         }
         this.onPacketReceived(connection, packet, receivedTime);
@@ -74,7 +76,7 @@ export class PacketHandler {
             }
         });
         if (negotiatedVersion === undefined) {
-            throw Error("UNKNOWN_VERSION");
+            throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
         }
         connection.resetConnectionState();
         connection.deleteStream(Bignum.fromNumber(0));
@@ -89,7 +91,7 @@ export class PacketHandler {
             throw Error("No ConnectionID defined");
         }
         if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_SIZE) {
-            throw Error("Client initial to small");
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         this.handleFrames(connection, clientInitialPacket);
     }

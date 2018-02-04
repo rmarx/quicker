@@ -25,9 +25,6 @@ export class VersionNegotiationPacket extends BasePacket {
      * Method to get buffer object from a VersionNegotiationPacket object
      */
     public toBuffer(connection: Connection) {
-        if (this.getHeader() === undefined) {
-            throw Error("Header is not defined");
-        }
         var headerBuffer = this.getHeader().toBuffer();
         var outOffset = headerBuffer.length;
     

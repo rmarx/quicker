@@ -16,6 +16,8 @@ import {StopSendingFrame} from './general/stop.sending';
 import {StreamFrame} from './general/stream';
 import { AckBlock, AckFrame } from './general/ack';
 import { PaddingFrame } from './general/padding';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { QuicError } from '../utilities/errors/connection.error';
 
 
 export class FrameParser {
@@ -220,7 +222,7 @@ export class FrameParser {
         var length = buffer.readUInt8(offset);
         offset++;
         if (length === 0) {
-            throw Error("FRAME_ERROR");
+            throw new QuicError(ConnectionErrorCodes.FRAME_ERROR + FrameType.PONG);
         }
         var pingData = Buffer.alloc(length);
         buffer.copy(pingData, 0, offset, offset + length);

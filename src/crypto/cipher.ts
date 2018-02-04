@@ -1,4 +1,6 @@
 import {createHash, createCipheriv} from "crypto";
+import { ConnectionErrorCodes } from "./../utilities/errors/connection.codes";
+import { QuicError } from "./../utilities/errors/connection.error";
 
 export class Cipher {
     private cipher: string;
@@ -15,7 +17,7 @@ export class Cipher {
             case "TLS13-AES-256-GCM-SHA384":
                 return "sha384";
         }
-        throw new Error("Unsupported hash function " + this.cipher);
+        throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported hash function: " + this.cipher);
     }
 
     public getHashLength(): number {
@@ -31,7 +33,7 @@ export class Cipher {
             case "TLS13-AES-256-GCM-SHA384":
                 return "aes-256-gcm";
         }
-        throw new Error("Unsupported aead function " + this.cipher);
+        throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported aead function: " + this.cipher);
 
     }
 
@@ -45,6 +47,6 @@ export class Cipher {
             case "chacha20-poly1305":
                 return 32;
         }
-        throw new Error("Unsupported aead function");
+        throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported aead function: " + this.cipher);
     }
 }

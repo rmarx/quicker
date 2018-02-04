@@ -1,3 +1,4 @@
+import {HandshakeState} from '../crypto/qtls';
 import { TimeFormat, Time } from '../utilities/time';
 import { HeaderParser, HeaderOffset } from '../packet/header/header.parser';
 import { PacketParser, PacketOffset } from '../packet/packet.parser';
@@ -14,6 +15,11 @@ import { Socket, RemoteInfo, createSocket, SocketType } from 'dgram';
 import { readFileSync } from 'fs';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { PacketLogging } from './../utilities/logging/packet.logging';
+import { FrameFactory } from './../frame/frame.factory';
+import { QuicError } from "./../utilities/errors/connection.error";
+import { ConnectionCloseFrame } from '../frame/general/close';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 
 
 export class Server extends EventEmitter {
@@ -46,11 +52,18 @@ export class Server extends EventEmitter {
 
     private init(socketType: SocketType) {
         this.server = createSocket(socketType);
-        this.server.on('error', (err) => { this.onError(err) });
+        //this.server.on('error', (err) => { this.onError(err) });
         this.server.on('message', (msg, rinfo) => { this.onMessage(msg, rinfo) });
         this.server.on('listening', () => { this.onListening() });
         this.server.on('close', () => { this.onClose() });
         this.server.bind(this.port, this.host);
+    }
+
+    private setupConnectionEvents(connection: Connection) {
+        connection.on('con-close', () => {
+            console.log("closed connection with id " + connection.getConnectionID());
+            delete this.connections[connection.getConnectionID().toString()];
+        });
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
@@ -64,31 +77,44 @@ export class Server extends EventEmitter {
         if (connection.getState() === ConnectionState.Draining) {
             return;
         }
+        connection.resetIdleAlarm();
         try {
             this.headerHandler.handle(connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+            connection.startIdleAlarm();
         } catch (err) {
             /**
              * TODO change soms errors to events from connections
              */
-            if (err.message === "UNKNOWN_VERSION") {
+            if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                 delete this.connections[connection.getConnectionID().toString()];
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);
                 return;
-            } else if (err.message === "REMOVE_CONNECTION") {
-                delete this.connections[connection.getConnectionID().toString()];
             }else {
-                this.onError(err);
+                this.onError(connection, err);
                 return;
             }
         }
     }
 
-    private onError(error: Error): any {
-        console.log("Error: " + error.message);
-        console.log("Stack: " + error.stack);
+    private onError(connection: Connection, error: any): any {
+        var closeFrame: ConnectionCloseFrame;
+        var packet: BaseEncryptedPacket;
+        if (error instanceof QuicError) {
+            closeFrame = FrameFactory.createConnectionCloseFrame(error.getErrorCode(), error.getPhrase());
+        } else {
+            closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR);
+        }
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            packet = PacketFactory.createShortHeaderPacket(connection, [closeFrame]);
+        } else {
+            packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
+        }
+        connection.sendPacket(packet)
+        connection.setState(ConnectionState.Closing);
+        this.emit("error",error);
     }
 
     private onClose(): any {
@@ -151,6 +177,7 @@ export class Server extends EventEmitter {
         }
         connection.setConnectionID(newConnectionID);
         this.connections[connection.getConnectionID().toString()] = connection;
+        this.setupConnectionEvents(connection);
         return connection;
     }
 }

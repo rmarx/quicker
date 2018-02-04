@@ -1,6 +1,6 @@
 import {BasePacket} from '../packet/base.packet';
 import {Bignum} from '../types/bignum';
-import {Alarm} from './alarm';
+import {Alarm} from '../utilities/alarm';
 import { AckFrame } from './../frame/general/ack';
 
 /**

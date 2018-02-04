@@ -24,6 +24,8 @@ import {TransportParameters, TransportParameterType} from '../crypto/transport.p
 import {BasePacket} from '../packet/base.packet';
 import { FrameFactory } from './frame.factory';
 import { Constants } from '../utilities/constants';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { QuicError } from '../utilities/errors/connection.error';
 
 
 export class FrameHandler {
@@ -188,7 +190,7 @@ export class FrameHandler {
 
     private handlePongFrame(connection: Connection, pongFrame: PongFrame) {
         if (pongFrame.getLength() === 0) {
-            throw Error("FRAME_ERROR");
+            throw new QuicError(ConnectionErrorCodes.FRAME_ERROR + FrameType.PONG);
         }
         // not yet checking with pingframes sent, because these aren't kept at the moment 
         // draft states: the endpoint MAY generate a connection error of type UNSOLICITED_PONG
