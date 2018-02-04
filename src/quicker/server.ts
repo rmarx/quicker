@@ -84,9 +84,6 @@ export class Server extends EventEmitter {
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
             connection.startIdleAlarm();
         } catch (err) {
-            /**
-             * TODO change soms errors to events from connections
-             */
             if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                 delete this.connections[connection.getConnectionID().toString()];
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
@@ -114,7 +111,6 @@ export class Server extends EventEmitter {
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
-        this.emit("error",error);
     }
 
     private onClose(): any {
