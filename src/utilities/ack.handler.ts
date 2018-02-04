@@ -24,26 +24,12 @@ export class AckHandler {
     public constructor(connection: Connection) {
         this.receivedPackets = {};
         this.alarm = new Alarm();
-        this.alarm.on("timeout", () => {
-            var baseFrames: BaseFrame[] = [];
-            var ackFrame = this.getAckFrame(connection);
-            if (ackFrame !== undefined) {
-                baseFrames.push(ackFrame);
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-                    var packet: BaseEncryptedPacket = PacketFactory.createShortHeaderPacket(connection, baseFrames);
-                } else {
-                    var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
-                }
-                connection.sendPacket(packet);
-            }
-        });
     }
 
     public onPacketReceived(connection: Connection, packet: BasePacket, time: number): void {
         if (packet.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
-        this.alarm.reset();
         var header = packet.getHeader();
         var pn = connection.getRemotePacketNumber().getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
         if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
@@ -64,8 +50,10 @@ export class AckHandler {
             isAckOnly = false;
         }
         this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
-        if (!isAckOnly) {
-            this.alarm.set(AckHandler.ACK_WAIT);
+        if (isAckOnly && Object.keys(this.receivedPackets).length === 1) {
+            this.alarm.reset();
+        } else if (!this.alarm.isRunning()) {
+            this.setAlarm(connection);
         }
     }
 
@@ -119,6 +107,24 @@ export class AckHandler {
 
         var latestPacketNumber = this.largestPacketNumber;
         return new AckFrame(latestPacketNumber, Bignum.fromNumber(ackDelay), Bignum.fromNumber(ackBlockCount), firstAckBlock, ackBlocks);
+    }
+
+    private setAlarm(connection: Connection) {
+        this.alarm.on("timeout", () => {
+            console.log("timeout");
+            var baseFrames: BaseFrame[] = [];
+            var ackFrame = this.getAckFrame(connection);
+            if (ackFrame !== undefined) {
+                baseFrames.push(ackFrame);
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                    var packet: BaseEncryptedPacket = PacketFactory.createShortHeaderPacket(connection, baseFrames);
+                } else {
+                    var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
+                }
+                connection.sendPacket(packet);
+            }
+        });
+        this.alarm.set(AckHandler.ACK_WAIT);
     }
 }
 
