@@ -111,7 +111,6 @@ export class AckHandler {
 
     private setAlarm(connection: Connection) {
         this.alarm.on("timeout", () => {
-            console.log("timeout");
             var baseFrames: BaseFrame[] = [];
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {

@@ -44,11 +44,13 @@ export class FrameFactory {
 
     public static createMaxStreamDataFrame(stream: Stream): MaxStreamFrame {
         var newMaxStreamData = stream.getLocalMaxData().multiply(2);
+        stream.setLocalMaxData(newMaxStreamData);
         return new MaxStreamFrame(stream.getStreamID(), newMaxStreamData);
     }
 
     public static createMaxDataFrame(connection: Connection): MaxDataFrame {
         var newMaxData = connection.getLocalMaxData().multiply(2);
+        connection.setLocalMaxData(newMaxData);
         return new MaxDataFrame(newMaxData);
     }
 

@@ -47,6 +47,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	public setRemoteMaxData(maxData: any): void {
 		if (maxData instanceof Bignum) {
 			this.remoteMaxData = maxData;
+			return;
 		}
 		this.remoteMaxData = Bignum.fromNumber(maxData);
 	}
@@ -60,6 +61,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	public setLocalMaxData(maxData: any): void {
 		if (maxData instanceof Bignum) {
 			this.localMaxData = maxData;
+			return;
 		}
 		this.localMaxData = Bignum.fromNumber(maxData);
 	}
@@ -79,7 +81,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	}
 
 	private isLimitExeeded(maxData: Bignum, offset: Bignum): boolean {
-		return offset.greaterThanOrEqual(maxData);
+		return offset.greaterThan(maxData);
 	}
 
     public isLocalLimitAlmostExceeded(added: any): boolean {
