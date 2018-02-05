@@ -26,6 +26,7 @@ import { FrameFactory } from './frame.factory';
 import { Constants } from '../utilities/constants';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { QuicError } from '../utilities/errors/connection.error';
+import { PacketLogging } from '../utilities/logging/packet.logging';
 
 
 export class FrameHandler {
@@ -260,6 +261,7 @@ export class FrameHandler {
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
+        PacketLogging.getInstance().logData(streamFrame.getData());
         stream.emit("data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());

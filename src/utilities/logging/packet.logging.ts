@@ -277,6 +277,24 @@ export class PacketLogging {
 
     }
 
+    public logData(buffer: Buffer) {
+        for(var i = 0; i < buffer.byteLength; i+=16) {
+            var size = (i + 16) < buffer.byteLength ? 16 : buffer.byteLength - i;
+            var t = Buffer.alloc(size);
+            buffer.copy(t, 0, i, i + size);
+            var str = t.toString('hex');
+            for(var j = 20; j >= 0; j--) {
+                if (size === 0) {
+                    str += "  ";
+                } else {
+                    size--;
+                }
+            }
+            str += require('util').inspect(t.toString('utf8'), { showHidden: true, depth: null });
+            this.continuedOutput.info(this.getSpaces(6) + str);
+        }
+    }
+
     private getSpaces(amount: number): string {
         return Array(amount + 1).join(" ");
     }
