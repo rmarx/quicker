@@ -251,6 +251,11 @@ export class FrameHandler {
                     connection.sendPacket(packet);
                 });
             }
+        } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
+
+            var streamFrame = FrameFactory.createStreamFrame(connection.getStream(Bignum.fromNumber(4)), Buffer.from("GET /\n"), true, true);
+            var p = PacketFactory.createShortHeaderPacket(connection, [streamFrame]);
+            connection.sendPacket(p);
         }
     }
 
