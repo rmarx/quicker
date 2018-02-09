@@ -124,11 +124,8 @@ export class Server extends EventEmitter {
     private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {
         var header: BaseHeader = headerOffset.header;
         var connectionID = header.getConnectionID();
-        if (connectionID === undefined) {
-            throw Error("No connectionID supplied");
-        }
         if (header.getHeaderType() === HeaderType.LongHeader) {
-            if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
+            if (this.connections[connectionID.toString()] !== undefined) {
                 return this.connections[connectionID.toString()];
             }
         } else {

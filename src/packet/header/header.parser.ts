@@ -31,7 +31,10 @@ export class HeaderParser {
         var connectionId = new ConnectionID(buf.slice(1, 9));
         var version = new Version(buf.slice(9, 13));
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
-        var packetNumber = new PacketNumber(buf.slice(13, 17));
+        var packetNumber;
+        if (version.toString() !== "00000000") {
+            packetNumber = new PacketNumber(buf.slice(13, 17));
+        }
 
         return { header: new LongHeader(type, connectionId, packetNumber, version), offset: Constants.LONG_HEADER_SIZE };
     }

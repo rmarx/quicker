@@ -46,6 +46,7 @@ export class PacketParser {
             default:
                 // Version negotiation packet
                 if (longheader.getVersion().toString() === "00000000") {
+                    offset = Constants.LONG_HEADER_VN_SIZE;
                     return this.parseVersionNegotiationPacket(header, buffer, offset);
                 }
                 // Unknown packet type

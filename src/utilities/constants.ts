@@ -19,6 +19,7 @@ export class Constants {
     public static readonly ALPN_LABEL = "hq-09";
     
     public static readonly LONG_HEADER_SIZE = 17;
+    public static readonly LONG_HEADER_VN_SIZE = 13;
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 
     /**
