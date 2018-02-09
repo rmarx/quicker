@@ -61,7 +61,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createServerStatelessRetryPacket(connection: Connection): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion(),);
+        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
         return new ServerStatelessRetryPacket(header);
     }
 
@@ -72,7 +72,8 @@ export class PacketFactory {
      * @param frames 
      */
     public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
-        var header = new LongHeader(LongHeaderType.Handshake, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion(),);
+        var conID = connection.getConnectionID() === undefined ? connection.getFirstConnectionID() : connection.getConnectionID();
+        var header = new LongHeader(LongHeaderType.Handshake, conID, connection.getNextPacketNumber(), connection.getVersion());
         return new HandshakePacket(header, frames);
     }
 
