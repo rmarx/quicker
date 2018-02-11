@@ -3,7 +3,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff000008'
+        'ff000009'
     ];
 
     public static readonly LOG_LEVEL = 'debug';
@@ -13,12 +13,13 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000008': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
-        'abcdef08': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
+        'ff000009': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
+        'abcdef09': 'afc824ec5fc77eca1e9d36f37fb2d46518c36639',
     }
-    public static readonly ALPN_LABEL = "hq-08";
+    public static readonly ALPN_LABEL = "hq-09";
     
     public static readonly LONG_HEADER_SIZE = 17;
+    public static readonly LONG_HEADER_VN_SIZE = 13;
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 
     /**
@@ -48,13 +49,23 @@ export class Constants {
 
     public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
 
+    public static readonly QHKDF_BASE_LABEL = "QUIC ";
+    public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";
+    public static readonly CLIENT_HANDSHAKE_LABEL = "client hs";
+    public static readonly SERVER_HANDSHAKE_LABEL = "server hs";
+    public static readonly CLIENT_1RTT_LABEL = "client 1rtt";
+    public static readonly SERVER_1RTT_LABEL = "server 1rtt";
+    public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
+    public static readonly PACKET_PROTECTION_IV_LABEL = "iv";
+    
     public static readonly TEMPORARY_DRAINING_TIME = 15000;
+
 
     /**
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return 'abcdef08';
+        return 'abcdef09';
     }
 
     public static getVersionSalt(version: string): string {

@@ -9,11 +9,13 @@ export class HeaderHandler {
 
     public handle(connection: Connection, header: BaseHeader) {
         
-        // adjust remote packet number
-        if (connection.getRemotePacketNumber() === undefined || connection.getRemotePacketNumber().getPacketNumber().equals(Bignum.fromNumber(-1))) {
-            connection.setRemotePacketNumber(header.getPacketNumber());
-        } else {
-            connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+        if (header.getPacketNumber() !== undefined) {
+            // adjust remote packet number
+            if (connection.getRemotePacketNumber() === undefined || connection.getRemotePacketNumber().getPacketNumber().equals(Bignum.fromNumber(-1))) {
+                connection.setRemotePacketNumber(header.getPacketNumber());
+            } else {
+                connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+            }
         }
 
         // custom handlers for long and short headers

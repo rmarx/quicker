@@ -1,3 +1,4 @@
+import {Constants} from '../utilities/constants';
 import { Hmac, createHmac, createHash } from "crypto";
 
 /**
@@ -58,7 +59,7 @@ export class HKDF {
      * @param lengthOutput 
      */
     public expandLabel(prk: Buffer, label: string, hashValue: string, lengthOutput: number): Buffer {
-        label = "tls13 " + label;
+        label = Constants.QHKDF_BASE_LABEL + label;
         var length = Buffer.from([lengthOutput / 256, lengthOutput % 256]);
         var bufLabel = Buffer.from(label);
         var hashLength = Buffer.from([hashValue.length]);

@@ -64,7 +64,7 @@ export class PacketHandler {
     private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
         var longHeader = <LongHeader>versionNegotiationPacket.getHeader();
         var connectionId = longHeader.getConnectionID();
-        if (connectionId === undefined || connection.getFirstConnectionID().toString() !== connectionId.toString()) {
+        if (connection.getFirstConnectionID().toString() !== connectionId.toString()) {
             return;
         }
         var negotiatedVersion = undefined;
@@ -87,9 +87,6 @@ export class PacketHandler {
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
         var connectionID = clientInitialPacket.getHeader().getConnectionID();
-        if (connectionID === undefined) {
-            throw Error("No ConnectionID defined");
-        }
         if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_SIZE) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
@@ -98,9 +95,6 @@ export class PacketHandler {
 
     private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
         var connectionID = handshakePacket.getHeader().getConnectionID();
-        if (connectionID === undefined) {
-            throw Error("No ConnectionID defined");
-        }
         if (connection.getEndpointType() === EndpointType.Client) {
             connection.setConnectionID(connectionID);
         }

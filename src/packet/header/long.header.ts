@@ -11,7 +11,7 @@ import { Constants } from "../../utilities/constants";
 export class LongHeader extends BaseHeader {
     private version: Version;
 
-    public constructor(type: LongHeaderType, connectionID: ConnectionID, packetNumber: PacketNumber, version: Version) {
+    public constructor(type: LongHeaderType, connectionID: ConnectionID, packetNumber: (PacketNumber | undefined), version: Version) {
         super(HeaderType.LongHeader, type, connectionID, packetNumber);
         this.version = version;
     }
@@ -28,19 +28,16 @@ export class LongHeader extends BaseHeader {
         var buf = Buffer.alloc( Constants.LONG_HEADER_SIZE );
         var offset = 0;
         
-        var connectionID = this.getConnectionID();
-        if (connectionID === undefined) {
-            throw Error("Undefined ConnectionID");
-        }
-
         // create LongHeader
         var type = 0x80 + this.getPacketType();
         buf.writeUInt8(type, offset++);
-        connectionID.toBuffer().copy(buf, offset);
+        this.getConnectionID().toBuffer().copy(buf, offset);
         offset += 8; // 9
         this.getVersion().toBuffer().copy(buf, offset);
-        offset += 4; // 13
-        this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
+        if (this.getVersion().toString() !== "00000000") {
+            offset += 4; // 13
+            this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
+        }
         return buf;
     }
 

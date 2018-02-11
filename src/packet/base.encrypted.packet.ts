@@ -10,7 +10,6 @@ import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
 export abstract class BaseEncryptedPacket extends BasePacket {
     
-    
     protected frames: BaseFrame[];
 
     public constructor(packetType: PacketType, header: BaseHeader, frames: BaseFrame[]) {
@@ -26,9 +25,6 @@ export abstract class BaseEncryptedPacket extends BasePacket {
      * Method to get buffer object from a Packet object
      */
     public toBuffer(connection: Connection) {
-        if (this.getHeader() === undefined) {
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Header is invalid");
-        }
         var headerBuffer = this.getHeader().toBuffer();
         var dataBuffer = this.getFramesBuffer(connection, this.getHeader());
 

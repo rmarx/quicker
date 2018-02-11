@@ -88,12 +88,15 @@ export class PacketLogging {
     private logPackets(connection: Connection, basePacket: BasePacket, packetNumber: PacketNumber, direction: string, color: ConsoleColor): void {
         var connectionID = basePacket.getHeader().getConnectionID();
         var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
-        var format = this.getSpaces(2) + color + "%s %s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s, " + color + "PKN: %s" + ConsoleColor.Reset + " ";
+        var format = this.getSpaces(2) + color + "%s %s(0x%s)" + ConsoleColor.Reset + " CID: 0x%s";
+        if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
+            format += color + ", PKN: " + packetNumber.getPacketNumber().toDecimalString() + ConsoleColor.Reset;
+        }
         if (basePacket.getHeader().getHeaderType() === HeaderType.LongHeader) {
             var lh: LongHeader = <LongHeader> (basePacket.getHeader());
-            format += "Version: Ox" + lh.getVersion().getVersion().toString();
+            format += ", Version: Ox" + lh.getVersion().getVersion().toString();
         }
-        this.startOutput.info(format, direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString, packetNumber.getPacketNumber().toDecimalString());
+        this.startOutput.info(format, direction, PacketType[basePacket.getPacketType()], basePacket.getPacketType(), connectionIDString);
 
         switch (basePacket.getPacketType()) {
             case PacketType.Retry:
