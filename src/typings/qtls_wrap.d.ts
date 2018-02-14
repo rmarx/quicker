@@ -13,4 +13,7 @@ export class QuicTLS {
     on(event: string, callback: Function): void;
     exportKeyingMaterial(buffer: Buffer, hashsize: number): Buffer;
     getNegotiatedCipher(): string;
+    getSession(): Buffer;
+    setSession(buffer: Buffer): void;
+    isSessionReused(): boolean;
 }

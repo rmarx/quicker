@@ -94,6 +94,18 @@ export class QTLS {
         return this.cipher;
     }
 
+    public getSession(): Buffer{
+        return this.qtlsHelper.getSession();
+    }
+
+    public setSession(buffer: Buffer): void{
+        this.qtlsHelper.setSession(buffer);
+    }
+
+    public isSessionReused(): boolean {
+        return this.qtlsHelper.isSessionReused();
+    }
+
 
     private generateExtensionData(connection: Connection): Buffer {
         var transportParamBuffer: Buffer = this.getTransportParameters().toBuffer();

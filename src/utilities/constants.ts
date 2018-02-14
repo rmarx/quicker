@@ -65,7 +65,7 @@ export class Constants {
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return 'abcdef09';
+        return 'ff000009';
     }
 
     public static getVersionSalt(version: string): string {

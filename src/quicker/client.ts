@@ -45,7 +45,7 @@ export class Client extends EventEmitter{
         this.packetHandler = new PacketHandler();
     }
 
-    public connect(hostname: string, port: number) {
+    public connect(hostname: string, port: number, options?: any) {
         this.hostname = hostname;
         this.port = port;
         this.init();
@@ -78,7 +78,7 @@ export class Client extends EventEmitter{
 
     private setupConnectionEvents() {
         this.connection.on('con-close', () => {
-            process.exit(0);
+            //process.exit(0);
         })
     }
 
@@ -92,6 +92,18 @@ export class Client extends EventEmitter{
     
     public getHostname(): string {
         return this.hostname;
+    }
+
+    public getSession(): Buffer {
+        return this.connection.getQuicTLS().getSession();
+    }
+
+    public setSession(buffer: Buffer) {
+        this.connection.getQuicTLS().setSession(buffer);
+    }
+
+    public isSessionReused(): boolean {
+        return this.connection.getQuicTLS().isSessionReused();
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
