@@ -278,7 +278,9 @@ export class PacketLogging {
     private logStreamFrame(streamFrame: StreamFrame, color: ConsoleColor): void {
         this.continuedOutput.info(this.getSpaces(4) + color + "STREAM (0x%s) " + ConsoleColor.Reset + " FIN=%d LEN=%d OFF=%d", streamFrame.getType().toString(16), streamFrame.getFin(), streamFrame.getLen(), streamFrame.getOff());
         this.continuedOutput.info(this.getSpaces(4) + "StreamID (0x%s) length=%s offset=%s", streamFrame.getStreamID().toDecimalString(), streamFrame.getLength().toDecimalString(), streamFrame.getOffset().toDecimalString());
-
+        if (!streamFrame.getStreamID().equals(0)) {
+            this.logData(streamFrame.getData());
+        }
     }
 
     public logData(buffer: Buffer) {

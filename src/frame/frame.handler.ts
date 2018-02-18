@@ -257,7 +257,6 @@ export class FrameHandler {
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-        PacketLogging.getInstance().logData(streamFrame.getData());
         stream.emit("data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());

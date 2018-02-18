@@ -120,7 +120,7 @@ export class AckHandler {
                 } else {
                     var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
                 }
-                connection.sendPacket(packet);
+                connection.sendPacket(packet, false);
             }
         });
         this.alarm.set(AckHandler.ACK_WAIT);
