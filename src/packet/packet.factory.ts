@@ -41,7 +41,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), undefined, connection.getVersion());
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
         streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
@@ -61,7 +61,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createServerStatelessRetryPacket(connection: Connection): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), connection.getNextPacketNumber(), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), undefined, connection.getVersion());
         return new ServerStatelessRetryPacket(header);
     }
 
@@ -73,7 +73,7 @@ export class PacketFactory {
      */
     public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
         var conID = connection.getConnectionID() === undefined ? connection.getFirstConnectionID() : connection.getConnectionID();
-        var header = new LongHeader(LongHeaderType.Handshake, conID, connection.getNextPacketNumber(), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Handshake, conID, undefined, connection.getVersion());
         return new HandshakePacket(header, frames);
     }
 
@@ -85,7 +85,7 @@ export class PacketFactory {
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
         var omitConnectionID: boolean = connection.getRemoteTransportParameter(TransportParameterType.OMIT_CONNECTION_ID);
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), connection.getNextPacketNumber(), omitConnectionID, false)
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), undefined, omitConnectionID, false)
         return new ShortHeaderPacket(header, frames);
     }
 }

@@ -271,6 +271,7 @@ export class Connection extends FlowControlledObject {
         }
         var packet = this.flowControl.onPacketSend(this, basePacket);
         if (packet !== undefined) {
+            packet.getHeader().setPacketNumber(this.getNextPacketNumber());
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }

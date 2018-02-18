@@ -11,7 +11,7 @@ export class ShortHeader extends BaseHeader {
     private connectionIDOmitted: boolean;
     private keyPhaseBit: boolean;
 
-    public constructor(type: number, connectionID: (ConnectionID | undefined), packetNumber: PacketNumber, connectionIDOmitted: boolean, keyPhaseBit: boolean) {
+    public constructor(type: number, connectionID: (ConnectionID | undefined), packetNumber: (PacketNumber | undefined), connectionIDOmitted: boolean, keyPhaseBit: boolean) {
         super(HeaderType.ShortHeader, type, connectionID, packetNumber);
         this.connectionIDOmitted = connectionIDOmitted;
         this.keyPhaseBit = keyPhaseBit;
