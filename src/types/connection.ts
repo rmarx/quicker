@@ -248,8 +248,6 @@ export class Connection extends FlowControlledObject {
     }
     
     public sendFrames(baseFrames: BaseFrame[]): void {
-        baseFrames = this.addPossibleAckFrame(baseFrames);
-
         this.bufferedFrames = this.bufferedFrames.concat(baseFrames);
         if (!this.transmissionAlarm.isRunning()) {
             this.startTransmissionAlarm();
@@ -258,10 +256,18 @@ export class Connection extends FlowControlledObject {
 
     /**
      * Method to send a packet
-     * TODO: Made sendFrame, however, this method is not using the alarm
      * @param basePacket packet to send
      */
-    public sendPacket(basePacket: BasePacket): void {
+    public sendPacket(basePacket: BasePacket, bufferPacket: boolean = true): void {
+        if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation && basePacket.getPacketType() !== PacketType.Initial && bufferPacket) {
+            var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
+            this.sendFrames(baseEncryptedPacket.getFrames());
+        } else {
+            this._sendPacket(basePacket);
+        }
+    }
+
+    private _sendPacket(basePacket: BasePacket): void {
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             var ackFrame = this.ackHandler.getAckFrame(this);
@@ -288,14 +294,17 @@ export class Connection extends FlowControlledObject {
     private startTransmissionAlarm(): void {
         this.transmissionAlarm.on('timeout', () => {
             var packet: BaseEncryptedPacket;
+            var frames = this.bufferedFrames;
+            this.bufferedFrames = [];
             if (this.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-                packet = PacketFactory.createShortHeaderPacket(this, this.bufferedFrames);
+                packet = PacketFactory.createShortHeaderPacket(this, frames);
             } else {
-                packet = PacketFactory.createHandshakePacket(this, this.bufferedFrames);
+                packet = PacketFactory.createHandshakePacket(this, frames);
             }
-            this.sendPacket(packet);
+            this._sendPacket(packet);
         });
-        this.transmissionAlarm.set(500);
+        this.transmissionAlarm.set(40);
+        console.log("starting");
     }
 
 

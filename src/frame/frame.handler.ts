@@ -227,7 +227,7 @@ export class FrameHandler {
                     // in this case, is the handshake of the client complete, but not for the server.
                     // If we use sendFrame, it is wrapped inside a shortHeaderPacket
                     var packet: BasePacket = PacketFactory.createHandshakePacket(connection, [str]);
-                    connection.sendPacket(packet);
+                    connection.sendPacket(packet, false);
                 } else {
                     connection.sendFrame(str);
                 }
@@ -246,7 +246,7 @@ export class FrameHandler {
                     str.setOffset(stream.getRemoteOffset());
                     str.setLength(Bignum.fromNumber(buf.byteLength));
                     packet = PacketFactory.createHandshakePacket(connection, [str]);
-                    connection.sendPacket(packet);
+                    connection.sendPacket(packet, false);
                 });
             }
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
