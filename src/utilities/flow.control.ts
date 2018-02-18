@@ -18,10 +18,10 @@ import { logMethod } from './decorators/log.decorator';
 
 export class FlowControl {
 
-    private bufferedStreamFrames: { [key: string]: StreamFrame[] };
+    private blockedStreamFrames: { [key: string]: StreamFrame[] };
 
     public constructor() {
-        this.bufferedStreamFrames = {};
+        this.blockedStreamFrames = {};
     }
 
     public onPacketSend(connection: Connection, basePacket: BasePacket): BasePacket | undefined {
@@ -52,7 +52,7 @@ export class FlowControl {
                             var blockedFrame = FrameFactory.createBlockedFrame(connection);
                             baseEncryptedPacket.getFrames().push(blockedFrame);
                         }
-                        this.addBufferedStreamFrame(streamFrame);
+                        this.addBlockedStreamFrame(streamFrame);
                         baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
                         return;
                     }
@@ -163,25 +163,25 @@ export class FlowControl {
         return FlowControlState.Ok;
     }
 
-    public getBufferedStreamFrames(streamId: Bignum): StreamFrame[] {
+    public getBlockedStreamFrames(streamId: Bignum): StreamFrame[] {
         var key = streamId.toDecimalString();
-        return this.bufferedStreamFrames[key];
+        return this.blockedStreamFrames[key];
     }
 
-    public getAllBufferedStreamFrames(): StreamFrame[] {
+    public getAllBlockedStreamFrames(): StreamFrame[] {
         var all: StreamFrame[] = [];
-        for (var k in this.bufferedStreamFrames) {
-            all = all.concat(this.bufferedStreamFrames[k]);
+        for (var k in this.blockedStreamFrames) {
+            all = all.concat(this.blockedStreamFrames[k]);
         }
         return all;
     }
 
-    private addBufferedStreamFrame(streamFrame: StreamFrame): void {
+    private addBlockedStreamFrame(streamFrame: StreamFrame): void {
         var key = streamFrame.getStreamID().toDecimalString();
-        if (this.bufferedStreamFrames[key] === undefined) {
-            this.bufferedStreamFrames[key] = [];
+        if (this.blockedStreamFrames[key] === undefined) {
+            this.blockedStreamFrames[key] = [];
         }
-        this.bufferedStreamFrames[key].push(streamFrame);
+        this.blockedStreamFrames[key].push(streamFrame);
     }
 }
 

@@ -129,7 +129,7 @@ export class FrameHandler {
         if (connection.getRemoteMaxData().lessThan(maxDataFrame.getMaxData())) {
             connection.setRemoteMaxData(maxDataFrame.getMaxData());
         }
-        connection.sendFrames(connection.getFlowControl().getAllBufferedStreamFrames());
+        connection.sendFrames(connection.getFlowControl().getAllBlockedStreamFrames());
     }
 
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
@@ -138,7 +138,7 @@ export class FrameHandler {
             stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
             stream.setBlockedSent(false);
         }
-        connection.sendFrames(connection.getFlowControl().getBufferedStreamFrames(stream.getStreamID()));
+        connection.sendFrames(connection.getFlowControl().getBlockedStreamFrames(stream.getStreamID()));
     }
 
     private handleMaxStreamIdFrame(connection: Connection, maxStreamIdFrame: MaxStreamIdFrame) {
