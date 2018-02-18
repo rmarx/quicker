@@ -11,7 +11,7 @@ export class HeaderHandler {
         
         if (header.getPacketNumber() !== undefined) {
             // adjust remote packet number
-            if (connection.getRemotePacketNumber() === undefined || connection.getRemotePacketNumber().getPacketNumber().equals(Bignum.fromNumber(-1))) {
+            if (connection.getRemotePacketNumber() === undefined) {
                 connection.setRemotePacketNumber(header.getPacketNumber());
             } else {
                 connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());

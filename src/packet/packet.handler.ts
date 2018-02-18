@@ -36,8 +36,8 @@ export class PacketHandler {
         if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
             var versionSupported = VersionValidation.validateVersion(connection, longHeader);
-            connection.resetConnectionState();
             if (!versionSupported) {
+                connection.resetConnectionState();
                 throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
             }
         }

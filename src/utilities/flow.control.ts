@@ -142,7 +142,6 @@ export class FlowControl {
         }
         if (stream.isLocalLimitExceeded(streamFrame.getLength())) {
             // sent flow control error
-            console.log("local is exceeded");
             return FlowControlState.Error;
         }
         if (stream.isLocalLimitAlmostExceeded(streamFrame.getLength())) {

@@ -107,6 +107,7 @@ export class PacketLogging {
                 break;
             case PacketType.Initial:
             case PacketType.Handshake:
+            case PacketType.Protected0RTT:
             case PacketType.Protected1RTT:
                 var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
                 this.logFrames(connection, baseEncryptedPacket, color);

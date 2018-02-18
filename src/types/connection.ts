@@ -17,6 +17,7 @@ import { FlowControlledObject } from './flow.controlled';
 import { FlowControl } from '../utilities/flow.control';
 import { BaseFrame } from '../frame/base.frame';
 import { PacketFactory } from '../packet/packet.factory';
+import { BN } from 'bn.js';
 
 export class Connection extends FlowControlledObject {
 
@@ -57,6 +58,7 @@ export class Connection extends FlowControlledObject {
         this.flowControl = new FlowControl();
         this.streams = [];
         this.idleTimeoutAlarm = new Alarm();
+
         this.transmissionAlarm = new Alarm();
         this.bufferedFrames = [];
     }
@@ -237,7 +239,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public resetConnectionState() {
-        this.remotePacketNumber = new PacketNumber(Bignum.fromNumber(-1).toBuffer());
+        this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
         this.resetOffsets();
     }
 

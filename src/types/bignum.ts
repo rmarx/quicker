@@ -11,10 +11,18 @@ export class Bignum {
 
     /**
      * @param buf buffer containing the number
-     * @param byteSize bytesize, default 4 (32-bit)
+     * @param byteSize bytesize, default calculated by Bignum class
+     * @param base base, default 16 (hex)
      */
-    public constructor(buf: Buffer, byteSize?: number, base: number = 16) {
-        this.fromBuffer(buf, byteSize, base);
+    constructor(num: number, byteSize?: number);
+    constructor(buf: Buffer, byteSize?: number, base?: number);
+    public constructor(obj: any, byteSize?: any, base?: any) {
+        if (obj instanceof Buffer) {
+            this.fromBuffer(obj, byteSize, base);
+        } else if (typeof obj == 'number') {
+            this.byteSize = byteSize;
+            this.bignum = new BN(obj);
+        }
     }
 
     /**
@@ -29,7 +37,7 @@ export class Bignum {
     add(num: number): Bignum;
 
     public add(num: any): Bignum {
-        var bn = Bignum.fromNumber(0);
+        var bn = new Bignum(0);
         if (num instanceof Bignum) {
             bn.bignum = this.bignum.add(num.bignum);
         } else {
@@ -41,7 +49,7 @@ export class Bignum {
     public subtract(num: number): Bignum;
     public subtract(num: Bignum): Bignum;
     public subtract(num: any): Bignum {
-        var bn = Bignum.fromNumber(0);
+        var bn = new Bignum(0);
         if (num instanceof Bignum) {
             bn.bignum = this.bignum.sub(num.bignum);
         } else {
@@ -53,7 +61,7 @@ export class Bignum {
     public multiply(num: number): Bignum;
     public multiply(num: Bignum): Bignum;
     public multiply(num: any): Bignum {
-        var bn = Bignum.fromNumber(0);
+        var bn = new Bignum(0);
         if (num instanceof Bignum) {
             bn.bignum = this.bignum.mul(num.bignum);
         } else {
@@ -65,7 +73,7 @@ export class Bignum {
     public divide(num: number): Bignum;
     public divide(num: Bignum): Bignum;
     public divide(num: any): Bignum {
-        var bn = Bignum.fromNumber(0);
+        var bn = new Bignum(0);
         if (num instanceof Bignum) {
             bn.bignum = this.bignum.div(num.bignum);
         } else {
@@ -89,7 +97,7 @@ export class Bignum {
      * @param num 
      */
     public xor(num: Bignum): Bignum {
-        var bn = Bignum.fromNumber(0);
+        var bn = new Bignum(0);
         bn.bignum = this.bignum.xor(num.bignum);
         return bn;
     }
@@ -99,7 +107,7 @@ export class Bignum {
      * @param num any number
      */
     public shiftLeft(num: number): Bignum {
-        var bn = Bignum.fromNumber(0);
+        var bn = new Bignum(0);
         bn.bignum = this.bignum.shln(num);
         return bn;
     }
@@ -108,8 +116,14 @@ export class Bignum {
      * Checks if the bignum value of this instance is the same as the value of num
      * @param num 
      */
-    public equals(num: Bignum): boolean {
-        return this.bignum.eq(num.bignum);
+    equals(num: Bignum): boolean;
+    equals(num: number): boolean;
+    public equals(num: any): boolean {
+        if (num instanceof Bignum) {
+            return this.bignum.eq(num.bignum);
+        } else {
+            return this.bignum.eq(new BN(num));
+        }
     }
 
     /**
@@ -219,8 +233,7 @@ export class Bignum {
      * @param num any number
      */
     public static fromNumber(num: number): Bignum {
-        var bn = new BN(num);
-        return new Bignum(bn.toBuffer('be'));
+        return new Bignum(num);
     }
 
     /**
@@ -231,7 +244,7 @@ export class Bignum {
     }
 
     private static fromBN(bn: BN): Bignum {
-        var bignum = this.fromNumber(0);
+        var bignum = new Bignum(0)
         bignum.bignum = bn;
         return bignum;
     }
