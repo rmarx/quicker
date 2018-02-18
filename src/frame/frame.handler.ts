@@ -129,8 +129,7 @@ export class FrameHandler {
         if (connection.getRemoteMaxData().lessThan(maxDataFrame.getMaxData())) {
             connection.setRemoteMaxData(maxDataFrame.getMaxData());
         }
-        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, connection.getFlowControl().getAllBufferedStreamFrames());
-        connection.sendPacket(shortHeaderPacket);
+        connection.sendFrames(connection.getFlowControl().getAllBufferedStreamFrames());
     }
 
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
@@ -139,8 +138,7 @@ export class FrameHandler {
             stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
             stream.setBlockedSent(false);
         }
-        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, connection.getFlowControl().getBufferedStreamFrames(stream.getStreamID()));
-        connection.sendPacket(shortHeaderPacket);
+        connection.sendFrames(connection.getFlowControl().getBufferedStreamFrames(stream.getStreamID()));
     }
 
     private handleMaxStreamIdFrame(connection: Connection, maxStreamIdFrame: MaxStreamIdFrame) {
@@ -150,24 +148,21 @@ export class FrameHandler {
     private handlePingFrame(connection: Connection, pingFrame: PingFrame) {
         if (pingFrame.getLength() > 0) {
             var pongFrame = FrameFactory.createPongFrame(pingFrame.getData());
-            var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, [pongFrame]);
-            connection.sendPacket(shortHeaderPacket);
+            connection.sendFrame(pongFrame);
         }
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
         var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
         connection.setLocalMaxData(maxDataFrame.getMaxData());
-        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, [maxDataFrame]);
-        connection.sendPacket(shortHeaderPacket);
+        connection.sendFrame(maxDataFrame);
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
         var stream = connection.getStream(streamBlocked.getStreamId());
         var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
         stream.setLocalMaxData(maxStreamDataFrame.getMaxData());
-        var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, [maxStreamDataFrame]);
-        connection.sendPacket(shortHeaderPacket);
+        connection.sendFrame(maxStreamDataFrame);
     }
 
     private handleStreamIdBlockedFrame(connection: Connection, streamIdBlocked: StreamIdBlockedFrame) {
@@ -223,17 +218,19 @@ export class FrameHandler {
                 connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             }
 
-            var packet: BasePacket;
+            
             if (connection.getEndpointType() === EndpointType.Client || connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 var str = new StreamFrame(streamFrame.getStreamID(), data);
                 str.setOffset(stream.getRemoteOffset());
                 str.setLength(Bignum.fromNumber(data.byteLength));
                 if (connection.getEndpointType() === EndpointType.Client) {
-                    packet = PacketFactory.createHandshakePacket(connection, [str]);
+                    // in this case, is the handshake of the client complete, but not for the server.
+                    // If we use sendFrame, it is wrapped inside a shortHeaderPacket
+                    var packet: BasePacket = PacketFactory.createHandshakePacket(connection, [str]);
+                    connection.sendPacket(packet);
                 } else {
-                    packet = PacketFactory.createShortHeaderPacket(connection, [str]);
+                    connection.sendFrame(str);
                 }
-                connection.sendPacket(packet);
             } else {
                 var dataBuffers: Buffer[] = [];
                 var i = 0;
@@ -255,8 +252,7 @@ export class FrameHandler {
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
 
             var streamFrame = FrameFactory.createStreamFrame(connection.getStream(Bignum.fromNumber(4)), Buffer.from("GET /\n"), true, true);
-            var p = PacketFactory.createShortHeaderPacket(connection, [streamFrame]);
-            connection.sendPacket(p);
+            connection.sendFrame(streamFrame);
         }
     }
 

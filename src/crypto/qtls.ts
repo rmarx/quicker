@@ -162,7 +162,6 @@ export class QTLS {
 
     private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
-        console.log("setting cipher");
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
     }
 }

@@ -1,4 +1,4 @@
-import {Alarm} from '../utilities/alarm';
+import { Alarm } from '../utilities/alarm';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { AEAD } from '../crypto/aead';
 import { QTLS, HandshakeState } from '../crypto/qtls';
@@ -15,6 +15,8 @@ import { AckHandler } from '../utilities/ack.handler';
 import { PacketLogging } from '../utilities/logging/packet.logging';
 import { FlowControlledObject } from './flow.controlled';
 import { FlowControl } from '../utilities/flow.control';
+import { BaseFrame } from '../frame/base.frame';
+import { PacketFactory } from '../packet/packet.factory';
 
 export class Connection extends FlowControlledObject {
 
@@ -39,6 +41,8 @@ export class Connection extends FlowControlledObject {
     private streams: Stream[];
 
     private idleTimeoutAlarm: Alarm;
+    private transmissionAlarm: Alarm;
+    private bufferedFrames: BaseFrame[];
     private closePacket: BaseEncryptedPacket;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
@@ -53,6 +57,8 @@ export class Connection extends FlowControlledObject {
         this.flowControl = new FlowControl();
         this.streams = [];
         this.idleTimeoutAlarm = new Alarm();
+        this.transmissionAlarm = new Alarm();
+        this.bufferedFrames = [];
     }
 
     public getRemoteInfo(): RemoteInfo {
@@ -235,9 +241,22 @@ export class Connection extends FlowControlledObject {
         this.resetOffsets();
     }
 
+    public sendFrame(baseFrame: BaseFrame) {
+        this.sendFrames([baseFrame]);
+    }
+    
+    public sendFrames(baseFrames: BaseFrame[]): void {
+        baseFrames = this.addPossibleAckFrame(baseFrames);
+
+        this.bufferedFrames = this.bufferedFrames.concat(baseFrames);
+        if (!this.transmissionAlarm.isRunning()) {
+            this.startTransmissionAlarm();
+        }
+    }
+
     /**
      * Method to send a packet
-     * TODO: Should create a sendFrame method and/or put a timer on this,when for example 2 ShortHeaderPackets are sent, bundle the frames and send as one packet
+     * TODO: Made sendFrame, however, this method is not using the alarm
      * @param basePacket packet to send
      */
     public sendPacket(basePacket: BasePacket): void {
@@ -254,6 +273,28 @@ export class Connection extends FlowControlledObject {
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
     }
+
+    private addPossibleAckFrame(baseFrames: BaseFrame[]) {
+        var ackFrame = this.ackHandler.getAckFrame(this);
+        if (ackFrame !== undefined) {
+            baseFrames.push(ackFrame);
+        }
+        return baseFrames;
+    }
+
+    private startTransmissionAlarm(): void {
+        this.transmissionAlarm.on('timeout', () => {
+            var packet: BaseEncryptedPacket;
+            if (this.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                packet = PacketFactory.createShortHeaderPacket(this, this.bufferedFrames);
+            } else {
+                packet = PacketFactory.createHandshakePacket(this, this.bufferedFrames);
+            }
+            this.sendPacket(packet);
+        });
+        this.transmissionAlarm.set(500);
+    }
+
 
     public getClosePacket(): BaseEncryptedPacket {
         return this.closePacket;
