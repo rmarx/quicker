@@ -25,7 +25,11 @@ export class LongHeader extends BaseHeader {
     }
 
     public toBuffer(): Buffer {
-        var buf = Buffer.alloc( Constants.LONG_HEADER_SIZE );
+        if (this.getVersion().toString() !== "00000000") {
+            var buf = Buffer.alloc( Constants.LONG_HEADER_SIZE );
+        } else {
+            var buf = Buffer.alloc( Constants.LONG_HEADER_VN_SIZE );
+        }
         var offset = 0;
         
         // create LongHeader
