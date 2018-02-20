@@ -304,7 +304,6 @@ export class Connection extends FlowControlledObject {
             this._sendPacket(packet);
         });
         this.transmissionAlarm.set(40);
-        console.log("starting");
     }
 
 

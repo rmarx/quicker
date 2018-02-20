@@ -19,9 +19,11 @@ import { logMethod } from './decorators/log.decorator';
 export class FlowControl {
 
     private blockedStreamFrames: { [key: string]: StreamFrame[] };
+    private bufferedFrames: { [key: string]: {[key: string]: StreamFrame } };
 
     public constructor() {
         this.blockedStreamFrames = {};
+        this.bufferedFrames = {};
     }
 
     public onPacketSend(connection: Connection, basePacket: BasePacket): BasePacket | undefined {
@@ -71,7 +73,6 @@ export class FlowControl {
         if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
-        var addedMaxData = false;
         var frames: BaseFrame[] = [];
         var baseEncryptedPacket = <BaseEncryptedPacket>basePacket;
         baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
@@ -86,37 +87,50 @@ export class FlowControl {
 
                 if (stream.getLocalOffset().lessThan(streamFrame.getOffset())) {
                     baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
-                    // TODO: check less than ==> buffer
+                    this.addBufferedStreamFrame(streamFrame);
                     return;
                 }
-                if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
-                    var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
-                    var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
-                    if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
-                        if (streamCheck === FlowControlState.Error || connectionCheck === FlowControlState.Error) {
-                            throw new QuicError(ConnectionErrorCodes.FLOW_CONTROL_ERROR);
-                        }
-                        if (streamCheck === FlowControlState.FinalOffsetError) {
-                            throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
-                        }
-                        if (streamCheck === FlowControlState.MaxStreamData) {
-                            var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
-                            frames.push(maxStreamDataFrame);
-                        }
-                        if (connectionCheck === FlowControlState.MaxData && !addedMaxData) {
-                            var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
-                            frames.push(maxDataFrame);
-                        }
-                    }
+                frames = this.onStreamFrameReceived(connection, stream, streamFrame, frames);
+                // Check if out of order frames arrived
+                var possibleNextFrame: StreamFrame | undefined = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
+                // if a latter frame has been received before the current one, 
+                while (possibleNextFrame !== undefined) {
+                    frames = this.onStreamFrameReceived(connection, stream, streamFrame, frames);
+                    possibleNextFrame = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
                 }
-                connection.addLocalOffset(streamFrame.getLength());
-                stream.addLocalOffset(streamFrame.getLength());
             }
         });
         if (frames.length > 0) {
             var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, frames);
             connection.sendPacket(shortHeaderPacket);
         }
+    }
+
+    private onStreamFrameReceived(connection: Connection, stream: Stream, streamFrame: StreamFrame, frames: BaseFrame[]) {
+        var addedMaxData = false;
+        if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
+            var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
+            var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
+            if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
+                if (streamCheck === FlowControlState.Error || connectionCheck === FlowControlState.Error) {
+                    throw new QuicError(ConnectionErrorCodes.FLOW_CONTROL_ERROR);
+                }
+                if (streamCheck === FlowControlState.FinalOffsetError) {
+                    throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
+                }
+                if (streamCheck === FlowControlState.MaxStreamData) {
+                    var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
+                    frames.push(maxStreamDataFrame);
+                }
+                if (connectionCheck === FlowControlState.MaxData && !addedMaxData) {
+                    var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
+                    frames.push(maxDataFrame);
+                }
+            }
+        }
+        connection.addLocalOffset(streamFrame.getLength());
+        stream.addLocalOffset(streamFrame.getLength());
+        return frames;
     }
 
     public checkRemoteStreamLimit(stream: Stream, streamFrame: StreamFrame, streamBuffer: Buffer): FlowControlState {
@@ -163,8 +177,8 @@ export class FlowControl {
         return FlowControlState.Ok;
     }
 
-    public getBlockedStreamFrames(streamId: Bignum): StreamFrame[] {
-        var key = streamId.toDecimalString();
+    public getBlockedStreamFrames(streamID: Bignum): StreamFrame[] {
+        var key = streamID.toDecimalString();
         return this.blockedStreamFrames[key];
     }
 
@@ -182,6 +196,26 @@ export class FlowControl {
             this.blockedStreamFrames[key] = [];
         }
         this.blockedStreamFrames[key].push(streamFrame);
+    }
+
+    private getBufferedStreamFrame(streamID: Bignum, localOffset: Bignum): StreamFrame | undefined {
+        var key1: string = streamID.toDecimalString();
+        var key2: string = localOffset.toDecimalString();
+        if (this.bufferedFrames[key1] !== undefined && this.bufferedFrames[key1][key2] !== undefined) {
+            return this.bufferedFrames[key1][key2];
+        }
+        return undefined;
+    }
+
+    private addBufferedStreamFrame(streamFrame: StreamFrame): void {
+        var key1: string = streamFrame.getStreamID().toDecimalString();
+        var key2: string = streamFrame.getOffset().toDecimalString();
+        if (this.bufferedFrames[key1] === undefined) {
+            this.bufferedFrames[key1] = {};
+        }
+        if (this.bufferedFrames[key1][key2] === undefined) {
+            this.bufferedFrames[key1][key2] = streamFrame;
+        }
     }
 }
 
