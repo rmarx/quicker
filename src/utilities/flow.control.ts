@@ -95,7 +95,8 @@ export class FlowControl {
                 var possibleNextFrame: StreamFrame | undefined = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
                 // if a latter frame has been received before the current one, call onStreamFrameReceived method 
                 while (possibleNextFrame !== undefined) {
-                    frames = this.onStreamFrameReceived(connection, stream, streamFrame, frames);
+                    baseEncryptedPacket.getFrames().push(possibleNextFrame);
+                    frames = this.onStreamFrameReceived(connection, stream, possibleNextFrame, frames);
                     possibleNextFrame = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
                 }
             }
