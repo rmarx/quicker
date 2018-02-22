@@ -11,7 +11,14 @@ import { Constants } from "../../utilities/constants";
 export class LongHeader extends BaseHeader {
     private version: Version;
 
-    public constructor(type: LongHeaderType, connectionID: ConnectionID, packetNumber: (PacketNumber | undefined), version: Version) {
+    /**
+     * 
+     * @param type 
+     * @param connectionID 
+     * @param packetNumber 
+     * @param version 
+     */
+    public constructor(type: number, connectionID: ConnectionID, packetNumber: (PacketNumber | undefined), version: Version) {
         super(HeaderType.LongHeader, type, connectionID, packetNumber);
         this.version = version;
     }
@@ -54,6 +61,5 @@ export enum LongHeaderType {
     Initial = 0x7F,
     Retry = 0x7E,
     Handshake = 0x7D,
-    Protected0RTT = 0x7C,
-    Default = 0x00  // when it is not one of the above
+    Protected0RTT = 0x7C
 }
