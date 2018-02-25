@@ -79,10 +79,14 @@ export class FrameParser {
     }
 
     private parsePadding(buffer: Buffer, offset: number): FrameOffset {
-        var paddingSize = buffer.byteLength - offset;
+        var startOffset = offset;
+        while (buffer.readUInt8(offset) === 0) {
+            offset++;
+        }
+        var paddingSize = offset - startOffset;
         return {
             frame: new PaddingFrame(paddingSize),
-            offset: buffer.byteLength
+            offset: offset
         };
     }
 
