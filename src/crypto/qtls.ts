@@ -30,19 +30,20 @@ export class QTLS {
         } else {
             this.handshakeState = HandshakeState.CLIENT_HELLO;
         }
-        this.createQtlsHelper();
+        this.qtlsHelper = this.createQtlsHelper();
     }
 
-    private createQtlsHelper(): void {
-        this.qtlsHelper = new QuicTLS(this.isServer, this.options);
-        this.qtlsHelper.on('handshakedone', () => {
+    private createQtlsHelper(): QuicTLS {
+        var qtlsHelper = new QuicTLS(this.isServer, this.options);
+        qtlsHelper.on('handshakedone', () => {
             this.handleHandshakeDone();
         });
+        return qtlsHelper;
     }
 
     protected setTransportParameters(buffer: Buffer, createNew: boolean = false): void {
-        if (this.qtlsHelper === undefined || createNew) {
-            this.createQtlsHelper();
+        if (createNew) {
+            this.qtlsHelper = this.createQtlsHelper();
         }
         this.qtlsHelper.setTransportParameters(buffer);
     }
@@ -96,6 +97,10 @@ export class QTLS {
 
     public getSession(): Buffer{
         return this.qtlsHelper.getSession();
+    }
+
+    public readSSL(): Buffer{
+        return this.qtlsHelper.readSSL();
     }
 
     public setSession(buffer: Buffer): void{

@@ -20,12 +20,14 @@ import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
+import { SecureContext, createSecureContext } from 'tls';
 
 
 export class Server extends EventEmitter {
     private server: Socket;
     private port: number;
     private host: string;
+    private secureContext?: SecureContext;
 
     private headerParser: HeaderParser;
     private headerHandler: HeaderHandler;
@@ -161,7 +163,12 @@ export class Server extends EventEmitter {
             port: rinfo.port,
             family: rinfo.family
         };
-        var connection = new Connection(remoteInfo, EndpointType.Server, { key: readFileSync('../keys/key.pem'), cert: readFileSync('../keys/cert.pem') });
+        var connection = new Connection(remoteInfo, EndpointType.Server,{ 
+            secureContext: this.getSecureContext(
+                readFileSync('../keys/key.pem'),
+                readFileSync('../keys/cert.pem')
+            )
+        });
         connection.setSocket(this.server);
         connection.setFirstConnectionID(connectionID);
         var newConnectionID = ConnectionID.randomConnectionID();
@@ -172,5 +179,15 @@ export class Server extends EventEmitter {
         this.connections[connection.getConnectionID().toString()] = connection;
         this.setupConnectionEvents(connection);
         return connection;
+    }
+
+    private getSecureContext(key: Buffer, cert: Buffer): SecureContext {
+        if (this.secureContext === undefined) {
+            this.secureContext = createSecureContext({
+                key: key,
+                cert: cert
+            });
+        }
+        return this.secureContext;
     }
 }

@@ -37,7 +37,7 @@ export class PacketParser {
                 return this.parseClientInitialPacket(connection, header, buffer, offset, endpoint);
                 // Initial
             case LongHeaderType.Retry:
-            // Server Stateless Retry
+                // Server Stateless Retry
             case LongHeaderType.Protected0RTT:
                 // 0-RTT Protected
                 throw new Error("Method not implemented.");

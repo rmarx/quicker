@@ -19,6 +19,7 @@ export class Stream extends FlowControlledObject {
         super.init(connection);
 		this.streamID = streamID;
 		this.streamState = StreamState.Open;
+		this.blockedSent = false;
     }
 
 	public getStreamID(): Bignum {

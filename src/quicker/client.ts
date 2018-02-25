@@ -29,6 +29,7 @@ export class Client extends EventEmitter{
         
     private port: number;
     private hostname: string;
+    private options: any;
 
     private headerParser: HeaderParser;
     private packetParser: PacketParser;
@@ -48,6 +49,7 @@ export class Client extends EventEmitter{
     public connect(hostname: string, port: number, options?: any) {
         this.hostname = hostname;
         this.port = port;
+        this.options = options;
         this.init();
 
         var packetNumber = PacketNumber.randomPacketNumber();
@@ -66,7 +68,7 @@ export class Client extends EventEmitter{
             family: 'IPv4'
         };
         
-        this.connection = new Connection(remoteInfo, EndpointType.Client);
+        this.connection = new Connection(remoteInfo, EndpointType.Client, this.options);
         this.connection.setFirstConnectionID(ConnectionID.randomConnectionID());
         this.connection.setSocket(socket);
         this.setupConnectionEvents();
@@ -76,10 +78,11 @@ export class Client extends EventEmitter{
         socket.on('close',() => {this.onClose()});
     }
 
+
     private setupConnectionEvents() {
         this.connection.on('con-close', () => {
             //process.exit(0);
-        })
+        });
     }
 
     public testSend() {
@@ -130,6 +133,8 @@ export class Client extends EventEmitter{
     }
 
     private onError(connection: Connection, error: any): any {
+        console.log(error.message);
+        console.log(error.stack);
         var closeFrame: ConnectionCloseFrame;
         var packet: BaseEncryptedPacket;
         if (error instanceof QuicError) {

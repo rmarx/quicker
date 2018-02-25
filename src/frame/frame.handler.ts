@@ -235,7 +235,7 @@ export class FrameHandler {
                 var dataBuffers: Buffer[] = [];
                 var i = 0;
                 while(i * Constants.CLIENT_INITIAL_MIN_SIZE < data.byteLength) {
-                    var size = (i+1) * Constants.CLIENT_INITIAL_MIN_SIZE < data.byteLength ? Constants.CLIENT_INITIAL_MIN_SIZE : (i+1) * Constants.CLIENT_INITIAL_MIN_SIZE - data.byteLength;
+                    var size = (i+1) * Constants.CLIENT_INITIAL_MIN_SIZE < data.byteLength ? Constants.CLIENT_INITIAL_MIN_SIZE : data.byteLength - i * Constants.CLIENT_INITIAL_MIN_SIZE;
                     var buffer = Buffer.alloc(size);
                     data.copy(buffer, 0, i * Constants.CLIENT_INITIAL_MIN_SIZE, i * Constants.CLIENT_INITIAL_MIN_SIZE + size);
                     dataBuffers.push(buffer);
@@ -250,7 +250,8 @@ export class FrameHandler {
                 });
             }
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
-
+            // To process NewSessionTicket
+            connection.getQuicTLS().readSSL();
             var streamFrame = FrameFactory.createStreamFrame(connection.getStream(Bignum.fromNumber(4)), Buffer.from("GET /\n"), true, true);
             connection.sendFrame(streamFrame);
         }

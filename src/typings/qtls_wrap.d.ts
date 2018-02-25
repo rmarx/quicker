@@ -6,6 +6,7 @@ export class QuicTLS {
     constructor(isServer: boolean, options:any);
 
     readHandshakeData(): Buffer;
+    readSSL(): Buffer;
     writeHandshakeData(buffer: Buffer): number;
     getClientInitial(): Buffer;
     setTransportParameters(buffer: Buffer): void;
