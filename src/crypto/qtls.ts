@@ -1,14 +1,16 @@
+import {HandshakeValidation} from '../utilities/validation/handshake.validation';
 import { Bignum } from '../types/bignum';
 import { Constants } from '../utilities/constants';
 import { Connection } from '../types/connection';
 import { TransportParameters, TransportParameterType } from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
+import { EventEmitter } from 'events';
 
 /**
  * QuicTLS Wrapper
  */
-export class QTLS {
+export class QTLS extends EventEmitter{
     private handshakeState: HandshakeState;
     private qtlsHelper: QuicTLS;
     private isServer: boolean;
@@ -17,7 +19,8 @@ export class QTLS {
 
     private cipher: Cipher;
 
-    public constructor(isServer: boolean, options: any) {
+    public constructor(isServer: boolean, options: any, connection: Connection) {
+        super();
         this.isServer = isServer;
         this.options = options;
         if (this.options === undefined) {
@@ -30,20 +33,24 @@ export class QTLS {
         } else {
             this.handshakeState = HandshakeState.CLIENT_HELLO;
         }
-        this.qtlsHelper = this.createQtlsHelper();
+        this.qtlsHelper = this.createQtlsHelper(connection);
     }
 
-    private createQtlsHelper(): QuicTLS {
+    private createQtlsHelper(connection: Connection): QuicTLS {
         var qtlsHelper = new QuicTLS(this.isServer, this.options);
         qtlsHelper.on('handshakedone', () => {
+            var extensionData = this.getExtensionData();
+            var transportParameters: TransportParameters = HandshakeValidation.validateExtensionData(connection, extensionData);
+            connection.setRemoteTransportParameters(transportParameters);
+            connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
             this.handleHandshakeDone();
         });
         return qtlsHelper;
     }
 
-    protected setTransportParameters(buffer: Buffer, createNew: boolean = false): void {
+    protected setTransportParameters(buffer: Buffer, connection: Connection, createNew: boolean = false): void {
         if (createNew) {
-            this.qtlsHelper = this.createQtlsHelper();
+            this.qtlsHelper = this.createQtlsHelper(connection);
         }
         this.qtlsHelper.setTransportParameters(buffer);
     }
@@ -54,7 +61,7 @@ export class QTLS {
 
     public getClientInitial(connection: Connection): Buffer {
         var transportParams = this.generateExtensionData(connection);
-        this.setTransportParameters(transportParams, true);
+        this.setTransportParameters(transportParams, connection, true);
         connection.setLocalTransportParameters(this.getTransportParameters());
         connection.setLocalMaxData(connection.getLocalTransportParameter(TransportParameterType.MAX_DATA));
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
@@ -74,7 +81,7 @@ export class QTLS {
                 this.handshakeState = HandshakeState.HANDSHAKE;
                 if (this.isServer) {
                     var transportParams = this.generateExtensionData(connection);
-                    this.setTransportParameters(transportParams);
+                    this.setTransportParameters(transportParams, connection);
                     connection.setLocalTransportParameters(this.getTransportParameters());
                     connection.setLocalMaxData(connection.getLocalTransportParameter(TransportParameterType.MAX_DATA));
                 }
@@ -168,6 +175,7 @@ export class QTLS {
     private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
+        this.emit("qtls-handshakedone");
     }
 }
 

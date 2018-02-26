@@ -1,7 +1,7 @@
 import {PacketNumber, ConnectionID, Version} from '../types/header.properties';
 import {PacketHandler} from '../packet/packet.handler';
 import {Bignum} from '../types/bignum';
-import {Stream} from '../types/stream';
+import {Stream, StreamType} from '../types/stream';
 import {Constants} from '../utilities/constants';
 import {ClientInitialPacket} from '../packet/packet/client.initial';
 import {PacketParser, PacketOffset} from '../packet/packet.parser';
@@ -23,6 +23,7 @@ import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
+import { HttpHelper } from '../http/http0.9/http.helper';
 
 
 export class Client extends EventEmitter{
@@ -35,8 +36,12 @@ export class Client extends EventEmitter{
     private packetParser: PacketParser;
     private headerHandler: HeaderHandler;
     private packetHandler: PacketHandler;
+    private http09Helper: HttpHelper;
 
     private connection: Connection;
+
+    private bufferedRequests: string[];
+    private isHandshakeCompleted: boolean;
 
     public constructor() {
         super();
@@ -44,6 +49,9 @@ export class Client extends EventEmitter{
         this.headerHandler = new HeaderHandler();
         this.packetParser = new PacketParser();
         this.packetHandler = new PacketHandler();
+        this.http09Helper = new HttpHelper();
+        this.isHandshakeCompleted = false;
+        this.bufferedRequests = [];
     }
 
     public connect(hostname: string, port: number, options?: any) {
@@ -83,10 +91,26 @@ export class Client extends EventEmitter{
         this.connection.on('con-close', () => {
             //process.exit(0);
         });
+        this.connection.on('con-handshakedone', () => {
+            this.bufferedRequests.forEach((val) => {
+                this.sendRequest(val);
+            });
+        });
     }
 
-    public testSend() {
-        // Dummy, here comes the part of requesting resources
+    public request(request: string) {
+        if (this.isHandshakeCompleted) {
+            this.sendRequest(request);
+        } else {
+            this.bufferedRequests.push(request);
+        }
+    }
+
+    private sendRequest(req: string) {
+        var stream: Stream = this.connection.getNextStream(StreamType.ClientBidi);
+        var buf = this.http09Helper.createRequest(req);
+        var streamFrame = FrameFactory.createStreamFrame(stream,buf, true, true);
+        this.connection.sendFrame(streamFrame);
     }
 
     public getPort(): number {

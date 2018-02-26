@@ -211,14 +211,6 @@ export class FrameHandler {
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
         var data = connection.getQuicTLS().readHandshake();
         if (data.byteLength > 0) {
-            if (connection.getRemoteTransportParameters() === undefined) {
-                var extensionData = connection.getQuicTLS().getExtensionData();
-                var transportParameters: TransportParameters = HandshakeValidation.validateExtensionData(connection, extensionData);
-                connection.setRemoteTransportParameters(transportParameters);
-                connection.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-            }
-
-            
             if (connection.getEndpointType() === EndpointType.Client || connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 var str = new StreamFrame(streamFrame.getStreamID(), data);
                 str.setOffset(stream.getRemoteOffset());
@@ -252,8 +244,6 @@ export class FrameHandler {
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
             // To process NewSessionTicket
             connection.getQuicTLS().readSSL();
-            var streamFrame = FrameFactory.createStreamFrame(connection.getStream(Bignum.fromNumber(4)), Buffer.from("GET /\n"), true, true);
-            connection.sendFrame(streamFrame);
         }
     }
 

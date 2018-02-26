@@ -80,7 +80,7 @@ export class FrameParser {
 
     private parsePadding(buffer: Buffer, offset: number): FrameOffset {
         var startOffset = offset;
-        while (buffer.readUInt8(offset) === 0) {
+        while (offset < buffer.byteLength && buffer.readUInt8(offset) === 0) {
             offset++;
         }
         var paddingSize = offset - startOffset;

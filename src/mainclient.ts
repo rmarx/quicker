@@ -11,4 +11,4 @@ if (isNaN(Number(process.argv[3]))) {
 
 var client = new Client();
 client.connect(process.argv[2], Number(process.argv[3]));
-client.testSend();
+client.request('/');

@@ -5,7 +5,7 @@ import { QTLS, HandshakeState } from '../crypto/qtls';
 import { ConnectionID, PacketNumber, Version } from '../types/header.properties';
 import { Bignum } from './bignum';
 import { RemoteInfo, Socket } from "dgram";
-import { Stream } from './stream';
+import { Stream, StreamType } from './stream';
 import { EndpointType } from './endpoint.type';
 import { Constants } from '../utilities/constants';
 import { TransportParameters } from '../crypto/transport.parameters';
@@ -52,7 +52,10 @@ export class Connection extends FlowControlledObject {
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
-        this.qtls = new QTLS(endpointType === EndpointType.Server, options);
+        this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
+        this.qtls.on('qtls-handshakedone', () => {
+            this.emit('con-handshakedone');
+        });
         this.aead = new AEAD();
         this.ackHandler = new AckHandler(this);
         this.flowControl = new FlowControl();
@@ -236,6 +239,16 @@ export class Connection extends FlowControlledObject {
         if (index > -1) {
             this.streams.splice(index, 1);
         }
+    }
+
+    public getNextStream(streamType: StreamType): Stream {
+        var next = new Bignum(streamType);
+        var stream = this._getStream(next);
+        while (stream != undefined) {
+            next = next.add(4);
+            stream = this._getStream(next);
+        }
+        return this.getStream(next);
     }
 
     public resetConnectionState() {

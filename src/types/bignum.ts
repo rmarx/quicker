@@ -17,6 +17,7 @@ export class Bignum {
     constructor(num: number, byteSize?: number);
     constructor(buf: Buffer, byteSize?: number, base?: number);
     public constructor(obj: any, byteSize?: any, base?: any) {
+        this.bignum = new BN(0);
         if (obj instanceof Buffer) {
             this.fromBuffer(obj, byteSize, base);
         } else if (typeof obj == 'number') {
