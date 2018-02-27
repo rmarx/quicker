@@ -12,6 +12,7 @@ import { PacketFactory } from '../packet/packet.factory';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { HandshakeState } from '../crypto/qtls';
+import { EventConstants } from './event.constants';
 
 
 export class AckHandler {
@@ -110,7 +111,7 @@ export class AckHandler {
     }
 
     private setAlarm(connection: Connection) {
-        this.alarm.on("timeout", () => {
+        this.alarm.on(EventConstants.ALARM_TIMEOUT, () => {
             var baseFrames: BaseFrame[] = [];
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
