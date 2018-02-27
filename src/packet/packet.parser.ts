@@ -1,3 +1,5 @@
+import {ConnectionErrorCodes} from '../utilities/errors/connection.codes';
+import {QuicError} from '../utilities/errors/connection.error';
 import {FrameParser} from '../frame/frame.parser';
 import {AEAD} from '../crypto/aead';
 import {Connection} from '../types/connection';
@@ -32,6 +34,11 @@ export class PacketParser {
     private parseLongHeaderPacket(connection: Connection, header: BaseHeader, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var longheader = <LongHeader>header;
         var offset = Constants.LONG_HEADER_SIZE;
+        // Version negotiation packet
+        if (longheader.getVersion().toString() === "00000000") {
+            offset = Constants.LONG_HEADER_VN_SIZE;
+            return this.parseVersionNegotiationPacket(header, buffer, offset);
+        }
         switch (header.getPacketType()) {
             case LongHeaderType.Initial:
                 return this.parseClientInitialPacket(connection, header, buffer, offset, endpoint);
@@ -44,13 +51,8 @@ export class PacketParser {
             case LongHeaderType.Handshake:
                 return this.parseHandshakePacket(connection, header, buffer, offset, endpoint);
             default:
-                // Version negotiation packet
-                if (longheader.getVersion().toString() === "00000000") {
-                    offset = Constants.LONG_HEADER_VN_SIZE;
-                    return this.parseVersionNegotiationPacket(header, buffer, offset);
-                }
                 // Unknown packet type
-                throw new Error("Unknown packet type.");
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
     }
 
