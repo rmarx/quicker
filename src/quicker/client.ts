@@ -28,8 +28,8 @@ import { HttpHelper } from '../http/http0.9/http.helper';
 
 export class Client extends EventEmitter{
         
-    private port: number;
-    private hostname: string;
+    private port!: number;
+    private hostname!: string;
     private options: any;
 
     private headerParser: HeaderParser;
@@ -38,7 +38,7 @@ export class Client extends EventEmitter{
     private packetHandler: PacketHandler;
     private http09Helper: HttpHelper;
 
-    private connection: Connection;
+    private connection!: Connection;
 
     private bufferedRequests: string[];
     private isHandshakeCompleted: boolean;

@@ -93,7 +93,7 @@ export class FlowControl {
                 frames = this.onStreamFrameReceived(connection, stream, streamFrame, frames);
                 // Check if out of order frames arrived
                 var possibleNextFrame: StreamFrame | undefined = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
-                // if a latter frame has been received before the current one, call onStreamFrameReceived method 
+                // if a frame has been received before the current one, call onStreamFrameReceived method 
                 while (possibleNextFrame !== undefined) {
                     baseEncryptedPacket.getFrames().push(possibleNextFrame);
                     frames = this.onStreamFrameReceived(connection, stream, possibleNextFrame, frames);

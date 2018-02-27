@@ -6,8 +6,8 @@ export abstract class BaseHeader {
     private headerType: HeaderType;
     private packetType: number;
     // ConnectionID can be null when connectionID is omitted by the omit_transport_connection_id parameter
-    private connectionID: ConnectionID;
-    private packetNumber: PacketNumber;
+    private connectionID!: ConnectionID;
+    private packetNumber!: PacketNumber;
 
     public constructor(headerType: HeaderType, type: number, connectionID: (ConnectionID | undefined), packetNumber: (PacketNumber | undefined)) {
         this.headerType = headerType;

@@ -23,7 +23,6 @@ import { VersionValidation } from '../utilities/validation/version.validation';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
-
 export class PacketHandler {
 
     private frameHandler: FrameHandler;

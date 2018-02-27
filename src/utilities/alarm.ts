@@ -4,7 +4,7 @@ import { clearTimeout } from "timers";
 
 export class Alarm extends EventEmitter {
 
-    private timer: NodeJS.Timer;
+    private timer!: NodeJS.Timer;
     private running: boolean;
 
     public constructor() {
@@ -18,7 +18,7 @@ export class Alarm extends EventEmitter {
         this.running = false;
     }
 
-    public set(timeInMs: number) {
+    public start(timeInMs: number) {
         this.running = true;
         this.timer = global.setTimeout(() => {
             this.onTimeout();
