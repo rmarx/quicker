@@ -24,6 +24,7 @@ import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { QuicStream } from './quic.stream';
+import { EventConstants } from '../utilities/event.constants';
 
 
 export class Client extends EventEmitter{
@@ -81,24 +82,24 @@ export class Client extends EventEmitter{
         this.connection.setSocket(socket);
         this.setupConnectionEvents();
         
-        socket.on('error',(err) => {this.onError(this.connection, err)});
-        socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        socket.on(EventConstants.ERROR,(err) => {this.onError(this.connection, err)});
+        socket.on(EventConstants.MESSAGE,(msg, rinfo) => {this.onMessage(msg, rinfo)});
     }
 
 
     private setupConnectionEvents() {
-        this.connection.on('con-draining', () => {
-            this.emit('draining');
+        this.connection.on(EventConstants.CONNECTION_DRAINING, () => {
+            this.emit(EventConstants.DRAINING);
         });
-        this.connection.on('con-close', () => {
-            this.emit('close');
+        this.connection.on(EventConstants.CONNECTION_CLOSE, () => {
+            this.emit(EventConstants.CLOSE);
         });
-        this.connection.on('con-handshakedone', () => {
+        this.connection.on(EventConstants.CONNECTION_HANDSHAKE_DONE, () => {
             this.bufferedRequests.forEach((val) => {
                 this.sendRequest(val.stream, val.request);
             });
             this.connected = true;
-            this.emit('connected');
+            this.emit(EventConstants.CONNECTED);
         });
     }
 
@@ -164,7 +165,7 @@ export class Client extends EventEmitter{
     }
 
     private onError(connection: Connection, error: any): any {
-        this.emit("error",error);
+        this.emit(EventConstants.ERROR,error);
         var closeFrame: ConnectionCloseFrame;
         var packet: BaseEncryptedPacket;
         if (error instanceof QuicError) {

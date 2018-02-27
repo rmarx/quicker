@@ -6,6 +6,7 @@ import { TransportParameters, TransportParameterType } from './transport.paramet
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
 import { EventEmitter } from 'events';
+import { EventConstants } from '../utilities/event.constants';
 
 /**
  * QuicTLS Wrapper
@@ -37,7 +38,7 @@ export class QTLS {
 
     private createQtlsHelper(connection: Connection): QuicTLS {
         var qtlsHelper = new QuicTLS(this.isServer, this.options);
-        qtlsHelper.on('handshakedone', () => {
+        qtlsHelper.on(EventConstants.NODE_QTLS_HANDSHAKE_DONE, () => {
             var extensionData = this.getExtensionData();
             var transportParameters: TransportParameters = HandshakeValidation.validateExtensionData(connection, extensionData);
             connection.setRemoteTransportParameters(transportParameters);

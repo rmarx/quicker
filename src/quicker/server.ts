@@ -22,6 +22,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { SecureContext, createSecureContext } from 'tls';
 import { QuicStream } from './quic.stream';
+import { EventConstants } from '../utilities/event.constants';
 
 
 export class Server extends EventEmitter {
@@ -66,24 +67,23 @@ export class Server extends EventEmitter {
     private init(socketType: SocketType) {
         this.server = createSocket(socketType);
         //this.server.on('error', (err) => { this.onError(err) });
-        this.server.on('message', (msg, rinfo) => { this.onMessage(msg, rinfo) });
-        this.server.on('close', () => { this.onClose() });
+        this.server.on(EventConstants.MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        this.server.on(EventConstants.CLOSE, () => { this.onClose() });
         this.server.bind(this.port, this.host);
     }
 
     private setupConnectionEvents(connection: Connection) {
-        connection.on('con-close', () => {
+        connection.on(EventConstants.CONNECTION_STREAM, (quicStream: QuicStream) => {
+            this.emit(EventConstants.STREAM, quicStream);
+        });
+        connection.on(EventConstants.CONNECTION_DRAINING, () => {
+            console.log("draining connection with id " + connection.getConnectionID());
+            this.emit(EventConstants.DRAINING);
+        });
+        connection.on(EventConstants.CONNECTION_CLOSE, () => {
             console.log("closed connection with id " + connection.getConnectionID());
             delete this.connections[connection.getConnectionID().toString()];
-            this.emit('close');
-        });
-
-        connection.on('con-draining', () => {
-            this.emit('draining');
-        });
-
-        connection.on('con-stream', (quicStream: QuicStream) => {
-            this.emit('stream', quicStream);
+            this.emit(EventConstants.CLOSE);
         });
     }
 
@@ -135,11 +135,11 @@ export class Server extends EventEmitter {
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
-        this.emit('error')
+        this.emit(EventConstants.ERROR)
     }
 
     private onClose(): any {
-        this.emit('close');
+        this.emit(EventConstants.CLOSE);
     }
 
     private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {

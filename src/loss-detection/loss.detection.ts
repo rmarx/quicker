@@ -2,6 +2,7 @@ import {BasePacket} from '../packet/base.packet';
 import {Bignum} from '../types/bignum';
 import {Alarm} from '../utilities/alarm';
 import { AckFrame } from './../frame/general/ack';
+import { EventConstants } from '../utilities/event.constants';
 
 /**
  * Not used at the moment
@@ -75,7 +76,7 @@ export class LossDetection {
     private sentPackets: SentPackets;
 
     public constructor() {
-        this.lossDetectionAlarm.on('timeout', () => {
+        this.lossDetectionAlarm.on(EventConstants.ALARM_TIMEOUT, () => {
             this.onLossDetectionAlarm();
         });
         this.lossDetectionAlarm.reset();

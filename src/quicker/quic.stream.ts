@@ -3,6 +3,7 @@ import { EventEmitter } from "events";
 import { Bignum } from "../types/bignum";
 import { Stream } from "../types/stream";
 import { FrameFactory } from '../frame/frame.factory';
+import { EventConstants } from '../utilities/event.constants';
 
 export class QuicStream extends EventEmitter{
     
@@ -20,15 +21,15 @@ export class QuicStream extends EventEmitter{
     }
 
     private setupEvents(stream: Stream): void {
-        stream.on('stream-data', (data: Buffer) => {
+        stream.on(EventConstants.INTERNAL_STREAM_DATA, (data: Buffer) => {
             if (this.encoding !== undefined) {
-                this.emit('data', data.toString(this.encoding))
+                this.emit(EventConstants.QUIC_STREAM_DATA, data.toString(this.encoding))
             } else {
-                this.emit('data', data);
+                this.emit(EventConstants.QUIC_STREAM_DATA, data);
             }
         });
-        stream.on('stream-end', () => {
-            this.emit('end');
+        stream.on(EventConstants.INTERNAL_STREAM_END, () => {
+            this.emit(EventConstants.QUIC_STREAM_END);
         });
     }
 

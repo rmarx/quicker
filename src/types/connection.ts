@@ -19,6 +19,7 @@ import { BaseFrame } from '../frame/base.frame';
 import { PacketFactory } from '../packet/packet.factory';
 import { BN } from 'bn.js';
 import { QuicStream } from '../quicker/quic.stream';
+import { EventConstants } from '../utilities/event.constants';
 
 export class Connection extends FlowControlledObject {
 
@@ -194,7 +195,7 @@ export class Connection extends FlowControlledObject {
             this.addStream(stream);
             if (streamId.compare(new Bignum(0)) !== 0) {
                 stream = this.initializeStream(stream);
-                this.emit('con-stream', new QuicStream(this, stream));
+                this.emit(EventConstants.CONNECTION_STREAM, new QuicStream(this, stream));
             }
         }
         return stream;
@@ -304,7 +305,7 @@ export class Connection extends FlowControlledObject {
     }
 
     private startTransmissionAlarm(): void {
-        this.transmissionAlarm.on('timeout', () => {
+        this.transmissionAlarm.on(EventConstants.ALARM_TIMEOUT, () => {
             var packet: BaseEncryptedPacket;
             var frames = this.bufferedFrames;
             this.bufferedFrames = [];
@@ -330,8 +331,8 @@ export class Connection extends FlowControlledObject {
     public closeRequested() {
         var alarm = new Alarm();
         alarm.start(Constants.TEMPORARY_DRAINING_TIME);
-        alarm.on('timeout', () => {
-            this.emit("con-close");
+        alarm.on(EventConstants.ALARM_TIMEOUT, () => {
+            this.emit(EventConstants.CONNECTION_CLOSE);
         });
     }
 
@@ -340,10 +341,10 @@ export class Connection extends FlowControlledObject {
     }
     public startIdleAlarm(): void {
         var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
-        this.idleTimeoutAlarm.on('timeout', () => {
+        this.idleTimeoutAlarm.on(EventConstants.ALARM_TIMEOUT, () => {
             this.state = ConnectionState.Draining;
             this.closeRequested();
-            this.emit('con-draining');
+            this.emit(EventConstants.CONNECTION_DRAINING);
         })
         this.idleTimeoutAlarm.start(time * 1000);
     }

@@ -27,6 +27,7 @@ import { Constants } from '../utilities/constants';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { PacketLogging } from '../utilities/logging/packet.logging';
+import { EventConstants } from '../utilities/event.constants';
 
 
 export class FrameHandler {
@@ -244,12 +245,12 @@ export class FrameHandler {
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
             // To process NewSessionTicket
             connection.getQuicTLS().readSSL();
-            connection.emit('con-handshakedone');
+            connection.emit(EventConstants.CONNECTION_HANDSHAKE_DONE);
         }
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-        stream.emit("stream-data",streamFrame.getData());
+        stream.emit(EventConstants.INTERNAL_STREAM_DATA,streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());
             if (stream.getStreamState() === StreamState.Open) {
@@ -257,7 +258,7 @@ export class FrameHandler {
             } else if (stream.getStreamState() === StreamState.RemoteClosed) {
                 stream.setStreamState(StreamState.Closed);
             }
-            stream.emit("stream-end");
+            stream.emit(EventConstants.INTERNAL_STREAM_END);
         }
     }
 }
