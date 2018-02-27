@@ -18,7 +18,7 @@ export class FrameFactory {
         var streamFrame = new StreamFrame(stream.getStreamID(), data);
         streamFrame.setFin(fin);
         if (len) {
-            streamFrame.setLength(Bignum.fromNumber(data.byteLength));
+            streamFrame.setLength(new Bignum(data.byteLength));
         }
         if (offset !== undefined) {
             streamFrame.setOffset(offset);

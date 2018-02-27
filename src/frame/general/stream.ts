@@ -22,8 +22,8 @@ export class StreamFrame extends BaseFrame {
         this.fin =  false;
         this.len = false;
         this.off = false;
-        this.length = Bignum.fromNumber(0);
-        this.offset = Bignum.fromNumber(0);
+        this.length = new Bignum(0);
+        this.offset = new Bignum(0);
     }
 
     public toBuffer(): Buffer {

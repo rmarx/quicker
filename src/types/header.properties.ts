@@ -76,7 +76,7 @@ export class PacketNumber extends BaseProperty {
     }
 
     public adjustNumber(packetNumber: PacketNumber, size: number) {
-        var mask = Bignum.fromNumber(1);
+        var mask = new Bignum(1);
         for (var i = 0; i < 63; i++) {
             mask = mask.shiftLeft(1);
             if (63 - i > (size * 8)) {
@@ -92,7 +92,7 @@ export class PacketNumber extends BaseProperty {
     }
 
     public getAdjustedNumber(packetNumber: PacketNumber, size: number): PacketNumber {
-        var mask = Bignum.fromNumber(1);
+        var mask = new Bignum(1);
         for (var i = 0; i < 63; i++) {
             mask = mask.shiftLeft(1);
             if (63 - i > (size * 8)) {

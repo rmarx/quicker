@@ -93,10 +93,10 @@ export class LossDetection {
         this.rttVar = 0;
         this.minRtt = 0;
         this.maxAckDelay = 0;
-        this.largestSentBeforeRto = Bignum.fromNumber(0);
+        this.largestSentBeforeRto = new Bignum(0);
         this.timeOfLastSentPacket = 0;
-        this.largestSentPacket = Bignum.fromNumber(0);
-        this.largestAckedPacket = Bignum.fromNumber(0);
+        this.largestSentPacket = new Bignum(0);
+        this.largestAckedPacket = new Bignum(0);
         this.sentPackets = {};
     }
 

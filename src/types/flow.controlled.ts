@@ -18,8 +18,8 @@ export abstract class FlowControlledObject extends EventEmitter {
     }
 
     protected init(connection: Connection) {
-		this.localOffset = Bignum.fromNumber(0);
-		this.remoteOffset = Bignum.fromNumber(0);
+		this.localOffset = new Bignum(0);
+		this.remoteOffset = new Bignum(0);
     }
 
     public getLocalOffset(): Bignum {
@@ -49,7 +49,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 			this.remoteMaxData = maxData;
 			return;
 		}
-		this.remoteMaxData = Bignum.fromNumber(maxData);
+		this.remoteMaxData = new Bignum(maxData);
 	}
 
 	public getRemoteMaxData(): Bignum {
@@ -63,7 +63,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 			this.localMaxData = maxData;
 			return;
 		}
-		this.localMaxData = Bignum.fromNumber(maxData);
+		this.localMaxData = new Bignum(maxData);
 	}
 
 	public getLocalMaxData(): Bignum {
@@ -104,8 +104,8 @@ export abstract class FlowControlledObject extends EventEmitter {
 	 * Used for version negotiation packet received
 	 */
 	protected resetOffsets(): void {
-		this.localOffset = Bignum.fromNumber(0);
-		this.remoteOffset = Bignum.fromNumber(0);
+		this.localOffset = new Bignum(0);
+		this.remoteOffset = new Bignum(0);
 	}
 
 }

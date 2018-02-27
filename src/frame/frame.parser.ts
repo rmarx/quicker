@@ -248,7 +248,7 @@ export class FrameParser {
         var firstAckBlock: Bignum = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(firstAckBlock);
         var ackBlocks: AckBlock[] = [];
-        for(var i = Bignum.fromNumber(1); i.lessThan(ackBlockCount); i = i.add(1)) {
+        for(var i = new Bignum(1); i.lessThan(ackBlockCount); i = i.add(1)) {
             var gap = VLIE.decode(buffer, offset);
             offset += VLIE.getEncodedByteLength(gap);
             var block = VLIE.decode(buffer, offset);
@@ -274,8 +274,8 @@ export class FrameParser {
         }
         var streamId = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(streamId);
-        var dataLength = Bignum.fromNumber(0);
-        var dataOffset = Bignum.fromNumber(0);
+        var dataLength = new Bignum(0);
+        var dataOffset = new Bignum(0);
         if (off) {
             dataOffset = VLIE.decode(buffer, offset);
             offset += VLIE.getEncodedByteLength(dataOffset);

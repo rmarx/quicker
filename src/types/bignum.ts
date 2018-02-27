@@ -36,7 +36,6 @@ export class Bignum {
      * @param num 
      */
     add(num: number): Bignum;
-
     public add(num: any): Bignum {
         var bn = new Bignum(0);
         if (num instanceof Bignum) {
@@ -227,14 +226,6 @@ export class Bignum {
         num = num.mod(high.bignum);
 
         return this.fromBN(num);
-    }
-
-    /**
-     * Creates a Bignum object from a number 
-     * @param num any number
-     */
-    public static fromNumber(num: number): Bignum {
-        return new Bignum(num);
     }
 
     /**

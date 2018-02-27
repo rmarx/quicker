@@ -43,9 +43,9 @@ export class PacketFactory {
     public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), undefined, connection.getVersion());
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
-        var streamFrame = new StreamFrame(Bignum.fromNumber(0), clientInitial);
-        streamFrame.setLength(Bignum.fromNumber(clientInitial.byteLength));
-        var stream = connection.getStream(Bignum.fromNumber(0));
+        var streamFrame = new StreamFrame(new Bignum(0), clientInitial);
+        streamFrame.setLength(new Bignum(clientInitial.byteLength));
+        var stream = connection.getStream(new Bignum(0));
         var size = streamFrame.toBuffer().byteLength;
         var frames: BaseFrame[] = [streamFrame];
         if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {

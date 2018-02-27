@@ -78,7 +78,7 @@ export class PacketHandler {
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
         }
         connection.resetConnectionState();
-        connection.deleteStream(Bignum.fromNumber(0));
+        connection.deleteStream(new Bignum(0));
         connection.setVersion(negotiatedVersion);
         var clientInitialPacket = PacketFactory.createClientInitialPacket(connection);
         connection.sendPacket(clientInitialPacket);

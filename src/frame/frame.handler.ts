@@ -200,7 +200,7 @@ export class FrameHandler {
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
         var stream = connection.getStream(streamFrame.getStreamID());
 
-        if (streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
+        if (streamFrame.getStreamID().equals(new Bignum(0))) {
             this.handleTlsStreamFrame(connection, stream, streamFrame);
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
             this.handleRegularStreamFrame(connection, stream, streamFrame);
@@ -214,7 +214,7 @@ export class FrameHandler {
             if (connection.getEndpointType() === EndpointType.Client || connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 var str = new StreamFrame(streamFrame.getStreamID(), data);
                 str.setOffset(stream.getRemoteOffset());
-                str.setLength(Bignum.fromNumber(data.byteLength));
+                str.setLength(new Bignum(data.byteLength));
                 if (connection.getEndpointType() === EndpointType.Client) {
                     // in this case, is the handshake of the client complete, but not for the server.
                     // If we use sendFrame, it is wrapped inside a shortHeaderPacket
@@ -236,7 +236,7 @@ export class FrameHandler {
                 dataBuffers.forEach((buf: Buffer) => {
                     var str = new StreamFrame(streamFrame.getStreamID(), buf);
                     str.setOffset(stream.getRemoteOffset());
-                    str.setLength(Bignum.fromNumber(buf.byteLength));
+                    str.setLength(new Bignum(buf.byteLength));
                     packet = PacketFactory.createHandshakePacket(connection, [str]);
                     connection.sendPacket(packet, false);
                 });

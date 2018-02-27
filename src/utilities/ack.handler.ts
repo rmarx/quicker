@@ -89,7 +89,7 @@ export class AckHandler {
         
         for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
-            if (bn.compare(Bignum.fromNumber(1)) !== 0) {
+            if (bn.compare(new Bignum(1)) !== 0) {
                 gaps.push(bn.subtract(1).toNumber());
                 ackBlockCount++;
                 blocks[ackBlockCount] = 1;
@@ -98,15 +98,15 @@ export class AckHandler {
             }
         }
 
-        var firstAckBlock = Bignum.fromNumber(blocks[0]);
+        var firstAckBlock = new Bignum(blocks[0]);
         var ackBlocks: AckBlock[] = [];
         for (var i = 1; i < blocks.length; i++) {
-            var ackBlock = new AckBlock(Bignum.fromNumber(gaps[i - 1]), Bignum.fromNumber(blocks[i]));
+            var ackBlock = new AckBlock(new Bignum(gaps[i - 1]), new Bignum(blocks[i]));
             ackBlocks.push(ackBlock);
         }
 
         var latestPacketNumber = this.largestPacketNumber;
-        return new AckFrame(latestPacketNumber, Bignum.fromNumber(ackDelay), Bignum.fromNumber(ackBlockCount), firstAckBlock, ackBlocks);
+        return new AckFrame(latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
     }
 
     private setAlarm(connection: Connection) {

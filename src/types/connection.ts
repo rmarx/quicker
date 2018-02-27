@@ -194,7 +194,7 @@ export class Connection extends FlowControlledObject {
         if (stream === undefined) {
             stream = new Stream(this, streamId);
             this.addStream(stream);
-            if (streamId.compare(Bignum.fromNumber(0)) !== 0) {
+            if (streamId.compare(new Bignum(0)) !== 0) {
                 stream = this.initializeStream(stream);
             }
         }

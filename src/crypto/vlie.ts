@@ -30,7 +30,7 @@ export class VLIE {
 
     private static encodeBignum(bignum: Bignum): Buffer {
         var count = this.getBytesNeeded(bignum);
-        var bn = Bignum.fromNumber(count);
+        var bn = new Bignum(count);
         for(var i = 0; i < (2**count - 1); i++) {
             bn = bn.shiftLeft(8);
         }
@@ -50,7 +50,7 @@ export class VLIE {
             count += 2;
             msb -= 0x80;
         }
-        var bn = Bignum.fromNumber(msb);
+        var bn = new Bignum(msb);
         for(var i = 1; i < 2**count; i++) {
             bn = bn.shiftLeft(8);
             bn = bn.add(buffer.readUInt8(offset + i));
@@ -63,7 +63,7 @@ export class VLIE {
     }
 
     private static encodeNumber(num: number): Buffer {
-        return this.encodeBignum(Bignum.fromNumber(num));
+        return this.encodeBignum(new Bignum(num));
     }
 
     private static getBytesNeeded(bignum: Bignum): number {

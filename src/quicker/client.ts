@@ -61,7 +61,7 @@ export class Client extends EventEmitter{
         var packetNumber = PacketNumber.randomPacketNumber();
         client.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        var stream = client.connection.getStream(Bignum.fromNumber(0));
+        var stream = client.connection.getStream(new Bignum(0));
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(client.connection);
         client.connection.sendPacket(clientInitial);
         return client;

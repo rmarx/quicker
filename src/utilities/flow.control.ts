@@ -37,7 +37,7 @@ export class FlowControl {
                 var streamFrame = <StreamFrame>frame;
                 var stream: Stream = connection.getStream(streamFrame.getStreamID());
                 var streamFrameBuffer = streamFrame.toBuffer();
-                if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
+                if (!streamFrame.getStreamID().equals(new Bignum(0))) {
                     var streamAvailable = this.checkRemoteStreamLimit(stream, streamFrame, streamFrameBuffer);
                     var connectionAvailable = this.checkRemoteConnectionLimit(connection, streamFrame, streamFrameBuffer);
 
@@ -109,7 +109,7 @@ export class FlowControl {
 
     private onStreamFrameReceived(connection: Connection, stream: Stream, streamFrame: StreamFrame, frames: BaseFrame[]) {
         var addedMaxData = false;
-        if (!streamFrame.getStreamID().equals(Bignum.fromNumber(0))) {
+        if (!streamFrame.getStreamID().equals(new Bignum(0))) {
             var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
             var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
             if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
