@@ -14,7 +14,7 @@ export class HttpHelper {
 
     public handleRequest(data: Buffer): Buffer {
         var request = this.parse(data);
-        return readFileSync(resolve(__dirname) + "../public/" + request);
+        return readFileSync(resolve(__dirname) + "/../public/" + request);
     }
 
     private parse(data: Buffer) {

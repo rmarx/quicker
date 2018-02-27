@@ -23,7 +23,6 @@ import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
-import { HttpHelper } from '../http/http0.9/http.helper';
 
 
 export class Client extends EventEmitter{
@@ -36,36 +35,36 @@ export class Client extends EventEmitter{
     private packetParser: PacketParser;
     private headerHandler: HeaderHandler;
     private packetHandler: PacketHandler;
-    private http09Helper: HttpHelper;
 
     private connection!: Connection;
 
-    private bufferedRequests: string[];
-    private isHandshakeCompleted: boolean;
+    private bufferedRequests: Buffer[];
+    private connected: boolean;
 
-    public constructor() {
+    private constructor() {
         super();
         this.headerParser = new HeaderParser();
         this.headerHandler = new HeaderHandler();
         this.packetParser = new PacketParser();
         this.packetHandler = new PacketHandler();
-        this.http09Helper = new HttpHelper();
-        this.isHandshakeCompleted = false;
+        this.connected = false;
         this.bufferedRequests = [];
     }
 
-    public connect(hostname: string, port: number, options?: any) {
-        this.hostname = hostname;
-        this.port = port;
-        this.options = options;
-        this.init();
+    public static connect(hostname: string, port: number, options?: any) {
+        var client = new Client();
+        client.hostname = hostname;
+        client.port = port;
+        client.options = options;
+        client.init();
 
         var packetNumber = PacketNumber.randomPacketNumber();
-        this.connection.setLocalPacketNumber(packetNumber);
+        client.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        var stream = this.connection.getStream(Bignum.fromNumber(0));
-        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(this.connection);
-        this.connection.sendPacket(clientInitial);
+        var stream = client.connection.getStream(Bignum.fromNumber(0));
+        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(client.connection);
+        client.connection.sendPacket(clientInitial);
+        return client;
     }
 
     private init(): void {
@@ -83,32 +82,36 @@ export class Client extends EventEmitter{
         
         socket.on('error',(err) => {this.onError(this.connection, err)});
         socket.on('message',(msg, rinfo) => {this.onMessage(msg, rinfo)});
-        socket.on('close',() => {this.onClose()});
     }
 
 
     private setupConnectionEvents() {
+        this.connection.on('con-draining', () => {
+            this.emit('draining');
+        });
         this.connection.on('con-close', () => {
+            this.emit('close');
             //process.exit(0);
         });
         this.connection.on('con-handshakedone', () => {
             this.bufferedRequests.forEach((val) => {
                 this.sendRequest(val);
             });
+            this.connected = true;
+            this.emit('connected');
         });
     }
 
-    public request(request: string) {
-        if (this.isHandshakeCompleted) {
+    public request(request: Buffer) {
+        if (this.connected) {
             this.sendRequest(request);
         } else {
             this.bufferedRequests.push(request);
         }
     }
 
-    private sendRequest(req: string) {
+    private sendRequest(buf: Buffer) {
         var stream: Stream = this.connection.getNextStream(StreamType.ClientBidi);
-        var buf = this.http09Helper.createRequest(req);
         var streamFrame = FrameFactory.createStreamFrame(stream,buf, true, true);
         this.connection.sendFrame(streamFrame);
     }
@@ -157,8 +160,7 @@ export class Client extends EventEmitter{
     }
 
     private onError(connection: Connection, error: any): any {
-        console.log(error.message);
-        console.log(error.stack);
+        this.emit("error",error);
         var closeFrame: ConnectionCloseFrame;
         var packet: BaseEncryptedPacket;
         if (error instanceof QuicError) {
@@ -173,11 +175,6 @@ export class Client extends EventEmitter{
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
-        this.emit("error",error);
-    }
-
-    private onClose(): any {
-        this.emit("close");
     }
 
 }

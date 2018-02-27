@@ -342,9 +342,9 @@ export class Connection extends FlowControlledObject {
     public startIdleAlarm(): void {
         var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
         this.idleTimeoutAlarm.on('timeout', () => {
-            console.log("Start draining");
             this.state = ConnectionState.Draining;
             this.closeRequested();
+            this.emit('con-draining');
         })
         this.idleTimeoutAlarm.start(time * 1000);
     }

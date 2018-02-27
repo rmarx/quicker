@@ -27,6 +27,7 @@ export class Server extends EventEmitter {
     private server!: Socket;
     private port!: number;
     private host!: string;
+    private options!: any;
     private secureContext?: SecureContext;
 
     private headerParser: HeaderParser;
@@ -37,7 +38,7 @@ export class Server extends EventEmitter {
     private connections: { [key: string]: Connection; } = {};
     private omittedConnections: { [key: string]: Connection; } = {};
 
-    public constructor() {
+    private constructor() {
         super();
         this.headerParser = new HeaderParser();
         this.headerHandler = new HeaderHandler();
@@ -45,7 +46,16 @@ export class Server extends EventEmitter {
         this.packetHandler = new PacketHandler();
     }
 
-    public listen(host: string, port: number) {
+    public static createServer(options?: any) {
+        var server = new Server();
+        server.options = options;
+        if (options.host !== undefined) {
+            server.host = options.host;
+        }
+        return server;
+    }
+
+    public listen(port: number, host: string = 'localhost') {
         this.host = host;
         this.port = port;
 
@@ -56,7 +66,6 @@ export class Server extends EventEmitter {
         this.server = createSocket(socketType);
         //this.server.on('error', (err) => { this.onError(err) });
         this.server.on('message', (msg, rinfo) => { this.onMessage(msg, rinfo) });
-        this.server.on('listening', () => { this.onListening() });
         this.server.on('close', () => { this.onClose() });
         this.server.bind(this.port, this.host);
     }
@@ -65,6 +74,11 @@ export class Server extends EventEmitter {
         connection.on('con-close', () => {
             console.log("closed connection with id " + connection.getConnectionID());
             delete this.connections[connection.getConnectionID().toString()];
+            this.emit('close');
+        });
+
+        connection.on('con-draining', () => {
+            this.emit('draining');
         });
     }
 
@@ -113,14 +127,11 @@ export class Server extends EventEmitter {
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
+        this.emit('error')
     }
 
     private onClose(): any {
-        console.log("close");
-    }
-
-    private onListening(): any {
-        console.log("listening");
+        this.emit('close');
     }
 
     private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {
@@ -163,12 +174,7 @@ export class Server extends EventEmitter {
             port: rinfo.port,
             family: rinfo.family
         };
-        var connection = new Connection(remoteInfo, EndpointType.Server,{ 
-            secureContext: this.getSecureContext(
-                readFileSync('../keys/key.pem'),
-                readFileSync('../keys/cert.pem')
-            )
-        });
+        var connection = new Connection(remoteInfo, EndpointType.Server, this.options);
         connection.setSocket(this.server);
         connection.setFirstConnectionID(connectionID);
         var newConnectionID = ConnectionID.randomConnectionID();
