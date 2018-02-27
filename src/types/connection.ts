@@ -23,28 +23,28 @@ export class Connection extends FlowControlledObject {
 
     private qtls: QTLS;
     private aead: AEAD;
-    private socket: Socket;
+    private socket!: Socket;
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
     private ackHandler: AckHandler;
     private flowControl: FlowControl;
 
-    private firstConnectionID: ConnectionID;
-    private connectionID: ConnectionID;
-    private initialPacketNumber: PacketNumber;
-    private localPacketNumber: PacketNumber;
-    private remotePacketNumber: PacketNumber;
-    private localTransportParameters: TransportParameters;
-    private remoteTransportParameters: TransportParameters;
+    private firstConnectionID!: ConnectionID;
+    private connectionID!: ConnectionID;
+    private initialPacketNumber!: PacketNumber;
+    private localPacketNumber!: PacketNumber;
+    private remotePacketNumber!: PacketNumber;
+    private localTransportParameters!: TransportParameters;
+    private remoteTransportParameters!: TransportParameters;
     private version: Version;
 
-    private state: ConnectionState;
+    private state!: ConnectionState;
     private streams: Stream[];
 
     private idleTimeoutAlarm: Alarm;
     private transmissionAlarm: Alarm;
     private bufferedFrames: BaseFrame[];
-    private closePacket: BaseEncryptedPacket;
+    private closePacket!: BaseEncryptedPacket;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         super();

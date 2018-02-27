@@ -11,8 +11,8 @@ export class Stream extends FlowControlledObject {
 	private streamID: Bignum;
 	private blockedSent: boolean;
 	private streamState: StreamState;
-	private localFinalOffset: Bignum;
-	private remoteFinalOffset: Bignum;
+	private localFinalOffset!: Bignum;
+	private remoteFinalOffset!: Bignum;
 	
     public constructor(connection: Connection, streamID: Bignum) {
 		super();

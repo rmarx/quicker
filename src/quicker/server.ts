@@ -24,9 +24,9 @@ import { SecureContext, createSecureContext } from 'tls';
 
 
 export class Server extends EventEmitter {
-    private server: Socket;
-    private port: number;
-    private host: string;
+    private server!: Socket;
+    private port!: number;
+    private host!: string;
     private secureContext?: SecureContext;
 
     private headerParser: HeaderParser;

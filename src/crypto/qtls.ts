@@ -15,9 +15,9 @@ export class QTLS extends EventEmitter{
     private qtlsHelper: QuicTLS;
     private isServer: boolean;
     private options: any;
-    private transportParameters: TransportParameters;
+    private transportParameters!: TransportParameters;
 
-    private cipher: Cipher;
+    private cipher!: Cipher;
 
     public constructor(isServer: boolean, options: any, connection: Connection) {
         super();

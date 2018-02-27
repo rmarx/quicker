@@ -16,7 +16,7 @@ import { HandshakeState } from '../crypto/qtls';
 
 export class AckHandler {
     private receivedPackets: { [key: string]: ReceivedPacket };
-    private largestPacketNumber: Bignum;
+    private largestPacketNumber!: Bignum;
     private alarm: Alarm;
     // ack wait in ms
     private static readonly ACK_WAIT = 25;

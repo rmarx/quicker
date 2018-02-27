@@ -11,8 +11,8 @@ import { logMethod } from '../utilities/decorators/log.decorator';
 
 export class AEAD {
 
-    private protected1RTTClientSecret: Buffer;
-    private protected1RTTServerSecret: Buffer;
+    private protected1RTTClientSecret!: Buffer;
+    private protected1RTTServerSecret!: Buffer;
 
     /**
      * Method to encrypt the payload (cleartext)

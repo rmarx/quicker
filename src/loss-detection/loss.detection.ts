@@ -34,9 +34,9 @@ export class LossDetection {
     ///////////////////////////
 
     // Multi-modal alarm used for loss detection.
-    private lossDetectionAlarm: Alarm;
+    private lossDetectionAlarm!: Alarm;
     // The number of times the handshake packets have been retransmitted without receiving an ack.
-    private handshakeCount: number;
+    private handshakeCount!: number;
     // The number of times a tail loss probe has been sent without receiving an ack.
     private tlpCount: number;
     // The number of times an rto has been sent without receiving an ack.
@@ -50,7 +50,7 @@ export class LossDetection {
     // The largest packet number acknowledged in an ACK frame.
     private largestAckedPacket: Bignum;
     // The most recent RTT measurement made when receiving an ack for a previously unacked packet.
-    private latestRtt: number;
+    private latestRtt!: number;
     // The smoothed RTT of the connection, computed as described in [RFC6298]
     private smoothedRtt: number;
     // The RTT variance, computed as described in [RFC6298]

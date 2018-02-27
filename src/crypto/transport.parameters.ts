@@ -11,13 +11,13 @@ export class TransportParameters {
 
     private maxStreamData: number;
     private maxData: number;
-    private maxStreamIdBidi: number
-    private maxStreamIdUni: number;
+    private maxStreamIdBidi!: number
+    private maxStreamIdUni!: number;
     private idleTimeout: number;
-    private omitConnectionId: boolean;
-    private maxPacketSize: number;
-    private statelessResetToken: Buffer;
-    private ackDelayExponent: number;
+    private omitConnectionId!: boolean;
+    private maxPacketSize!: number;
+    private statelessResetToken!: Buffer;
+    private ackDelayExponent!: number;
 
     public constructor(isServer: boolean, maxStreamData: number, maxData: number, idleTimeout: number) {
         this.isServer = isServer;

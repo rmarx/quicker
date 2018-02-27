@@ -7,10 +7,10 @@ import { logMethod } from './../utilities/decorators/log.decorator';
 
 export abstract class FlowControlledObject extends EventEmitter {
 
-	private localOffset: Bignum;
-	private remoteOffset: Bignum;
-	private localMaxData: Bignum;
-    private remoteMaxData: Bignum;
+	private localOffset!: Bignum;
+	private remoteOffset!: Bignum;
+	private localMaxData!: Bignum;
+    private remoteMaxData!: Bignum;
 
     public constructor() {
 		super();
