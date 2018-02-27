@@ -123,7 +123,7 @@ export class AckHandler {
                 connection.sendPacket(packet, false);
             }
         });
-        this.alarm.set(AckHandler.ACK_WAIT);
+        this.alarm.start(AckHandler.ACK_WAIT);
     }
 }
 

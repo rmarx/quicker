@@ -316,7 +316,7 @@ export class Connection extends FlowControlledObject {
             }
             this._sendPacket(packet);
         });
-        this.transmissionAlarm.set(40);
+        this.transmissionAlarm.start(40);
     }
 
 
@@ -330,7 +330,7 @@ export class Connection extends FlowControlledObject {
 
     public closeRequested() {
         var alarm = new Alarm();
-        alarm.set(Constants.TEMPORARY_DRAINING_TIME);
+        alarm.start(Constants.TEMPORARY_DRAINING_TIME);
         alarm.on('timeout', () => {
             this.emit("con-close");
         });
@@ -346,7 +346,7 @@ export class Connection extends FlowControlledObject {
             this.state = ConnectionState.Draining;
             this.closeRequested();
         })
-        this.idleTimeoutAlarm.set(time * 1000);
+        this.idleTimeoutAlarm.start(time * 1000);
     }
 }
 
