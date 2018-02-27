@@ -18,6 +18,7 @@ import { FlowControl } from '../utilities/flow.control';
 import { BaseFrame } from '../frame/base.frame';
 import { PacketFactory } from '../packet/packet.factory';
 import { BN } from 'bn.js';
+import { QuicStream } from '../quicker/quic.stream';
 
 export class Connection extends FlowControlledObject {
 
@@ -53,9 +54,6 @@ export class Connection extends FlowControlledObject {
         this.endpointType = endpointType;
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
-        this.qtls.on('qtls-handshakedone', () => {
-            this.emit('con-handshakedone');
-        });
         this.aead = new AEAD();
         this.ackHandler = new AckHandler(this);
         this.flowControl = new FlowControl();
@@ -196,6 +194,7 @@ export class Connection extends FlowControlledObject {
             this.addStream(stream);
             if (streamId.compare(new Bignum(0)) !== 0) {
                 stream = this.initializeStream(stream);
+                this.emit('con-stream', new QuicStream(this, stream));
             }
         }
         return stream;

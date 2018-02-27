@@ -244,11 +244,12 @@ export class FrameHandler {
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
             // To process NewSessionTicket
             connection.getQuicTLS().readSSL();
+            connection.emit('con-handshakedone');
         }
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-        stream.emit("data",streamFrame.getData());
+        stream.emit("stream-data",streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());
             if (stream.getStreamState() === StreamState.Open) {
@@ -256,7 +257,7 @@ export class FrameHandler {
             } else if (stream.getStreamState() === StreamState.RemoteClosed) {
                 stream.setStreamState(StreamState.Closed);
             }
-            stream.emit("end");
+            stream.emit("stream-end");
         }
     }
 }

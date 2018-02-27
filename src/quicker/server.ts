@@ -21,6 +21,7 @@ import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { SecureContext, createSecureContext } from 'tls';
+import { QuicStream } from './quic.stream';
 
 
 export class Server extends EventEmitter {
@@ -79,6 +80,10 @@ export class Server extends EventEmitter {
 
         connection.on('con-draining', () => {
             this.emit('draining');
+        });
+
+        connection.on('con-stream', (quicStream: QuicStream) => {
+            this.emit('stream', quicStream);
         });
     }
 

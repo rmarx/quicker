@@ -10,7 +10,7 @@ import { EventEmitter } from 'events';
 /**
  * QuicTLS Wrapper
  */
-export class QTLS extends EventEmitter{
+export class QTLS {
     private handshakeState: HandshakeState;
     private qtlsHelper: QuicTLS;
     private isServer: boolean;
@@ -20,7 +20,6 @@ export class QTLS extends EventEmitter{
     private cipher!: Cipher;
 
     public constructor(isServer: boolean, options: any, connection: Connection) {
-        super();
         this.isServer = isServer;
         this.options = options;
         if (this.options === undefined) {
@@ -175,7 +174,6 @@ export class QTLS extends EventEmitter{
     private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
-        this.emit("qtls-handshakedone");
     }
 }
 

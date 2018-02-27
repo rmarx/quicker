@@ -9,12 +9,15 @@ export class HttpHelper {
             requestString += '/';
         }
         requestString += req;
+        if (!req.endsWith('\n')) {
+            requestString += "\n";
+        }
         return Buffer.from(requestString);
     }
 
     public handleRequest(data: Buffer): Buffer {
         var request = this.parse(data);
-        return readFileSync(resolve(__dirname) + "/../public/" + request);
+        return readFileSync(resolve(__dirname) + "/../../../public" + request);
     }
 
     private parse(data: Buffer) {
@@ -22,6 +25,7 @@ export class HttpHelper {
         if (request.endsWith('/')) {
             request += "index.html";
         }
-        return request.toLowerCase().replace('GET ','');
+        request = request.replace('\n','');
+        return request.toLowerCase().replace('get ','');
     }
 }

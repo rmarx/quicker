@@ -23,6 +23,7 @@ import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
+import { QuicStream } from './quic.stream';
 
 
 export class Client extends EventEmitter{
@@ -38,7 +39,7 @@ export class Client extends EventEmitter{
 
     private connection!: Connection;
 
-    private bufferedRequests: Buffer[];
+    private bufferedRequests: BufferedRequest[];
     private connected: boolean;
 
     private constructor() {
@@ -91,27 +92,30 @@ export class Client extends EventEmitter{
         });
         this.connection.on('con-close', () => {
             this.emit('close');
-            //process.exit(0);
         });
         this.connection.on('con-handshakedone', () => {
             this.bufferedRequests.forEach((val) => {
-                this.sendRequest(val);
+                this.sendRequest(val.stream, val.request);
             });
             this.connected = true;
             this.emit('connected');
         });
     }
 
-    public request(request: Buffer) {
+    public request(request: Buffer): QuicStream {
+        var stream: Stream = this.connection.getNextStream(StreamType.ClientBidi);
         if (this.connected) {
-            this.sendRequest(request);
+            this.sendRequest(stream, request);
         } else {
-            this.bufferedRequests.push(request);
+            this.bufferedRequests.push({
+                request: request, 
+                stream: stream
+            });
         }
+        return new QuicStream(this.connection, stream);
     }
 
-    private sendRequest(buf: Buffer) {
-        var stream: Stream = this.connection.getNextStream(StreamType.ClientBidi);
+    private sendRequest(stream: Stream, buf: Buffer) {
         var streamFrame = FrameFactory.createStreamFrame(stream,buf, true, true);
         this.connection.sendFrame(streamFrame);
     }
@@ -177,4 +181,11 @@ export class Client extends EventEmitter{
         connection.setState(ConnectionState.Closing);
     }
 
+}
+
+
+
+interface BufferedRequest {
+    request: Buffer, 
+    stream: Stream
 }
