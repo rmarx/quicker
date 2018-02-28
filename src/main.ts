@@ -2,6 +2,7 @@ import { Server } from "./quicker/server";
 import { readFileSync } from "fs";
 import { QuicStream } from "./quicker/quic.stream";
 import { HttpHelper } from "./http/http0.9/http.helper";
+import { EventConstants } from "./utilities/event.constants";
 
 let host = process.argv[2] || "127.0.0.1";
 let port = process.argv[3] || 4433;
@@ -22,23 +23,23 @@ var server = Server.createServer({
 });
 server.listen(Number(port), host);
 
-server.on('stream', (quicStream: QuicStream) => {
+server.on(EventConstants.STREAM, (quicStream: QuicStream) => {
     var bufferedData: Buffer = Buffer.alloc(0);
 
-    quicStream.on('data', (data: Buffer) => {
+    quicStream.on(EventConstants.QUIC_STREAM_DATA, (data: Buffer) => {
         bufferedData = Buffer.concat([bufferedData, data]);
     });
 
-    quicStream.on('end', () => {
+    quicStream.on(EventConstants.QUIC_STREAM_END, () => {
         var output = httpHelper.handleRequest(bufferedData);
         quicStream.end(output);
     });
 });
 
-server.on('draining', (connectionId: string) => {
+server.on(EventConstants.DRAINING, (connectionId: string) => {
     console.log("connection with connectionID " + connectionId + " is draining");
 });
 
-server.on('closed', (connectionId: string) => {
+server.on(EventConstants.CLOSE, (connectionId: string) => {
     console.log("connection with connectionID " + connectionId + " is closed");
 });
