@@ -3,21 +3,24 @@ import { readFileSync } from "fs";
 import { QuicStream } from "./quicker/quic.stream";
 import { HttpHelper } from "./http/http0.9/http.helper";
 
-if (process.argv.length < 6) {
-    console.log("not enough arguments specified: node ./main.js 127.0.0.1 4433 ca.key ca.cert");
-    process.exit(-1);
-}
-if (isNaN(Number(process.argv[3]))) {
+let host = process.argv[2] || "127.0.0.1";
+let port = process.argv[3] || 4433;
+let key  = process.argv[4] || "../keys/selfsigned_default.key";
+let cert = process.argv[5] || "../keys/selfsigned_default.crt";
+
+if (isNaN(Number(port))) {
     console.log("port must be a number: node ./main.js 127.0.0.1 4433 ca.key ca.cert");
     process.exit(-1);
 }
 
+console.log("Running QUICker server at " + host + ":" + port + ", with certs: " + key + ", " + cert);
+
 var httpHelper = new HttpHelper();
 var server = Server.createServer({
-    key: readFileSync(process.argv[4]),
-    cert: readFileSync(process.argv[5])
+    key: readFileSync(key),
+    cert: readFileSync(cert)
 });
-server.listen(Number(process.argv[3]), process.argv[2]);
+server.listen(Number(port), host);
 
 server.on('stream', (quicStream: QuicStream) => {
     var bufferedData: Buffer = Buffer.alloc(0);
