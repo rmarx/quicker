@@ -12,7 +12,7 @@ import {BasePacket} from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
 import {EndpointType} from '../types/endpoint.type';
-import {ConnectionState, Connection,  RemoteInformation} from '../types/connection';
+import {ConnectionState, Connection,  RemoteInformation, ConnectionEvent} from '../types/connection';
 import { HeaderOffset, HeaderParser } from './../packet/header/header.parser';
 import { HeaderHandler } from './../packet/header/header.handler';
 import { Time, TimeFormat } from '../utilities/time';
@@ -24,7 +24,7 @@ import { ConnectionCloseFrame } from '../frame/general/close';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { QuicStream } from './quic.stream';
-import { EventConstants } from '../utilities/event.constants';
+import { QuickerEvent } from './quicker.event';
 
 
 export class Client extends EventEmitter{
@@ -82,24 +82,24 @@ export class Client extends EventEmitter{
         this.connection.setSocket(socket);
         this.setupConnectionEvents();
         
-        socket.on(EventConstants.ERROR,(err) => {this.onError(this.connection, err)});
-        socket.on(EventConstants.MESSAGE,(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        socket.on(QuickerEvent.ERROR,(err) => {this.onError(this.connection, err)});
+        socket.on(QuickerEvent.MESSAGE,(msg, rinfo) => {this.onMessage(msg, rinfo)});
     }
 
 
     private setupConnectionEvents() {
-        this.connection.on(EventConstants.CONNECTION_DRAINING, () => {
-            this.emit(EventConstants.DRAINING);
+        this.connection.on(ConnectionEvent.DRAINING, () => {
+            this.emit(QuickerEvent.DRAINING);
         });
-        this.connection.on(EventConstants.CONNECTION_CLOSE, () => {
-            this.emit(EventConstants.CLOSE);
+        this.connection.on(ConnectionEvent.CLOSE, () => {
+            this.emit(QuickerEvent.CLOSE);
         });
-        this.connection.on(EventConstants.CONNECTION_HANDSHAKE_DONE, () => {
+        this.connection.on(ConnectionEvent.HANDSHAKE_DONE, () => {
             this.bufferedRequests.forEach((val) => {
                 this.sendRequest(val.stream, val.request);
             });
             this.connected = true;
-            this.emit(EventConstants.CONNECTED);
+            this.emit(QuickerEvent.CONNECTED);
         });
     }
 
@@ -165,7 +165,7 @@ export class Client extends EventEmitter{
     }
 
     private onError(connection: Connection, error: any): any {
-        this.emit(EventConstants.ERROR,error);
+        this.emit(QuickerEvent.ERROR,error);
         var closeFrame: ConnectionCloseFrame;
         var packet: BaseEncryptedPacket;
         if (error instanceof QuicError) {

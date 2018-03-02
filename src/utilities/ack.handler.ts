@@ -7,12 +7,11 @@ import { BasePacket, PacketType } from '../packet/base.packet';
 import { AckFrame, AckBlock } from '../frame/general/ack';
 import { TimeFormat, Time } from './time';
 import { TransportParameterType } from '../crypto/transport.parameters';
-import { Alarm } from './alarm';
+import { Alarm, AlarmEvent } from './alarm';
 import { PacketFactory } from '../packet/packet.factory';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { HandshakeState } from '../crypto/qtls';
-import { EventConstants } from './event.constants';
 
 
 export class AckHandler {
@@ -111,7 +110,7 @@ export class AckHandler {
     }
 
     private setAlarm(connection: Connection) {
-        this.alarm.on(EventConstants.ALARM_TIMEOUT, () => {
+        this.alarm.on(AlarmEvent.TIMEOUT, () => {
             var baseFrames: BaseFrame[] = [];
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {

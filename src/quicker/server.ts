@@ -3,7 +3,7 @@ import { TimeFormat, Time } from '../utilities/time';
 import { HeaderParser, HeaderOffset } from '../packet/header/header.parser';
 import { PacketParser, PacketOffset } from '../packet/packet.parser';
 import { PacketHandler } from '../packet/packet.handler';
-import { Connection, ConnectionState } from './../types/connection';
+import { Connection, ConnectionState, ConnectionEvent } from './../types/connection';
 import { EndpointType } from './../types/endpoint.type';
 import { BaseHeader, HeaderType } from '../packet/header/base.header';
 import { ConnectionID, PacketNumber } from "./../types/header.properties";
@@ -22,7 +22,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { SecureContext, createSecureContext } from 'tls';
 import { QuicStream } from './quic.stream';
-import { EventConstants } from '../utilities/event.constants';
+import { QuickerEvent } from './quicker.event';
 
 
 export class Server extends EventEmitter {
@@ -66,23 +66,23 @@ export class Server extends EventEmitter {
 
     private init(socketType: SocketType) {
         this.server = createSocket(socketType);
-        this.server.on(EventConstants.MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
-        this.server.on(EventConstants.CLOSE, () => { this.onClose() });
+        this.server.on(QuickerEvent.MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        this.server.on(QuickerEvent.CLOSE, () => { this.onClose() });
         this.server.bind(this.port, this.host);
     }
 
     private setupConnectionEvents(connection: Connection) {
-        connection.on(EventConstants.CONNECTION_STREAM, (quicStream: QuicStream) => {
-            this.emit(EventConstants.STREAM, quicStream);
+        connection.on(ConnectionEvent.STREAM, (quicStream: QuicStream) => {
+            this.emit(QuickerEvent.STREAM, quicStream);
         });
-        connection.on(EventConstants.CONNECTION_DRAINING, () => {
+        connection.on(ConnectionEvent.DRAINING, () => {
             console.log("draining connection with id " + connection.getConnectionID());
-            this.emit(EventConstants.DRAINING);
+            this.emit(QuickerEvent.DRAINING);
         });
-        connection.on(EventConstants.CONNECTION_CLOSE, () => {
+        connection.on(ConnectionEvent.CLOSE, () => {
             console.log("closed connection with id " + connection.getConnectionID());
             delete this.connections[connection.getConnectionID().toString()];
-            this.emit(EventConstants.CLOSE);
+            this.emit(QuickerEvent.CLOSE);
         });
     }
 
@@ -134,11 +134,11 @@ export class Server extends EventEmitter {
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
-        this.emit(EventConstants.ERROR)
+        this.emit(QuickerEvent.ERROR)
     }
 
     private onClose(): any {
-        this.emit(EventConstants.CLOSE);
+        this.emit(QuickerEvent.CLOSE);
     }
 
     private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {

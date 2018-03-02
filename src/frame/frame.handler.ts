@@ -1,7 +1,7 @@
 import {logMethod} from '../utilities/decorators/log.decorator';
-import {Stream, StreamState} from '../types/stream';
+import {Stream, StreamState, StreamEvent} from '../types/stream';
 import {HandshakeValidation} from '../utilities/validation/handshake.validation';
-import {Connection, ConnectionState} from '../types/connection';
+import {Connection, ConnectionState, ConnectionEvent} from '../types/connection';
 import {BaseFrame, FrameType} from './base.frame';
 import {RstStreamFrame} from './general/rst.stream';
 import {ConnectionCloseFrame, ApplicationCloseFrame} from './general/close';
@@ -27,7 +27,6 @@ import { Constants } from '../utilities/constants';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { PacketLogging } from '../utilities/logging/packet.logging';
-import { EventConstants } from '../utilities/event.constants';
 
 
 export class FrameHandler {
@@ -247,12 +246,12 @@ export class FrameHandler {
         } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED && connection.getEndpointType() === EndpointType.Client) {
             // To process NewSessionTicket
             connection.getQuicTLS().readSSL();
-            connection.emit(EventConstants.CONNECTION_HANDSHAKE_DONE);
+            connection.emit(ConnectionEvent.HANDSHAKE_DONE);
         }
     }
 
     private handleRegularStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
-        stream.emit(EventConstants.INTERNAL_STREAM_DATA,streamFrame.getData());
+        stream.emit(StreamEvent.DATA,streamFrame.getData());
         if (streamFrame.getFin()) {
             stream.setLocalFinalOffset(stream.getLocalOffset());
             if (stream.getStreamState() === StreamState.Open) {
@@ -260,7 +259,7 @@ export class FrameHandler {
             } else if (stream.getStreamState() === StreamState.RemoteClosed) {
                 stream.setStreamState(StreamState.Closed);
             }
-            stream.emit(EventConstants.INTERNAL_STREAM_END);
+            stream.emit(StreamEvent.END);
         }
     }
 }

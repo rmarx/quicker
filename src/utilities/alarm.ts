@@ -1,6 +1,5 @@
 import { EventEmitter } from "events";
 import { clearTimeout } from "timers";
-import { EventConstants } from "./event.constants";
 
 
 export class Alarm extends EventEmitter {
@@ -28,10 +27,14 @@ export class Alarm extends EventEmitter {
 
     private onTimeout() {
         this.running = false;
-        this.emit(EventConstants.ALARM_TIMEOUT);
+        this.emit(AlarmEvent.TIMEOUT);
     }
 
     public isRunning(): boolean {
         return this.running;
     }
+}
+
+export enum AlarmEvent {
+    TIMEOUT = "alarm-timeout"
 }

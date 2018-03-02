@@ -1,4 +1,4 @@
-import { Alarm } from '../utilities/alarm';
+import { Alarm, AlarmEvent } from '../utilities/alarm';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { AEAD } from '../crypto/aead';
 import { QTLS, HandshakeState } from '../crypto/qtls';
@@ -19,7 +19,6 @@ import { BaseFrame } from '../frame/base.frame';
 import { PacketFactory } from '../packet/packet.factory';
 import { BN } from 'bn.js';
 import { QuicStream } from '../quicker/quic.stream';
-import { EventConstants } from '../utilities/event.constants';
 
 export class Connection extends FlowControlledObject {
 
@@ -195,7 +194,7 @@ export class Connection extends FlowControlledObject {
             this.addStream(stream);
             if (streamId.compare(new Bignum(0)) !== 0) {
                 stream = this.initializeStream(stream);
-                this.emit(EventConstants.CONNECTION_STREAM, new QuicStream(this, stream));
+                this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
             }
         }
         return stream;
@@ -305,7 +304,7 @@ export class Connection extends FlowControlledObject {
     }
 
     private startTransmissionAlarm(): void {
-        this.transmissionAlarm.on(EventConstants.ALARM_TIMEOUT, () => {
+        this.transmissionAlarm.on(AlarmEvent.TIMEOUT, () => {
             var packet: BaseEncryptedPacket;
             var frames = this.bufferedFrames;
             this.bufferedFrames = [];
@@ -331,8 +330,8 @@ export class Connection extends FlowControlledObject {
     public closeRequested() {
         var alarm = new Alarm();
         alarm.start(Constants.TEMPORARY_DRAINING_TIME);
-        alarm.on(EventConstants.ALARM_TIMEOUT, () => {
-            this.emit(EventConstants.CONNECTION_CLOSE);
+        alarm.on(AlarmEvent.TIMEOUT, () => {
+            this.emit(ConnectionEvent.CLOSE);
         });
     }
 
@@ -341,10 +340,10 @@ export class Connection extends FlowControlledObject {
     }
     public startIdleAlarm(): void {
         var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
-        this.idleTimeoutAlarm.on(EventConstants.ALARM_TIMEOUT, () => {
+        this.idleTimeoutAlarm.on(AlarmEvent.TIMEOUT, () => {
             this.state = ConnectionState.Draining;
             this.closeRequested();
-            this.emit(EventConstants.CONNECTION_DRAINING);
+            this.emit(ConnectionEvent.DRAINING);
         })
         this.idleTimeoutAlarm.start(time * 1000);
     }
@@ -362,4 +361,11 @@ export enum ConnectionState {
     Closing,
     Draining,
     Closed
+}
+
+export enum ConnectionEvent {
+    HANDSHAKE_DONE = "con-handshake-done",
+    STREAM = "con-stream",
+    DRAINING = "con-draining",
+    CLOSE = "con-close"
 }

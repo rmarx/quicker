@@ -1,7 +1,7 @@
 import { Client } from "./quicker/client";
 import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuicStream } from "./quicker/quic.stream";
-import { EventConstants } from "./utilities/event.constants";
+import { QuickerEvent } from "./quicker/quicker.event";
 
 
 
@@ -17,25 +17,25 @@ console.log("QUICker client connecting to " + host + ":" + port);
 
 var httpHelper = new HttpHelper();
 var client = Client.connect(host, Number(port));
-client.on(EventConstants.CONNECTED, () => {
+client.on(QuickerEvent.CONNECTED, () => {
     var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
     var bufferedData = Buffer.alloc(0);
 
-    quicStream.on(EventConstants.QUIC_STREAM_DATA, (data: Buffer) => {
+    quicStream.on(QuickerEvent.DATA, (data: Buffer) => {
         bufferedData = Buffer.concat([bufferedData, data]);
     });
 
-    quicStream.on(EventConstants.QUIC_STREAM_END, () => {
+    quicStream.on(QuickerEvent.END, () => {
         console.log(bufferedData.toString('utf8'));
     });
 });
 
-client.on(EventConstants.ERROR, (error: Error) => {
+client.on(QuickerEvent.ERROR, (error: Error) => {
     console.log("error");
     console.log(error.message);
     console.log(error.stack);
 });
 
-client.on(EventConstants.CLOSE, () => {
+client.on(QuickerEvent.CLOSE, () => {
     process.exit(0);
 });

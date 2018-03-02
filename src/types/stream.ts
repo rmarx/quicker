@@ -80,3 +80,8 @@ export enum StreamType {
 	ClientUni = 0x02,
 	ServerUni = 0x03
 }
+
+export enum StreamEvent {
+	DATA = "stream-data",
+	END = "stream-end"
+}
