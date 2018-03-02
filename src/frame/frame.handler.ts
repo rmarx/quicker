@@ -154,15 +154,17 @@ export class FrameHandler {
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
-        var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
-        connection.setLocalMaxData(maxDataFrame.getMaxData());
+        var newMaxData = connection.getLocalMaxData().multiply(2);
+        connection.setLocalMaxData(newMaxData);
+        var maxDataFrame = FrameFactory.createMaxDataFrame(newMaxData);
         connection.sendFrame(maxDataFrame);
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
         var stream = connection.getStream(streamBlocked.getStreamId());
-        var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
-        stream.setLocalMaxData(maxStreamDataFrame.getMaxData());
+        var newMaxStreamData = stream.getLocalMaxData().multiply(2);
+        stream.setLocalMaxData(newMaxStreamData);
+        var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream, newMaxStreamData);
         connection.sendFrame(maxStreamDataFrame);
     }
 

@@ -42,7 +42,9 @@ export class FlowControl {
                     var connectionAvailable = this.checkRemoteConnectionLimit(connection, streamFrame, streamFrameBuffer);
 
                     if (streamAvailable !== FlowControlState.Ok || connectionAvailable !== FlowControlState.Ok) {
-                        if (streamAvailable !== FlowControlState.Ok) {
+                        if (streamAvailable !== FlowControlState.Ok && !stream.getBlockedSent()) {
+                            // set blockedSent to true so that we don't sent mutuple streamblocked frames
+                            stream.setBlockedSent(true);
                             var streamBlockedFrame = FrameFactory.createStreamBlockedFrame(stream);
                             // returns undefined when streamblockedframe is already sent for this stream
                             if (streamBlockedFrame !== undefined) {
@@ -120,11 +122,15 @@ export class FlowControl {
                     throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
                 }
                 if (streamCheck === FlowControlState.MaxStreamData) {
-                    var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream);
+                    var newMaxStreamData = stream.getLocalMaxData().multiply(2);
+                    stream.setLocalMaxData(newMaxStreamData);
+                    var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream, newMaxStreamData);
                     frames.push(maxStreamDataFrame);
                 }
                 if (connectionCheck === FlowControlState.MaxData && !addedMaxData) {
-                    var maxDataFrame = FrameFactory.createMaxDataFrame(connection);
+                    var newMaxData = connection.getLocalMaxData().multiply(2);
+                    connection.setLocalMaxData(newMaxData);
+                    var maxDataFrame = FrameFactory.createMaxDataFrame(newMaxData);
                     frames.push(maxDataFrame);
                 }
             }

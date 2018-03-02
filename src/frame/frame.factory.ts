@@ -14,7 +14,7 @@ import { ConnectionCloseFrame, ApplicationCloseFrame } from './general/close';
 
 export class FrameFactory {
 
-    public static createStreamFrame(stream: Stream, data: Buffer, fin: boolean, len: boolean, offset?: Bignum) {
+    public static createStreamFrame(stream: Stream, data: Buffer, fin: boolean, len: boolean, offset?: Bignum): StreamFrame {
         var streamFrame = new StreamFrame(stream.getStreamID(), data);
         streamFrame.setFin(fin);
         if (len) {
@@ -26,31 +26,23 @@ export class FrameFactory {
         return streamFrame;
     }
 
-    public static createPaddingFrame(paddingSize: number) {
+    public static createPaddingFrame(paddingSize: number): PaddingFrame {
         return new PaddingFrame(paddingSize);
     }
 
-    public static createStreamBlockedFrame(stream: Stream): StreamBlockedFrame | undefined {
-        if (!stream.getBlockedSent()) {
-            stream.setBlockedSent(true);
-            return new StreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset());
-        }
-        return undefined;
+    public static createStreamBlockedFrame(stream: Stream): StreamBlockedFrame {
+        return new StreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset());
     }
 
     public static createBlockedFrame(connection: Connection): BlockedFrame {
         return new BlockedFrame(connection.getRemoteOffset());
     }
 
-    public static createMaxStreamDataFrame(stream: Stream): MaxStreamFrame {
-        var newMaxStreamData = stream.getLocalMaxData().multiply(2);
-        stream.setLocalMaxData(newMaxStreamData);
+    public static createMaxStreamDataFrame(stream: Stream, newMaxStreamData: Bignum): MaxStreamFrame {
         return new MaxStreamFrame(stream.getStreamID(), newMaxStreamData);
     }
 
-    public static createMaxDataFrame(connection: Connection): MaxDataFrame {
-        var newMaxData = connection.getLocalMaxData().multiply(2);
-        connection.setLocalMaxData(newMaxData);
+    public static createMaxDataFrame(newMaxData: Bignum): MaxDataFrame {
         return new MaxDataFrame(newMaxData);
     }
 
