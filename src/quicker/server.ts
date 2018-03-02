@@ -66,7 +66,6 @@ export class Server extends EventEmitter {
 
     private init(socketType: SocketType) {
         this.server = createSocket(socketType);
-        //this.server.on('error', (err) => { this.onError(err) });
         this.server.on(EventConstants.MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
         this.server.on(EventConstants.CLOSE, () => { this.onClose() });
         this.server.bind(this.port, this.host);
