@@ -77,12 +77,12 @@ export class Server extends EventEmitter {
         });
         connection.on(ConnectionEvent.DRAINING, () => {
             console.log("draining connection with id " + connection.getConnectionID());
-            this.emit(QuickerEvent.DRAINING);
+            this.emit(QuickerEvent.DRAINING, connection.getConnectionID().toString());
         });
         connection.on(ConnectionEvent.CLOSE, () => {
-            console.log("closed connection with id " + connection.getConnectionID());
+            console.log("closed connection with id " + connection.getConnectionID().toString());
             delete this.connections[connection.getConnectionID().toString()];
-            this.emit(QuickerEvent.CLOSE);
+            this.emit(QuickerEvent.CLOSE, connection.getConnectionID().toString());
         });
     }
 
@@ -93,6 +93,7 @@ export class Server extends EventEmitter {
         if (connection.getState() === ConnectionState.Closing) {
             var closePacket = connection.getClosePacket();
             connection.sendPacket(closePacket);
+            return;
         }
         if (connection.getState() === ConnectionState.Draining) {
             return;
