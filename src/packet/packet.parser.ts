@@ -14,6 +14,7 @@ import {VersionNegotiationPacket} from './packet/version.negotiation';
 import {HandshakePacket} from './packet/handshake';
 import {BasePacket} from './base.packet';
 import { ShortHeaderPacket } from './packet/short.header.packet';
+import { Protected0RTTPacket } from './packet/protected.0rtt';
 
 
 export class PacketParser {
@@ -43,10 +44,11 @@ export class PacketParser {
             case LongHeaderType.Initial:
                 return this.parseClientInitialPacket(connection, header, buffer, offset, endpoint);
                 // Initial
+            case LongHeaderType.Protected0RTT:
+                return this.parseProtected0RTTPacket(connection, header, buffer, offset, endpoint);
+                // 0-RTT Protected
             case LongHeaderType.Retry:
                 // Server Stateless Retry
-            case LongHeaderType.Protected0RTT:
-                // 0-RTT Protected
                 throw new Error("Method not implemented.");
             case LongHeaderType.Handshake:
                 return this.parseHandshakePacket(connection, header, buffer, offset, endpoint);
@@ -67,6 +69,19 @@ export class PacketParser {
         };
     }
 
+    private parseVersionNegotiationPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
+        var versions: Version[] = [];
+        while (buffer.length > offset) {
+            var version: Version = new Version(buffer.slice(offset, offset + 4));
+            versions.push(version);
+            offset += 4;
+        }
+        return {
+            packet: new VersionNegotiationPacket(header, versions),
+            offset: offset
+        };
+    }
+
     private parseClientInitialPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
         var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
         buffer.copy(dataBuffer, 0, offset);
@@ -78,15 +93,13 @@ export class PacketParser {
         };
     }
 
-    private parseVersionNegotiationPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
-        var versions: Version[] = [];
-        while (buffer.length > offset) {
-            var version: Version = new Version(buffer.slice(offset, offset + 4));
-            versions.push(version);
-            offset += 4;
-        }
+    private parseProtected0RTTPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
+        var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
+        buffer.copy(dataBuffer, 0, offset);
+        dataBuffer = connection.getAEAD().protected0RTTDecrypt(connection, header, dataBuffer, endpoint);
+        var frames = this.frameParser.parse(dataBuffer, 0);
         return {
-            packet: new VersionNegotiationPacket(header, versions),
+            packet: new Protected0RTTPacket(header, frames),
             offset: offset
         };
     }

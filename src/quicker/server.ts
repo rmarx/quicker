@@ -66,23 +66,23 @@ export class Server extends EventEmitter {
 
     private init(socketType: SocketType) {
         this.server = createSocket(socketType);
-        this.server.on(QuickerEvent.MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
-        this.server.on(QuickerEvent.CLOSE, () => { this.onClose() });
+        this.server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        this.server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.onClose() });
         this.server.bind(this.port, this.host);
     }
 
     private setupConnectionEvents(connection: Connection) {
         connection.on(ConnectionEvent.STREAM, (quicStream: QuicStream) => {
-            this.emit(QuickerEvent.STREAM, quicStream);
+            this.emit(QuickerEvent.NEW_STREAM, quicStream);
         });
         connection.on(ConnectionEvent.DRAINING, () => {
             console.log("draining connection with id " + connection.getConnectionID());
-            this.emit(QuickerEvent.DRAINING, connection.getConnectionID().toString());
+            this.emit(QuickerEvent.CONNECTION_DRAINING, connection.getConnectionID().toString());
         });
         connection.on(ConnectionEvent.CLOSE, () => {
             console.log("closed connection with id " + connection.getConnectionID().toString());
             delete this.connections[connection.getConnectionID().toString()];
-            this.emit(QuickerEvent.CLOSE, connection.getConnectionID().toString());
+            this.emit(QuickerEvent.CONNECTION_CLOSE, connection.getConnectionID().toString());
         });
     }
 
@@ -139,7 +139,7 @@ export class Server extends EventEmitter {
     }
 
     private onClose(): any {
-        this.emit(QuickerEvent.CLOSE);
+        this.emit(QuickerEvent.CONNECTION_CLOSE);
     }
 
     private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {

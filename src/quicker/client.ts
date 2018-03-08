@@ -25,6 +25,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';
+import { TransportParameters } from '../crypto/transport.parameters';
 
 
 export class Client extends EventEmitter{
@@ -53,10 +54,12 @@ export class Client extends EventEmitter{
         this.bufferedRequests = [];
     }
 
-    public static connect(hostname: string, port: number, options?: any) {
+    public static connect(hostname: string, port: number, options: any = {}, earlyDataRequest?: Buffer) {
         var client = new Client();
         client.hostname = hostname;
         client.port = port;
+        // setting host to fill in SNI
+        options.host = hostname;
         client.options = options;
         client.init();
 
@@ -65,7 +68,8 @@ export class Client extends EventEmitter{
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         var stream = client.connection.getStream(new Bignum(0));
         var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(client.connection);
-        client.connection.sendPacket(clientInitial);
+        client.connection.sendPacket(clientInitial, false);
+        client.connection.attemptEarlyData(earlyDataRequest);
         return client;
     }
 
@@ -83,23 +87,23 @@ export class Client extends EventEmitter{
         this.setupConnectionEvents();
         
         socket.on(QuickerEvent.ERROR,(err) => {this.onError(this.connection, err)});
-        socket.on(QuickerEvent.MESSAGE,(msg, rinfo) => {this.onMessage(msg, rinfo)});
+        socket.on(QuickerEvent.NEW_MESSAGE,(msg, rinfo) => {this.onMessage(msg, rinfo)});
     }
 
 
     private setupConnectionEvents() {
         this.connection.on(ConnectionEvent.DRAINING, () => {
-            this.emit(QuickerEvent.DRAINING);
+            this.emit(QuickerEvent.CONNECTION_DRAINING, this.connection.getConnectionID().toString());
         });
         this.connection.on(ConnectionEvent.CLOSE, () => {
-            this.emit(QuickerEvent.CLOSE);
+            this.emit(QuickerEvent.CONNECTION_CLOSE, this.connection.getConnectionID().toString());
         });
         this.connection.on(ConnectionEvent.HANDSHAKE_DONE, () => {
             this.bufferedRequests.forEach((val) => {
                 this.sendRequest(val.stream, val.request);
             });
             this.connected = true;
-            this.emit(QuickerEvent.CONNECTED);
+            this.emit(QuickerEvent.CLIENT_CONNECTED);
         });
     }
 
@@ -133,8 +137,16 @@ export class Client extends EventEmitter{
         return this.connection.getQuicTLS().getSession();
     }
 
+    public getTransportParameters(): Buffer {
+        return this.connection.getRemoteTransportParameters().toBuffer();
+    }
+
     public setSession(buffer: Buffer) {
         this.connection.getQuicTLS().setSession(buffer);
+    }
+
+    public setTransportParameters(tp: Buffer): void {
+        return this.connection.setRemoteTransportParameters(TransportParameters.fromBuffer(this.connection, tp));
     }
 
     public isSessionReused(): boolean {

@@ -19,6 +19,7 @@ import { BaseFrame } from '../frame/base.frame';
 import { PacketFactory } from '../packet/packet.factory';
 import { BN } from 'bn.js';
 import { QuicStream } from '../quicker/quic.stream';
+import { FrameFactory } from '../frame/frame.factory';
 
 export class Connection extends FlowControlledObject {
 
@@ -54,7 +55,7 @@ export class Connection extends FlowControlledObject {
         this.endpointType = endpointType;
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
-        this.aead = new AEAD();
+        this.aead = new AEAD(this.qtls);
         this.ackHandler = new AckHandler(this);
         this.flowControl = new FlowControl();
         this.streams = [];
@@ -316,6 +317,15 @@ export class Connection extends FlowControlledObject {
             this._sendPacket(packet);
         });
         this.transmissionAlarm.start(40);
+    }
+
+    public attemptEarlyData(earlyData: Buffer | undefined): boolean {
+        if (earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
+            var strFrame = FrameFactory.createStreamFrame(this.getNextStream(StreamType.ClientBidi), earlyData, true, true);
+            var protected0RTTPacket = PacketFactory.createProtected0RTTPacket(this, [strFrame]);
+            this.sendPacket(protected0RTTPacket, false)
+        }
+        return false;
     }
 
 

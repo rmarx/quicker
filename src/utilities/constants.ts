@@ -53,6 +53,7 @@ export class Constants {
     public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";
     public static readonly CLIENT_HANDSHAKE_LABEL = "client hs";
     public static readonly SERVER_HANDSHAKE_LABEL = "server hs";
+    public static readonly CLIENT_0RTT_LABEL = "0rtt";
     public static readonly CLIENT_1RTT_LABEL = "client 1rtt";
     public static readonly SERVER_1RTT_LABEL = "server 1rtt";
     public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
@@ -65,7 +66,7 @@ export class Constants {
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return 'abcdef09';
+        return 'ff000009';
     }
 
     public static getVersionSalt(version: string): string {

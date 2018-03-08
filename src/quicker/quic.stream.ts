@@ -23,13 +23,13 @@ export class QuicStream extends EventEmitter{
     private setupEvents(stream: Stream): void {
         stream.on(StreamEvent.DATA, (data: Buffer) => {
             if (this.encoding !== undefined) {
-                this.emit(QuickerEvent.DATA, data.toString(this.encoding))
+                this.emit(QuickerEvent.STREAM_DATA_AVAILABLE, data.toString(this.encoding))
             } else {
-                this.emit(QuickerEvent.DATA, data);
+                this.emit(QuickerEvent.STREAM_DATA_AVAILABLE, data);
             }
         });
         stream.on(StreamEvent.END, () => {
-            this.emit(QuickerEvent.END);
+            this.emit(QuickerEvent.STREAM_END);
         });
     }
 

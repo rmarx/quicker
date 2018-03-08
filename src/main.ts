@@ -23,23 +23,23 @@ var server = Server.createServer({
 });
 server.listen(Number(port), host);
 
-server.on(QuickerEvent.STREAM, (quicStream: QuicStream) => {
+server.on(QuickerEvent.NEW_STREAM, (quicStream: QuicStream) => {
     var bufferedData: Buffer = Buffer.alloc(0);
 
-    quicStream.on(QuickerEvent.DATA, (data: Buffer) => {
+    quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
         bufferedData = Buffer.concat([bufferedData, data]);
     });
 
-    quicStream.on(QuickerEvent.END, () => {
+    quicStream.on(QuickerEvent.STREAM_END, () => {
         var output = httpHelper.handleRequest(bufferedData);
         quicStream.end(output);
     });
 });
 
-server.on(QuickerEvent.DRAINING, (connectionId: string) => {
+server.on(QuickerEvent.CONNECTION_DRAINING, (connectionId: string) => {
     console.log("connection with connectionID " + connectionId + " is draining");
 });
 
-server.on(QuickerEvent.CLOSE, (connectionId: string) => {
+server.on(QuickerEvent.CONNECTION_CLOSE, (connectionId: string) => {
     console.log("connection with connectionID " + connectionId + " is closed");
 });

@@ -17,17 +17,27 @@ console.log("QUICker client connecting to " + host + ":" + port);
 
 var httpHelper = new HttpHelper();
 var client = Client.connect(host, Number(port));
-client.on(QuickerEvent.CONNECTED, () => {
+client.on(QuickerEvent.CLIENT_CONNECTED, () => {
     var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
     var bufferedData = Buffer.alloc(0);
 
-    quicStream.on(QuickerEvent.DATA, (data: Buffer) => {
+    quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
         bufferedData = Buffer.concat([bufferedData, data]);
     });
 
-    quicStream.on(QuickerEvent.END, () => {
+    quicStream.on(QuickerEvent.STREAM_END, () => {
         console.log(bufferedData.toString('utf8'));
     });
+
+    setTimeout(() => {
+        var client2 = Client.connect(host, Number(port), {
+            session: client.getSession(),
+            transportparameters: client.getTransportParameters()
+        }, httpHelper.createRequest("index.html"));
+        client2.on(QuickerEvent.CLIENT_CONNECTED, () => {
+            console.log("c2 connection");
+        });
+    }, 5000);
 });
 
 client.on(QuickerEvent.ERROR, (error: Error) => {
@@ -36,6 +46,6 @@ client.on(QuickerEvent.ERROR, (error: Error) => {
     console.log(error.stack);
 });
 
-client.on(QuickerEvent.CLOSE, () => {
+client.on(QuickerEvent.CONNECTION_CLOSE, () => {
     process.exit(0);
 });

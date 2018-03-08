@@ -1,4 +1,4 @@
-import {HandshakeValidation} from '../utilities/validation/handshake.validation';
+import { HandshakeValidation } from '../utilities/validation/handshake.validation';
 import { Bignum } from '../types/bignum';
 import { Constants } from '../utilities/constants';
 import { Connection } from '../types/connection';
@@ -6,6 +6,10 @@ import { TransportParameters, TransportParameterType } from './transport.paramet
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
 import { EventEmitter } from 'events';
+
+enum NodeQTLSEvent {
+    HANDSHAKE_DONE = "handshakedone"
+}
 
 /**
  * QuicTLS Wrapper
@@ -19,13 +23,15 @@ export class QTLS {
 
     private cipher!: Cipher;
 
-    public constructor(isServer: boolean, options: any, connection: Connection) {
+    public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         this.isServer = isServer;
         this.options = options;
-        if (this.options === undefined) {
-            this.options = { alpnProtocol: Constants.ALPN_LABEL }
-        } else {
-            this.options.alpnProtocol = Constants.ALPN_LABEL;
+        if (options.alpnProtocol === undefined) {
+            this.options.alpnProtocols = [Constants.ALPN_LABEL];
+        }
+        if (options.transportparameters !== undefined) {
+            connection.setRemoteTransportParameters(TransportParameters.fromBuffer(connection, options.transportparameters));
+            connection.setRemoteMaxData(connection.getRemoteTransportParameter(TransportParameterType.MAX_DATA));
         }
         if (this.isServer) {
             this.handshakeState = HandshakeState.SERVER_HELLO;
@@ -72,6 +78,10 @@ export class QTLS {
         return handshakeBuffer;
     }
 
+    public readEarlyData(): Buffer {
+        return this.qtlsHelper.readEarlyData();
+    }
+
     public writeHandshake(connection: Connection, buffer: Buffer): void {
         if (this.handshakeState !== HandshakeState.COMPLETED) {
             if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
@@ -89,6 +99,10 @@ export class QTLS {
         this.qtlsHelper.writeHandshakeData(buffer);
     }
 
+    public writeEarlyData(earlyData: Buffer) {
+        return this.qtlsHelper.writeEarlyData(earlyData);
+    }
+
     public getHandshakeState(): HandshakeState {
         return this.handshakeState;
     }
@@ -97,19 +111,28 @@ export class QTLS {
         return this.qtlsHelper.exportKeyingMaterial(Buffer.from(label), this.cipher.getHashLength());
     }
 
+    public exportEarlyKeyingMaterial(label: string): Buffer {
+        return this.qtlsHelper.exportEarlyKeyingMaterial(Buffer.from(label), this.cipher.getHashLength());
+    }
+
     public getCipher(): Cipher {
+        if (this.cipher === undefined) {
+            console.log("getting negotiated cipher");
+            this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
+            console.log("negotiated cipher: " + this.qtlsHelper.getNegotiatedCipher());
+        }
         return this.cipher;
     }
 
-    public getSession(): Buffer{
+    public getSession(): Buffer {
         return this.qtlsHelper.getSession();
     }
 
-    public readSSL(): Buffer{
+    public readSSL(): Buffer {
         return this.qtlsHelper.readSSL();
     }
 
-    public setSession(buffer: Buffer): void{
+    public setSession(buffer: Buffer): void {
         this.qtlsHelper.setSession(buffer);
     }
 
@@ -117,6 +140,9 @@ export class QTLS {
         return this.qtlsHelper.isSessionReused();
     }
 
+    public isEarlyDataAllowed(): boolean {
+        return this.qtlsHelper.isEarlyDataAllowed();
+    }
 
     private generateExtensionData(connection: Connection): Buffer {
         var transportParamBuffer: Buffer = this.getTransportParameters().toBuffer();
@@ -173,6 +199,7 @@ export class QTLS {
 
     private handleHandshakeDone(): void {
         this.handshakeState = HandshakeState.COMPLETED;
+        // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
     }
 }
@@ -184,7 +211,3 @@ export enum HandshakeState {
     NEW_SESSION_TICKET,
     COMPLETED
 };
-
-enum NodeQTLSEvent {
-    HANDSHAKE_DONE = "handshakedone"
-}

@@ -22,6 +22,7 @@ import { HeaderType } from '../packet/header/base.header';
 import { VersionValidation } from '../utilities/validation/version.validation';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { Protected0RTTPacket } from './packet/protected.0rtt';
 
 export class PacketHandler {
 
@@ -53,6 +54,10 @@ export class PacketHandler {
             case PacketType.Handshake:
                 var handshakePacket: HandshakePacket = <HandshakePacket>packet;
                 this.handleHandshakePacket(connection, handshakePacket);
+                break;
+            case PacketType.Protected0RTT:
+                var protected0RTTPacket: Protected0RTTPacket = <Protected0RTTPacket>packet;
+                this.handleProtected0RTTPacket(connection, protected0RTTPacket);
                 break;
             case PacketType.Protected1RTT:
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
@@ -98,6 +103,10 @@ export class PacketHandler {
             connection.setConnectionID(connectionID);
         }
         this.handleFrames(connection, handshakePacket);
+    }
+
+    private handleProtected0RTTPacket(connection: Connection, protected0RTTPacket: Protected0RTTPacket): any {
+        this.handleFrames(connection, protected0RTTPacket);
     }
 
     private handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket) {

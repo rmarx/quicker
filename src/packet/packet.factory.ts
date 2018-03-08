@@ -15,6 +15,7 @@ import { ShortHeaderPacket } from './packet/short.header.packet';
 import { ShortHeader, ShortHeaderType } from './header/short.header';
 import { TransportParameterType } from './../crypto/transport.parameters';
 import { EndpointType } from '../types/endpoint.type';
+import { Protected0RTTPacket } from './packet/protected.0rtt';
 
 
 
@@ -42,6 +43,9 @@ export class PacketFactory {
      */
     public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), undefined, connection.getVersion());
+        if (connection.getQuicTLS().isEarlyDataAllowed()) {
+            connection.getQuicTLS().writeEarlyData(Buffer.from(""));
+        }
         var clientInitial = connection.getQuicTLS().getClientInitial(connection);
         var streamFrame = new StreamFrame(new Bignum(0), clientInitial);
         streamFrame.setLength(new Bignum(clientInitial.byteLength));
@@ -75,6 +79,12 @@ export class PacketFactory {
         var conID = connection.getConnectionID() === undefined ? connection.getFirstConnectionID() : connection.getConnectionID();
         var header = new LongHeader(LongHeaderType.Handshake, conID, undefined, connection.getVersion());
         return new HandshakePacket(header, frames);
+    }
+
+    public static createProtected0RTTPacket(connection: Connection, frames: BaseFrame[]): Protected0RTTPacket {
+        var conID = connection.getFirstConnectionID();
+        var header = new LongHeader(LongHeaderType.Protected0RTT, conID, undefined, connection.getVersion());
+        return new Protected0RTTPacket(header, frames);
     }
 
     /**

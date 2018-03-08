@@ -11,8 +11,32 @@ import { logMethod } from '../utilities/decorators/log.decorator';
 
 export class AEAD {
 
+    private qtls: QTLS;
+
+    // Client earlyData secret
+    private protected0RTTClientSecret!: Buffer;
+    // Client secret
     private protected1RTTClientSecret!: Buffer;
+    // Server secret
     private protected1RTTServerSecret!: Buffer;
+
+    // Early data key and iv
+    private protected0RTTKey!: Buffer;
+    private protected0RTTIv!: Buffer;
+    // Client key and iv
+    private protected1RTTClientKey!: Buffer;
+    private protected1RTTClientIv!: Buffer;
+    // Server key and iv
+    private protected1RTTServerKey!: Buffer;
+    private protected1RTTServerIv!: Buffer;
+
+    public constructor(qtls: QTLS) {
+        this.qtls = qtls;
+
+        if (this.qtls.isEarlyDataAllowed()) {
+            this.generateProtected0RTTSecrets(this.qtls);
+        }
+    }
 
     /**
      * Method to encrypt the payload (cleartext)
@@ -49,13 +73,12 @@ export class AEAD {
         if (this.protected1RTTClientSecret === undefined ||  this.protected1RTTServerSecret === undefined) {
             this.generateProtected1RTTSecrets(connection.getQuicTLS());
         }
-        var hkdf = new HKDF(connection.getQuicTLS().getCipher().getHash());
         if (encryptingEndpoint === EndpointType.Client) {
-            var key = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", connection.getQuicTLS().getCipher().getAEADKeyLength());
-            var iv = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+            var key = this.protected1RTTClientKey;
+            var iv = this.protected1RTTClientIv;
         } else {
-            var key = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", connection.getQuicTLS().getCipher().getAEADKeyLength());
-            var iv = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+            var key = this.protected1RTTServerKey;
+            var iv = this.protected1RTTServerIv;
         }
         var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
@@ -66,28 +89,70 @@ export class AEAD {
         if (this.protected1RTTClientSecret === undefined ||  this.protected1RTTServerSecret === undefined) {
             this.generateProtected1RTTSecrets(connection.getQuicTLS());
         }
-        var hkdf = new HKDF(connection.getQuicTLS().getCipher().getHash());
         if (encryptingEndpoint === EndpointType.Client) {
-            var key = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", connection.getQuicTLS().getCipher().getAEADKeyLength());
-            var iv = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+            var key = this.protected1RTTClientKey;
+            var iv = this.protected1RTTClientIv;
         } else {
-            var key = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", connection.getQuicTLS().getCipher().getAEADKeyLength());
-            var iv = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+            var key = this.protected1RTTServerKey;
+            var iv = this.protected1RTTServerIv;
         }
         var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
 
-    public generateProtected1RTTSecrets(qtls: QTLS): void {
+    public protected0RTTEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        var key = this.protected0RTTKey;
+        var iv = this.protected0RTTIv;
+        var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
+        var ad = this.calculateAssociatedData(header);
+        return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+    }
+
+    public protected0RTTDecrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        if (this.protected0RTTClientSecret === undefined) {
+            this.generateProtected0RTTSecrets(connection.getQuicTLS());
+        }
+        var key = this.protected0RTTKey;
+        var iv = this.protected0RTTIv;
+        var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
+        var ad = this.calculateAssociatedData(header);
+        return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+    }
+
+    private generateProtected1RTTSecrets(qtls: QTLS): void {
+        var hkdf = new HKDF(qtls.getCipher().getHash());
         this.protected1RTTClientSecret = qtls.exportKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.CLIENT_1RTT_LABEL);
         this.protected1RTTServerSecret = qtls.exportKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.SERVER_1RTT_LABEL);
+        this.generateKeyAndIv(qtls);
+    }
+
+    private generateProtected0RTTSecrets(qtls: QTLS): void {
+        console.log("client 0-RTT protected keys:");
+        var hkdf = new HKDF(qtls.getCipher().getHash());
+        this.protected0RTTClientSecret = qtls.exportEarlyKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.CLIENT_0RTT_LABEL);
+        console.log("secret: " + this.protected0RTTClientSecret.toString('hex'));
+        this.protected0RTTKey = hkdf.expandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
+        console.log("key: " + this.protected0RTTKey.toString('hex'));
+        this.protected0RTTIv = hkdf.expandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        console.log("iv: " + this.protected0RTTIv.toString('hex'));
     }
 
     public updateProtected1RTTSecret(qtls: QTLS): void {
         var hkdf = new HKDF(qtls.getCipher().getHash());
         this.protected1RTTClientSecret = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.CLIENT_1RTT_LABEL, "", qtls.getCipher().getHashLength());
         this.protected1RTTServerSecret = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.SERVER_1RTT_LABEL, "", qtls.getCipher().getHashLength());
+        this.generateKeyAndIv(qtls);
+    }
+
+    private generateKeyAndIv(qtls: QTLS) {
+        var hkdf = new HKDF(qtls.getCipher().getHash());
+        // Generate Client key and IV
+        this.protected1RTTClientKey = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
+        this.protected1RTTClientIv = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        // Generate Server key and IV
+        this.protected1RTTServerKey = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
+        this.protected1RTTServerIv = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
     }
 
     /**
