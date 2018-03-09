@@ -23,6 +23,8 @@ import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { SecureContext, createSecureContext } from 'tls';
 import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 
 export class Server extends EventEmitter {
@@ -50,16 +52,20 @@ export class Server extends EventEmitter {
 
     public static createServer(options?: any) {
         var server = new Server();
-        server.options = options;
-        if (options.host !== undefined) {
-            server.host = options.host;
+        // TODO: add check if options.key and options.cert are set
+        if (options.secureContext === undefined) {
+            options.secureContext = server.getSecureContext(options.key, options.cert);
         }
+        server.options = options;
         return server;
     }
 
     public listen(port: number, host: string = 'localhost') {
         this.host = host;
         this.port = port;
+        if (host !== undefined) {
+            this.options.host = host;
+        }
 
         this.init("udp4");
     }
@@ -110,7 +116,9 @@ export class Server extends EventEmitter {
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);
                 return;
-            }else {
+            } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
+                return;
+            } else {
                 this.onError(connection, err);
                 return;
             }
@@ -191,6 +199,7 @@ export class Server extends EventEmitter {
         }
         connection.setConnectionID(newConnectionID);
         this.connections[connection.getConnectionID().toString()] = connection;
+        this.connections[connection.getFirstConnectionID().toString()] = connection;
         this.setupConnectionEvents(connection);
         return connection;
     }

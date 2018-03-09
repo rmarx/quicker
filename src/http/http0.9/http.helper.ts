@@ -25,7 +25,7 @@ export class HttpHelper {
         if (request.endsWith('/')) {
             request += "index.html";
         }
-        request = request.replace('\n','');
+        request = request.split('\n').join('').split('\r').join('');
         return request.toLowerCase().replace('get ','');
     }
 }

@@ -41,12 +41,12 @@ export class PacketFactory {
      * 
      * @param connection
      */
-    public static createClientInitialPacket(connection: Connection): ClientInitialPacket {
+    public static createClientInitialPacket(connection: Connection, createNew = false): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), undefined, connection.getVersion());
         if (connection.getQuicTLS().isEarlyDataAllowed()) {
-            connection.getQuicTLS().writeEarlyData(Buffer.from(""));
+            connection.getQuicTLS().writeEarlyData(connection, Buffer.from(""));
         }
-        var clientInitial = connection.getQuicTLS().getClientInitial(connection);
+        var clientInitial = connection.getQuicTLS().getClientInitial(connection, createNew);
         var streamFrame = new StreamFrame(new Bignum(0), clientInitial);
         streamFrame.setLength(new Bignum(clientInitial.byteLength));
         var stream = connection.getStream(new Bignum(0));

@@ -10,7 +10,6 @@ export class Cipher {
     }
 
     public getHash(): string {
-        console.log("get hash from: " + this.cipher + ".");
         switch(this.cipher) {
             case "TLS13-AES-128-GCM-SHA256":
             case "TLS13-CHACHA20-POLY1305-SHA256":
@@ -26,7 +25,6 @@ export class Cipher {
     }
 
     public getAEAD(): string {
-        console.log("getAEAD from: " + this.cipher + ".");
         switch(this.cipher) {
             case "TLS13-AES-128-GCM-SHA256":
                 return "aes-128-gcm";

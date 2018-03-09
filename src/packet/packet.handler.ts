@@ -85,7 +85,7 @@ export class PacketHandler {
         connection.resetConnectionState();
         connection.deleteStream(new Bignum(0));
         connection.setVersion(negotiatedVersion);
-        var clientInitialPacket = PacketFactory.createClientInitialPacket(connection);
+        var clientInitialPacket = PacketFactory.createClientInitialPacket(connection, true);
         connection.sendPacket(clientInitialPacket);
     }
 

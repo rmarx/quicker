@@ -204,14 +204,17 @@ export class FrameHandler {
 
         if (streamFrame.getStreamID().equals(new Bignum(0))) {
             this.handleTlsStreamFrame(connection, stream, streamFrame);
-        } else if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+        } else {
             this.handleRegularStreamFrame(connection, stream, streamFrame);
         }
     }
 
     private handleTlsStreamFrame(connection: Connection, stream: Stream, streamFrame: StreamFrame): void {
         connection.getQuicTLS().writeHandshake(connection, streamFrame.getData());
-        var data = connection.getQuicTLS().readHandshake();
+        if (connection.getEndpointType() === EndpointType.Server) {
+            connection.getQuicTLS().readEarlyData();
+        }
+        var data = connection.getQuicTLS().readHandshake(connection);
         if (data.byteLength > 0) {
             if (connection.getEndpointType() === EndpointType.Client || connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 var str = new StreamFrame(streamFrame.getStreamID(), data);

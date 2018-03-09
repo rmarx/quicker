@@ -1,5 +1,5 @@
 import {ConnectionID, Version, PacketNumber} from '../types/header.properties';
-import {QTLS} from './qtls';
+import {QTLS, QuicTLSEvents} from './qtls';
 import {Connection} from '../types/connection';
 import {Bignum} from '../types/bignum';
 import {BaseHeader} from '../packet/header/base.header';
@@ -8,6 +8,8 @@ import {Constants} from '../utilities/constants';
 import {EndpointType} from '../types/endpoint.type';
 import { createCipheriv, createDecipheriv } from "crypto";
 import { logMethod } from '../utilities/decorators/log.decorator';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 export class AEAD {
 
@@ -32,10 +34,11 @@ export class AEAD {
 
     public constructor(qtls: QTLS) {
         this.qtls = qtls;
-
-        if (this.qtls.isEarlyDataAllowed()) {
-            this.generateProtected0RTTSecrets(this.qtls);
-        }
+        this.qtls.on(QuicTLSEvents.EARLY_DATA_ALLOWED, () => {
+            if (this.protected0RTTClientSecret === undefined) {
+                this.generateProtected0RTTSecrets(this.qtls);
+            }
+        });
     }
 
     /**
@@ -102,6 +105,10 @@ export class AEAD {
     }
 
     public protected0RTTEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        if (this.protected0RTTClientSecret === undefined) {
+            // TODO: replace with error, when in this if test, 0-RTT is probably not available
+            this.generateProtected0RTTSecrets(this.qtls);
+        }
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
         var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
@@ -111,8 +118,9 @@ export class AEAD {
 
     public protected0RTTDecrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         if (this.protected0RTTClientSecret === undefined) {
-            this.generateProtected0RTTSecrets(connection.getQuicTLS());
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
+
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
         var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
@@ -128,14 +136,10 @@ export class AEAD {
     }
 
     private generateProtected0RTTSecrets(qtls: QTLS): void {
-        console.log("client 0-RTT protected keys:");
         var hkdf = new HKDF(qtls.getCipher().getHash());
         this.protected0RTTClientSecret = qtls.exportEarlyKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.CLIENT_0RTT_LABEL);
-        console.log("secret: " + this.protected0RTTClientSecret.toString('hex'));
         this.protected0RTTKey = hkdf.expandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
-        console.log("key: " + this.protected0RTTKey.toString('hex'));
         this.protected0RTTIv = hkdf.expandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
-        console.log("iv: " + this.protected0RTTIv.toString('hex'));
     }
 
     public updateProtected1RTTSecret(qtls: QTLS): void {

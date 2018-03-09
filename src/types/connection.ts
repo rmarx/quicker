@@ -320,7 +320,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public attemptEarlyData(earlyData: Buffer | undefined): boolean {
-        if (earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
+        if (earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {                                                                                
             var strFrame = FrameFactory.createStreamFrame(this.getNextStream(StreamType.ClientBidi), earlyData, true, true);
             var protected0RTTPacket = PacketFactory.createProtected0RTTPacket(this, [strFrame]);
             this.sendPacket(protected0RTTPacket, false)

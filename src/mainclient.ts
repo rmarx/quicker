@@ -35,7 +35,7 @@ client.on(QuickerEvent.CLIENT_CONNECTED, () => {
             transportparameters: client.getTransportParameters()
         }, httpHelper.createRequest("index.html"));
         client2.on(QuickerEvent.CLIENT_CONNECTED, () => {
-            console.log("c2 connection");
+            //
         });
     }, 5000);
 });
