@@ -151,6 +151,15 @@ export class Bignum {
         return this.bignum.lt(num.bignum);
     }
 
+    public lessThanOrEqual(num: number): boolean;
+    public lessThanOrEqual(num: Bignum): boolean;
+    public lessThanOrEqual(num: any): boolean {
+        if (num instanceof Bignum) {
+            return this.bignum.lte(num.bignum);
+        }
+        return this.bignum.lte(new BN(num));
+    }
+
     public compare(num: Bignum): number {
         return this.bignum.cmp(num.bignum);
     }

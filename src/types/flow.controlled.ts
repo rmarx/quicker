@@ -10,11 +10,13 @@ export abstract class FlowControlledObject extends EventEmitter {
 	private localOffset!: Bignum;
 	private remoteOffset!: Bignum;
 	private localMaxData!: Bignum;
-    private remoteMaxData!: Bignum;
+	private remoteMaxData!: Bignum;
+	
+	private isRemoteBlocked: boolean;
 
     public constructor() {
 		super();
-        //
+        this.isRemoteBlocked = false;
     }
 
     protected init(connection: Connection) {
@@ -66,16 +68,24 @@ export abstract class FlowControlledObject extends EventEmitter {
 		this.localMaxData = new Bignum(maxData);
 	}
 
+	public getIsRemoteBlocked(): boolean {
+		return this.isRemoteBlocked;
+	}
+
+	public setIsRemoteBlocked(blocked: boolean): void {
+		this.isRemoteBlocked = blocked;
+	}
+
 	public getLocalMaxData(): Bignum {
 		return this.localMaxData;
 	}
 
-    public isLocalLimitExceeded(added: any): boolean {
+    public isLocalLimitExceeded(added: any = new Bignum(0)): boolean {
 		var temp = this.localOffset.add(added);
 		return this.isLimitExeeded(this.localMaxData, temp);
 	}
 
-    public isRemoteLimitExceeded(added: any): boolean {
+    public isRemoteLimitExceeded(added: any = new Bignum(0)): boolean {
 		var temp = this.remoteOffset.add(added);
 		return this.isLimitExeeded(this.remoteMaxData, temp);
 	}
@@ -84,12 +94,12 @@ export abstract class FlowControlledObject extends EventEmitter {
 		return offset.greaterThan(maxData);
 	}
 
-    public isLocalLimitAlmostExceeded(added: any): boolean {
+    public isLocalLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
 		var temp = this.localOffset.add(added);
 		return this.isLimitAlmostExceeded(this.localMaxData, temp);
 	}
 
-    public isRemoteLimitAlmostExceeded(added: any): boolean {
+    public isRemoteLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
 		var temp = this.remoteOffset.add(added);
 		return this.isLimitAlmostExceeded(this.remoteMaxData, temp);
 	}

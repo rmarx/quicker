@@ -20,6 +20,7 @@ import { PacketFactory } from '../packet/packet.factory';
 import { BN } from 'bn.js';
 import { QuicStream } from '../quicker/quic.stream';
 import { FrameFactory } from '../frame/frame.factory';
+import { HandshakeHandler } from '../utilities/handshake.handler';
 
 export class Connection extends FlowControlledObject {
 
@@ -29,7 +30,7 @@ export class Connection extends FlowControlledObject {
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
     private ackHandler: AckHandler;
-    private flowControl: FlowControl;
+    private handshakeHandler: HandshakeHandler;
 
     private firstConnectionID!: ConnectionID;
     private connectionID!: ConnectionID;
@@ -53,16 +54,16 @@ export class Connection extends FlowControlledObject {
         super.init(this);
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
+        this.streams = [];
+        this.bufferedFrames = [];
+        this.idleTimeoutAlarm = new Alarm();
+        this.transmissionAlarm = new Alarm();
         this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+        
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
         this.aead = new AEAD(this.qtls);
         this.ackHandler = new AckHandler(this);
-        this.flowControl = new FlowControl();
-        this.streams = [];
-        this.idleTimeoutAlarm = new Alarm();
-
-        this.transmissionAlarm = new Alarm();
-        this.bufferedFrames = [];
+        this.handshakeHandler = new HandshakeHandler(this);
     }
 
     public getRemoteInfo(): RemoteInfo {
@@ -109,10 +110,6 @@ export class Connection extends FlowControlledObject {
         return this.ackHandler;
     }
 
-    public getFlowControl(): FlowControl {
-        return this.flowControl;
-    }
-
     public getLocalTransportParameter(type: TransportParameterType): any {
         return this.localTransportParameters.getTransportParameter(type);
     }
@@ -127,6 +124,10 @@ export class Connection extends FlowControlledObject {
 
     public setLocalTransportParameters(transportParameters: TransportParameters): void {
         this.localTransportParameters = transportParameters;
+        this.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
+        this.streams.forEach((stream: Stream) => {
+            stream.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        });
     }
 
     public getRemoteTransportParameter(type: TransportParameterType): any {
@@ -143,6 +144,10 @@ export class Connection extends FlowControlledObject {
 
     public setRemoteTransportParameters(transportParameters: TransportParameters): void {
         this.remoteTransportParameters = transportParameters;
+        this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
+        this.streams.forEach((stream: Stream) => {
+            stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        });
     }
 
     public getSocket(): Socket {
@@ -186,6 +191,10 @@ export class Connection extends FlowControlledObject {
 
     public setSocket(socket: Socket): void {
         this.socket = socket;
+    }
+
+    public getStreams(): Stream[] {
+        return this.streams;
     }
 
     public getStream(streamId: Bignum): Stream {
@@ -280,6 +289,13 @@ export class Connection extends FlowControlledObject {
         }
     }
 
+    public sendPackets(): void {
+        var packets = FlowControl.getPackets(this);
+        packets.forEach((packet: BasePacket) => {
+            this._sendPacket(packet);
+        });
+    }
+
     private _sendPacket(basePacket: BasePacket): void {
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
@@ -288,7 +304,7 @@ export class Connection extends FlowControlledObject {
                 baseEncryptedPacket.getFrames().push(ackFrame);
             }
         }
-        var packet = this.flowControl.onPacketSend(this, basePacket);
+        var packet = basePacket;
         if (packet !== undefined) {
             packet.getHeader().setPacketNumber(this.getNextPacketNumber());
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
@@ -320,10 +336,10 @@ export class Connection extends FlowControlledObject {
     }
 
     public attemptEarlyData(earlyData: Buffer | undefined): boolean {
-        if (earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {                                                                                
-            var strFrame = FrameFactory.createStreamFrame(this.getNextStream(StreamType.ClientBidi), earlyData, true, true);
-            var protected0RTTPacket = PacketFactory.createProtected0RTTPacket(this, [strFrame]);
-            this.sendPacket(protected0RTTPacket, false)
+        if (earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
+            var stream = this.getNextStream(StreamType.ClientBidi);
+            stream.addData(earlyData, true);
+            this.sendPackets();
         }
         return false;
     }

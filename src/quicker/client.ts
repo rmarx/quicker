@@ -99,10 +99,11 @@ export class Client extends EventEmitter{
             this.emit(QuickerEvent.CONNECTION_CLOSE, this.connection.getConnectionID().toString());
         });
         this.connection.on(ConnectionEvent.HANDSHAKE_DONE, () => {
+            this.connected = true;
             this.bufferedRequests.forEach((val) => {
                 this.sendRequest(val.stream, val.request);
             });
-            this.connected = true;
+            this.bufferedRequests = [];
             this.emit(QuickerEvent.CLIENT_CONNECTED);
         });
     }
@@ -121,8 +122,8 @@ export class Client extends EventEmitter{
     }
 
     private sendRequest(stream: Stream, buf: Buffer) {
-        var streamFrame = FrameFactory.createStreamFrame(stream,buf, true, true);
-        this.connection.sendFrame(streamFrame);
+        stream.addData(buf, true);
+        this.connection.sendPackets();
     }
 
     public getPort(): number {
@@ -164,7 +165,7 @@ export class Client extends EventEmitter{
         }
         this.connection.resetIdleAlarm();
         try {
-            var receivedTime = Time.now(TimeFormat.MicroSeconds);
+            var receivedTime = Time.now();
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             this.headerHandler.handle(this.connection, headerOffset.header);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);

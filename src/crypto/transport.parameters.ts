@@ -73,7 +73,7 @@ export class TransportParameters {
             case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
                 return this.maxStreamIdUni;
             case TransportParameterType.MAX_PACKET_SIZE:
-                return this.maxPacketSize;
+                return this.maxPacketSize === undefined ? Constants.MAX_PACKET_SIZE : this.maxPacketSize;
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 return this.ackDelayExponent === undefined ? Constants.DEFAULT_ACK_EXPONENT : this.ackDelayExponent;
             case TransportParameterType.OMIT_CONNECTION_ID:

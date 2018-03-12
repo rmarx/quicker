@@ -10,12 +10,10 @@ export class QuicStream extends EventEmitter{
     private encoding?: string;
     private stream: Stream;
     private connection: Connection;
-    private bufferedData: Buffer;
 
     public constructor(connection: Connection, stream: Stream) {
         super();
         this.stream = stream;
-        this.bufferedData = Buffer.alloc(0);
         this.connection = connection;
         this.setupEvents(stream);
     }
@@ -34,15 +32,16 @@ export class QuicStream extends EventEmitter{
     }
 
     public write(data: Buffer): void {
-        this.bufferedData = Buffer.concat([this.bufferedData, data]);
+        this.stream.addData(data);
     }
 
     public end(data?: Buffer): void {
         if (data !== undefined) {
-            this.write(data);
+            this.stream.addData(data, true);
+        } else {
+            this.stream.setRemoteFinalOffset(this.stream.getRemoteOffset());
         }
-        var streamFrame = FrameFactory.createStreamFrame(this.stream, this.bufferedData, true, true);
-        this.connection.sendFrame(streamFrame);
+        this.connection.sendPackets();
     }
 
     public setEncoding(encoding: string): void {

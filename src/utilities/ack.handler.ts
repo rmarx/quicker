@@ -26,7 +26,7 @@ export class AckHandler {
         this.alarm = new Alarm();
     }
 
-    public onPacketReceived(connection: Connection, packet: BasePacket, time: number): void {
+    public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
         if (packet.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
@@ -70,8 +70,7 @@ export class AckHandler {
             var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
         }
 
-        var doneTime = Time.now(TimeFormat.MicroSeconds);
-        var ackDelay = doneTime - this.receivedPackets[this.largestPacketNumber.toString()].receiveTime;
+        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString()].receiveTime).format(TimeFormat.MicroSeconds);
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
         var packetnumbers: Bignum[] = [];
@@ -129,5 +128,5 @@ export class AckHandler {
 
 interface ReceivedPacket {
     packet: BasePacket,
-    receiveTime: number
+    receiveTime: Time
 }

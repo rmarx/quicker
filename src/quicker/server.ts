@@ -93,7 +93,7 @@ export class Server extends EventEmitter {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        var receivedTime = Time.now(TimeFormat.MicroSeconds);
+        var receivedTime = Time.now();
         var headerOffset: HeaderOffset = this.headerParser.parse(msg);
         var connection: Connection = this.getConnection(headerOffset, rinfo);
         if (connection.getState() === ConnectionState.Closing) {
@@ -150,6 +150,11 @@ export class Server extends EventEmitter {
         this.emit(QuickerEvent.CONNECTION_CLOSE);
     }
 
+    /**
+     * TODO: optimize, first connection takes 4.5ms
+     * @param headerOffset 
+     * @param rinfo 
+     */
     private getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {
         var header: BaseHeader = headerOffset.header;
         var connectionID = header.getConnectionID();
@@ -164,10 +169,8 @@ export class Server extends EventEmitter {
                 if (connection !== undefined) {
                     return connection;
                 }
-            } else {
-                if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
-                    return this.connections[connectionID.toString()];
-                }
+            } else if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
+                return this.connections[connectionID.toString()];
             }
         }
         var connection = this.createConnection(connectionID, rinfo);

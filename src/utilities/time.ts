@@ -1,9 +1,15 @@
+import { Bignum } from "../types/bignum";
 
 
 export class Time {
 
-    public static now(format: TimeFormat): number {
-        var hr = process.hrtime();
+    private timeTuple: [number, number];
+
+    private constructor(timeTuple: [number, number]) {
+        this.timeTuple = timeTuple;
+    }
+
+    public format(format: TimeFormat) {
         var secondsFormat = 1e12;
         var nanoFormat = 1;
         switch (format) {
@@ -20,7 +26,16 @@ export class Time {
                 nanoFormat = 1e9;
                 break;
         }
-        return (hr[0] * secondsFormat + hr[1]) / nanoFormat;
+        return (this.timeTuple[0] * secondsFormat + this.timeTuple[1]) / nanoFormat;
+    }
+
+    public static now(diffTime?: Time): Time {
+        if (diffTime === undefined) {
+            var hr = process.hrtime();
+        } else {
+            var hr = process.hrtime(diffTime.timeTuple);
+        }
+        return new Time(hr);
     }
 }
 

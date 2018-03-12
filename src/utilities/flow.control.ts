@@ -1,5 +1,5 @@
-import {ConnectionErrorCodes} from './errors/connection.codes';
-import {QuicError} from './errors/connection.error';
+import { ConnectionErrorCodes } from './errors/connection.codes';
+import { QuicError } from './errors/connection.error';
 import { Bignum } from '../types/bignum';
 import { Connection } from '../types/connection';
 import { Stream } from '../types/stream';
@@ -14,224 +14,204 @@ import { MaxDataFrame } from '../frame/general/max.data';
 import { FrameFactory } from '../frame/frame.factory';
 import { ShortHeaderPacket } from '../packet/packet/short.header.packet';
 import { logMethod } from './decorators/log.decorator';
+import { TransportParameterType } from '../crypto/transport.parameters';
+import { Constants } from './constants';
+import { HandshakeState } from '../crypto/qtls';
+import { EndpointType } from '../types/endpoint.type';
+import { Time, TimeFormat } from './time';
 
 
 export class FlowControl {
 
-    private blockedStreamFrames: { [key: string]: StreamFrame[] };
-    private bufferedFrames: { [key: string]: {[key: string]: StreamFrame } };
-
     public constructor() {
-        this.blockedStreamFrames = {};
-        this.bufferedFrames = {};
+        //
     }
 
-    public onPacketSend(connection: Connection, basePacket: BasePacket): BasePacket | undefined {
-        if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
-            return basePacket;
+    public static getPackets(connection: Connection): BasePacket[] {
+        var packets = new Array<BasePacket>();
+        if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
+            var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
+        } else {
+            var maxPacketSize = new Bignum(connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - Constants.LONG_HEADER_SIZE);
         }
-        var baseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-        var addedBlockedFrame = false;
-        baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
-            if (frame.getType() >= FrameType.STREAM) {
-                var streamFrame = <StreamFrame>frame;
-                var stream: Stream = connection.getStream(streamFrame.getStreamID());
-                var streamFrameBuffer = streamFrame.toBuffer();
-                if (!streamFrame.getStreamID().equals(new Bignum(0))) {
-                    var streamAvailable = this.checkRemoteStreamLimit(stream, streamFrame, streamFrameBuffer);
-                    var connectionAvailable = this.checkRemoteConnectionLimit(connection, streamFrame, streamFrameBuffer);
+        var frames = this.getFrames(connection, maxPacketSize);
+        var packetFrames = new Array<BaseFrame>();
+        var size = new Bignum(0);
+        frames.handshakeFrames.forEach((frame: BaseFrame) => {
+            // handshake frames are only more than one with server hello and they need to be in different packets
+            packets.push(this.createHandshakePackets(connection, [frame]));
+        });
 
-                    if (streamAvailable !== FlowControlState.Ok || connectionAvailable !== FlowControlState.Ok) {
-                        if (streamAvailable !== FlowControlState.Ok && !stream.getBlockedSent()) {
-                            // set blockedSent to true so that we don't sent mutuple streamblocked frames
-                            stream.setBlockedSent(true);
-                            var streamBlockedFrame = FrameFactory.createStreamBlockedFrame(stream);
-                            // returns undefined when streamblockedframe is already sent for this stream
-                            if (streamBlockedFrame !== undefined) {
-                                baseEncryptedPacket.getFrames().push(streamBlockedFrame);
-                            }
-                        }
-                        // addedBlockedFrame check to make sure, only 1 blockedframe is added to the packet
-                        if (connectionAvailable !== FlowControlState.Ok && !addedBlockedFrame) {
-                            var blockedFrame = FrameFactory.createBlockedFrame(connection);
-                            baseEncryptedPacket.getFrames().push(blockedFrame);
-                        }
-                        this.addBlockedStreamFrame(streamFrame);
-                        baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
-                        return;
-                    }
-                    // Not added when stream id is 0
-                    connection.addRemoteOffset(streamFrame.getLength());
+        frames.flowControlFrames.forEach((frame: BaseFrame) => {
+            var frameSize = frame.toBuffer().byteLength
+            if (size.add(frameSize).greaterThan(maxPacketSize)) {
+                packets.push(this.createNewPacket(connection, packetFrames));
+                size = size.subtract(size);
+                packetFrames = [];
+            }
+            size = size.add(frameSize);
+            packetFrames.push(frame);
+        });
+
+        frames.streamFrames.forEach((frame: BaseFrame) => {
+            var frameSize = frame.toBuffer().byteLength
+            if (size.add(frameSize).greaterThan(maxPacketSize)) {
+                packets.push(this.createNewPacket(connection, packetFrames));
+                size = size.subtract(size);
+                packetFrames = [];
+            }
+            size = size.add(frameSize);
+            packetFrames.push(frame);
+        });
+        if (packetFrames.length > 0) {
+            packets.push(this.createNewPacket(connection, packetFrames));
+        }
+
+        return packets;
+    }
+
+    private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
+        if (connection.getEndpointType() === EndpointType.Client && connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
+            return PacketFactory.createProtected0RTTPacket(connection, frames);
+        } else {
+            return PacketFactory.createShortHeaderPacket(connection, frames);
+        }
+    }
+
+    private static createHandshakePackets(connection: Connection, frames: BaseFrame[]) {
+        if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
+            return PacketFactory.createHandshakePacket(connection, frames);
+        } else {
+            return PacketFactory.createShortHeaderPacket(connection, frames);
+        }
+    }
+
+
+
+    public static getFrames(connection: Connection, maxPacketSize: Bignum): FlowControlFrames {
+        var streamFrames = new Array<StreamFrame>();
+        var flowControlFrames = new Array<BaseFrame>();
+        var handshakeFrames = new Array<StreamFrame>();
+
+        if (connection.getRemoteTransportParameters() === undefined) {
+            var stream = connection.getStream(new Bignum(0));
+            handshakeFrames = handshakeFrames.concat(this.getStreamFrames(connection, stream, new Bignum(stream.getData().byteLength), maxPacketSize).handshakeFrames);
+        } else if (connection.isRemoteLimitExceeded()) {
+            flowControlFrames.push(FrameFactory.createBlockedFrame(connection));
+            connection.getStreams().forEach((stream: Stream) => {
+                if (stream.isRemoteLimitExceeded()) {
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
                 }
-                stream.addRemoteOffset(streamFrame.getLength());
+            });
+        } else {
+            connection.getStreams().forEach((stream: Stream) => {
+                var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(connection, stream, maxPacketSize);
+                streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
+                flowControlFrames = flowControlFrames.concat(flowControlFrameObject.flowControlFrames);
+                handshakeFrames = handshakeFrames.concat(flowControlFrameObject.handshakeFrames);
+            });
+        }
+
+        flowControlFrames = flowControlFrames.concat(this.getLocalFlowControlFrames(connection));
+
+        return {
+            streamFrames: streamFrames,
+            flowControlFrames: flowControlFrames,
+            handshakeFrames: handshakeFrames
+        };
+    }
+
+    private static getStreamFramesForRemote(connection: Connection, stream: Stream, maxPacketSize: Bignum): FlowControlFrames {
+        var streamFrames = new Array<StreamFrame>();
+        var flowControlFrames = new Array<BaseFrame>();
+        var handshakeFrames = new Array<StreamFrame>();
+
+        if (!stream.getStreamID().equals(0) && stream.isRemoteLimitExceeded()) {
+            if (!stream.getBlockedSent()) {
+                flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                stream.setBlockedSent(true);
+            }
+        } else if (!connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
+            var streamDataSize = new Bignum(stream.getData().length);
+            
+            if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || connection.isRemoteLimitExceeded(streamDataSize)) {
+                var conDataLeft = connection.getRemoteMaxData().subtract(connection.getRemoteOffset());
+                var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
+                streamDataSize = conDataLeft.lessThan(streamDataLeft) ? conDataLeft : streamDataLeft;
+                if (conDataLeft.equals(streamDataLeft)) {
+                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection));
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                } else if (conDataLeft.lessThan(streamDataLeft)) {
+                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection));
+                } else if (!stream.getBlockedSent()) {
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                    stream.setBlockedSent(true);
+                }
+            }
+            var createdStreamFrames = this.getStreamFrames(connection, stream, streamDataSize, maxPacketSize);
+            streamFrames = createdStreamFrames.streamFrames;
+            handshakeFrames = createdStreamFrames.handshakeFrames;
+        }
+        return {
+            streamFrames: streamFrames,
+            flowControlFrames: flowControlFrames,
+            handshakeFrames: handshakeFrames
+        };
+    }
+
+    private static getStreamFrames(connection: Connection, stream: Stream, streamDataSize: Bignum, maxPacketSize: Bignum): FlowControlFrames {
+        var streamFrames = new Array<StreamFrame>();
+        var handshakeFrames = new Array<StreamFrame>();
+
+        var streamData = stream.getData().slice(0, streamDataSize.toNumber());
+        do {
+            var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamData.length)) : false;
+            streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
+            var frame = (FrameFactory.createStreamFrame(stream, streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
+            if (stream.getStreamID().equals(0)) {
+                handshakeFrames.push(frame);
+            } else {
+                streamFrames.push(frame);
+            }
+            var originalData = stream.getData();
+            stream.setData(stream.getData().slice(streamDataSize.toNumber(), originalData.byteLength));
+            stream.addRemoteOffset(streamDataSize);
+            connection.addRemoteOffset(streamDataSize);
+
+            streamData = stream.getData();
+            streamDataSize = new Bignum(streamData.length);
+        } while (streamData.byteLength > 0);
+
+        return {
+            streamFrames: streamFrames,
+            flowControlFrames: [],
+            handshakeFrames: handshakeFrames
+        };
+    }
+
+    private static getLocalFlowControlFrames(connection: Connection): BaseFrame[] {
+        var frames = new Array<BaseFrame>();
+        if (connection.isLocalLimitAlmostExceeded() || connection.getIsRemoteBlocked()) {
+            var newMaxData = connection.getLocalMaxData().multiply(2);
+            frames.push(FrameFactory.createMaxDataFrame(newMaxData));
+            connection.setLocalMaxData(newMaxData);
+            connection.setIsRemoteBlocked(false);
+        }
+
+        connection.getStreams().forEach((stream: Stream) => {
+            if (stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
+                var newMaxStreamData = stream.getLocalMaxData().multiply(2);
+                frames.push(FrameFactory.createMaxStreamDataFrame(stream, newMaxStreamData));
+                stream.setLocalMaxData(newMaxStreamData);
+                stream.setIsRemoteBlocked(false);
             }
         });
-        if (baseEncryptedPacket.getFrames().length > 0)
-            return basePacket;
-        return undefined;
-    }
-
-    public onPacketReceived(connection: Connection, basePacket: BasePacket): void {
-        if (basePacket.getPacketType() === PacketType.Retry || basePacket.getPacketType() === PacketType.VersionNegotiation) {
-            return;
-        }
-        var frames: BaseFrame[] = [];
-        var baseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-        baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
-            if (frame.getType() >= FrameType.STREAM) {
-                var streamFrame = <StreamFrame>frame;
-                var stream: Stream = connection.getStream(streamFrame.getStreamID());
-
-                if (stream.getLocalOffset().greaterThan(streamFrame.getOffset())) {
-                    baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
-                    return;
-                }
-
-                if (stream.getLocalOffset().lessThan(streamFrame.getOffset())) {
-                    baseEncryptedPacket.getFrames().splice(baseEncryptedPacket.getFrames().indexOf(streamFrame), 1);
-                    this.addBufferedStreamFrame(streamFrame);
-                    return;
-                }
-                frames = this.onStreamFrameReceived(connection, stream, streamFrame, frames);
-                // Check if out of order frames arrived
-                var possibleNextFrame: StreamFrame | undefined = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
-                // if a frame has been received before the current one, call onStreamFrameReceived method 
-                while (possibleNextFrame !== undefined) {
-                    baseEncryptedPacket.getFrames().push(possibleNextFrame);
-                    frames = this.onStreamFrameReceived(connection, stream, possibleNextFrame, frames);
-                    possibleNextFrame = this.getBufferedStreamFrame(stream.getStreamID(), stream.getLocalOffset());
-                }
-            }
-        });
-        if (frames.length > 0) {
-            var shortHeaderPacket = PacketFactory.createShortHeaderPacket(connection, frames);
-            connection.sendPacket(shortHeaderPacket);
-        }
-    }
-
-    private onStreamFrameReceived(connection: Connection, stream: Stream, streamFrame: StreamFrame, frames: BaseFrame[]) {
-        var addedMaxData = false;
-        if (!streamFrame.getStreamID().equals(new Bignum(0))) {
-            var streamCheck = this.checkLocalStreamLimit(stream, streamFrame);
-            var connectionCheck = this.checkLocalConnectionLimit(connection, streamFrame);
-            if (streamCheck !== FlowControlState.Ok || connectionCheck !== FlowControlState.Ok) {
-                if (streamCheck === FlowControlState.Error || connectionCheck === FlowControlState.Error) {
-                    throw new QuicError(ConnectionErrorCodes.FLOW_CONTROL_ERROR);
-                }
-                if (streamCheck === FlowControlState.FinalOffsetError) {
-                    throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
-                }
-                if (streamCheck === FlowControlState.MaxStreamData) {
-                    var newMaxStreamData = stream.getLocalMaxData().multiply(2);
-                    stream.setLocalMaxData(newMaxStreamData);
-                    var maxStreamDataFrame = FrameFactory.createMaxStreamDataFrame(stream, newMaxStreamData);
-                    frames.push(maxStreamDataFrame);
-                }
-                if (connectionCheck === FlowControlState.MaxData && !addedMaxData) {
-                    var newMaxData = connection.getLocalMaxData().multiply(2);
-                    connection.setLocalMaxData(newMaxData);
-                    var maxDataFrame = FrameFactory.createMaxDataFrame(newMaxData);
-                    frames.push(maxDataFrame);
-                }
-            }
-        }
-        connection.addLocalOffset(streamFrame.getLength());
-        stream.addLocalOffset(streamFrame.getLength());
         return frames;
     }
-
-    public checkRemoteStreamLimit(stream: Stream, streamFrame: StreamFrame, streamBuffer: Buffer): FlowControlState {
-        if (stream.isRemoteLimitExceeded(streamFrame.getLength())) {
-            // sent stream blocked
-            return FlowControlState.StreamBlocked;
-        }
-        return FlowControlState.Ok;
-    }
-
-    public checkRemoteConnectionLimit(connection: Connection, streamFrame: StreamFrame, streamBuffer: Buffer): FlowControlState {
-        if (connection.isRemoteLimitExceeded(streamFrame.getLength())) {
-            // sent blocked
-            return FlowControlState.Blocked;
-        }
-        return FlowControlState.Ok;
-    }
-
-    public checkLocalStreamLimit(stream: Stream, streamFrame: StreamFrame): FlowControlState {
-        if (stream.getLocalFinalOffset() !== undefined && stream.getLocalFinalOffset().greaterThanOrEqual(streamFrame.getOffset())) {
-            // sent final offset error
-            return FlowControlState.FinalOffsetError;
-        }
-        if (stream.isLocalLimitExceeded(streamFrame.getLength())) {
-            // sent flow control error
-            return FlowControlState.Error;
-        }
-        if (stream.isLocalLimitAlmostExceeded(streamFrame.getLength())) {
-            // sent max stream data frame
-            return FlowControlState.MaxStreamData;
-        }
-        return FlowControlState.Ok;
-    }
-
-    public checkLocalConnectionLimit(connection: Connection, streamFrame: StreamFrame): FlowControlState {
-        if (connection.isLocalLimitExceeded(streamFrame.getLength())) {
-            // sent flow control error
-            return FlowControlState.Error;
-        }
-        if (connection.isLocalLimitAlmostExceeded(streamFrame.getLength())) {
-            // sent max stream data frame
-            return FlowControlState.MaxData;
-        }
-        return FlowControlState.Ok;
-    }
-
-    public getBlockedStreamFrames(streamID: Bignum): StreamFrame[] {
-        var key = streamID.toDecimalString();
-        return this.blockedStreamFrames[key];
-    }
-
-    public getAllBlockedStreamFrames(): StreamFrame[] {
-        var all: StreamFrame[] = [];
-        for (var k in this.blockedStreamFrames) {
-            all = all.concat(this.blockedStreamFrames[k]);
-        }
-        return all;
-    }
-
-    private addBlockedStreamFrame(streamFrame: StreamFrame): void {
-        var key = streamFrame.getStreamID().toDecimalString();
-        if (this.blockedStreamFrames[key] === undefined) {
-            this.blockedStreamFrames[key] = [];
-        }
-        this.blockedStreamFrames[key].push(streamFrame);
-    }
-
-    private getBufferedStreamFrame(streamID: Bignum, localOffset: Bignum): StreamFrame | undefined {
-        var key1: string = streamID.toDecimalString();
-        var key2: string = localOffset.toDecimalString();
-        if (this.bufferedFrames[key1] !== undefined && this.bufferedFrames[key1][key2] !== undefined) {
-            return this.bufferedFrames[key1][key2];
-        }
-        return undefined;
-    }
-
-    private addBufferedStreamFrame(streamFrame: StreamFrame): void {
-        var key1: string = streamFrame.getStreamID().toDecimalString();
-        var key2: string = streamFrame.getOffset().toDecimalString();
-        if (this.bufferedFrames[key1] === undefined) {
-            this.bufferedFrames[key1] = {};
-        }
-        if (this.bufferedFrames[key1][key2] === undefined) {
-            this.bufferedFrames[key1][key2] = streamFrame;
-        }
-    }
 }
 
-export enum FlowControlState {
-    Ok,
-    StreamBlocked,
-    Blocked,
-    MaxData,
-    MaxStreamData,
-    Error,
-    FinalOffsetError
-}
+export interface FlowControlFrames {
+    streamFrames: StreamFrame[],
+    flowControlFrames: BaseFrame[],
+    handshakeFrames: StreamFrame[]
+};

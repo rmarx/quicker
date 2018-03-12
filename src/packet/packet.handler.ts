@@ -23,6 +23,7 @@ import { VersionValidation } from '../utilities/validation/version.validation';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 import { Protected0RTTPacket } from './packet/protected.0rtt';
+import { Time, TimeFormat } from '../utilities/time';
 
 export class PacketHandler {
 
@@ -32,7 +33,7 @@ export class PacketHandler {
         this.frameHandler = new FrameHandler();
     }
 
-    public handle(connection: Connection, packet: BasePacket, receivedTime: number) {
+    public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
             var versionSupported = VersionValidation.validateVersion(connection, longHeader);
@@ -41,7 +42,9 @@ export class PacketHandler {
                 throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
             }
         }
+        
         this.onPacketReceived(connection, packet, receivedTime);
+        
         switch (packet.getPacketType()) {
             case PacketType.VersionNegotiation:
                 var versionNegotiationPacket: VersionNegotiationPacket = <VersionNegotiationPacket>packet;
@@ -63,6 +66,8 @@ export class PacketHandler {
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
                 this.handleProtected1RTTPacket(connection, shortHeaderPacket);
         }
+        
+        connection.sendPackets();
     }
 
     private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
@@ -119,9 +124,8 @@ export class PacketHandler {
         });
     }
 
-    private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: number): void {
+    private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: Time): void {
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
         connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
-        connection.getFlowControl().onPacketReceived(connection, packet);
     }
 }

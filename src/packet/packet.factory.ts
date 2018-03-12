@@ -50,6 +50,8 @@ export class PacketFactory {
         var streamFrame = new StreamFrame(new Bignum(0), clientInitial);
         streamFrame.setLength(new Bignum(clientInitial.byteLength));
         var stream = connection.getStream(new Bignum(0));
+        stream.addRemoteOffset(streamFrame.getData().byteLength);
+        connection.addRemoteOffset(streamFrame.getData().byteLength);
         var size = streamFrame.toBuffer().byteLength;
         var frames: BaseFrame[] = [streamFrame];
         if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
