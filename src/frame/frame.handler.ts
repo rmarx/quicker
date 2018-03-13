@@ -146,7 +146,7 @@ export class FrameHandler {
     private handlePingFrame(connection: Connection, pingFrame: PingFrame) {
         if (pingFrame.getLength() > 0) {
             var pongFrame = FrameFactory.createPongFrame(pingFrame.getData());
-            connection.sendFrame(pongFrame);
+            connection.queueFrame(pongFrame);
         }
     }
 
