@@ -1,4 +1,4 @@
-import {HandshakeState} from '../crypto/qtls';
+import { HandshakeState } from '../crypto/qtls';
 import { TimeFormat, Time } from '../types/time';
 import { HeaderParser, HeaderOffset } from '../utilities/parsers/header.parser';
 import { PacketParser, PacketOffset } from '../utilities/parsers/packet.parser';
@@ -40,6 +40,7 @@ export class Server extends EventEmitter {
     private packetHandler: PacketHandler;
 
     private connections: { [key: string]: Connection; } = {};
+    private mappedConnections: { [key: string]: string; } = {};
     private omittedConnections: { [key: string]: Connection; } = {};
 
     private constructor() {
@@ -82,11 +83,9 @@ export class Server extends EventEmitter {
             this.emit(QuickerEvent.NEW_STREAM, quicStream);
         });
         connection.on(ConnectionEvent.DRAINING, () => {
-            console.log("draining connection with id " + connection.getConnectionID());
             this.emit(QuickerEvent.CONNECTION_DRAINING, connection.getConnectionID().toString());
         });
         connection.on(ConnectionEvent.CLOSE, () => {
-            console.log("closed connection with id " + connection.getConnectionID().toString());
             delete this.connections[connection.getConnectionID().toString()];
             this.emit(QuickerEvent.CONNECTION_CLOSE, connection.getConnectionID().toString());
         });
@@ -112,7 +111,7 @@ export class Server extends EventEmitter {
             connection.startIdleAlarm();
         } catch (err) {
             if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
-                delete this.connections[connection.getConnectionID().toString()];
+                this.deleteConnection(connection);
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);
                 return;
@@ -202,7 +201,7 @@ export class Server extends EventEmitter {
         }
         connection.setConnectionID(newConnectionID);
         this.connections[connection.getConnectionID().toString()] = connection;
-        this.connections[connection.getFirstConnectionID().toString()] = connection;
+        this.mappedConnections[connection.getFirstConnectionID().toString()] = connection.getConnectionID().toString();
         this.setupConnectionEvents(connection);
         return connection;
     }
@@ -215,5 +214,15 @@ export class Server extends EventEmitter {
             });
         }
         return this.secureContext;
+    }
+
+    private deleteConnection(connection: Connection) {
+        var conId = connection.getConnectionID().toString();
+        Object.keys(this.mappedConnections).forEach((key: string) => {
+            if (key === conId) {
+                delete this.mappedConnections[key];
+            }
+        });
+        delete this.connections[conId];
     }
 }

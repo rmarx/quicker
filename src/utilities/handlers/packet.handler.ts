@@ -34,6 +34,7 @@ export class PacketHandler {
     }
 
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
+        PacketLogging.getInstance().logIncomingPacket(connection, packet);
         if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
             var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
@@ -126,7 +127,6 @@ export class PacketHandler {
     }
 
     private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: Time): void {
-        PacketLogging.getInstance().logIncomingPacket(connection, packet);
         connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
     }
 }
