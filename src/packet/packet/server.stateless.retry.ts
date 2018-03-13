@@ -1,6 +1,6 @@
 import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
-import { Connection } from "../../types/connection";
+import { Connection } from "../../quicker/connection";
 
 
 export class ServerStatelessRetryPacket extends BasePacket {

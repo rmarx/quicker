@@ -1,7 +1,7 @@
 import {BasePacket} from '../packet/base.packet';
 import {Bignum} from '../types/bignum';
-import {Alarm, AlarmEvent} from '../utilities/alarm';
-import { AckFrame } from './../frame/general/ack';
+import {Alarm, AlarmEvent} from '../types/alarm';
+import { AckFrame } from '../frame/ack';
 
 /**
  * Not used at the moment

@@ -1,7 +1,7 @@
 import {BaseHeader} from '../header/base.header';
 import {BaseFrame} from '../../frame/base.frame';
 import {PacketType} from '../base.packet';
-import {Connection} from '../../types/connection';
+import {Connection} from '../../quicker/connection';
 import {BaseEncryptedPacket} from './../base.encrypted.packet';
 
 

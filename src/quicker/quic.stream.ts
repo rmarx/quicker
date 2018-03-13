@@ -1,8 +1,8 @@
-import {Connection} from '../types/connection';
+import {Connection} from './connection';
 import { EventEmitter } from "events";
 import { Bignum } from "../types/bignum";
-import { Stream, StreamEvent } from "../types/stream";
-import { FrameFactory } from '../frame/frame.factory';
+import { Stream, StreamEvent } from "./stream";
+import { FrameFactory } from '../utilities/factories/frame.factory';
 import { QuickerEvent } from './quicker.event';
 
 export class QuicStream extends EventEmitter{

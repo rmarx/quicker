@@ -1,5 +1,5 @@
 import { BaseHeader, HeaderType } from "./base.header";
-import {ConnectionID, PacketNumber, Version} from '../../types/header.properties';
+import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
 

@@ -1,5 +1,5 @@
 import {BaseHeader, HeaderType} from './base.header';
-import {ConnectionID, PacketNumber} from '../../types/header.properties';
+import {ConnectionID, PacketNumber} from './header.properties';
 
 
 /**           0              [1-7]                      *                       *

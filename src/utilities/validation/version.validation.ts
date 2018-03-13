@@ -1,5 +1,5 @@
-import { Version } from '../../types/header.properties';
-import { Connection } from '../../types/connection';
+import { Version } from '../../packet/header/header.properties';
+import { Connection } from '../../quicker/connection';
 import { ClientInitialPacket } from '../../packet/packet/client.initial';
 import { BasePacket } from '../../packet/base.packet';
 import { HeaderType } from '../../packet/header/base.header';

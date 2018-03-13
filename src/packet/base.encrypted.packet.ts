@@ -1,9 +1,9 @@
 import {BasePacket, PacketType} from './base.packet';
 import {BaseFrame} from '../frame/base.frame';
 import {BaseHeader} from './header/base.header';
-import {Connection} from '../types/connection';
+import {Connection} from '../quicker/connection';
 import {Constants} from '../utilities/constants';
-import {PaddingFrame} from '../frame/general/padding';
+import {PaddingFrame} from '../frame/padding';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 

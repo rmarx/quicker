@@ -1,4 +1,4 @@
-import {Connection} from '../types/connection';
+import {Connection} from '../quicker/connection';
 import {BaseHeader} from './header/base.header';
 import { LongHeader } from "./header/long.header";
 

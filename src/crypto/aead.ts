@@ -1,6 +1,6 @@
-import {ConnectionID, Version, PacketNumber} from '../types/header.properties';
+import {ConnectionID, Version, PacketNumber} from '../packet/header/header.properties';
 import {QTLS, QuicTLSEvents} from './qtls';
-import {Connection} from '../types/connection';
+import {Connection} from '../quicker/connection';
 import {Bignum} from '../types/bignum';
 import {BaseHeader} from '../packet/header/base.header';
 import {HKDF} from './hkdf';

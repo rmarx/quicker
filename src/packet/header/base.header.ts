@@ -1,5 +1,5 @@
 import { Bignum } from "../../types/bignum";
-import {ConnectionID, PacketNumber, Version} from '../../types/header.properties';
+import {ConnectionID, PacketNumber, Version} from './header.properties';
 
 export abstract class BaseHeader {
 

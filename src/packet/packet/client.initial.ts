@@ -1,9 +1,9 @@
 import {BaseFrame} from '../../frame/base.frame';
 import {BaseHeader} from '../header/base.header';
 import {PacketType} from '../base.packet';
-import {Connection} from '../../types/connection';
+import {Connection} from '../../quicker/connection';
 import {Constants} from '../../utilities/constants';
-import {PaddingFrame} from '../../frame/general/padding';
+import {PaddingFrame} from '../../frame/padding';
 import {BaseEncryptedPacket} from "./../base.encrypted.packet";
 
 

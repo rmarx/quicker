@@ -1,7 +1,7 @@
 import { HandshakeValidation } from '../utilities/validation/handshake.validation';
 import { Bignum } from '../types/bignum';
 import { Constants } from '../utilities/constants';
-import { Connection } from '../types/connection';
+import { Connection } from '../quicker/connection';
 import { TransportParameters, TransportParameterType } from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
