@@ -283,11 +283,11 @@ export class Connection extends FlowControlledObject {
         this.resetOffsets();
     }
 
-    public sendFrame(baseFrame: BaseFrame) {
-        this.sendFrames([baseFrame]);
+    public queueFrame(baseFrame: BaseFrame) {
+        this.queueFrames([baseFrame]);
     }
     
-    public sendFrames(baseFrames: BaseFrame[]): void {
+    public queueFrames(baseFrames: BaseFrame[]): void {
         this.bufferedFrames = this.bufferedFrames.concat(baseFrames);
         if (!this.transmissionAlarm.isRunning()) {
             this.startTransmissionAlarm();
@@ -301,14 +301,15 @@ export class Connection extends FlowControlledObject {
     public sendPacket(basePacket: BasePacket, bufferPacket: boolean = true): void {
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation && basePacket.getPacketType() !== PacketType.Initial && bufferPacket) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-            this.sendFrames(baseEncryptedPacket.getFrames());
+            this.queueFrames(baseEncryptedPacket.getFrames());
         } else {
             this._sendPacket(basePacket);
         }
     }
 
     public sendPackets(): void {
-        var packets = FlowControl.getPackets(this);
+        this.transmissionAlarm.reset();
+        var packets = FlowControl.getPackets(this, this.bufferedFrames);
         packets.forEach((packet: BasePacket) => {
             this._sendPacket(packet);
         });
@@ -340,15 +341,7 @@ export class Connection extends FlowControlledObject {
 
     private startTransmissionAlarm(): void {
         this.transmissionAlarm.on(AlarmEvent.TIMEOUT, () => {
-            var packet: BaseEncryptedPacket;
-            var frames = this.bufferedFrames;
-            this.bufferedFrames = [];
-            if (this.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-                packet = PacketFactory.createShortHeaderPacket(this, frames);
-            } else {
-                packet = PacketFactory.createHandshakePacket(this, frames);
-            }
-            this._sendPacket(packet);
+            this.sendPackets();
         });
         this.transmissionAlarm.start(40);
     }

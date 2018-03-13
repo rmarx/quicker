@@ -10,6 +10,7 @@ import { createCipheriv, createDecipheriv } from "crypto";
 import { logMethod } from '../utilities/decorators/log.decorator';
 import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
+import { LongHeader } from '../packet/header/long.header';
 
 export class AEAD {
 
@@ -49,7 +50,8 @@ export class AEAD {
      */
     public clearTextEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
-        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), connection.getVersion(), encryptingEndpoint);
+        var longHeader = <LongHeader> header;
+        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), longHeader.getVersion(), encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
         var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
@@ -64,7 +66,8 @@ export class AEAD {
      */
     public clearTextDecrypt(connection: Connection, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
-        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(),connection.getVersion(), encryptingEndpoint);
+        var longHeader = <LongHeader> header;
+        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), longHeader.getVersion(), encryptingEndpoint);
         var key = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
         var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
