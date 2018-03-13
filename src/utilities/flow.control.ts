@@ -46,7 +46,7 @@ export class FlowControl {
             var frameSize = frame.toBuffer().byteLength
             if (size.add(frameSize).greaterThan(maxPacketSize)) {
                 packets.push(this.createNewPacket(connection, packetFrames));
-                size = size.subtract(size);
+                size = new Bignum(0);
                 packetFrames = [];
             }
             size = size.add(frameSize);
@@ -57,7 +57,7 @@ export class FlowControl {
             var frameSize = frame.toBuffer().byteLength
             if (size.add(frameSize).greaterThan(maxPacketSize)) {
                 packets.push(this.createNewPacket(connection, packetFrames));
-                size = size.subtract(size);
+                size = new Bignum(0);
                 packetFrames = [];
             }
             size = size.add(frameSize);
@@ -68,7 +68,7 @@ export class FlowControl {
             var frameSize = frame.toBuffer().byteLength
             if (size.add(frameSize).greaterThan(maxPacketSize)) {
                 packets.push(this.createNewPacket(connection, packetFrames));
-                size = size.subtract(size);
+                size = new Bignum(0);
                 packetFrames = [];
             }
             size = size.add(frameSize);
