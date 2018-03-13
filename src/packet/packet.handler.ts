@@ -89,10 +89,10 @@ export class PacketHandler {
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
         }
         connection.resetConnectionState();
-        connection.deleteStream(new Bignum(0));
         connection.setVersion(negotiatedVersion);
         var clientInitialPacket = PacketFactory.createClientInitialPacket(connection, true);
         connection.sendPacket(clientInitialPacket);
+        connection.attemptEarlyData();
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {

@@ -40,6 +40,7 @@ export class Connection extends FlowControlledObject {
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
     private version!: Version;
+    private earlyData?: Buffer;
 
     private state!: ConnectionState;
     private streams: Stream[];
@@ -280,6 +281,7 @@ export class Connection extends FlowControlledObject {
 
     public resetConnectionState() {
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
+        this.streams = [];
         this.resetOffsets();
     }
 
@@ -346,10 +348,13 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm.start(40);
     }
 
-    public attemptEarlyData(earlyData: Buffer | undefined): boolean {
-        if (earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
+    public attemptEarlyData(earlyData?: Buffer): boolean {
+        if (earlyData !== undefined) {
+            this.earlyData = earlyData;
+        }
+        if (this.earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
             var stream = this.getNextStream(StreamType.ClientBidi);
-            stream.addData(earlyData, true);
+            stream.addData(this.earlyData, true);
             this.sendPackets();
         }
         return false;

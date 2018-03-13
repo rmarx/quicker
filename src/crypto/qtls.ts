@@ -24,6 +24,8 @@ export class QTLS extends EventEmitter{
     private cipher!: Cipher;
     private connection: Connection;
 
+    private earlyData?: Buffer;
+
     public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         super();
         this.isServer = isServer;
@@ -66,6 +68,9 @@ export class QTLS extends EventEmitter{
     public getClientInitial(createNew = false): Buffer {
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
+            if (this.earlyData !== undefined) {
+                this.writeEarlyData(this.earlyData);
+            }
         }
         if (!this.isEarlyDataAllowed()) {
             this.setLocalTransportParameters();
@@ -108,6 +113,7 @@ export class QTLS extends EventEmitter{
     }
 
     public writeEarlyData(earlyData: Buffer) {
+        this.earlyData = earlyData;
         this.setLocalTransportParameters();
         return this.qtlsHelper.writeEarlyData(earlyData);
     }
@@ -215,6 +221,7 @@ export class QTLS extends EventEmitter{
         }
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
+        this.earlyData = undefined;
     }
 
     private setLocalTransportParameters() {
