@@ -18,16 +18,18 @@ console.log("QUICker client connecting to " + host + ":" + port);
 var httpHelper = new HttpHelper();
 var client = Client.connect(host, Number(port));
 client.on(QuickerEvent.CLIENT_CONNECTED, () => {
-    var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
-    var bufferedData = Buffer.alloc(0);
+    for(var i = 0; i < 50; i++) {
+        var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
+        var bufferedData = Buffer.alloc(0);
 
-    quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
-        bufferedData = Buffer.concat([bufferedData, data]);
-    });
+        quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
+            //bufferedData = Buffer.concat([bufferedData, data]);
+        });
 
-    quicStream.on(QuickerEvent.STREAM_END, () => {
-        console.log(bufferedData.toString('utf8'));
-    });
+        quicStream.on(QuickerEvent.STREAM_END, () => {
+            //console.log(bufferedData.toString('utf8'));
+        });
+    }
 
     setTimeout(() => {
         var client2 = Client.connect(host, Number(port), {

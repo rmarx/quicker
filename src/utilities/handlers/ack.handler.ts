@@ -18,14 +18,16 @@ export class AckHandler {
     private receivedPackets: { [key: string]: Time };
     private largestPacketNumber!: Bignum;
     private largestAcked: boolean;
+    private isAckOnly: boolean;
     private alarm: Alarm;
     // ack wait in ms
-    private static readonly ACK_WAIT = 25;
+    private static readonly ACK_WAIT = 15;
 
     public constructor(connection: Connection) {
         this.receivedPackets = {};
         this.alarm = new Alarm();
         this.largestAcked = true;
+        this.isAckOnly = true;
     }
 
     public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
@@ -38,22 +40,21 @@ export class AckHandler {
             this.largestPacketNumber = pn;
             this.largestAcked = true;
         }
-        var isAckOnly = true;
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket = <BaseEncryptedPacket>packet;
             if (baseEncryptedPacket.getFrames().length === 0) {
-                isAckOnly = false;
+                this.isAckOnly = false;
             }
             baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
                 if (frame.getType() !== FrameType.ACK) {
-                    isAckOnly = false;
+                    this.isAckOnly = false;
                 }
             });
         } else {
-            isAckOnly = false;
+            this.isAckOnly = false;
         }
         this.receivedPackets[pn.toString()] = time;
-        if (isAckOnly && Object.keys(this.receivedPackets).length === 1) {
+        if (this.isAckOnly && Object.keys(this.receivedPackets).length === 1) {
             this.alarm.reset();
         } else if (!this.alarm.isRunning()) {
             this.setAlarm(connection);
@@ -64,7 +65,7 @@ export class AckHandler {
 
     public getAckFrame(connection: Connection): AckFrame | undefined {
         this.alarm.reset();
-        if (Object.keys(this.receivedPackets).length === 0 || (Object.keys(this.receivedPackets).length === 1 && this.largestAcked)) {
+        if (Object.keys(this.receivedPackets).length === 0 || (Object.keys(this.receivedPackets).length === 1 && this.largestAcked) || this.isAckOnly) {
             return undefined;
         }
 
@@ -88,6 +89,7 @@ export class AckHandler {
         this.receivedPackets = {};
         this.receivedPackets[latestPacketNumber.toString()] = largestAckedTime;
         this.largestAcked = true;
+        this.isAckOnly = true;
 
         var ackBlockCount = 0;
         var blocks = [];
@@ -121,7 +123,8 @@ export class AckHandler {
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 baseFrames.push(ackFrame);
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED || 
+                    connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED) {
                     var packet: BaseEncryptedPacket = PacketFactory.createShortHeaderPacket(connection, baseFrames);
                 } else {
                     var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
