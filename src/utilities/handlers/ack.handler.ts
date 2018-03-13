@@ -15,8 +15,9 @@ import { HandshakeState } from '../../crypto/qtls';
 
 
 export class AckHandler {
-    private receivedPackets: { [key: string]: ReceivedPacket };
+    private receivedPackets: { [key: string]: Time };
     private largestPacketNumber!: Bignum;
+    private largestAcked: boolean;
     private alarm: Alarm;
     // ack wait in ms
     private static readonly ACK_WAIT = 25;
@@ -24,6 +25,7 @@ export class AckHandler {
     public constructor(connection: Connection) {
         this.receivedPackets = {};
         this.alarm = new Alarm();
+        this.largestAcked = true;
     }
 
     public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
@@ -34,6 +36,7 @@ export class AckHandler {
         var pn = connection.getRemotePacketNumber().getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
         if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
+            this.largestAcked = true;
         }
         var isAckOnly = true;
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
@@ -49,7 +52,7 @@ export class AckHandler {
         } else {
             isAckOnly = false;
         }
-        this.receivedPackets[pn.toString()] = { packet: packet, receiveTime: time };
+        this.receivedPackets[pn.toString()] = time;
         if (isAckOnly && Object.keys(this.receivedPackets).length === 1) {
             this.alarm.reset();
         } else if (!this.alarm.isRunning()) {
@@ -61,16 +64,17 @@ export class AckHandler {
 
     public getAckFrame(connection: Connection): AckFrame | undefined {
         this.alarm.reset();
-        if (Object.keys(this.receivedPackets).length === 0) {
+        if (Object.keys(this.receivedPackets).length === 0 || (Object.keys(this.receivedPackets).length === 1 && this.largestAcked)) {
             return undefined;
         }
+
         if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
             var ackDelayExponent: number = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
         } else {
             var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
         }
 
-        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString()].receiveTime).format(TimeFormat.MicroSeconds);
+        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString()]).format(TimeFormat.MicroSeconds);
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
         var packetnumbers: Bignum[] = [];
@@ -79,7 +83,11 @@ export class AckHandler {
             return a.compare(b);
         });
         packetnumbers.reverse();
+        var latestPacketNumber = this.largestPacketNumber;
+        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.toString()];
         this.receivedPackets = {};
+        this.receivedPackets[latestPacketNumber.toString()] = largestAckedTime;
+        this.largestAcked = true;
 
         var ackBlockCount = 0;
         var blocks = [];
@@ -104,7 +112,6 @@ export class AckHandler {
             ackBlocks.push(ackBlock);
         }
 
-        var latestPacketNumber = this.largestPacketNumber;
         return new AckFrame(latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
     }
 
@@ -124,9 +131,4 @@ export class AckHandler {
         });
         this.alarm.start(AckHandler.ACK_WAIT);
     }
-}
-
-interface ReceivedPacket {
-    packet: BasePacket,
-    receiveTime: Time
 }
