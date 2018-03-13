@@ -1,4 +1,4 @@
-import {Version} from '../../types/header.properties';
+import { Version } from '../../types/header.properties';
 import { Connection } from '../../types/connection';
 import { ClientInitialPacket } from '../../packet/packet/client.initial';
 import { BasePacket } from '../../packet/base.packet';
@@ -6,22 +6,27 @@ import { HeaderType } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
 import { Constants } from '../../utilities/constants';
 import { EndpointType } from '../../types/endpoint.type';
+import { QuicError } from '../errors/connection.error';
+import { ConnectionErrorCodes } from '../errors/connection.codes';
 
 export class VersionValidation {
 
 
-    public static validateVersion(connection: Connection, longHeader: LongHeader): boolean {
-        // version negotiation
-        if (connection.getEndpointType() === EndpointType.Client && longHeader.getVersion().toString() === '00000000') {
-            return true;
-        }
-        var versionFound = false;
-        Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-            if (version === longHeader.getVersion().toString()) {
-                versionFound = true;
-                connection.setVersion(new Version(Buffer.from(version, 'hex')));
+    public static validateVersion(version: (Version | undefined), longHeader: LongHeader): Version |  undefined {
+        if (version === undefined) {
+            // version negotiation
+            var negotiatedVersion = undefined;
+            Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
+                if (version === longHeader.getVersion().toString()) {
+                    negotiatedVersion = new Version(Buffer.from(version, 'hex'));
+                }
+            });
+            return negotiatedVersion;
+        } else {
+            if (longHeader.getVersion().toString() === version.toString()) {
+                return version;
             }
-        });
-        return versionFound;
+        }
+        throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
     }
 }

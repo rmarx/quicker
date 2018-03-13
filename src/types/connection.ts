@@ -1,7 +1,7 @@
 import { Alarm, AlarmEvent } from '../utilities/alarm';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { AEAD } from '../crypto/aead';
-import { QTLS, HandshakeState } from '../crypto/qtls';
+import { QTLS, HandshakeState, QuicTLSEvents } from '../crypto/qtls';
 import { ConnectionID, PacketNumber, Version } from '../types/header.properties';
 import { Bignum } from './bignum';
 import { RemoteInfo, Socket } from "dgram";
@@ -30,7 +30,7 @@ export class Connection extends FlowControlledObject {
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
     private ackHandler: AckHandler;
-    private handshakeHandler: HandshakeHandler;
+    private handshakeHandler!: HandshakeHandler;
 
     private firstConnectionID!: ConnectionID;
     private connectionID!: ConnectionID;
@@ -39,7 +39,7 @@ export class Connection extends FlowControlledObject {
     private remotePacketNumber!: PacketNumber;
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
-    private version: Version;
+    private version!: Version;
 
     private state!: ConnectionState;
     private streams: Stream[];
@@ -58,12 +58,24 @@ export class Connection extends FlowControlledObject {
         this.bufferedFrames = [];
         this.idleTimeoutAlarm = new Alarm();
         this.transmissionAlarm = new Alarm();
-        this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+        if (this.endpointType === EndpointType.Client) {
+            this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+        }
         
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
+        this.hookQuicTLSEvents();
         this.aead = new AEAD(this.qtls);
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
+    }
+
+    private hookQuicTLSEvents() {
+        this.qtls.on(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, (transportParams: TransportParameters) => {
+            this.setLocalTransportParameters(transportParams);
+        });
+        this.qtls.on(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, (transportParams: TransportParameters) => {
+            this.setRemoteTransportParameters(transportParams);
+        });
     }
 
     public getRemoteInfo(): RemoteInfo {
@@ -200,19 +212,25 @@ export class Connection extends FlowControlledObject {
     public getStream(streamId: Bignum): Stream {
         var stream = this._getStream(streamId);
         if (stream === undefined) {
-            stream = new Stream(this, streamId);
-            this.addStream(stream);
-            if (streamId.compare(new Bignum(0)) !== 0) {
-                stream = this.initializeStream(stream);
-                this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
-            }
+            stream = this.initializeStream(streamId);
         }
         return stream;
     }
 
-    private initializeStream(stream: Stream): Stream {
-        stream.setLocalMaxData(this.localTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
-        stream.setRemoteMaxData(this.remoteTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+    private initializeStream(streamId: Bignum): Stream {
+        var stream = new Stream(this, streamId);
+        this.addStream(stream);
+        if (this.localTransportParameters !== undefined) {
+            stream.setLocalMaxData(this.localTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        }
+        if (this.remoteTransportParameters !== undefined) {
+            stream.setRemoteMaxData(this.remoteTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        }
+        if (streamId.compare(new Bignum(0)) !== 0) {
+            this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
+        } else {
+            this.handshakeHandler.setHandshakeStream(stream);
+        }
         return stream;
     }
 

@@ -1,5 +1,4 @@
 import {Constants} from '../utilities/constants';
-import {Connection} from '../types/connection';
 import { EndpointType } from '../types/endpoint.type';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
@@ -205,10 +204,10 @@ export class TransportParameters {
         return size;
     }
 
-    public static fromBuffer(connection: Connection, buffer: Buffer): TransportParameters {
+    public static fromBuffer(isServer: boolean, buffer: Buffer): TransportParameters {
         var values: { [index: number]: any; } = [];
         var offset = 0;
-        var transportParameters = new TransportParameters(connection.getEndpointType() === EndpointType.Server, -1, -1, -1);
+        var transportParameters = new TransportParameters(isServer, -1, -1, -1);
         while (offset < buffer.byteLength) {
             var type = buffer.readUInt16BE(offset);
             offset += 2;

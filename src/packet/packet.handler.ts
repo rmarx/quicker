@@ -36,11 +36,12 @@ export class PacketHandler {
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
-            var versionSupported = VersionValidation.validateVersion(connection, longHeader);
-            if (!versionSupported) {
+            var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
+            if (negotiatedVersion === undefined) {
                 connection.resetConnectionState();
                 throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
             }
+            connection.setVersion(negotiatedVersion);
         }
         
         this.onPacketReceived(connection, packet, receivedTime);

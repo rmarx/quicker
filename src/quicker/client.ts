@@ -147,7 +147,7 @@ export class Client extends EventEmitter{
     }
 
     public setTransportParameters(tp: Buffer): void {
-        return this.connection.setRemoteTransportParameters(TransportParameters.fromBuffer(this.connection, tp));
+        return this.connection.setRemoteTransportParameters(TransportParameters.fromBuffer(false, tp));
     }
 
     public isSessionReused(): boolean {

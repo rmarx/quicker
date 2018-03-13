@@ -151,12 +151,12 @@ export class FrameHandler {
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
-        connection.setIsBlocked(true);
+        connection.setIsRemoteBlocked(true);
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
         var streamId = streamBlocked.getStreamId()
-        connection.getStream(streamId).setIsBlocked(true);
+        connection.getStream(streamId).setIsRemoteBlocked(true);
     }
 
     private handleStreamIdBlockedFrame(connection: Connection, streamIdBlocked: StreamIdBlockedFrame) {

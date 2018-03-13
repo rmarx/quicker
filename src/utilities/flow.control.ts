@@ -133,7 +133,7 @@ export class FlowControl {
             }
         } else if (!connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
             var streamDataSize = new Bignum(stream.getData().length);
-            
+
             if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || connection.isRemoteLimitExceeded(streamDataSize)) {
                 var conDataLeft = connection.getRemoteMaxData().subtract(connection.getRemoteOffset());
                 var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
@@ -164,7 +164,8 @@ export class FlowControl {
         var handshakeFrames = new Array<StreamFrame>();
 
         var streamData = stream.getData().slice(0, streamDataSize.toNumber());
-        do {
+
+        while (streamData.byteLength > 0) {
             var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamData.length)) : false;
             streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
             var frame = (FrameFactory.createStreamFrame(stream, streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
@@ -180,7 +181,7 @@ export class FlowControl {
 
             streamData = stream.getData();
             streamDataSize = new Bignum(streamData.length);
-        } while (streamData.byteLength > 0);
+        }
 
         return {
             streamFrames: streamFrames,

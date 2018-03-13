@@ -9,9 +9,9 @@ export class HandshakeValidation {
      * Method to get transportparameters from the extensiondata buffer and validate this data
      * TODO: add validation
      */
-    public static validateExtensionData(connection: Connection, extensionData: Buffer): TransportParameters {
+    public static validateExtensionData(isServer: boolean, extensionData: Buffer): TransportParameters {
         var offset = 0;
-        if (connection.getEndpointType() === EndpointType.Server) {
+        if (isServer) {
             var version = extensionData.readUInt32BE(offset);
             offset += 4;
         } else {
@@ -28,7 +28,7 @@ export class HandshakeValidation {
         offset += 2;
         var transportParamBuffer = Buffer.alloc(length);
         extensionData.copy(transportParamBuffer, 0, offset);
-        var transportParameters: TransportParameters = TransportParameters.fromBuffer(connection, transportParamBuffer);
+        var transportParameters: TransportParameters = TransportParameters.fromBuffer(isServer, transportParamBuffer);
         
         return transportParameters;
     }
