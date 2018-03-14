@@ -12,12 +12,16 @@ import { RstStreamFrame } from '../../frame/rst.stream';
 import { ConnectionCloseFrame, ApplicationCloseFrame } from '../../frame/close';
 import { MaxStreamIdFrame } from '../../frame/max.stream.id';
 import { StreamIdBlockedFrame } from '../../frame/stream.id.blocked';
+import { AckBlock, AckFrame } from '../../frame/ack';
+import { ConnectionID } from '../../packet/header/header.properties';
+import { NewConnectionIdFrame } from '../../frame/new.connection.id';
+import { StopSendingFrame } from '../../frame/stop.sending';
 
 
 export class FrameFactory {
 
-    public static createStreamFrame(stream: Stream, data: Buffer, fin: boolean, len: boolean, offset?: Bignum): StreamFrame {
-        var streamFrame = new StreamFrame(stream.getStreamID(), data);
+    public static createStreamFrame(streamId: Bignum, data: Buffer, fin: boolean, len: boolean, offset?: Bignum): StreamFrame {
+        var streamFrame = new StreamFrame(streamId, data);
         streamFrame.setFin(fin);
         if (len) {
             streamFrame.setLength(new Bignum(data.byteLength));
@@ -32,20 +36,20 @@ export class FrameFactory {
         return new PaddingFrame(paddingSize);
     }
 
-    public static createStreamBlockedFrame(stream: Stream): StreamBlockedFrame {
-        return new StreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset());
+    public static createStreamBlockedFrame(streamId: Bignum, remoteOffset: Bignum): StreamBlockedFrame {
+        return new StreamBlockedFrame(streamId, remoteOffset);
     }
 
-    public static createBlockedFrame(connection: Connection): BlockedFrame {
-        return new BlockedFrame(connection.getRemoteOffset());
+    public static createBlockedFrame(remoteOffset: Bignum): BlockedFrame {
+        return new BlockedFrame(remoteOffset);
     }
 
     public static createStreamIdBlockedFrame(streamId: Bignum): StreamIdBlockedFrame {
         return new StreamIdBlockedFrame(streamId);
     }
 
-    public static createMaxStreamDataFrame(stream: Stream, newMaxStreamData: Bignum): MaxStreamFrame {
-        return new MaxStreamFrame(stream.getStreamID(), newMaxStreamData);
+    public static createMaxStreamDataFrame(streamId: Bignum, newMaxStreamData: Bignum): MaxStreamFrame {
+        return new MaxStreamFrame(streamId, newMaxStreamData);
     }
 
     public static createMaxDataFrame(newMaxData: Bignum): MaxDataFrame {
@@ -56,16 +60,16 @@ export class FrameFactory {
         return new MaxStreamIdFrame(newMaxData);
     }
 
-    public static createPingFrame(data: Buffer): PingFrame {
-        return new PingFrame(data.byteLength, data);
+    public static createPingFrame(length: number, data: Buffer): PingFrame {
+        return new PingFrame(length, data);
     }
 
-    public static createPongFrame(data: Buffer): PongFrame {
-        return new PongFrame(data.byteLength, data);
+    public static createPongFrame(length: number, data: Buffer): PongFrame {
+        return new PongFrame(length, data);
     }
 
-    public static createRstStreamFrame(stream: Stream, errorCode: number): RstStreamFrame {
-        return new RstStreamFrame(stream.getStreamID(), errorCode, stream.getRemoteFinalOffset());
+    public static createRstStreamFrame(streamId: Bignum, errorCode: number, remoteFinalOffset: Bignum): RstStreamFrame {
+        return new RstStreamFrame(streamId, errorCode, remoteFinalOffset);
     }
 
     public static createConnectionCloseFrame(errorCode: number, phrase?: string): ConnectionCloseFrame {
@@ -80,5 +84,17 @@ export class FrameFactory {
             phrase = "";
         }
         return new ApplicationCloseFrame(errorCode, phrase);
+    }
+
+    public static createAckFrame(largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]): AckFrame {
+        return new AckFrame(largestAck, ackDelay, ackBlockCount, firstAckBlock, ackBlocks);
+    }
+
+    public static createStopSendingFrame(streamID: Bignum, applicationErrorCode: number): StopSendingFrame {
+        return new StopSendingFrame(streamID, applicationErrorCode);
+    }
+
+    public static createNewConnectionIdFrame(connectionID: ConnectionID, statelessResetToken: Buffer): NewConnectionIdFrame {
+        return new NewConnectionIdFrame(connectionID, statelessResetToken);
     }
 }

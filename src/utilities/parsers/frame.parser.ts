@@ -18,6 +18,7 @@ import { AckBlock, AckFrame } from '../../frame/ack';
 import { PaddingFrame } from '../../frame/padding';
 import { ConnectionErrorCodes } from '../errors/connection.codes';
 import { QuicError } from '../errors/connection.error';
+import { FrameFactory } from '../factories/frame.factory';
 
 
 export class FrameParser {
@@ -85,7 +86,7 @@ export class FrameParser {
         }
         var paddingSize = offset - startOffset;
         return {
-            frame: new PaddingFrame(paddingSize),
+            frame: FrameFactory.createPaddingFrame(paddingSize),
             offset: offset
         };
     }
@@ -98,7 +99,7 @@ export class FrameParser {
         var finalOffset = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(finalOffset);
         return {
-            frame: new RstStreamFrame(streamID, applicationErrorCode, finalOffset),
+            frame: FrameFactory.createRstStreamFrame(streamID, applicationErrorCode, finalOffset),
             offset: offset
         };
     }
@@ -112,12 +113,12 @@ export class FrameParser {
         offset += phraseLength.toNumber();
         if (type === FrameType.APPLICATION_CLOSE) {
             return {
-                frame: new ApplicationCloseFrame(errorCode, phrase),
+                frame: FrameFactory.createApplicationCloseFrame(errorCode, phrase),
                 offset: offset
             };
         } else {
             return {
-                frame: new ConnectionCloseFrame(errorCode, phrase),
+                frame: FrameFactory.createConnectionCloseFrame(errorCode, phrase),
                 offset: offset
             };
         }
@@ -128,7 +129,7 @@ export class FrameParser {
         var maxData = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(maxData);
         return {
-            frame: new MaxDataFrame(maxData),
+            frame: FrameFactory.createMaxDataFrame(maxData),
             offset: offset
         };
     }
@@ -139,7 +140,7 @@ export class FrameParser {
         var maxStreamData = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(maxStreamData);
         return {
-            frame: new MaxStreamFrame(streamId, maxStreamData),
+            frame: FrameFactory.createMaxStreamDataFrame(streamId, maxStreamData),
             offset: offset
         };
 
@@ -149,7 +150,7 @@ export class FrameParser {
         var maxStreamId = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(maxStreamId);
         return {
-            frame: new MaxStreamIdFrame(maxStreamId),
+            frame: FrameFactory.createMaxStreamIdFrame(maxStreamId),
             offset: offset
         };
     }
@@ -161,7 +162,7 @@ export class FrameParser {
         buffer.copy(pingData, 0, offset, offset + length);
         offset += length;
         return {
-            frame: new PingFrame(length, pingData),
+            frame: FrameFactory.createPingFrame(length, pingData),
             offset: offset
         };
     }
@@ -170,7 +171,7 @@ export class FrameParser {
         var blockedOffset = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(blockedOffset);
         return {
-            frame: new BlockedFrame(blockedOffset),
+            frame: FrameFactory.createBlockedFrame(blockedOffset),
             offset: offset
         };
     }
@@ -181,7 +182,7 @@ export class FrameParser {
         var blockedOffset = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(blockedOffset);
         return {
-            frame: new StreamBlockedFrame(streamId, blockedOffset),
+            frame: FrameFactory.createStreamBlockedFrame(streamId, blockedOffset),
             offset: offset
         };
     }
@@ -190,7 +191,7 @@ export class FrameParser {
         var streamId = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(streamId);
         return {
-            frame: new StreamIdBlockedFrame(streamId),
+            frame: FrameFactory.createStreamIdBlockedFrame(streamId),
             offset: offset
         };
     }
@@ -206,7 +207,7 @@ export class FrameParser {
         offset += 16;
         var connectionId = new ConnectionID(connectionIdBuffer);
         return {
-            frame: new NewConnectionIdFrame(connectionId, statelessResetToken),
+            frame: FrameFactory.createNewConnectionIdFrame(connectionId, statelessResetToken),
             offset: offset
         };
     }
@@ -217,7 +218,7 @@ export class FrameParser {
         var appErrorCode = buffer.readUInt16BE(offset);
         offset += 2;
         return {
-            frame: new StopSendingFrame(streamId, appErrorCode),
+            frame: FrameFactory.createStopSendingFrame(streamId, appErrorCode),
             offset: offset
         };
     }
@@ -232,7 +233,7 @@ export class FrameParser {
         buffer.copy(pingData, 0, offset, offset + length);
         offset += length;
         return {
-            frame: new PongFrame(length, pingData),
+            frame: FrameFactory.createPongFrame(length, pingData),
             offset: offset
         };
     }
@@ -256,7 +257,7 @@ export class FrameParser {
             ackBlocks.push(new AckBlock(gap, block));
         }
         return {
-            frame: new AckFrame(largestAcknowledged, ackDelay, ackBlockCount, firstAckBlock, ackBlocks),
+            frame: FrameFactory.createAckFrame(largestAcknowledged, ackDelay, ackBlockCount, firstAckBlock, ackBlocks),
             offset: offset
         };
     }
@@ -288,10 +289,8 @@ export class FrameParser {
         buffer.copy(data, 0, offset, dataLength.toNumber() + offset);
         offset += dataLength.toNumber();
 
-        var streamFrame = new StreamFrame(streamId, data);
-        streamFrame.setFin(fin);
+        var streamFrame = FrameFactory.createStreamFrame(streamId, data, fin, true, dataOffset);
         streamFrame.setLength(dataLength);
-        streamFrame.setOffset(dataOffset);
         return {
             frame: streamFrame,
             offset: offset

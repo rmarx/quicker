@@ -149,7 +149,7 @@ export class FrameHandler {
 
     private handlePingFrame(connection: Connection, pingFrame: PingFrame) {
         if (pingFrame.getLength() > 0) {
-            var pongFrame = FrameFactory.createPongFrame(pingFrame.getData());
+            var pongFrame = FrameFactory.createPongFrame(pingFrame.getLength(), pingFrame.getData());
             connection.queueFrame(pongFrame);
         }
     }
@@ -183,7 +183,7 @@ export class FrameHandler {
             stream.setStreamState(StreamState.Closed);
         }
         stream.setRemoteFinalOffset(stream.getRemoteOffset());
-        var rstStreamFrame = FrameFactory.createRstStreamFrame(stream, 0);
+        var rstStreamFrame = FrameFactory.createRstStreamFrame(stream.getStreamID(), 0, stream.getRemoteFinalOffset());
     }
 
     private handlePongFrame(connection: Connection, pongFrame: PongFrame) {

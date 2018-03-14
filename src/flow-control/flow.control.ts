@@ -110,12 +110,12 @@ export class FlowControl {
             var stream = connection.getStream(new Bignum(0));
             handshakeFrames = handshakeFrames.concat(this.getStreamFrames(connection, stream, new Bignum(stream.getData().byteLength), maxPacketSize).handshakeFrames);
         } else if (connection.isRemoteLimitExceeded()) {
-            flowControlFrames.push(FrameFactory.createBlockedFrame(connection));
+            flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
             var uniAdded = false;
             var bidiAdded = false;
             connection.getStreams().forEach((stream: Stream) => {
                 if (stream.isRemoteLimitExceeded()) {
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 } 
                 if (this.isRemoteStreamIdBlocked(connection, stream)) {
                     if (this.isUniStreamId(stream.getStreamID()) && !uniAdded) {
@@ -154,7 +154,7 @@ export class FlowControl {
 
         if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded() || this.isRemoteStreamIdBlocked(connection, stream))) {
             if (stream.isRemoteLimitExceeded() && !stream.getBlockedSent()) {
-                flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 stream.setBlockedSent(true);
             }
         } else if (!connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
@@ -165,12 +165,12 @@ export class FlowControl {
                 var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
                 streamDataSize = conDataLeft.lessThan(streamDataLeft) ? conDataLeft : streamDataLeft;
                 if (conDataLeft.equals(streamDataLeft)) {
-                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection));
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 } else if (conDataLeft.lessThan(streamDataLeft)) {
-                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection));
+                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
                 } else if (!stream.getBlockedSent()) {
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream));
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true);
                 }
             }
@@ -194,7 +194,7 @@ export class FlowControl {
         while (streamData.byteLength > 0) {
             var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamData.length)) : false;
             streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
-            var frame = (FrameFactory.createStreamFrame(stream, streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
+            var frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
             if (stream.getStreamID().equals(0)) {
                 handshakeFrames.push(frame);
             } else {
@@ -228,7 +228,7 @@ export class FlowControl {
         connection.getStreams().forEach((stream: Stream) => {
             if (!stream.getStreamID().equals(0) && stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
                 var newMaxStreamData = stream.getLocalMaxData().multiply(2);
-                frames.push(FrameFactory.createMaxStreamDataFrame(stream, newMaxStreamData));
+                frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));
                 stream.setLocalMaxData(newMaxStreamData);
                 stream.setIsRemoteBlocked(false);
             }
