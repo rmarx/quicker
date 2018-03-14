@@ -36,16 +36,18 @@ export class Constants {
     /**
      * default values for transport extensions
      */
-    public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 1024 + 1;
-    public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 1024 + 2;
-    public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 1024 + 3;
-    public static readonly DEFAULT_MAX_STREAM_CLIENT_BIDI = 1024 + 4;
-    public static readonly DEFAULT_MAX_STREAM_ID = 1024;
+    public static readonly DEFAULT_MAX_STREAM_CLIENT_BIDI = 12;
+    public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 12 + 1;
+    public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12 + 2;
+    public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12 + 3;
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
     public static readonly DEFAULT_MAX_DATA = 50 * 1024;
     public static readonly DEFAULT_ACK_EXPONENT = 3;
     public static readonly DEFAULT_IDLE_TIMEOUT = 30;
     public static readonly MAX_PACKET_SIZE = 65527;
+
+    public static readonly MAX_STREAM_ID_INCREMENT = 100;
+    public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;
 
     public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
 

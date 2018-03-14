@@ -10,7 +10,7 @@ export class TransportParameters {
 
     private maxStreamData: number;
     private maxData: number;
-    private maxStreamIdBidi!: number
+    private maxStreamIdBidi!: number;
     private maxStreamIdUni!: number;
     private idleTimeout: number;
     private omitConnectionId!: boolean;

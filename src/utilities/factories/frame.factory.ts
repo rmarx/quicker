@@ -10,6 +10,8 @@ import { MaxStreamFrame } from '../../frame/max.stream';
 import { PingFrame, PongFrame } from '../../frame/ping';
 import { RstStreamFrame } from '../../frame/rst.stream';
 import { ConnectionCloseFrame, ApplicationCloseFrame } from '../../frame/close';
+import { MaxStreamIdFrame } from '../../frame/max.stream.id';
+import { StreamIdBlockedFrame } from '../../frame/stream.id.blocked';
 
 
 export class FrameFactory {
@@ -38,12 +40,20 @@ export class FrameFactory {
         return new BlockedFrame(connection.getRemoteOffset());
     }
 
+    public static createStreamIdBlockedFrame(streamId: Bignum): StreamIdBlockedFrame {
+        return new StreamIdBlockedFrame(streamId);
+    }
+
     public static createMaxStreamDataFrame(stream: Stream, newMaxStreamData: Bignum): MaxStreamFrame {
         return new MaxStreamFrame(stream.getStreamID(), newMaxStreamData);
     }
 
     public static createMaxDataFrame(newMaxData: Bignum): MaxDataFrame {
         return new MaxDataFrame(newMaxData);
+    }
+
+    public static createMaxStreamIdFrame(newMaxData: Bignum): MaxStreamIdFrame {
+        return new MaxStreamIdFrame(newMaxData);
     }
 
     public static createPingFrame(data: Buffer): PingFrame {

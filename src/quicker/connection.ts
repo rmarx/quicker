@@ -153,12 +153,24 @@ export class Connection extends FlowControlledObject {
         return this.remoteMaxStreamBidi;
     }
 
-    public setRemoteMaxStreamUni(remoteMaxStreamUni: Bignum): void {
-        this.remoteMaxStreamUni = remoteMaxStreamUni;
+    setRemoteMaxStreamUni(remoteMaxStreamUni: number): void 
+    setRemoteMaxStreamUni(remoteMaxStreamUni: Bignum): void 
+    public setRemoteMaxStreamUni(remoteMaxStreamUni: any): void {
+        if (remoteMaxStreamUni instanceof Bignum) {
+            this.remoteMaxStreamUni = remoteMaxStreamUni;
+            return;
+        }
+        this.remoteMaxStreamUni = new Bignum(remoteMaxStreamUni);
     }
 
-    public setRemoteMaxStreamBidi(remoteMaxStreamBidi: Bignum): void {
-        this.remoteMaxStreamBidi = remoteMaxStreamBidi;
+    setRemoteMaxStreamBidi(remoteMaxStreamBidi: number): void 
+    setRemoteMaxStreamBidi(remoteMaxStreamBidi: Bignum): void 
+    public setRemoteMaxStreamBidi(remoteMaxStreamBidi: any): void {
+        if (remoteMaxStreamBidi instanceof Bignum) {
+            this.remoteMaxStreamBidi = remoteMaxStreamBidi;
+            return;
+        }
+        this.remoteMaxStreamBidi = new Bignum(remoteMaxStreamBidi);
     }
 
     public getLocalMaxStreamUni(): Bignum {
@@ -169,12 +181,24 @@ export class Connection extends FlowControlledObject {
         return this.localMaxStreamBidi;
     }
 
-    public setLocalMaxStreamUni(localMaxStreamUni: Bignum): void {
-        this.localMaxStreamUni = localMaxStreamUni;
+    setLocalMaxStreamUni(localMaxStreamUni: number): void 
+    setLocalMaxStreamUni(localMaxStreamUni: Bignum): void 
+    public setLocalMaxStreamUni(localMaxStreamUni: any): void {
+        if (localMaxStreamUni instanceof Bignum) {
+            this.localMaxStreamUni = localMaxStreamUni;
+            return;
+        }
+        this.localMaxStreamUni = new Bignum(localMaxStreamUni);
     }
 
-    public setLocalMaxStreamBidi(localMaxStreamBidi: Bignum): void {
-        this.localMaxStreamBidi = localMaxStreamBidi;
+    setLocalMaxStreamBidi(localMaxStreamBidi: number): void 
+    setLocalMaxStreamBidi(localMaxStreamBidi: Bignum): void 
+    public setLocalMaxStreamBidi(localMaxStreamBidi: any): void {
+        if (localMaxStreamBidi instanceof Bignum) {
+            this.localMaxStreamBidi = localMaxStreamBidi;
+            return;
+        }
+        this.localMaxStreamBidi = new Bignum(localMaxStreamBidi);
     }
     
     public setLocalMaxStreamUniBlocked(blocked: boolean): void {
@@ -219,6 +243,7 @@ export class Connection extends FlowControlledObject {
         this.remoteTransportParameters = transportParameters;
         this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
         this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI));
+        console.log("remote uni: " + transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI));
         this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI));
         this.streams.forEach((stream: Stream) => {
             stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
