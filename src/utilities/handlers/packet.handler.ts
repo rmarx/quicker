@@ -35,7 +35,7 @@ export class PacketHandler {
 
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
-        if (packet.getHeader().getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
+        if (packet.getPacketType() === PacketType.Initial && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
             var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
             if (negotiatedVersion === undefined) {
@@ -43,6 +43,8 @@ export class PacketHandler {
                 throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
             }
             connection.setVersion(negotiatedVersion);
+        } else {
+            return;
         }
         
         this.onPacketReceived(connection, packet, receivedTime);
