@@ -68,8 +68,9 @@ export class Server extends EventEmitter {
             this.options.host = host;
         }
 
+        // TODO check for ipv4 or ipv6
         this.init("udp4");
-        this.init("udp6");
+        //this.init("udp6");
     }
 
     private init(socketType: SocketType) {

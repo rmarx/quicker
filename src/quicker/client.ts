@@ -74,6 +74,7 @@ export class Client extends EventEmitter{
     }
 
     private init(): void {
+        // TODO check for ipv4 or ipv6
         var socket = createSocket("udp4");
         var remoteInfo: RemoteInformation = {
             address: this.hostname,
