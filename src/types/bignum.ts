@@ -130,12 +130,17 @@ export class Bignum {
      * Checks if the bignum value of this instance is greater than the value of num
      * @param num 
      */
-    public greaterThan(num: Bignum): boolean {
-        return this.bignum.gt(num.bignum);
+    greaterThan(num: number): boolean;
+    greaterThan(num: Bignum): boolean;
+    public greaterThan(num: any): boolean {
+        if (num instanceof Bignum) {
+            return this.bignum.gt(num.bignum);
+        }
+        return this.bignum.gt(new BN(num));
     }
 
-    public greaterThanOrEqual(num: number): boolean;
-    public greaterThanOrEqual(num: Bignum): boolean;
+    greaterThanOrEqual(num: number): boolean;
+    greaterThanOrEqual(num: Bignum): boolean;
     public greaterThanOrEqual(num: any): boolean {
         if (num instanceof Bignum) {
             return this.bignum.gte(num.bignum);
@@ -147,12 +152,17 @@ export class Bignum {
      * Checks if the bignum value of this instance is less than the value of num
      * @param num 
      */
-    public lessThan(num: Bignum): boolean {
-        return this.bignum.lt(num.bignum);
+    lessThan(num: number): boolean;
+    lessThan(num: Bignum): boolean;
+    public lessThan(num: any): boolean {
+        if (num instanceof Bignum) {
+            return this.bignum.lt(num.bignum);
+        }
+        return this.bignum.lt(new BN(num));
     }
 
-    public lessThanOrEqual(num: number): boolean;
-    public lessThanOrEqual(num: Bignum): boolean;
+    lessThanOrEqual(num: number): boolean;
+    lessThanOrEqual(num: Bignum): boolean;
     public lessThanOrEqual(num: any): boolean {
         if (num instanceof Bignum) {
             return this.bignum.lte(num.bignum);
@@ -235,6 +245,38 @@ export class Bignum {
         num = num.mod(high.bignum);
 
         return this.fromBN(num);
+    }
+
+    /**
+     * Returns the smallest value between the two given bignum objects
+     * @param b1 
+     * @param b2 
+     */
+    static min(b1: number, b2: number): Bignum;
+    static min(b1: Bignum, b2: number): Bignum;
+    static min(b1: number, b2: Bignum): Bignum;
+    static min(b1: Bignum, b2: Bignum): Bignum;
+    public static min(b1: any, b2: any): Bignum {
+        if (b1 instanceof Bignum) {
+            return b1.greaterThanOrEqual(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
+        }
+        return new Bignum(b1).greaterThanOrEqual(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
+    }
+
+    /**
+     * Returns the biggest value between the two given bignum objects
+     * @param b1 
+     * @param b2 
+     */
+    static max(b1: number, b2: number): Bignum;
+    static max(b1: Bignum, b2: number): Bignum;
+    static max(b1: number, b2: Bignum): Bignum;
+    static max(b1: Bignum, b2: Bignum): Bignum;
+    public static max(b1: any, b2: any): Bignum {
+        if (b1 instanceof Bignum) {
+            return b1.lessThan(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
+        }
+        return new Bignum(b1).lessThan(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
     }
 
     /**

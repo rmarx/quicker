@@ -28,7 +28,7 @@ import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 
 export class Server extends EventEmitter {
-    private server!: Socket;
+    private serverSockets: { [key: string]: Socket; } = {};
     private port!: number;
     private host!: string;
     private options!: any;
@@ -69,13 +69,19 @@ export class Server extends EventEmitter {
         }
 
         this.init("udp4");
+        this.init("udp6");
     }
 
     private init(socketType: SocketType) {
-        this.server = createSocket(socketType);
-        this.server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
-        this.server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.onClose() });
-        this.server.bind(this.port, this.host);
+        var server = createSocket(socketType);
+        server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.onClose() });
+        server.bind(this.port, this.host);
+        if (socketType === "udp4") {
+            this.serverSockets["IPv4"] = server;
+        } else {
+            this.serverSockets["IPv6"] = server;
+        }
     }
 
     private setupConnectionEvents(connection: Connection) {
@@ -193,7 +199,7 @@ export class Server extends EventEmitter {
             family: rinfo.family
         };
         var connection = new Connection(remoteInfo, EndpointType.Server, this.options);
-        connection.setSocket(this.server);
+        connection.setSocket(this.serverSockets[rinfo.family]);
         connection.setFirstConnectionID(connectionID);
         var newConnectionID = ConnectionID.randomConnectionID();
         while (newConnectionID.toString() in Object.keys(this.connections)) {
