@@ -13,21 +13,21 @@ export class LossDetection {
     ///////////////////////////
 
     // Maximum number of tail loss probes before an RTO fires.
-    private static readonly MAX_TLP: number = 2;
+    private static readonly MAX_TLP: Bignum = new Bignum(2);
     // Maximum reordering in packet number space before FACK style loss detection considers a packet lost.
-    private static readonly REORDERING_TRESHOLD: number = 3;
+    private static readonly REORDERING_TRESHOLD: Bignum = new Bignum(2);
     // Maximum reordering in time space before time based loss detection considers a packet lost. In fraction of an RTT.
-    private static readonly TIME_REORDERING_FRACTION: number = 1/8;
+    private static readonly TIME_REORDERING_FRACTION: Bignum = new Bignum(1/8.0);
     // Whether time based loss detection is in use. If false, uses FACK style loss detection.
     private static readonly USING_TIME_LOSS_DETECTION: boolean = false;
     // Minimum time in the future a tail loss probe alarm may be set for.
-    private static readonly MIN_TLP_TIMEOUT: number = 10;
+    private static readonly MIN_TLP_TIMEOUT: Bignum = new Bignum(10);
     // Minimum time in the future an RTO alarm may be set for.
-    private static readonly MIN_RTO_TIMEOUT: number = 200;
+    private static readonly MIN_RTO_TIMEOUT: Bignum = new Bignum(200);
     // The length of the peer’s delayed ack timer.
-    private static readonly DELAYED_ACK_TIMEOUT: number = 25;
+    private static readonly DELAYED_ACK_TIMEOUT: Bignum = new Bignum(25);
     // The default RTT used before an RTT sample is taken.
-    private static readonly DEFAULT_INITIAL_RTT: number = 100;
+    private static readonly DEFAULT_INITIAL_RTT: Bignum = new Bignum(100);
 
     ///////////////////////////
     // Variables of interest
@@ -36,38 +36,38 @@ export class LossDetection {
     // Multi-modal alarm used for loss detection.
     private lossDetectionAlarm!: Alarm;
     // The number of times the handshake packets have been retransmitted without receiving an ack.
-    private handshakeCount!: number;
+    private handshakeCount!: Bignum;
     // The number of times a tail loss probe has been sent without receiving an ack.
-    private tlpCount: number;
+    private tlpCount: Bignum;
     // The number of times an rto has been sent without receiving an ack.
-    private rtoCount: number;
+    private rtoCount: Bignum;
     // The last packet number sent prior to the first retransmission timeout.
     private largestSentBeforeRto: Bignum;
     // The time the most recent packet was sent.
-    private timeOfLastSentPacket: number;
+    private timeOfLastSentPacket: Bignum;
     // The packet number of the most recently sent packet.
     private largestSentPacket: Bignum;
     // The largest packet number acknowledged in an ACK frame.
     private largestAckedPacket: Bignum;
     // The most recent RTT measurement made when receiving an ack for a previously unacked packet.
-    private latestRtt!: number;
+    private latestRtt!: Bignum;
     // The smoothed RTT of the connection, computed as described in [RFC6298]
-    private smoothedRtt: number;
+    private smoothedRtt: Bignum;
     // The RTT variance, computed as described in [RFC6298]
-    private rttVar: number;
+    private rttVar: Bignum;
     // The minimum RTT seen in the connection, ignoring ack delay.
-    private minRtt: number;
+    private minRtt: Bignum;
     // The maximum ack delay in an incoming ACK frame for this connection. 
     // Excludes ack delays for ack only packets and those that create an RTT sample less than min_rtt.
-    private maxAckDelay: number;
+    private maxAckDelay: Bignum;
     // The largest delta between the largest acked retransmittable packet and a packet containing 
     // retransmittable frames before it’s declared lost.
-    private reorderingTreshold: number;
+    private reorderingTreshold: Bignum;
     // The reordering window as a fraction of max(smoothed_rtt, latest_rtt).
-    private timeReorderingTreshold: number;
+    private timeReorderingTreshold: Bignum;
     // The time at which the next packet will be considered lost based on early transmit or 
     // exceeding the reordering window in time.
-    private lossTime: number;
+    private lossTime: Bignum;
     // An association of packet numbers to information about them, including a number field indicating the packet number, 
     // a time field indicating the time a packet was sent, a boolean indicating whether the packet is ack only, 
     // and a bytes field indicating the packet’s size. sent_packets is ordered by packet number, 
@@ -79,23 +79,24 @@ export class LossDetection {
             this.onLossDetectionAlarm();
         });
         this.lossDetectionAlarm.reset();
-        this.tlpCount = 0;
-        this.rtoCount = 0;
+        this.tlpCount = new Bignum(0);
+        this.rtoCount = new Bignum(0);
         if (LossDetection.USING_TIME_LOSS_DETECTION) {
-            this.reorderingTreshold = Infinity;
+            this.reorderingTreshold = new Bignum(Infinity);
             this.timeReorderingTreshold = LossDetection.TIME_REORDERING_FRACTION;
         } else {
             this.reorderingTreshold = LossDetection.REORDERING_TRESHOLD;
-            this.timeReorderingTreshold = Infinity;
+            this.timeReorderingTreshold = new Bignum(Infinity);
         }
-        this.lossTime = 0;
-        this.smoothedRtt = 0;
-        this.rttVar = 0;
-        this.minRtt = 0;
-        this.maxAckDelay = 0;
+        this.lossTime = new Bignum(0);
+        this.smoothedRtt = new Bignum(0);
+        this.rttVar = new Bignum(0);
+        this.minRtt = new Bignum(0);
+        this.maxAckDelay = new Bignum(0);
         this.largestSentBeforeRto = new Bignum(0);
-        this.timeOfLastSentPacket = 0;
+        this.timeOfLastSentPacket = new Bignum(0);
         this.largestSentPacket = new Bignum(0);
+
         this.largestAckedPacket = new Bignum(0);
         this.sentPackets = {};
     }
@@ -107,7 +108,7 @@ export class LossDetection {
      *                  If true, it is still expected an ack will be received for this packet, but it is not congestion controlled.
      */
     public onPacketSent(basePacket: BasePacket, isAckOnly: boolean): void {
-        this.timeOfLastSentPacket = (new Date()).getTime();
+        this.timeOfLastSentPacket = new Bignum((new Date()).getTime());
         var packetNumber = basePacket.getHeader().getPacketNumber().getPacketNumber();
         this.largestSentPacket = packetNumber;
         var sentPacket: SentPacket = {
@@ -127,7 +128,35 @@ export class LossDetection {
      * @param ackFrame The ack frame that is received by the endpoint
      */
     public onAckReceived(ackFrame: AckFrame): void {
-        throw Error("Not implemented");
+        this.largestAckedPacket = ackFrame.getLargestAcknowledged();
+        if (this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex')] !== undefined) {
+            this.latestRtt = new Bignum(new Date().getTime()).subtract(this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex')].time);
+            this.updateRtt(ackFrame);
+        }
+        this.determineNewlyAckedPackets(ackFrame).forEach((packet: BasePacket) => {
+            // probably adjust in some way
+            this.onPacketAcked(packet.getHeader().getPacketNumber().getPacketNumber());
+        });
+        this.detectLostPackets(ackFrame.getLargestAcknowledged());
+        this.setLossDetectionAlarm();
+    }
+
+    private updateRtt(ackFrame: AckFrame) {
+        this.minRtt = Bignum.min(this.minRtt, this.latestRtt);
+        if (this.latestRtt.subtract(this.minRtt).greaterThan(ackFrame.getAckDelay())) {
+            this.latestRtt = this.latestRtt.subtract(ackFrame.getAckDelay());
+            if (this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex')].isAckOnly) {
+                this.maxAckDelay = Bignum.max(this.maxAckDelay, ackFrame.getAckDelay());
+            }
+        }
+        if (this.smoothedRtt.equals(0)) {
+            this.smoothedRtt = this.latestRtt;
+            this.rttVar = this.latestRtt.divide(2);
+        } else {
+            var rttVarSample: Bignum = Bignum.abs(this.smoothedRtt.subtract(this.latestRtt));
+            this.rttVar  = this.rttVar.multiply(3/4).add(rttVarSample.multiply(1/4));
+            this.smoothedRtt = this.smoothedRtt.multiply(7/8).add(this.latestRtt.multiply(1/8));
+        }
     }
 
     /**
@@ -139,11 +168,17 @@ export class LossDetection {
      * @param ackedPacketNumber The packetnumber of the packet that is being acked.
      */
     public onPacketAcked(ackedPacketNumber: Bignum): void {
-        throw Error("Not implemented");
+        if (this.rtoCount.greaterThan(0) && ackedPacketNumber.greaterThan(this.largestSentBeforeRto)) {
+            this.onRetransmissionTimeoutVerified();
+        }
+        this.handshakeCount = new Bignum(0);
+        this.tlpCount = new Bignum(0);
+        this.rtoCount = new Bignum(0);
+        delete this.sentPackets[ackedPacketNumber.toString('hex')];
     }
 
     public setLossDetectionAlarm(): void {
-        throw Error("Not implemented");
+        
     }
 
     /**
@@ -152,6 +187,19 @@ export class LossDetection {
      */
     public onLossDetectionAlarm(): void {
         throw Error("Not implemented");
+    }
+
+    private onRetransmissionTimeoutVerified(): void {
+        // TODO
+    }
+
+    private detectLostPackets(largestAcked: Bignum): void {
+        // TODO
+    }
+
+    private determineNewlyAckedPackets(ackFrame: AckFrame): BasePacket[] {
+        // TODO
+        return [];
     }
 
 }
@@ -167,7 +215,7 @@ interface SentPacket {
     // An object of type BasePacket
     packet: BasePacket,
     // Milliseconds sinds epoch
-    time: number 
+    time: Bignum, 
     // Does the packet contain only ack frames or not
     // This value could be a function in BasePacket
     isAckOnly: boolean

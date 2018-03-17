@@ -279,6 +279,17 @@ export class Bignum {
         return new Bignum(b1).lessThan(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
     }
 
+    static abs(num: number): Bignum;
+    static abs(num: Bignum): Bignum;
+    public static abs(obj: any): Bignum {
+        if (!(obj instanceof Bignum)) {
+            var bn = new Bignum(obj);
+        } else {
+            var bn = obj;
+        }
+        return Bignum.fromBN(bn.bignum.abs());
+    }
+
     /**
      * Function to create a BN object with a value between 0 (incl) and 256 (excl)
      */
