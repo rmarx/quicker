@@ -7,7 +7,7 @@ import {Stream} from '../../quicker/stream';
 import {StreamFrame} from '../../frame/stream';
 import {PaddingFrame} from '../../frame/padding';
 import { MaxStreamFrame } from '../../frame/max.stream';
-import { PingFrame, PongFrame } from '../../frame/ping';
+import { PingFrame } from '../../frame/ping';
 import { RstStreamFrame } from '../../frame/rst.stream';
 import { ConnectionCloseFrame, ApplicationCloseFrame } from '../../frame/close';
 import { MaxStreamIdFrame } from '../../frame/max.stream.id';
@@ -16,6 +16,7 @@ import { AckBlock, AckFrame } from '../../frame/ack';
 import { ConnectionID } from '../../packet/header/header.properties';
 import { NewConnectionIdFrame } from '../../frame/new.connection.id';
 import { StopSendingFrame } from '../../frame/stop.sending';
+import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 
 
 export class FrameFactory {
@@ -60,12 +61,8 @@ export class FrameFactory {
         return new MaxStreamIdFrame(newMaxData);
     }
 
-    public static createPingFrame(length: number, data: Buffer): PingFrame {
-        return new PingFrame(length, data);
-    }
-
-    public static createPongFrame(length: number, data: Buffer): PongFrame {
-        return new PongFrame(length, data);
+    public static createPingFrame(): PingFrame {
+        return new PingFrame();
     }
 
     public static createRstStreamFrame(streamId: Bignum, errorCode: number, remoteFinalOffset: Bignum): RstStreamFrame {
@@ -96,5 +93,13 @@ export class FrameFactory {
 
     public static createNewConnectionIdFrame(connectionID: ConnectionID, statelessResetToken: Buffer): NewConnectionIdFrame {
         return new NewConnectionIdFrame(connectionID, statelessResetToken);
+    }
+
+    public static createPathChallengeFrame(data: Buffer): PathChallengeFrame {
+        return new PathChallengeFrame(data);
+    }
+
+    public static createPathResponseFrame(data: Buffer): PathResponseFrame {
+        return new PathResponseFrame(data);
     }
 }

@@ -8,7 +8,7 @@ import {ConnectionCloseFrame, ApplicationCloseFrame} from '../../frame/close';
 import {MaxDataFrame} from '../../frame/max.data';
 import {MaxStreamFrame} from '../../frame/max.stream';
 import {MaxStreamIdFrame} from '../../frame/max.stream.id';
-import {PingFrame, PongFrame} from '../../frame/ping';
+import {PingFrame} from '../../frame/ping';
 import {BlockedFrame} from '../../frame/blocked';
 import {StreamBlockedFrame} from '../../frame/stream.blocked';
 import {StreamIdBlockedFrame} from '../../frame/stream.id.blocked';
@@ -27,6 +27,7 @@ import { Constants } from '../constants';
 import { ConnectionErrorCodes } from '../errors/connection.codes';
 import { QuicError } from '../errors/connection.error';
 import { PacketLogging } from '../logging/packet.logging';
+import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 
 
 export class FrameHandler {
@@ -87,13 +88,17 @@ export class FrameHandler {
                 var stopSendingFrame = <StopSendingFrame>frame;
                 this.handleStopSendingFrame(connection, stopSendingFrame);
                 break;
-            case FrameType.PONG:
-                var pongFrame = <PongFrame>frame;
-                this.handlePongFrame(connection, pongFrame);
-                break;
             case FrameType.ACK:
                 var ackFrame = <AckFrame>frame;
                 this.handleAckFrame(connection, ackFrame);
+                break;
+            case FrameType.PATH_CHALLENGE:
+                var pathChallengeFrame = <PathChallengeFrame>frame;
+                this.handlePathChallengeFrame(connection, pathChallengeFrame);
+                break;
+            case FrameType.PATH_RESPONSE:
+                var pathResponseFrame = <PathResponseFrame>frame;
+                this.handlePathResponseFrame(connection, pathResponseFrame);
                 break;
         }
         if (frame.getType() >= FrameType.STREAM) {
@@ -148,10 +153,7 @@ export class FrameHandler {
     }
 
     private handlePingFrame(connection: Connection, pingFrame: PingFrame) {
-        if (pingFrame.getLength() > 0) {
-            var pongFrame = FrameFactory.createPongFrame(pingFrame.getLength(), pingFrame.getData());
-            connection.queueFrame(pongFrame);
-        }
+        // Nothing to do here, ping is only used to keep a connection alive
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
@@ -186,16 +188,16 @@ export class FrameHandler {
         var rstStreamFrame = FrameFactory.createRstStreamFrame(stream.getStreamID(), 0, stream.getRemoteFinalOffset());
     }
 
-    private handlePongFrame(connection: Connection, pongFrame: PongFrame) {
-        if (pongFrame.getLength() === 0) {
-            throw new QuicError(ConnectionErrorCodes.FRAME_ERROR + FrameType.PONG);
-        }
-        // not yet checking with pingframes sent, because these aren't kept at the moment 
-        // draft states: the endpoint MAY generate a connection error of type UNSOLICITED_PONG
-        // so not doing anything at the moment
+    private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
+
     }
 
-    private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
+    private handlePathChallengeFrame(connection: Connection, pathChallengeFrame: PathChallengeFrame) {
+        var pathResponse = FrameFactory.createPathResponseFrame(pathChallengeFrame.getData());
+        connection.queueFrame(pathResponse);
+    }
+
+    private handlePathResponseFrame(connection: Connection, pathResponseFrame: PathResponseFrame) {
 
     }
 

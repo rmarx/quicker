@@ -29,7 +29,8 @@ export enum FrameType {
     STREAM_ID_BLOCKED = 0x0a,
     NEW_CONNECTION_ID = 0x0b,
     STOP_SENDING = 0x0c,
-    PONG = 0x0d,
-    ACK = 0x0e,
+    ACK = 0x0d,
+    PATH_CHALLENGE = 0x0e,
+    PATH_RESPONSE = 0x0f,
     STREAM = 0x10
 }

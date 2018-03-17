@@ -6,7 +6,7 @@ import {ApplicationCloseFrame, ConnectionCloseFrame} from '../../frame/close';
 import {MaxDataFrame} from '../../frame/max.data';
 import {MaxStreamFrame} from '../../frame/max.stream';
 import {MaxStreamIdFrame} from '../../frame/max.stream.id';
-import {PingFrame, PongFrame} from '../../frame/ping';
+import {PingFrame} from '../../frame/ping';
 import {BlockedFrame} from '../../frame/blocked';
 import {StreamBlockedFrame} from '../../frame/stream.blocked';
 import {StreamIdBlockedFrame} from '../../frame/stream.id.blocked';
@@ -19,6 +19,7 @@ import { PaddingFrame } from '../../frame/padding';
 import { ConnectionErrorCodes } from '../errors/connection.codes';
 import { QuicError } from '../errors/connection.error';
 import { FrameFactory } from '../factories/frame.factory';
+import { Constants } from '../constants';
 
 
 export class FrameParser {
@@ -68,10 +69,12 @@ export class FrameParser {
                 return this.parseNewConnectionId(buffer, offset);
             case FrameType.STOP_SENDING:
                 return this.parseStopSending(buffer, offset);
-            case FrameType.PONG:
-                return this.parsePong(buffer, offset);
             case FrameType.ACK:
-                return this.parseAck(buffer, offset)
+                return this.parseAck(buffer, offset);
+            case FrameType.PATH_CHALLENGE:
+                return this.parsePathChallenge(buffer, offset);
+            case FrameType.PATH_RESPONSE:
+                return this.parsePathResponse(buffer, offset);
         }
         if (type >= FrameType.STREAM) {
             return this.parseStream(type, buffer, offset);
@@ -156,13 +159,8 @@ export class FrameParser {
     }
 
     private parsePing(buffer: Buffer, offset: number): FrameOffset {
-        var length = buffer.readUInt8(offset);
-        offset++;
-        var pingData = Buffer.alloc(length);
-        buffer.copy(pingData, 0, offset, offset + length);
-        offset += length;
         return {
-            frame: FrameFactory.createPingFrame(length, pingData),
+            frame: FrameFactory.createPingFrame(),
             offset: offset
         };
     }
@@ -223,21 +221,6 @@ export class FrameParser {
         };
     }
 
-    private parsePong(buffer: Buffer, offset: number): FrameOffset {
-        var length = buffer.readUInt8(offset);
-        offset++;
-        if (length === 0) {
-            throw new QuicError(ConnectionErrorCodes.FRAME_ERROR + FrameType.PONG);
-        }
-        var pingData = Buffer.alloc(length);
-        buffer.copy(pingData, 0, offset, offset + length);
-        offset += length;
-        return {
-            frame: FrameFactory.createPongFrame(length, pingData),
-            offset: offset
-        };
-    }
-
     private parseAck(buffer: Buffer, offset: number): FrameOffset {
         var largestAcknowledged: Bignum = VLIE.decode(buffer, offset);
         offset += VLIE.getEncodedByteLength(largestAcknowledged);
@@ -258,6 +241,26 @@ export class FrameParser {
         }
         return {
             frame: FrameFactory.createAckFrame(largestAcknowledged, ackDelay, ackBlockCount, firstAckBlock, ackBlocks),
+            offset: offset
+        };
+    }
+
+    private parsePathChallenge(buffer: Buffer, offset: number): FrameOffset {
+        var data: Buffer = Buffer.alloc(Constants.PATH_CHALLENGE_PAYLOAD_SIZE);
+        buffer.copy(data, 0, offset, Constants.PATH_CHALLENGE_PAYLOAD_SIZE + offset);
+        offset += Constants.PATH_CHALLENGE_PAYLOAD_SIZE;
+        return {
+            frame: FrameFactory.createPathChallengeFrame(data),
+            offset: offset
+        };
+    }
+
+    private parsePathResponse(buffer: Buffer, offset: number): FrameOffset {
+        var data: Buffer = Buffer.alloc(Constants.PATH_RESPONSE_PAYLOAD_SIZE);
+        buffer.copy(data, 0, offset, Constants.PATH_RESPONSE_PAYLOAD_SIZE + offset);
+        offset += Constants.PATH_RESPONSE_PAYLOAD_SIZE;
+        return {
+            frame: FrameFactory.createPathResponseFrame(data),
             offset: offset
         };
     }

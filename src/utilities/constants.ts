@@ -22,6 +22,9 @@ export class Constants {
     public static readonly LONG_HEADER_VN_SIZE = 13;
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 
+    public static readonly PATH_CHALLENGE_PAYLOAD_SIZE = 8;
+    public static readonly PATH_RESPONSE_PAYLOAD_SIZE = 8;
+
     /**
      * Default algorithm for cleartext encryption/decryption in QUIC
      */
