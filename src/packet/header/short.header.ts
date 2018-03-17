@@ -4,7 +4,7 @@ import {ConnectionID, PacketNumber} from './header.properties';
 
 /**           0              [1-7]                      *                       *
  *   +--------------------------------------------------------------------------------------+
- *   |0|C|K| type(5) |  [connection ID (64)] |  packet nr (8/16/32) |  Protected Payload(*) |
+ *   |0|C|K|1|0|type(3)|  [connection ID (64)] |  packet nr (8/16/32) |  Protected Payload(*) |
  *   +--------------------------------------------------------------------------------------+
  */
 export class ShortHeader extends BaseHeader {
@@ -58,6 +58,9 @@ export class ShortHeader extends BaseHeader {
         if (this.keyPhaseBit) {
             type += 0x20;
         }
+        // Since Draft-10: Fourth bit:  The fourth bit (0x10) of octet 0 is set to 1.
+        type += 0x10;
+
         return type;
     }
 
@@ -83,7 +86,7 @@ export class ShortHeader extends BaseHeader {
 }
 
 export enum ShortHeaderType {
-    OneOctet = 0x1F,
-    TwoOctet = 0x1E,
-    FourOctet = 0x1D
+    OneOctet = 0x0,
+    TwoOctet = 0x1,
+    FourOctet = 0x2
 }
