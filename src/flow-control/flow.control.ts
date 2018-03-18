@@ -160,7 +160,9 @@ export class FlowControl {
         } else if (!connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
             var streamDataSize = new Bignum(stream.getData().length);
 
-            if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || connection.isRemoteLimitExceeded(streamDataSize)) {
+            if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || 
+                    connection.isRemoteLimitExceeded(streamDataSize)) {
+                        
                 var conDataLeft = connection.getRemoteMaxData().subtract(connection.getRemoteOffset());
                 var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
                 streamDataSize = conDataLeft.lessThan(streamDataLeft) ? conDataLeft : streamDataLeft;
@@ -170,6 +172,12 @@ export class FlowControl {
                 } else if (conDataLeft.lessThan(streamDataLeft)) {
                     flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
                 } else if (!stream.getBlockedSent()) {
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
+                    stream.setBlockedSent(true);
+                }
+            } else if (stream.isRemoteLimitExceeded(streamDataSize) && stream.getStreamID().equals(0) && connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+                var streamDataSize = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
+                if (!stream.getBlockedSent()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true);
                 }
@@ -203,7 +211,9 @@ export class FlowControl {
             var originalData = stream.getData();
             stream.setData(stream.getData().slice(streamDataSize.toNumber(), originalData.byteLength));
             stream.addRemoteOffset(streamDataSize);
-            connection.addRemoteOffset(streamDataSize);
+            if (!stream.getStreamID().equals(0)) {
+                connection.addRemoteOffset(streamDataSize);
+            }
 
             streamData = stream.getData();
             streamDataSize = new Bignum(streamData.length);
