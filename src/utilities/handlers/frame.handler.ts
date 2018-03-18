@@ -198,7 +198,7 @@ export class FrameHandler {
     }
 
     private handlePathResponseFrame(connection: Connection, pathResponseFrame: PathResponseFrame) {
-
+        //TODO: check if we have send a path challenge frame; if true: check if data is same; else throw UNSOLICITED_PATH_RESPONSE
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
