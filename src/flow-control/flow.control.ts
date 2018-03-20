@@ -83,7 +83,7 @@ export class FlowControl {
 
     private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
         var handshakeState = connection.getQuicTLS().getHandshakeState();;
-        var isServer = connection.getEndpointType() === EndpointType.Client;
+        var isServer = connection.getEndpointType() !== EndpointType.Client;
         if (!isServer && handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
             return PacketFactory.createProtected0RTTPacket(connection, frames);
         } else {
