@@ -38,7 +38,7 @@ export class AckHandler {
         var pn = header.getPacketNumber().getPacketNumber();
         if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
-            this.largestAcked = true;
+            this.largestAcked = false;
         }
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket = <BaseEncryptedPacket>packet;
