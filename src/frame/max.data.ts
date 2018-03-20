@@ -8,7 +8,7 @@ export class MaxDataFrame extends BaseFrame {
     private maxData: Bignum;
 
     public constructor(maxData: Bignum) {
-        super(FrameType.MAX_DATA);
+        super(FrameType.MAX_DATA, true);
         this.maxData = maxData;
     }
 

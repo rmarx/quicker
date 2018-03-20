@@ -10,7 +10,7 @@ export class RstStreamFrame extends BaseFrame {
     private finalOffset: Bignum;
 
     public constructor(streamID: Bignum, applicationErrorCode: number, finalOffset: Bignum) {
-        super(FrameType.RST_STREAM);
+        super(FrameType.RST_STREAM, true);
         this.streamID = streamID;
         this.applicationErrorCode = applicationErrorCode;
         this.finalOffset = finalOffset;

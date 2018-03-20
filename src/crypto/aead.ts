@@ -213,7 +213,7 @@ export class AEAD {
     }
 
     private calculateNonce(header: BaseHeader, iv: Buffer, packetNumber: PacketNumber): Bignum {
-        var pnb = packetNumber.getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
+        var pnb = header.getPacketNumber().getPacketNumber();
         var ivb = new Bignum(iv, iv.byteLength);
         ivb = ivb.xor(pnb);
         return ivb;

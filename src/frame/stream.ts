@@ -16,7 +16,7 @@ export class StreamFrame extends BaseFrame {
     private data: Buffer;
 
     public constructor(streamID: Bignum, data: Buffer) {
-        super(FrameType.STREAM);
+        super(FrameType.STREAM, true);
         this.streamID = streamID;
         this.data = data;
         this.fin =  false;

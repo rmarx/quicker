@@ -8,7 +8,7 @@ export class BlockedFrame extends BaseFrame {
     private blockedOffset: Bignum;
 
 	public constructor(blockedOffset: Bignum) {
-        super(FrameType.BLOCKED);
+        super(FrameType.BLOCKED, true);
         this.blockedOffset = blockedOffset;
     }
     

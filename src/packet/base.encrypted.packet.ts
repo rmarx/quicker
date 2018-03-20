@@ -15,6 +15,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
     public constructor(packetType: PacketType, header: BaseHeader, frames: BaseFrame[]) {
         super(packetType,header);
         this.frames = frames;
+        this.retransmittable = this.retransmittableCheck(frames);
     }
 
     public getFrames(): BaseFrame[] {
@@ -55,6 +56,16 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         });
         dataBuffer = this.getEncryptedData(connection, header, dataBuffer);
         return dataBuffer;
+    }
+
+    private retransmittableCheck(frames: BaseFrame[]): boolean {
+        var retransmittable = false;
+        frames.forEach((baseFrame: BaseFrame) => {
+            if (baseFrame.isRetransmittable()) {
+                retransmittable = true;
+            }
+        });
+        return retransmittable;
     }
 
     protected abstract getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer;

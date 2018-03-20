@@ -7,7 +7,7 @@ abstract class BasePingFrame extends BaseFrame {
 
 
     public constructor(type: FrameType, length: number, data: Buffer) {
-        super(type);
+        super(type, true);
         this.length = length;
         this.data = data;
     }

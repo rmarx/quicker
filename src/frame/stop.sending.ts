@@ -9,7 +9,7 @@ export class StopSendingFrame extends BaseFrame {
     private applicationErrorCode: number;
 
     constructor(streamID: Bignum, applicationErrorCode: number) {
-        super(FrameType.STOP_SENDING);
+        super(FrameType.STOP_SENDING, true);
         this.streamID = streamID;
         this.applicationErrorCode = applicationErrorCode;
     }

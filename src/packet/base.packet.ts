@@ -9,9 +9,12 @@ export abstract class BasePacket {
     private header: BaseHeader;
     private packetType: PacketType;
 
+    protected retransmittable: boolean;
+
     public constructor(packetType: PacketType, header: BaseHeader) {
         this.packetType = packetType;
         this.header = header;
+        this.retransmittable = false;
     }
 
 
@@ -25,6 +28,18 @@ export abstract class BasePacket {
 
     public getPacketType(): PacketType {
         return this.packetType;
+    }
+
+    public isHandshake(): boolean {
+        return (this.packetType === PacketType.Initial || this.packetType === PacketType.Handshake);
+    }
+
+    public isRetransmittable(): boolean {
+        return this.retransmittable;
+    }
+
+    public isAckOnly(): boolean {
+        return !this.retransmittable;
     }
 
     abstract toBuffer(connection: Connection): Buffer;

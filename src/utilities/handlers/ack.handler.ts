@@ -35,7 +35,7 @@ export class AckHandler {
             return;
         }
         var header = packet.getHeader();
-        var pn = connection.getRemotePacketNumber().getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
+        var pn = header.getPacketNumber().getPacketNumber();
         if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
             this.largestAcked = true;

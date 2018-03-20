@@ -9,7 +9,7 @@ export class NewConnectionIdFrame extends BaseFrame {
 
 
 	constructor(connectionID: ConnectionID, statelessResetToken: Buffer) {
-        super(FrameType.NEW_CONNECTION_ID);
+        super(FrameType.NEW_CONNECTION_ID, true);
 		this.connectionID = connectionID;
 		this.statelessResetToken = statelessResetToken;
 	}

@@ -4,7 +4,7 @@ export class PaddingFrame extends BaseFrame{
     private paddingLength: number;
 
     public constructor(paddingSize: number) {
-        super(FrameType.PADDING);
+        super(FrameType.PADDING, false);
         this.paddingLength = paddingSize;
     }
 

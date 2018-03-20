@@ -7,7 +7,7 @@ export class StreamIdBlockedFrame extends BaseFrame {
     private streamID: Bignum;
 
 	public constructor(streamID: Bignum) {
-        super(FrameType.STREAM_ID_BLOCKED);
+        super(FrameType.STREAM_ID_BLOCKED, true);
         this.streamID = streamID;
     }
     

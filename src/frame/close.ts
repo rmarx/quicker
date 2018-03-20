@@ -8,7 +8,7 @@ abstract class BaseCloseFrame extends BaseFrame {
     private phrase: string;
 
     public constructor(type: FrameType, errorCode: number, phrase: string) {
-        super(type);
+        super(type, true);
         this.errorCode = errorCode;
         this.phrase = phrase;
     }

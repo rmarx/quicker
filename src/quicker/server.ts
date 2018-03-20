@@ -112,7 +112,7 @@ export class Server extends EventEmitter {
         }
         connection.resetIdleAlarm();
         try {
-            this.headerHandler.handle(connection, headerOffset.header);
+            headerOffset = this.headerHandler.handle(connection, headerOffset);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
             connection.startIdleAlarm();
