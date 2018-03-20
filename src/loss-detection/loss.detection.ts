@@ -194,8 +194,6 @@ export class LossDetection extends EventEmitter {
         var ackedPackets: BasePacket[] = [];
         var ackedPacketnumbers = this.determineAckedPacketNumbers(ackFrame);
 
-        console.log(JSON.stringify(ackedPacketnumbers));
-        console.log(JSON.stringify(this.sentPackets));
         ackedPacketnumbers.forEach((packetnumber: Bignum) => {
             if (this.sentPackets[packetnumber.toString('hex', 8)] !== undefined) {
                 this.onPacketAcked(packetnumber, this.sentPackets[packetnumber.toString('hex', 8)].packet);
@@ -292,6 +290,7 @@ export class LossDetection extends EventEmitter {
      * When the alarm fires, the mode determines the action to be performed.
      */
     public onLossDetectionAlarm(): void {
+        console.log("loss detection alarm went off");
         if (this.handshakeOutstanding > 0) {
             // Handshake retransmission alarm.
             this.retransmitAllHandshakePackets();
@@ -327,6 +326,7 @@ export class LossDetection extends EventEmitter {
 
         var lostPackets: BasePacket[] = this.determineLostPackets(delayUntilLost);
 
+        console.log("lost packets count: " + lostPackets.length);
         // Inform the congestion controller of lost packets and
         // let it decide whether to retransmit immediately.
         if (lostPackets.length > 0) {
