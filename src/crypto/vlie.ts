@@ -19,13 +19,12 @@ export class VLIE {
         return VLIE.encodeNumber(number);
     }
 
-    static decode(buf: Buffer, offset?: number): Bignum;
-    static decode(str: string): Bignum;
-    public static decode(obj: any, offset: number = 0): Bignum {
-        if (obj instanceof Buffer) {
-            return VLIE.decodeBuffer(obj, offset);
-        }
-        return VLIE.decodeString(obj);
+    public static decode(buf: Buffer, offset: number = 0): VLIEOffset {
+        return VLIE.decodeBuffer(buf, offset);
+    }
+
+    public static decodeString(str: string): Bignum {
+        return this.decodeBuffer(Buffer.from(str, 'hex'), 0).value;
     }
 
     private static encodeBignum(bignum: Bignum): Buffer {
@@ -39,8 +38,8 @@ export class VLIE {
         return bn.toBuffer(2**count);
     }
 
-    private static decodeBuffer(buffer: Buffer, offset: number): Bignum {
-        var msb = buffer.readUInt8(offset);
+    private static decodeBuffer(buffer: Buffer, offset: number): VLIEOffset {
+        var msb = buffer.readUInt8(offset++);
         var count = 0;
         if(msb & 0x40) {
             count += 1;
@@ -53,13 +52,12 @@ export class VLIE {
         var bn = new Bignum(msb);
         for(var i = 1; i < 2**count; i++) {
             bn = bn.shiftLeft(8);
-            bn = bn.add(buffer.readUInt8(offset + i));
+            bn = bn.add(buffer.readUInt8(offset++));
         }
-        return bn;
-    }
-
-    private static decodeString(str: string): Bignum {
-        return this.decodeBuffer(Buffer.from(str, 'hex'), 0);
+        return {
+            value: bn,
+            offset: offset
+        };
     }
 
     private static encodeNumber(num: number): Buffer {
@@ -78,4 +76,9 @@ export class VLIE {
         }
         return 3;
     }
+}
+
+export interface VLIEOffset {
+    value: Bignum, 
+    offset: number
 }
