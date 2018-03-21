@@ -4,17 +4,24 @@ import {BaseHeader, HeaderType} from '../../packet/header/base.header';
 import {LongHeader} from '../../packet/header/long.header';
 import {ShortHeader} from '../../packet/header/short.header';
 import { VersionValidation } from '../validation/version.validation';
+import { HeaderOffset } from '../parsers/header.parser';
+import { PacketNumber } from '../../packet/header/header.properties';
 
 export class HeaderHandler {
 
-    public handle(connection: Connection, header: BaseHeader) {
-        
+    public handle(connection: Connection, headerOffset: HeaderOffset): HeaderOffset {
+        var header = headerOffset.header;
         if (header.getPacketNumber() !== undefined) {
             // adjust remote packet number
             if (connection.getRemotePacketNumber() === undefined) {
                 connection.setRemotePacketNumber(header.getPacketNumber());
             } else {
-                connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+                var adjustedNumber = connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+                if (connection.getRemotePacketNumber().getPacketNumber().lessThan(adjustedNumber)) {
+                    connection.getRemotePacketNumber().setPacketNumber(adjustedNumber);
+                }
+                // adjust the packet number in the header
+                header.getPacketNumber().setPacketNumber(adjustedNumber);
             }
         }
 
@@ -26,6 +33,10 @@ export class HeaderHandler {
             var sh = <ShortHeader>header;
             this.handleShortHeader(connection, sh);
         }
+        return {
+            header: header, 
+            offset: headerOffset.offset
+        };
     }
 
     private handleLongHeader(connection: Connection, longHeader: LongHeader): void {

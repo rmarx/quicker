@@ -7,7 +7,7 @@ export class MaxStreamIdFrame extends BaseFrame {
     private maxStreamID: Bignum
 
 	public constructor(maxStreamID: Bignum) {
-        super(FrameType.MAX_STREAM_ID);
+        super(FrameType.MAX_STREAM_ID, true);
         this.maxStreamID = maxStreamID;
 	}
     

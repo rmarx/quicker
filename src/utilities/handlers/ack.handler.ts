@@ -35,10 +35,13 @@ export class AckHandler {
             return;
         }
         var header = packet.getHeader();
-        var pn = connection.getRemotePacketNumber().getAdjustedNumber(header.getPacketNumber(), header.getPacketNumberSize()).getPacketNumber();
+        var pn = header.getPacketNumber().getPacketNumber();
         if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
+            if (this.largestAcked) {
+                this.receivedPackets = {};
+            }
             this.largestPacketNumber = pn;
-            this.largestAcked = true;
+            this.largestAcked = false;
         }
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket = <BaseEncryptedPacket>packet;

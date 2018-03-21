@@ -112,7 +112,7 @@ export class Server extends EventEmitter {
         }
         connection.resetIdleAlarm();
         try {
-            this.headerHandler.handle(connection, headerOffset.header);
+            headerOffset = this.headerHandler.handle(connection, headerOffset);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
             connection.startIdleAlarm();
@@ -167,6 +167,8 @@ export class Server extends EventEmitter {
         if (header.getHeaderType() === HeaderType.LongHeader) {
             if (this.connections[connectionID.toString()] !== undefined) {
                 return this.connections[connectionID.toString()];
+            } else if (this.mappedConnections[connectionID.toString()] !== undefined && this.connections[this.mappedConnections[connectionID.toString()]] !== undefined) {
+                return this.connections[this.mappedConnections[connectionID.toString()]];
             }
         } else {
             var shortHeader = <ShortHeader>header;

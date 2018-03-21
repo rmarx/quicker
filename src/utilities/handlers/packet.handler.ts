@@ -35,16 +35,18 @@ export class PacketHandler {
 
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
-        if (packet.getPacketType() === PacketType.Initial && connection.getEndpointType() === EndpointType.Server) {
+        if (packet.getPacketType() !== PacketType.Protected1RTT && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>packet.getHeader();
             var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
             if (negotiatedVersion === undefined) {
-                connection.resetConnectionState();
-                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
+                if (packet.getPacketType() === PacketType.Initial) {
+                    connection.resetConnectionState();
+                    throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
+                } else {
+                    return;
+                }
             }
             connection.setVersion(negotiatedVersion);
-        } else {
-            return;
         }
         
         this.onPacketReceived(connection, packet, receivedTime);
@@ -93,9 +95,7 @@ export class PacketHandler {
         }
         connection.resetConnectionState();
         connection.setVersion(negotiatedVersion);
-        var clientInitialPacket = PacketFactory.createClientInitialPacket(connection, true);
-        connection.sendPacket(clientInitialPacket);
-        connection.attemptEarlyData();
+        connection.startConnection();
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {

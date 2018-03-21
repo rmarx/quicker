@@ -189,7 +189,7 @@ export class FrameHandler {
     }
 
     private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
-
+        //connection.getLossDetection().onAckReceived(ackFrame);
     }
 
     private handlePathChallengeFrame(connection: Connection, pathChallengeFrame: PathChallengeFrame) {

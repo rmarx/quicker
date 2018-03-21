@@ -1,6 +1,6 @@
 import {BaseFrame, FrameType} from '../../frame/base.frame';
 import {Bignum} from '../../types/bignum';
-import {VLIE} from '../../crypto/vlie';
+import {VLIE, VLIEOffset} from '../../crypto/vlie';
 import {RstStreamFrame} from '../../frame/rst.stream';
 import {ApplicationCloseFrame, ConnectionCloseFrame} from '../../frame/close';
 import {MaxDataFrame} from '../../frame/max.data';
@@ -95,15 +95,14 @@ export class FrameParser {
     }
 
     private parseRstStream(buffer: Buffer, offset: number): FrameOffset {
-        var streamID: Bignum = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(streamID);
+        var streamID: VLIEOffset = VLIE.decode(buffer, offset);
+        offset = streamID.offset;
         var applicationErrorCode = buffer.readUInt16BE(offset);
         offset += 2;
         var finalOffset = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(finalOffset);
         return {
-            frame: FrameFactory.createRstStreamFrame(streamID, applicationErrorCode, finalOffset),
-            offset: offset
+            frame: FrameFactory.createRstStreamFrame(streamID.value, applicationErrorCode, finalOffset.value),
+            offset: finalOffset.offset
         };
     }
 
@@ -111,9 +110,8 @@ export class FrameParser {
         var errorCode = buffer.readUInt16BE(offset);
         offset += 2;
         var phraseLength = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(phraseLength);
-        var phrase = buffer.toString('utf8', offset, phraseLength.toNumber());
-        offset += phraseLength.toNumber();
+        var phrase = buffer.toString('utf8', phraseLength.offset, phraseLength.value.toNumber());
+        offset = phraseLength.offset + phraseLength.value.toNumber();
         if (type === FrameType.APPLICATION_CLOSE) {
             return {
                 frame: FrameFactory.createApplicationCloseFrame(errorCode, phrase),
@@ -130,31 +128,27 @@ export class FrameParser {
 
     private parseMaxData(buffer: Buffer, offset: number): FrameOffset {
         var maxData = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(maxData);
         return {
-            frame: FrameFactory.createMaxDataFrame(maxData),
-            offset: offset
+            frame: FrameFactory.createMaxDataFrame(maxData.value),
+            offset: maxData.offset
         };
     }
 
     private parseMaxStreamData(buffer: Buffer, offset: number): FrameOffset {
-        var streamId = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(streamId);
-        var maxStreamData = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(maxStreamData);
+        var streamID = VLIE.decode(buffer, offset);
+        var maxStreamData = VLIE.decode(buffer, streamID.offset);
         return {
-            frame: FrameFactory.createMaxStreamDataFrame(streamId, maxStreamData),
-            offset: offset
+            frame: FrameFactory.createMaxStreamDataFrame(streamID.value, maxStreamData.value),
+            offset: maxStreamData.offset
         };
 
     }
 
     private parseMaxStreamId(buffer: Buffer, offset: number): FrameOffset {
-        var maxStreamId = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(maxStreamId);
+        var maxStreamID = VLIE.decode(buffer, offset);
         return {
-            frame: FrameFactory.createMaxStreamIdFrame(maxStreamId),
-            offset: offset
+            frame: FrameFactory.createMaxStreamIdFrame(maxStreamID.value),
+            offset: maxStreamID.offset
         };
     }
 
@@ -167,37 +161,33 @@ export class FrameParser {
 
     private parseBlocked(buffer: Buffer, offset: number): FrameOffset {
         var blockedOffset = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(blockedOffset);
         return {
-            frame: FrameFactory.createBlockedFrame(blockedOffset),
-            offset: offset
+            frame: FrameFactory.createBlockedFrame(blockedOffset.value),
+            offset: blockedOffset.offset
         };
     }
 
     private parseStreamBlocked(buffer: Buffer, offset: number): FrameOffset {
-        var streamId = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(streamId);
-        var blockedOffset = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(blockedOffset);
+        var streamID = VLIE.decode(buffer, offset);
+        var blockedOffset = VLIE.decode(buffer, streamID.offset);
         return {
-            frame: FrameFactory.createStreamBlockedFrame(streamId, blockedOffset),
-            offset: offset
+            frame: FrameFactory.createStreamBlockedFrame(streamID.value, blockedOffset.value),
+            offset: blockedOffset.offset
         };
     }
 
     private parseStreamIdBlocked(buffer: Buffer, offset: number): FrameOffset {
-        var streamId = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(streamId);
+        var streamID = VLIE.decode(buffer, offset);
         return {
-            frame: FrameFactory.createStreamIdBlockedFrame(streamId),
-            offset: offset
+            frame: FrameFactory.createStreamIdBlockedFrame(streamID.value),
+            offset: streamID.offset
         };
     }
 
     private parseNewConnectionId(buffer: Buffer, offset: number): FrameOffset {
         var sequence = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(sequence);
         var connectionIdBuffer = Buffer.alloc(8);
+        offset = sequence.offset;
         buffer.copy(connectionIdBuffer, 0, offset, offset + 8)
         offset += 8;
         var statelessResetToken = Buffer.alloc(16);
@@ -211,36 +201,30 @@ export class FrameParser {
     }
 
     private parseStopSending(buffer: Buffer, offset: number): FrameOffset {
-        var streamId = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(streamId);
-        var appErrorCode = buffer.readUInt16BE(offset);
-        offset += 2;
+        var streamID = VLIE.decode(buffer, offset);
+        var appErrorCode = buffer.readUInt16BE(streamID.offset);
+        offset = streamID.offset + 2;
         return {
-            frame: FrameFactory.createStopSendingFrame(streamId, appErrorCode),
+            frame: FrameFactory.createStopSendingFrame(streamID.value, appErrorCode),
             offset: offset
         };
     }
 
     private parseAck(buffer: Buffer, offset: number): FrameOffset {
-        var largestAcknowledged: Bignum = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(largestAcknowledged);
-        var ackDelay: Bignum = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(ackDelay);
-        var ackBlockCount: Bignum = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(ackBlockCount);
-
-        var firstAckBlock: Bignum = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(firstAckBlock);
+        var largestAcknowledged: VLIEOffset = VLIE.decode(buffer, offset);
+        var ackDelay: VLIEOffset = VLIE.decode(buffer, largestAcknowledged.offset);
+        var ackBlockCount: VLIEOffset = VLIE.decode(buffer, ackDelay.offset);
+        var firstAckBlock: VLIEOffset = VLIE.decode(buffer, ackBlockCount.offset);
+        offset = firstAckBlock.offset;
         var ackBlocks: AckBlock[] = [];
-        for(var i = new Bignum(1); i.lessThan(ackBlockCount); i = i.add(1)) {
+        for(var i = new Bignum(1); i.lessThanOrEqual(ackBlockCount.value); i = i.add(1)) {
             var gap = VLIE.decode(buffer, offset);
-            offset += VLIE.getEncodedByteLength(gap);
-            var block = VLIE.decode(buffer, offset);
-            offset += VLIE.getEncodedByteLength(block);
-            ackBlocks.push(new AckBlock(gap, block));
+            var block = VLIE.decode(buffer, gap.offset);
+            offset = block.offset;
+            ackBlocks.push(new AckBlock(gap.value, block.value));
         }
         return {
-            frame: FrameFactory.createAckFrame(largestAcknowledged, ackDelay, ackBlockCount, firstAckBlock, ackBlocks),
+            frame: FrameFactory.createAckFrame(largestAcknowledged.value, ackDelay.value, ackBlockCount.value, firstAckBlock.value, ackBlocks),
             offset: offset
         };
     }
@@ -276,23 +260,25 @@ export class FrameParser {
         if (type & 0x04) {
             off = true;
         }
-        var streamId = VLIE.decode(buffer, offset);
-        offset += VLIE.getEncodedByteLength(streamId);
+        var streamID = VLIE.decode(buffer, offset);
+        offset = streamID.offset
         var dataLength = new Bignum(0);
         var dataOffset = new Bignum(0);
         if (off) {
-            dataOffset = VLIE.decode(buffer, offset);
-            offset += VLIE.getEncodedByteLength(dataOffset);
+            var vlieOffset = VLIE.decode(buffer, offset);
+            dataOffset = vlieOffset.value;
+            offset = vlieOffset.offset;
         }
         if (len) {
-            dataLength = VLIE.decode(buffer, offset);
-            offset += VLIE.getEncodedByteLength(dataLength);
+            var vlieOffset = VLIE.decode(buffer, offset);
+            dataLength = vlieOffset.value;
+            offset = vlieOffset.offset;
         }
         var data = Buffer.alloc(dataLength.toNumber());
         buffer.copy(data, 0, offset, dataLength.toNumber() + offset);
         offset += dataLength.toNumber();
 
-        var streamFrame = FrameFactory.createStreamFrame(streamId, data, fin, true, dataOffset);
+        var streamFrame = FrameFactory.createStreamFrame(streamID.value, data, fin, true, dataOffset);
         streamFrame.setLength(dataLength);
         return {
             frame: streamFrame,

@@ -21,6 +21,9 @@ import { BN } from 'bn.js';
 import { QuicStream } from './quic.stream';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
+import { LossDetection, LossDetectionEvents } from '../loss-detection/loss.detection';
+import { QuicError } from '../utilities/errors/connection.error';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
 export class Connection extends FlowControlledObject {
 
@@ -29,8 +32,10 @@ export class Connection extends FlowControlledObject {
     private socket!: Socket;
     private remoteInfo: RemoteInformation;
     private endpointType: EndpointType;
+
     private ackHandler: AckHandler;
     private handshakeHandler!: HandshakeHandler;
+    private lossDetection: LossDetection;
 
     private firstConnectionID!: ConnectionID;
     private connectionID!: ConnectionID;
@@ -76,8 +81,16 @@ export class Connection extends FlowControlledObject {
         this.aead = new AEAD(this.qtls);
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
+        this.lossDetection = new LossDetection();
+        this.hookLossDetectionEvents();
         this.localMaxStreamUniBlocked = false;
         this.localMaxStreamBidiBlocked = false;
+    }
+
+    private hookLossDetectionEvents() {
+        this.lossDetection.on(LossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
+            this.retransmitPacket(basePacket);
+        });
     }
 
     private hookQuicTLSEvents() {
@@ -131,6 +144,10 @@ export class Connection extends FlowControlledObject {
 
     public getAckHandler(): AckHandler {
         return this.ackHandler;
+    }
+
+    public getLossDetection(): LossDetection {
+        return this.lossDetection;
     }
 
     public getLocalTransportParameter(type: TransportParameterType): any {
@@ -382,6 +399,20 @@ export class Connection extends FlowControlledObject {
         }
     }
 
+    private retransmitPacket(packet: BasePacket) {
+        var framePacket = <BaseEncryptedPacket> packet;
+        framePacket.getFrames().forEach((frame: BaseFrame) => {
+            if (frame.isRetransmittable()) {
+                // TODO: Should create new frames AND retransmit data instead of streamframes
+                this.queueFrame(frame);
+            }
+        });
+        if (packet.isHandshake()) {
+            this.sendPackets();
+        }
+        
+    }
+
     /**
      * Method to send a packet
      * @param basePacket packet to send
@@ -415,6 +446,7 @@ export class Connection extends FlowControlledObject {
         if (packet !== undefined) {
             packet.getHeader().setPacketNumber(this.getNextPacketNumber());
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
+            //this.lossDetection.onPacketSent(packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
     }
@@ -429,6 +461,7 @@ export class Connection extends FlowControlledObject {
 
     private startTransmissionAlarm(): void {
         this.transmissionAlarm.on(AlarmEvent.TIMEOUT, () => {
+            console.log("send packets called via transmission alarm");
             this.sendPackets();
         });
         this.transmissionAlarm.start(40);
@@ -444,6 +477,14 @@ export class Connection extends FlowControlledObject {
             this.sendPackets();
         }
         return false;
+    }
+
+    public startConnection(): void {
+        if (this.endpointType === EndpointType.Server) {
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
+        }
+        this.handshakeHandler.startHandshake();
+        this.sendPackets();
     }
 
 

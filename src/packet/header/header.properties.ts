@@ -86,9 +86,7 @@ export class PacketNumber extends BaseProperty {
         var maskedResult = this.getPacketNumber().and(mask);
         var next = packetNumber.getPacketNumber().mask(size);
         next = next.add(maskedResult);
-        if (next.greaterThan(this.getPacketNumber())) {
-            this.setPacketNumber(next);
-        }
+        return next;
     }
 
     public getAdjustedNumber(packetNumber: PacketNumber, size: number): PacketNumber {

@@ -41,24 +41,15 @@ export class PacketFactory {
      * 
      * @param connection
      */
-    public static createClientInitialPacket(connection: Connection, createNew = false): ClientInitialPacket {
+    public static createClientInitialPacket(connection: Connection, frames: BaseFrame[]): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), undefined, connection.getVersion());
-        if (connection.getQuicTLS().isEarlyDataAllowed()) {
-            connection.getQuicTLS().writeEarlyData(Buffer.from(""));
-        }
-        var clientInitial = connection.getQuicTLS().getClientInitial(createNew);
-        var streamFrame = new StreamFrame(new Bignum(0), clientInitial);
-        streamFrame.setLength(new Bignum(clientInitial.byteLength));
-        var stream = connection.getStream(new Bignum(0));
-        stream.addRemoteOffset(streamFrame.getData().byteLength);
-        connection.addRemoteOffset(streamFrame.getData().byteLength);
-        var size = streamFrame.toBuffer().byteLength;
-        var frames: BaseFrame[] = [streamFrame];
+        var clientInitial = new ClientInitialPacket(header, frames);
+        var size = clientInitial.getFrameSizes();
         if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
             var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size)
-            frames.push(padding);
+            clientInitial.getFrames().push(padding);
         }
-        return new ClientInitialPacket(header, frames);
+        return clientInitial;
     }
 
     /**

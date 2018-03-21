@@ -5,7 +5,6 @@ import {BaseFrame, FrameType} from './base.frame';
 
 
 export class AckFrame extends BaseFrame {
-
     private largestAcknowledged: Bignum;
     private ackDelay: Bignum;
     private ackBlockCount: Bignum;
@@ -14,7 +13,7 @@ export class AckFrame extends BaseFrame {
     private ackBlocks: AckBlock[];
 
     public constructor(largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]) {
-        super(FrameType.ACK);
+        super(FrameType.ACK, false);
         this.largestAcknowledged = largestAck;
         this.ackDelay = ackDelay;
         this.ackBlockCount = ackBlockCount;

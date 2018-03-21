@@ -67,8 +67,7 @@ export class Client extends EventEmitter{
         client.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
         var stream = client.connection.getStream(new Bignum(0));
-        var clientInitial: ClientInitialPacket = PacketFactory.createClientInitialPacket(client.connection);
-        client.connection.sendPacket(clientInitial, false);
+        client.connection.startConnection();
         client.connection.attemptEarlyData(earlyDataRequest);
         return client;
     }
@@ -168,7 +167,7 @@ export class Client extends EventEmitter{
         try {
             var receivedTime = Time.now();
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
-            this.headerHandler.handle(this.connection, headerOffset.header);
+            headerOffset = this.headerHandler.handle(this.connection, headerOffset);
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
             this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             this.connection.startIdleAlarm();

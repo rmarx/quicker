@@ -2,12 +2,18 @@
 
 export abstract class BaseFrame {
     private type: FrameType;
+    private retransmittable: boolean;
 
-    public constructor(type: FrameType) {
+    public constructor(type: FrameType, retransmittable: boolean) {
         this.type = type;
+        this.retransmittable = retransmittable;
     }
 
     abstract toBuffer(): Buffer;
+    
+    public isRetransmittable(): boolean {
+        return this.retransmittable;
+    }
 
     public getType(): FrameType {
         return this.type;

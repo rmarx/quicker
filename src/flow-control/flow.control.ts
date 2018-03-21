@@ -83,9 +83,22 @@ export class FlowControl {
 
     private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
         var handshakeState = connection.getQuicTLS().getHandshakeState();;
-        var isServer = connection.getEndpointType() === EndpointType.Client;
+        var isServer = connection.getEndpointType() !== EndpointType.Client;
         if (!isServer && handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
-            return PacketFactory.createProtected0RTTPacket(connection, frames);
+            var isHandshake = false;
+            frames.forEach((frame: BaseFrame) => {
+                if (frame.getType() >= FrameType.STREAM) {
+                    var streamFrame = <StreamFrame> frame;
+                    if (streamFrame.getStreamID().equals(0)) {
+                        isHandshake = true;
+                    }
+                }
+            });
+            if (isHandshake) {
+                return PacketFactory.createHandshakePacket(connection, frames);
+            } else {
+                return PacketFactory.createProtected0RTTPacket(connection, frames);
+            }
         } else {
             return PacketFactory.createShortHeaderPacket(connection, frames);
         }
@@ -93,7 +106,11 @@ export class FlowControl {
 
     private static createHandshakePackets(connection: Connection, frames: BaseFrame[]) {
         if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            return PacketFactory.createHandshakePacket(connection, frames);
+            if (connection.getEndpointType() === EndpointType.Client && connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_HELLO) {
+                return PacketFactory.createClientInitialPacket(connection, frames);
+            } else {
+                return PacketFactory.createHandshakePacket(connection, frames);
+            }
         } else {
             return PacketFactory.createShortHeaderPacket(connection, frames);
         }

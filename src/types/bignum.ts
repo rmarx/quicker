@@ -247,6 +247,19 @@ export class Bignum {
         return this.fromBN(num);
     }
 
+    private static infinityHex: string;
+
+    public static infinity(): Bignum {
+        if (this.infinityHex === undefined) {
+            var x = new Bignum(1);
+            // only calculate this once and then store it in infinityHex
+            x.bignum = x.bignum.shln(65);
+            this.infinityHex = x.toString('hex');
+            return x;
+        }
+        return new Bignum(Buffer.from(this.infinityHex, 'hex'));
+    }
+
     /**
      * Returns the smallest value between the two given bignum objects
      * @param b1 

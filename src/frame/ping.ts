@@ -4,7 +4,7 @@ import { BaseFrame, FrameType } from "./base.frame";
 export class PingFrame extends BaseFrame {
 
     public constructor() {
-        super(FrameType.PING);
+        super(FrameType.PING, true);
     }
 
     public toBuffer(): Buffer {
