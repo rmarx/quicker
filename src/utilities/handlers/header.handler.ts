@@ -5,6 +5,7 @@ import {LongHeader} from '../../packet/header/long.header';
 import {ShortHeader} from '../../packet/header/short.header';
 import { VersionValidation } from '../validation/version.validation';
 import { HeaderOffset } from '../parsers/header.parser';
+import { PacketNumber } from '../../packet/header/header.properties';
 
 export class HeaderHandler {
 
@@ -15,9 +16,12 @@ export class HeaderHandler {
             if (connection.getRemotePacketNumber() === undefined) {
                 connection.setRemotePacketNumber(header.getPacketNumber());
             } else {
-                connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+                var adjustedNumber = connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+                if (connection.getRemotePacketNumber().getPacketNumber().lessThan(adjustedNumber)) {
+                    connection.getRemotePacketNumber().setPacketNumber(adjustedNumber);
+                }
                 // adjust the packet number in the header
-                header.setPacketNumber(connection.getRemotePacketNumber());
+                header.getPacketNumber().setPacketNumber(adjustedNumber);
             }
         }
 

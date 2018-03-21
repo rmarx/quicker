@@ -3,6 +3,8 @@ import { StreamEvent, Stream } from "../../quicker/stream";
 import { Bignum } from "../../types/bignum";
 import { EndpointType } from "../../types/endpoint.type";
 import { HandshakeState } from "../../crypto/qtls";
+import { QuicError } from "../errors/connection.error";
+import { ConnectionErrorCodes } from "../errors/connection.codes";
 
 
 
@@ -13,6 +15,14 @@ export class HandshakeHandler {
 
     public constructor(connection: Connection) {
         this.connection = connection;
+    }
+
+    public startHandshake(): void {
+        if (this.connection.getEndpointType() === EndpointType.Server) {
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
+        }
+        var clientInitial = this.connection.getQuicTLS().getClientInitial(true);
+        this.stream.addData(clientInitial);
     }
 
     public setHandshakeStream(stream: Stream) {

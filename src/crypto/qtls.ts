@@ -66,6 +66,9 @@ export class QTLS extends EventEmitter{
     }
 
     public getClientInitial(createNew = false): Buffer {
+        if (this.isEarlyDataAllowed()) {
+            this.writeEarlyData(Buffer.from(""));
+        }
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
             if (this.earlyData !== undefined) {

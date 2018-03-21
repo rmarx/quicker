@@ -95,9 +95,7 @@ export class PacketHandler {
         }
         connection.resetConnectionState();
         connection.setVersion(negotiatedVersion);
-        var clientInitialPacket = PacketFactory.createClientInitialPacket(connection, true);
-        connection.sendPacket(clientInitialPacket);
-        connection.attemptEarlyData();
+        connection.startConnection();
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {

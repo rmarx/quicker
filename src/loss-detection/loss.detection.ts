@@ -280,6 +280,7 @@ export class LossDetection extends EventEmitter {
         if (!this.lossDetectionAlarm.isRunning()) {
             this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, () => {
                 this.onLossDetectionAlarm();
+                this.lossDetectionAlarm.reset();
             });
             this.lossDetectionAlarm.start(alarmDuration.toNumber());
         }
@@ -324,7 +325,6 @@ export class LossDetection extends EventEmitter {
         }
 
         var lostPackets: BasePacket[] = this.determineLostPackets(delayUntilLost);
-
         // Inform the congestion controller of lost packets and
         // let it decide whether to retransmit immediately.
         if (lostPackets.length > 0) {
@@ -391,6 +391,7 @@ export class LossDetection extends EventEmitter {
 
     private retransmitPacket(sentPacket: SentPacket) {
         if (sentPacket.packet.isRetransmittable()) {
+            console.log("retransmitted pn: " + sentPacket.packet.getHeader().getPacketNumber().toString());
             this.emit(LossDetectionEvents.RETRANSMIT_PACKET, sentPacket.packet);
         }
     }

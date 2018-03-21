@@ -22,6 +22,8 @@ import { QuicStream } from './quic.stream';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
 import { LossDetection, LossDetectionEvents } from '../loss-detection/loss.detection';
+import { QuicError } from '../utilities/errors/connection.error';
+import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
 
 export class Connection extends FlowControlledObject {
 
@@ -80,6 +82,7 @@ export class Connection extends FlowControlledObject {
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
         this.lossDetection = new LossDetection();
+        this.hookLossDetectionEvents();
         this.localMaxStreamUniBlocked = false;
         this.localMaxStreamBidiBlocked = false;
     }
@@ -404,6 +407,9 @@ export class Connection extends FlowControlledObject {
                 this.queueFrame(frame);
             }
         });
+        if (packet.isHandshake()) {
+            this.sendPackets();
+        }
         
     }
 
@@ -440,7 +446,7 @@ export class Connection extends FlowControlledObject {
         if (packet !== undefined) {
             packet.getHeader().setPacketNumber(this.getNextPacketNumber());
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
-            this.lossDetection.onPacketSent(packet);
+            //this.lossDetection.onPacketSent(packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
     }
@@ -455,6 +461,7 @@ export class Connection extends FlowControlledObject {
 
     private startTransmissionAlarm(): void {
         this.transmissionAlarm.on(AlarmEvent.TIMEOUT, () => {
+            console.log("send packets called via transmission alarm");
             this.sendPackets();
         });
         this.transmissionAlarm.start(40);
@@ -470,6 +477,14 @@ export class Connection extends FlowControlledObject {
             this.sendPackets();
         }
         return false;
+    }
+
+    public startConnection(): void {
+        if (this.endpointType === EndpointType.Server) {
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
+        }
+        this.handshakeHandler.startHandshake();
+        this.sendPackets();
     }
 
 
