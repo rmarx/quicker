@@ -48,13 +48,17 @@ export class PacketLogging {
         configure({
             appenders: {
                 startOut: {
-                    type: 'stdout', layout: {
+                    type: Constants.LOG_TYPE, 
+                    filename: './logs/debug.log',
+                    layout: {
                         type: 'pattern',
                         pattern: '%d %n%m'
                     }
                 },
                 continuedOut: {
-                    type: 'stdout', layout: {
+                    type: Constants.LOG_TYPE, 
+                    filename: './logs/debug.log',
+                    layout: {
                         type: 'pattern',
                         pattern: '%m'
                     }
