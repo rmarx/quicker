@@ -1,18 +1,18 @@
-import {PacketNumber, ConnectionID, Version} from '../packet/header/header.properties';
-import {PacketHandler} from '../utilities/handlers/packet.handler';
-import {Bignum} from '../types/bignum';
-import {Stream, StreamType} from './stream';
-import {Constants} from '../utilities/constants';
-import {ClientInitialPacket} from '../packet/packet/client.initial';
-import {PacketParser, PacketOffset} from '../utilities/parsers/packet.parser';
-import {PacketFactory} from '../utilities/factories/packet.factory';
-import {QTLS, HandshakeState} from '../crypto/qtls';
-import {VersionNegotiationPacket} from '../packet/packet/version.negotiation';
-import {BasePacket} from '../packet/base.packet';
+import { PacketNumber, ConnectionID, Version } from '../packet/header/header.properties';
+import { PacketHandler } from '../utilities/handlers/packet.handler';
+import { Bignum } from '../types/bignum';
+import { Stream, StreamType } from './stream';
+import { Constants } from '../utilities/constants';
+import { ClientInitialPacket } from '../packet/packet/client.initial';
+import { PacketParser, PacketOffset } from '../utilities/parsers/packet.parser';
+import { PacketFactory } from '../utilities/factories/packet.factory';
+import { QTLS, HandshakeState } from '../crypto/qtls';
+import { VersionNegotiationPacket } from '../packet/packet/version.negotiation';
+import { BasePacket } from '../packet/base.packet';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import * as fs from 'fs';
-import {EndpointType} from '../types/endpoint.type';
-import {ConnectionState, Connection,  RemoteInformation, ConnectionEvent} from './connection';
+import { EndpointType } from '../types/endpoint.type';
+import { ConnectionState, Connection, RemoteInformation, ConnectionEvent } from './connection';
 import { HeaderOffset, HeaderParser } from '../utilities/parsers/header.parser';
 import { HeaderHandler } from '../utilities/handlers/header.handler';
 import { Time, TimeFormat } from '../types/time';
@@ -29,8 +29,8 @@ import { TransportParameters } from '../crypto/transport.parameters';
 import { isIPv6 } from 'net';
 
 
-export class Client extends EventEmitter{
-        
+export class Client extends EventEmitter {
+
     private port!: number;
     private hostname!: string;
     private options: any;
@@ -83,17 +83,17 @@ export class Client extends EventEmitter{
         }
         var remoteInfo: RemoteInformation = {
             address: this.hostname,
-            port: this.port, 
+            port: this.port,
             family: family
         };
-        
+
         this.connection = new Connection(remoteInfo, EndpointType.Client, this.options);
         this.connection.setFirstConnectionID(ConnectionID.randomConnectionID());
         this.connection.setSocket(socket);
         this.setupConnectionEvents();
-        
-        socket.on(QuickerEvent.ERROR,(err) => {this.onError(this.connection, err)});
-        socket.on(QuickerEvent.NEW_MESSAGE,(msg, rinfo) => {this.onMessage(msg, rinfo)});
+
+        socket.on(QuickerEvent.ERROR, (err) => { this.onError(this.connection, err) });
+        socket.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
     }
 
 
@@ -120,7 +120,7 @@ export class Client extends EventEmitter{
             this.sendRequest(stream, request);
         } else {
             this.bufferedRequests.push({
-                request: request, 
+                request: request,
                 stream: stream
             });
         }
@@ -135,7 +135,7 @@ export class Client extends EventEmitter{
     public getPort(): number {
         return this.port;
     }
-    
+
     public getHostname(): string {
         return this.hostname;
     }
@@ -161,15 +161,20 @@ export class Client extends EventEmitter{
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        if (this.connection.getState() === ConnectionState.Closing) {
-            var closePacket = this.connection.getClosePacket();
-            this.connection.sendPacket(closePacket);
+        try {
+
+            if (this.connection.getState() === ConnectionState.Closing) {
+                var closePacket = this.connection.getClosePacket();
+                this.connection.sendPacket(closePacket);
+                return;
+            }
+            if (this.connection.getState() === ConnectionState.Draining) {
+                return;
+            }
+            this.connection.resetIdleAlarm();
+        } catch(err) {
             return;
         }
-        if (this.connection.getState() === ConnectionState.Draining) {
-            return;
-        }
-        this.connection.resetIdleAlarm();
         try {
             var receivedTime = Time.now();
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
@@ -177,14 +182,14 @@ export class Client extends EventEmitter{
             var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
             this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             this.connection.startIdleAlarm();
-        }catch(err) {
+        } catch (err) {
             this.onError(this.connection, err);
             return;
         }
     }
 
     private onError(connection: Connection, error: any): any {
-        this.emit(QuickerEvent.ERROR,error);
+        this.emit(QuickerEvent.ERROR, error);
         var closeFrame: ConnectionCloseFrame;
         var packet: BaseEncryptedPacket;
         if (error instanceof QuicError) {
@@ -206,6 +211,6 @@ export class Client extends EventEmitter{
 
 
 interface BufferedRequest {
-    request: Buffer, 
+    request: Buffer,
     stream: Stream
 }
