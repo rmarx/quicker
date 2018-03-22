@@ -25,6 +25,7 @@ import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';
 import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
+import { isIPv4, isIPv6 } from 'net';
 
 
 export class Server extends EventEmitter {
@@ -68,9 +69,14 @@ export class Server extends EventEmitter {
             this.options.host = host;
         }
 
-        // TODO check for ipv4 or ipv6
-        this.init("udp4");
-        //this.init("udp6");
+        if (isIPv4(host)) {
+            this.init("udp4");
+        } else if (isIPv6(host)) {
+            this.init("udp6");
+        } else {
+            this.init("udp4");
+            this.init("udp6");
+        }
     }
 
     private init(socketType: SocketType) {

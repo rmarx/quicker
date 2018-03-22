@@ -26,6 +26,7 @@ import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';
 import { TransportParameters } from '../crypto/transport.parameters';
+import { isIPv6 } from 'net';
 
 
 export class Client extends EventEmitter{
@@ -73,12 +74,17 @@ export class Client extends EventEmitter{
     }
 
     private init(): void {
-        // TODO check for ipv4 or ipv6
-        var socket = createSocket("udp4");
+        var family = 'IPv4';
+        if (isIPv6(this.hostname)) {
+            var socket = createSocket("udp4");
+        } else {
+            var socket = createSocket("udp6");
+            family = 'IPv6';
+        }
         var remoteInfo: RemoteInformation = {
             address: this.hostname,
             port: this.port, 
-            family: 'IPv4'
+            family: family
         };
         
         this.connection = new Connection(remoteInfo, EndpointType.Client, this.options);
