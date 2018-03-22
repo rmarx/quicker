@@ -196,7 +196,7 @@ export class FrameHandler {
     }
 
     private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
-        //connection.getLossDetection().onAckReceived(ackFrame);
+        connection.getLossDetection().onAckReceived(ackFrame);
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {

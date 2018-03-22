@@ -122,6 +122,7 @@ export class LossDetection extends EventEmitter {
         this.largestAckedPacket = new Bignum(0);
         this.retransmittablePacketsOutstanding = 0;
         this.handshakeOutstanding = 0;
+        this.handshakeCount = 0;
         this.sentPackets = {};
     }
 
@@ -265,12 +266,25 @@ export class LossDetection extends EventEmitter {
             } else {
                 alarmDuration = this.smoothedRtt.multiply(2);
             }
+            console.log("alarm duration 1: " + alarmDuration.toString('hex'));
+            console.log("alarm duration 1: " + alarmDuration.toNumber());
             alarmDuration = Bignum.max(alarmDuration.add(this.maxAckDelay), LossDetection.MIN_TLP_TIMEOUT);
-            alarmDuration = alarmDuration.multiply(Math.pow(2, this.handshakeCount));
+            console.log("alarm duration 2: " + alarmDuration.toString('hex'));
+            console.log("alarm duration 2: " + alarmDuration.toNumber());
+            console.log("hs count: " + this.handshakeCount);
+            var pw = Math.pow(2, this.handshakeCount);
+            console.log("pw: " + pw);
+            alarmDuration = alarmDuration.multiply(pw);
+            console.log("alarm duration 3: " + alarmDuration.toString('hex'));
+            console.log("alarm duration 3: " + alarmDuration.toNumber());
         } else if (!this.lossTime.equals(0)) {
             alarmDuration = this.lossTime.subtract(this.timeOfLastSentPacket);
+            console.log("alarm duration 4: " + alarmDuration.toString('hex'));
+            console.log("alarm duration 4: " + alarmDuration.toNumber());
         } else if (this.tlpCount > LossDetection.MAX_TLP) {
             alarmDuration = Bignum.max(this.smoothedRtt.multiply(1.5).add(this.maxAckDelay), LossDetection.MIN_TLP_TIMEOUT);
+            console.log("alarm duration 5: " + alarmDuration.toString('hex'));
+            console.log("alarm duration 5: " + alarmDuration.toNumber());
         } else {
             alarmDuration = this.smoothedRtt.add(this.rttVar.multiply(4)).add(this.maxAckDelay);
             alarmDuration = Bignum.max(alarmDuration, LossDetection.MIN_RTO_TIMEOUT);
@@ -282,6 +296,8 @@ export class LossDetection extends EventEmitter {
                 this.onLossDetectionAlarm();
                 this.lossDetectionAlarm.reset();
             });
+            console.log("alarm duration 6: " + alarmDuration.toString('hex'));
+            console.log("alarm duration 6: " + alarmDuration.toNumber());
             this.lossDetectionAlarm.start(alarmDuration.toNumber());
         }
     }
@@ -385,6 +401,7 @@ export class LossDetection extends EventEmitter {
         Object.keys(this.sentPackets).forEach((key: string) => {
             if (this.sentPackets[key].packet.isHandshake()) {
                 this.retransmitPacket(this.sentPackets[key]);
+                delete this.sentPackets[key];
             }
         });
     }

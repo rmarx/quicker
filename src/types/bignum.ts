@@ -261,22 +261,6 @@ export class Bignum {
     }
 
     /**
-     * Returns the smallest value between the two given bignum objects
-     * @param b1 
-     * @param b2 
-     */
-    static min(b1: number, b2: number): Bignum;
-    static min(b1: Bignum, b2: number): Bignum;
-    static min(b1: number, b2: Bignum): Bignum;
-    static min(b1: Bignum, b2: Bignum): Bignum;
-    public static min(b1: any, b2: any): Bignum {
-        if (b1 instanceof Bignum) {
-            return b1.greaterThanOrEqual(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
-        }
-        return new Bignum(b1).greaterThanOrEqual(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
-    }
-
-    /**
      * Returns the biggest value between the two given bignum objects
      * @param b1 
      * @param b2 
@@ -286,6 +270,22 @@ export class Bignum {
     static max(b1: number, b2: Bignum): Bignum;
     static max(b1: Bignum, b2: Bignum): Bignum;
     public static max(b1: any, b2: any): Bignum {
+        if (b1 instanceof Bignum) {
+            return b1.greaterThanOrEqual(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
+        }
+        return new Bignum(b1).greaterThanOrEqual(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
+    }
+
+    /**
+     * Returns the smallest value between the two given bignum objects
+     * @param b1 
+     * @param b2 
+     */
+    static min(b1: number, b2: number): Bignum;
+    static min(b1: Bignum, b2: number): Bignum;
+    static min(b1: number, b2: Bignum): Bignum;
+    static min(b1: Bignum, b2: Bignum): Bignum;
+    public static min(b1: any, b2: any): Bignum {
         if (b1 instanceof Bignum) {
             return b1.lessThan(b2) ? b1 : (b2 instanceof Bignum ? b2 : new Bignum(b2));
         }

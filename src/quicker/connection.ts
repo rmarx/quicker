@@ -446,7 +446,7 @@ export class Connection extends FlowControlledObject {
         if (packet !== undefined) {
             packet.getHeader().setPacketNumber(this.getNextPacketNumber());
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
-            //this.lossDetection.onPacketSent(packet);
+            this.lossDetection.onPacketSent(packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
     }
@@ -461,7 +461,6 @@ export class Connection extends FlowControlledObject {
 
     private startTransmissionAlarm(): void {
         this.transmissionAlarm.on(AlarmEvent.TIMEOUT, () => {
-            console.log("send packets called via transmission alarm");
             this.sendPackets();
         });
         this.transmissionAlarm.start(40);
