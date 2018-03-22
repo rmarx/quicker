@@ -50,6 +50,7 @@ export class PacketLogging {
                 startOut: {
                     type: Constants.LOG_TYPE, 
                     filename: './logs/debug.log',
+                    maxLogSize : Constants.MAX_LOG_FILE_SIZE,
                     layout: {
                         type: 'pattern',
                         pattern: '%d %n%m'
@@ -58,6 +59,7 @@ export class PacketLogging {
                 continuedOut: {
                     type: Constants.LOG_TYPE, 
                     filename: './logs/debug.log',
+                    maxLogSize : Constants.MAX_LOG_FILE_SIZE,
                     layout: {
                         type: 'pattern',
                         pattern: '%m'
