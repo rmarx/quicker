@@ -6,7 +6,7 @@ export class Constants {
         'ff000009'
     ];
 
-    public static readonly LOG_TYPE = "file";
+    public static readonly LOG_TYPE = "stdout";
     public static readonly LOG_LEVEL = 'debug';
     public static readonly LOG_LARGE_BUFFER_DATA = false;
 
