@@ -105,8 +105,6 @@ export class PacketLogging {
             var lh: LongHeader = <LongHeader>(basePacket.getHeader());
             log += ", Version: 0x" + lh.getVersion().getVersion().toString();
         }
-        log += "\n";
-
 
         switch (basePacket.getPacketType()) {
             case PacketType.Retry:
@@ -128,6 +126,7 @@ export class PacketLogging {
     private logVersionNegotiationPacket(vnPacket: VersionNegotiationPacket): string {
         var log = "";
         vnPacket.getVersions().forEach((version: Version) => {
+            log += "\n";
             log += this.getSpaces(4) + "version: 0x" + version.toString() + "\n";
         });
         return log;
@@ -136,6 +135,7 @@ export class PacketLogging {
     private logFrames(connection: Connection, baseEncryptedPacket: BaseEncryptedPacket, color: ConsoleColor): string {
         var log = "";
         baseEncryptedPacket.getFrames().forEach((baseFrame) => {
+            log += "\n";
             log += this.logFrame(connection, baseFrame, color);
         });
         return log;
