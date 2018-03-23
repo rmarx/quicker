@@ -428,7 +428,9 @@ export class Connection extends FlowControlledObject {
 
     public sendPackets(): void {
         this.transmissionAlarm.reset();
-        var packets = FlowControl.getPackets(this, this.bufferedFrames);
+        var bufferedFrames = this.bufferedFrames;
+        this.bufferedFrames = [];
+        var packets = FlowControl.getPackets(this, bufferedFrames);
         packets.forEach((packet: BasePacket) => {
             this._sendPacket(packet);
         });
