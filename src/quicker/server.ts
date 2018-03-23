@@ -161,7 +161,7 @@ export class Server extends EventEmitter {
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
-        this.emit(QuickerEvent.ERROR)
+        this.emit(QuickerEvent.ERROR, error);
     }
 
     private onClose(): any {

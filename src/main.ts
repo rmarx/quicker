@@ -36,8 +36,7 @@ server.on(QuickerEvent.NEW_STREAM, (quicStream: QuicStream) => {
     });
 });
 
-server.on(QuickerEvent.ERROR, (connectionId: string, error: Error) => {
-    console.log("connection with connectionID " + connectionId + " has an error");
+server.on(QuickerEvent.ERROR, (error: Error) => {
     console.log(error.message);
 });
 
