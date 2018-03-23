@@ -76,10 +76,10 @@ export class Client extends EventEmitter {
     private init(): void {
         var family = 'IPv4';
         if (isIPv6(this.hostname)) {
-            var socket = createSocket("udp4");
-        } else {
             var socket = createSocket("udp6");
             family = 'IPv6';
+        } else {
+            var socket = createSocket("udp4");
         }
         var remoteInfo: RemoteInformation = {
             address: this.hostname,

@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 
 export class HttpHelper {
@@ -17,7 +17,11 @@ export class HttpHelper {
 
     public handleRequest(data: Buffer): Buffer {
         var request = this.parse(data);
-        return readFileSync(resolve(__dirname) + "/../../../public" + request);
+        var file = resolve(__dirname) + "/../../../public" + request;
+        if (!existsSync(file)) {
+            file = resolve(__dirname) + "/../../../public/notfound.html";
+        }
+        return readFileSync(file);
     }
 
     private parse(data: Buffer) {
