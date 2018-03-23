@@ -374,6 +374,7 @@ export class LossDetection extends EventEmitter {
         while (keys.length > i) {
             if (this.sentPackets[keys[i]].packet.isRetransmittable()) {
                 this.retransmitPacket(this.sentPackets[keys[i]]);
+                delete this.sentPackets[keys[i]];
                 sendCount++;
                 if (sendCount === amount) {
                     break;
