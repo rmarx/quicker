@@ -86,7 +86,7 @@ export class PacketHandler {
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
         var connectionID = clientInitialPacket.getHeader().getConnectionID();
-        if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_SIZE) {
+        if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_FRAME_SIZE) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         this.handleFrames(connection, clientInitialPacket);
