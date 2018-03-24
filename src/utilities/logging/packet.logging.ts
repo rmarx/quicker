@@ -323,7 +323,7 @@ export class PacketLogging {
 
     private logStreamFrame(streamFrame: StreamFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + color + "STREAM (0x" + streamFrame.getType().toString(16) + ") " + ConsoleColor.Reset + " FIN=" + streamFrame.getFin() + " LEN=" + streamFrame.getLen() + " OFF= " + streamFrame.getOff() + "\n";
+        log += this.getSpaces(4) + color + "STREAM (0x" + streamFrame.getType().toString(16) + ") " + ConsoleColor.Reset + " FIN=" + +streamFrame.getFin() + " LEN=" + +streamFrame.getLen() + " OFF=" + +streamFrame.getOff() + "\n";
         log += this.getSpaces(4) + "StreamID (0x" + streamFrame.getStreamID().toString() + ") length=" + streamFrame.getLength().toDecimalString() + " offset=" + streamFrame.getOffset().toDecimalString();
         if (streamFrame.getStreamID().greaterThan(0)) {
             log += "\n";
