@@ -99,7 +99,7 @@ export class PacketLogging {
         var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
         log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset + " CID: 0x" + connectionIDString;
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            log += color + ", PKN: " + packetNumber.getPacketNumber().toString('hex') + ConsoleColor.Reset;
+            log += color + ", PKN: " + packetNumber.getPacketNumber().toDecimalString() + ConsoleColor.Reset;
         }
         if (basePacket.getHeader().getHeaderType() === HeaderType.LongHeader) {
             var lh: LongHeader = <LongHeader>(basePacket.getHeader());
