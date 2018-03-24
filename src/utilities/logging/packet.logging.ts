@@ -221,7 +221,7 @@ export class PacketLogging {
 
     private logRstStreamFrame(rstStreamFrame: RstStreamFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "StreamID=0x " + rstStreamFrame.getStreamId().toString() + "\n";
+        log += this.getSpaces(4) + "StreamID=0x" + rstStreamFrame.getStreamId().toString() + "\n";
         log += this.getSpaces(4) + "Error code= " + rstStreamFrame.getApplicationErrorCode() + "\n";
         log += this.getSpaces(4) + "Final offset= " + rstStreamFrame.getFinalOffset().toDecimalString();
         return log;
@@ -243,20 +243,20 @@ export class PacketLogging {
 
     private logMaxDataFrame(maxDataFrame: MaxDataFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "Max data=0x " + maxDataFrame.getMaxData().toString();
+        log += this.getSpaces(4) + "Max data=0x" + maxDataFrame.getMaxData().toString();
         return log;
     }
 
     private logMaxStreamFrame(maxStreamFrame: MaxStreamFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "StreamID=0x " + maxStreamFrame.getStreamId().toString() + "\n";
-        log += this.getSpaces(4) + "Max data=0x " + maxStreamFrame.getMaxData().toString();
+        log += this.getSpaces(4) + "StreamID=0x" + maxStreamFrame.getStreamId().toString() + "\n";
+        log += this.getSpaces(4) + "Max data=0x" + maxStreamFrame.getMaxData().toString();
         return log;
     }
 
     private logMaxStreamIdFrame(maxStreamIdFrame: MaxStreamIdFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "Max streamID=0x " + maxStreamIdFrame.getMaxStreamId().toString();
+        log += this.getSpaces(4) + "Max streamID=0x" + maxStreamIdFrame.getMaxStreamId().toString();
         return log;
     }
 
@@ -274,27 +274,27 @@ export class PacketLogging {
 
     private logStreamBlockedFrame(streamBlockedFrame: StreamBlockedFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "StreamID=0x " + streamBlockedFrame.getStreamId().toString() + "\n";
+        log += this.getSpaces(4) + "StreamID=0x" + streamBlockedFrame.getStreamId().toString() + "\n";
         log += this.getSpaces(4) + "Blocked offset= " + streamBlockedFrame.getBlockedOffset().toDecimalString();
         return log;
     }
 
     private logStreamIdBlockedFrame(streamIdBlockedFrame: StreamIdBlockedFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "StreamID=0x " + streamIdBlockedFrame.getStreamId().toString();
+        log += this.getSpaces(4) + "StreamID=0x" + streamIdBlockedFrame.getStreamId().toString();
         return log;
     }
 
     private logNewConnectionIdFrame(newConnectionIdFrame: NewConnectionIdFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "ConnectionID=0x " + newConnectionIdFrame.getConnectionId().toString() + "\n";
-        log += this.getSpaces(4) + "Stateless Reset Token=0x " + newConnectionIdFrame.getStatelessResetToken().toString('hex');
+        log += this.getSpaces(4) + "ConnectionID=0x" + newConnectionIdFrame.getConnectionId().toString() + "\n";
+        log += this.getSpaces(4) + "Stateless Reset Token=0x" + newConnectionIdFrame.getStatelessResetToken().toString('hex');
         return log;
     }
 
     private logStopSendingFrame(stopSendingFrame: StopSendingFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "StreamID=0x " + stopSendingFrame.getStreamId().toString() + "\n";
+        log += this.getSpaces(4) + "StreamID=0x" + stopSendingFrame.getStreamId().toString() + "\n";
         log += this.getSpaces(4) + "Application error code= " + stopSendingFrame.getApplicationErrorCode();
         return log;
     }
