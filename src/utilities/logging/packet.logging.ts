@@ -216,7 +216,7 @@ export class PacketLogging {
     }
 
     private logPaddingFrame(paddingFrame: PaddingFrame, color: ConsoleColor): string {
-        return this.getSpaces(4) + "length= " + paddingFrame.getLength() + "\n";
+        return this.getSpaces(4) + "length= " + paddingFrame.getLength();
     }
 
     private logRstStreamFrame(rstStreamFrame: RstStreamFrame, color: ConsoleColor): string {
