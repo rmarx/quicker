@@ -84,22 +84,22 @@ export class PacketLogging {
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
-        var log = this.logPackets(connection, basePacket, connection.getRemotePacketNumber(), "RX", ConsoleColor.FgCyan);
+        var log = this.logPackets(connection, basePacket, "RX", ConsoleColor.FgCyan);
         this.startOutput.info(log);
     }
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
-        var log = this.logPackets(connection, basePacket, connection.getLocalPacketNumber(), "TX", ConsoleColor.FgRed);
+        var log = this.logPackets(connection, basePacket, "TX", ConsoleColor.FgRed);
         this.startOutput.info(log);
     }
 
-    private logPackets(connection: Connection, basePacket: BasePacket, packetNumber: PacketNumber, direction: string, color: ConsoleColor): string {
+    private logPackets(connection: Connection, basePacket: BasePacket, direction: string, color: ConsoleColor): string {
         var log = "";
         var connectionID = basePacket.getHeader().getConnectionID();
         var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
         log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset + " CID: 0x" + connectionIDString;
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            log += color + ", PKN: " + packetNumber.getPacketNumber().toDecimalString() + ConsoleColor.Reset;
+            log += color + ", PKN: " + basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString() + ConsoleColor.Reset;
         }
         if (basePacket.getHeader().getHeaderType() === HeaderType.LongHeader) {
             var lh: LongHeader = <LongHeader>(basePacket.getHeader());
