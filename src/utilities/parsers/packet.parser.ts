@@ -1,4 +1,4 @@
-import {ConnectionErrorCodes} from '../errors/connection.codes';
+import {ConnectionErrorCodes} from '../errors/quic.codes';
 import {QuicError} from '../errors/connection.error';
 import {FrameParser} from './frame.parser';
 import {AEAD} from '../../crypto/aead';

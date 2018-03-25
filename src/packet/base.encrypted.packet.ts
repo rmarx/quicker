@@ -5,7 +5,7 @@ import {Connection} from '../quicker/connection';
 import {Constants} from '../utilities/constants';
 import {PaddingFrame} from '../frame/padding';
 import { QuicError } from '../utilities/errors/connection.error';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 
 
 export abstract class BaseEncryptedPacket extends BasePacket {

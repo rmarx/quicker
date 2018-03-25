@@ -18,13 +18,14 @@ import { PacketLogging } from './../utilities/logging/packet.logging';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/close';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { SecureContext, createSecureContext } from 'tls';
 import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';
 import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
+import { isIPv4, isIPv6 } from 'net';
 
 
 export class Server extends EventEmitter {
@@ -68,9 +69,14 @@ export class Server extends EventEmitter {
             this.options.host = host;
         }
 
-        // TODO check for ipv4 or ipv6
-        this.init("udp4");
-        //this.init("udp6");
+        if (isIPv4(host)) {
+            this.init("udp4");
+        } else if (isIPv6(host)) {
+            this.init("udp6");
+        } else {
+            this.init("udp4");
+            this.init("udp6");
+        }
     }
 
     private init(socketType: SocketType) {
@@ -99,18 +105,24 @@ export class Server extends EventEmitter {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        var receivedTime = Time.now();
-        var headerOffset: HeaderOffset = this.headerParser.parse(msg);
-        var connection: Connection = this.getConnection(headerOffset, rinfo);
-        if (connection.getState() === ConnectionState.Closing) {
-            var closePacket = connection.getClosePacket();
-            connection.sendPacket(closePacket);
+        try {
+            var receivedTime = Time.now();
+            var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+            var connection: Connection = this.getConnection(headerOffset, rinfo);
+            if (connection.getState() === ConnectionState.Closing) {
+                var closePacket = connection.getClosePacket();
+                connection.sendPacket(closePacket);
+                return;
+            }
+            if (connection.getState() === ConnectionState.Draining) {
+                return;
+            }
+            connection.resetIdleAlarm();
+        } catch (err) {
+            // ignore message on error
             return;
         }
-        if (connection.getState() === ConnectionState.Draining) {
-            return;
-        }
-        connection.resetIdleAlarm();
+
         try {
             headerOffset = this.headerHandler.handle(connection, headerOffset);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
@@ -149,7 +161,7 @@ export class Server extends EventEmitter {
         }
         connection.sendPacket(packet)
         connection.setState(ConnectionState.Closing);
-        this.emit(QuickerEvent.ERROR)
+        this.emit(QuickerEvent.ERROR, error);
     }
 
     private onClose(): any {

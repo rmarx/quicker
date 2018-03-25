@@ -13,12 +13,12 @@ if (isNaN(Number(port))) {
     process.exit(-1);
 }
 
-console.log("QUICker client connecting to " + host + ":" + port); 
+console.log("QUICker client connecting to " + host + ":" + port);
 
 var httpHelper = new HttpHelper();
 var client = Client.connect(host, Number(port));
 client.on(QuickerEvent.CLIENT_CONNECTED, () => {
-    for(var i = 0; i < 5; i++) {
+    for (var i = 0; i < 2; i++) {
         var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
         var bufferedData = Buffer.alloc(0);
 

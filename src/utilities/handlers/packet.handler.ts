@@ -21,7 +21,7 @@ import { Constants } from '../constants';
 import { HeaderType } from '../../packet/header/base.header';
 import { VersionValidation } from '../validation/version.validation';
 import { QuicError } from '../errors/connection.error';
-import { ConnectionErrorCodes } from '../errors/connection.codes';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { Time, TimeFormat } from '../../types/time';
 
@@ -35,20 +35,6 @@ export class PacketHandler {
 
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
-        if (packet.getPacketType() !== PacketType.Protected1RTT && connection.getEndpointType() === EndpointType.Server) {
-            var longHeader = <LongHeader>packet.getHeader();
-            var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
-            if (negotiatedVersion === undefined) {
-                if (packet.getPacketType() === PacketType.Initial) {
-                    connection.resetConnectionState();
-                    throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
-                } else {
-                    return;
-                }
-            }
-            connection.setVersion(negotiatedVersion);
-        }
-        
         this.onPacketReceived(connection, packet, receivedTime);
         
         switch (packet.getPacketType()) {
@@ -100,7 +86,7 @@ export class PacketHandler {
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
         var connectionID = clientInitialPacket.getHeader().getConnectionID();
-        if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_SIZE) {
+        if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_FRAME_SIZE) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         this.handleFrames(connection, clientInitialPacket);

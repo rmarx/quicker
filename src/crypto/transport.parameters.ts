@@ -1,7 +1,7 @@
 import {Constants} from '../utilities/constants';
 import { EndpointType } from '../types/endpoint.type';
 import { QuicError } from '../utilities/errors/connection.error';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 
 
 export class TransportParameters {

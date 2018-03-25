@@ -16,7 +16,7 @@ enum NodeQTLSEvent {
  */
 export class QTLS extends EventEmitter{
     private handshakeState: HandshakeState;
-    private qtlsHelper: QuicTLS;
+    private qtlsHelper!: QuicTLS;
     private isServer: boolean;
     private options: any;
     private transportParameters!: TransportParameters;
@@ -29,19 +29,22 @@ export class QTLS extends EventEmitter{
     public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         super();
         this.isServer = isServer;
-        this.options = options;
-        if (options.alpnProtocol === undefined) {
-            this.options.alpnProtocols = [Constants.ALPN_LABEL];
-        }
+        this.options = options === undefined ? {} : options;
         this.connection = connection;
-        if (options.transportparameters !== undefined) {
-            this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, options.transportparameters));
-            this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
-        }
         if (this.isServer) {
             this.handshakeState = HandshakeState.SERVER_HELLO;
         } else {
             this.handshakeState = HandshakeState.CLIENT_HELLO;
+        }
+    }
+
+    public init() {
+        if (this.options.alpnProtocol === undefined) {
+            this.options.alpnProtocols = [Constants.ALPN_LABEL];
+        }
+        if (this.options.transportparameters !== undefined) {
+            this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, this.options.transportparameters));
+            this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
         }
         this.qtlsHelper = this.createQtlsHelper();
     }

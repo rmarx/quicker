@@ -122,6 +122,7 @@ export class LossDetection extends EventEmitter {
         this.largestAckedPacket = new Bignum(0);
         this.retransmittablePacketsOutstanding = 0;
         this.handshakeOutstanding = 0;
+        this.handshakeCount = 0;
         this.sentPackets = {};
     }
 
@@ -266,7 +267,8 @@ export class LossDetection extends EventEmitter {
                 alarmDuration = this.smoothedRtt.multiply(2);
             }
             alarmDuration = Bignum.max(alarmDuration.add(this.maxAckDelay), LossDetection.MIN_TLP_TIMEOUT);
-            alarmDuration = alarmDuration.multiply(Math.pow(2, this.handshakeCount));
+            var pw = Math.pow(2, this.handshakeCount);
+            alarmDuration = alarmDuration.multiply(pw);
         } else if (!this.lossTime.equals(0)) {
             alarmDuration = this.lossTime.subtract(this.timeOfLastSentPacket);
         } else if (this.tlpCount > LossDetection.MAX_TLP) {
@@ -372,6 +374,7 @@ export class LossDetection extends EventEmitter {
         while (keys.length > i) {
             if (this.sentPackets[keys[i]].packet.isRetransmittable()) {
                 this.retransmitPacket(this.sentPackets[keys[i]]);
+                delete this.sentPackets[keys[i]];
                 sendCount++;
                 if (sendCount === amount) {
                     break;
@@ -385,13 +388,13 @@ export class LossDetection extends EventEmitter {
         Object.keys(this.sentPackets).forEach((key: string) => {
             if (this.sentPackets[key].packet.isHandshake()) {
                 this.retransmitPacket(this.sentPackets[key]);
+                delete this.sentPackets[key];
             }
         });
     }
 
     private retransmitPacket(sentPacket: SentPacket) {
         if (sentPacket.packet.isRetransmittable()) {
-            console.log("retransmitted pn: " + sentPacket.packet.getHeader().getPacketNumber().toString());
             this.emit(LossDetectionEvents.RETRANSMIT_PACKET, sentPacket.packet);
         }
     }

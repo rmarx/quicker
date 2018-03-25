@@ -1,4 +1,4 @@
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { Bignum } from '../types/bignum';
 import { Connection } from '../quicker/connection';
@@ -30,7 +30,7 @@ export class FlowControl {
     public static getPackets(connection: Connection, bufferedFrames: BaseFrame[]): BasePacket[] {
         var packets = new Array<BasePacket>();
         if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
+            var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_FRAME_SIZE);
         } else {
             var maxPacketSize = new Bignum(connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - Constants.LONG_HEADER_SIZE);
         }
@@ -84,7 +84,28 @@ export class FlowControl {
     private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
         var handshakeState = connection.getQuicTLS().getHandshakeState();;
         var isServer = connection.getEndpointType() !== EndpointType.Client;
-        if (!isServer && handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
+        if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
+            var isHandshake = false;
+            var is0RTT = true;
+            frames.forEach((frame: BaseFrame) => {
+                if (frame.getType() >= FrameType.STREAM) {
+                    var streamFrame = <StreamFrame> frame;
+                    if (streamFrame.getStreamID().equals(0)) {
+                        is0RTT = false;
+                        isHandshake = true;
+                    }
+                } else {
+                    is0RTT = false;
+                }
+            });
+            if (is0RTT) {
+                return PacketFactory.createProtected0RTTPacket(connection, frames);
+            } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
+                return PacketFactory.createClientInitialPacket(connection, frames);
+            } else {
+                return PacketFactory.createHandshakePacket(connection, frames);
+            }
+        } else if(handshakeState === HandshakeState.CLIENT_COMPLETED) {
             var isHandshake = false;
             frames.forEach((frame: BaseFrame) => {
                 if (frame.getType() >= FrameType.STREAM) {
@@ -97,16 +118,19 @@ export class FlowControl {
             if (isHandshake) {
                 return PacketFactory.createHandshakePacket(connection, frames);
             } else {
-                return PacketFactory.createProtected0RTTPacket(connection, frames);
+                return PacketFactory.createShortHeaderPacket(connection, frames);   
             }
         } else {
             return PacketFactory.createShortHeaderPacket(connection, frames);
         }
     }
 
+    /**
+     * Only called when remoteTransportParameters is undefined, this is a more simple version of createNewPacket
+     */
     private static createHandshakePackets(connection: Connection, frames: BaseFrame[]) {
         if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            if (connection.getEndpointType() === EndpointType.Client && connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_HELLO) {
+            if (connection.getEndpointType() === EndpointType.Client && connection.getStream(0).getLocalOffset().equals(0)) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
             } else {
                 return PacketFactory.createHandshakePacket(connection, frames);

@@ -1,5 +1,5 @@
 import {createHash, createCipheriv} from "crypto";
-import { ConnectionErrorCodes } from "./../utilities/errors/connection.codes";
+import { ConnectionErrorCodes } from "../utilities/errors/quic.codes";
 import { QuicError } from "./../utilities/errors/connection.error";
 
 export class Cipher {

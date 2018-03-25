@@ -6,8 +6,10 @@ export class Constants {
         'ff000010'
     ];
 
+    public static readonly LOG_TYPE = "stdout";
     public static readonly LOG_LEVEL = 'debug';
     public static readonly LOG_LARGE_BUFFER_DATA = false;
+    public static readonly MAX_LOG_FILE_SIZE = 20971520;
 
     /**
      * Dictionary for the mapping between QUIC version and their version specific salt
@@ -52,7 +54,7 @@ export class Constants {
     public static readonly MAX_STREAM_ID_INCREMENT = 100;
     public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;
 
-    public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
+    public static readonly CLIENT_INITIAL_MIN_FRAME_SIZE = 1166;
 
     public static readonly QHKDF_BASE_LABEL = "QUIC ";
     public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";

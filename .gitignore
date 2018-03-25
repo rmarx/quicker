@@ -3,3 +3,4 @@ node_modules/*
 out/*
 package-lock.json
 keylogs.txt
+logs

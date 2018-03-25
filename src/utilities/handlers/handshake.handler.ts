@@ -4,7 +4,7 @@ import { Bignum } from "../../types/bignum";
 import { EndpointType } from "../../types/endpoint.type";
 import { HandshakeState } from "../../crypto/qtls";
 import { QuicError } from "../errors/connection.error";
-import { ConnectionErrorCodes } from "../errors/connection.codes";
+import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
 
 
 
@@ -38,6 +38,10 @@ export class HandshakeHandler {
             this.connection.getQuicTLS().readEarlyData();
         }
         var data = this.connection.getQuicTLS().readHandshake();
+        if (data === undefined) {
+            // TODO: Find TLS error better (add callback in node)
+            throw new QuicError(TlsErrorCodes.TLS_HANDSHAKE_FAILED);
+        }
         if (data.byteLength > 0) {
             this.stream.addData(data);
         } else if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client) {

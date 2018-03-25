@@ -1,5 +1,5 @@
 import {logMethod} from '../decorators/log.decorator';
-import {Stream, StreamState, StreamEvent} from '../../quicker/stream';
+import {Stream, StreamState, StreamEvent, StreamType} from '../../quicker/stream';
 import {HandshakeValidation} from '../validation/handshake.validation';
 import {Connection, ConnectionState, ConnectionEvent} from '../../quicker/connection';
 import {BaseFrame, FrameType} from '../../frame/base.frame';
@@ -24,7 +24,7 @@ import {TransportParameters, TransportParameterType} from '../../crypto/transpor
 import {BasePacket} from '../../packet/base.packet';
 import { FrameFactory } from '../factories/frame.factory';
 import { Constants } from '../constants';
-import { ConnectionErrorCodes } from '../errors/connection.codes';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
 import { PacketLogging } from '../logging/packet.logging';
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
@@ -108,6 +108,10 @@ export class FrameHandler {
     }
 
     private handleRstStreamFrame(connection: Connection, rstStreamFrame: RstStreamFrame) {
+        var streamId = rstStreamFrame.getStreamId();
+        if (!this.isRemoteStreamId(connection, streamId) && this.isUniStreamId(streamId)) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+        }
         var stream = connection.getStream(rstStreamFrame.getStreamId());
         if (stream.getStreamState() === StreamState.Open) {
             stream.setStreamState(StreamState.RemoteClosed);
@@ -137,6 +141,11 @@ export class FrameHandler {
     }
 
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
+        var streamId = maxDataStreamFrame.getStreamId();
+        if (this.isRemoteStreamId(connection, streamId) && this.isUniStreamId(streamId)) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+        }
+
         var stream = connection.getStream(maxDataStreamFrame.getStreamId());
         if (stream.getRemoteMaxData().lessThan(maxDataStreamFrame.getMaxData())) {
             stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
@@ -161,6 +170,11 @@ export class FrameHandler {
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
+        var streamId = streamBlocked.getStreamId();
+        if (!this.isRemoteStreamId(connection, streamId) && this.isUniStreamId(streamId)) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+        }
+
         var streamId = streamBlocked.getStreamId()
         connection.getStream(streamId).setIsRemoteBlocked(true);
     }
@@ -178,6 +192,11 @@ export class FrameHandler {
     }
 
     private handleStopSendingFrame(connection: Connection, stopSendingFrame: StopSendingFrame) {
+        var streamId = stopSendingFrame.getStreamId();
+        if (this.isRemoteStreamId(connection, streamId) && this.isUniStreamId(streamId)) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+        }
+
         var stream = connection.getStream(stopSendingFrame.getStreamId());
         if (stream.getStreamState() === StreamState.Open) {
             stream.setStreamState(StreamState.LocalClosed);
@@ -189,7 +208,7 @@ export class FrameHandler {
     }
 
     private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
-        //connection.getLossDetection().onAckReceived(ackFrame);
+        connection.getLossDetection().onAckReceived(ackFrame);
     }
 
     private handlePathChallengeFrame(connection: Connection, pathChallengeFrame: PathChallengeFrame) {
@@ -202,7 +221,24 @@ export class FrameHandler {
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
+        var streamId = streamFrame.getStreamID();
+        if (!this.isRemoteStreamId(connection, streamId) && this.isUniStreamId(streamId)) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+        }
         var stream = connection.getStream(streamFrame.getStreamID());
         stream.receiveData(streamFrame.getData(), streamFrame.getOffset(), streamFrame.getFin());
+    }
+
+
+
+    private isRemoteStreamId(connection: Connection, streamId: Bignum): boolean {
+        if (connection.getEndpointType() === EndpointType.Server) {
+            return streamId.and(new Bignum(0x1)).equals(1);
+        }
+        return streamId.and(new Bignum(0x1)).equals(0);
+    }
+
+    private isUniStreamId(streamId: Bignum): boolean {
+        return streamId.and(new Bignum(2)).equals(new Bignum(2));
     }
 }

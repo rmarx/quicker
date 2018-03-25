@@ -36,6 +36,10 @@ server.on(QuickerEvent.NEW_STREAM, (quicStream: QuicStream) => {
     });
 });
 
+server.on(QuickerEvent.ERROR, (error: Error) => {
+    console.log(error.message);
+});
+
 server.on(QuickerEvent.CONNECTION_DRAINING, (connectionId: string) => {
     console.log("connection with connectionID " + connectionId + " is draining");
 });
