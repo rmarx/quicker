@@ -84,9 +84,9 @@ export class FlowControl {
     private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
         var handshakeState = connection.getQuicTLS().getHandshakeState();;
         var isServer = connection.getEndpointType() !== EndpointType.Client;
-        if (!isServer && handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
+        if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
             var isHandshake = false;
-            var is0RTT = false;
+            var is0RTT = true;
             frames.forEach((frame: BaseFrame) => {
                 if (frame.getType() >= FrameType.STREAM) {
                     var streamFrame = <StreamFrame> frame;
@@ -100,10 +100,25 @@ export class FlowControl {
             });
             if (is0RTT) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
-            } else if (connection.getStream(0).getLocalOffset().equals(0) && connection.getEndpointType() === EndpointType.Client && isHandshake) {
+            } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
             } else {
                 return PacketFactory.createHandshakePacket(connection, frames);
+            }
+        } else if(handshakeState === HandshakeState.CLIENT_COMPLETED) {
+            var isHandshake = false;
+            frames.forEach((frame: BaseFrame) => {
+                if (frame.getType() >= FrameType.STREAM) {
+                    var streamFrame = <StreamFrame> frame;
+                    if (streamFrame.getStreamID().equals(0)) {
+                        isHandshake = true;
+                    }
+                }
+            });
+            if (isHandshake) {
+                return PacketFactory.createHandshakePacket(connection, frames);
+            } else {
+                return PacketFactory.createShortHeaderPacket(connection, frames);   
             }
         } else {
             return PacketFactory.createShortHeaderPacket(connection, frames);

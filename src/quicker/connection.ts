@@ -78,13 +78,18 @@ export class Connection extends FlowControlledObject {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
         
+        // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
+        // Hook QuicTLS Events
+        this.hookQuicTLSEvents();
+        // Initialize QuicTLS Object
+        this.qtls.init();
+
         this.aead = new AEAD(this.qtls);
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
-        this.lossDetection = new LossDetection();
 
-        this.hookQuicTLSEvents();
+        this.lossDetection = new LossDetection();
         this.hookLossDetectionEvents();
     }
 
@@ -408,8 +413,7 @@ export class Connection extends FlowControlledObject {
 
         switch(packet.getPacketType()) {
             case PacketType.Initial:
-                if (this.getStream(0).getRemoteOffset().greaterThan(0)) {
-                    console.log("return");
+                if (this.getStream(0).getLocalOffset().greaterThan(0)) {
                     // Server hello is already received, packet does not need to be retransmitted
                     return;
                 }
