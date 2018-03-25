@@ -4,7 +4,7 @@ import { EndpointType } from '../types/endpoint.type';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { FlowControlledObject } from '../flow-control/flow.controlled';
 import { QuicError } from '../utilities/errors/connection.error';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 
 interface BufferedData {
 	data: Buffer,

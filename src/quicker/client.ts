@@ -21,7 +21,7 @@ import { EventEmitter } from 'events';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/close';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';

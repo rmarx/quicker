@@ -16,7 +16,7 @@ import {StopSendingFrame} from '../../frame/stop.sending';
 import {StreamFrame} from '../../frame/stream';
 import { AckBlock, AckFrame } from '../../frame/ack';
 import { PaddingFrame } from '../../frame/padding';
-import { ConnectionErrorCodes } from '../errors/connection.codes';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
 import { FrameFactory } from '../factories/frame.factory';
 

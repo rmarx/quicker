@@ -23,7 +23,7 @@ import { FrameFactory } from '../utilities/factories/frame.factory';
 import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
 import { LossDetection, LossDetectionEvents } from '../loss-detection/loss.detection';
 import { QuicError } from '../utilities/errors/connection.error';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 
 export class Connection extends FlowControlledObject {
 
@@ -72,19 +72,20 @@ export class Connection extends FlowControlledObject {
         this.bufferedFrames = [];
         this.idleTimeoutAlarm = new Alarm();
         this.transmissionAlarm = new Alarm();
+        this.localMaxStreamUniBlocked = false;
+        this.localMaxStreamBidiBlocked = false;
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
         
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
-        this.hookQuicTLSEvents();
         this.aead = new AEAD(this.qtls);
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
         this.lossDetection = new LossDetection();
+
+        this.hookQuicTLSEvents();
         this.hookLossDetectionEvents();
-        this.localMaxStreamUniBlocked = false;
-        this.localMaxStreamBidiBlocked = false;
     }
 
     private hookLossDetectionEvents() {
@@ -313,7 +314,9 @@ export class Connection extends FlowControlledObject {
         return this.streams;
     }
 
-    public getStream(streamId: Bignum): Stream {
+    public getStream(streamId: number): Stream;
+    public getStream(streamId: Bignum): Stream;
+    public getStream(streamId: any): Stream {
         var stream = this._getStream(streamId);
         if (stream === undefined) {
             stream = this.initializeStream(streamId);
@@ -338,7 +341,9 @@ export class Connection extends FlowControlledObject {
         return stream;
     }
 
-    private _getStream(streamId: Bignum): Stream | undefined {
+    private _getStream(streamId: number): Stream | undefined;
+    private _getStream(streamId: Bignum): Stream | undefined;
+    private _getStream(streamId: any): Stream | undefined {
         var res = undefined;
         this.streams.forEach((stream: Stream) => {
             if (stream.getStreamID().equals(streamId)) {
@@ -400,6 +405,25 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitPacket(packet: BasePacket) {
+
+        switch(packet.getPacketType()) {
+            case PacketType.Initial:
+                if (this.getStream(0).getRemoteOffset().greaterThan(0)) {
+                    console.log("return");
+                    // Server hello is already received, packet does not need to be retransmitted
+                    return;
+                }
+            case PacketType.Handshake:
+                if (this.qtls.getHandshakeState() === HandshakeState.COMPLETED) {
+                    // Only true for client after receiving the last stream 0 packet 
+                    //      (with handshake data) in a protected short header packet
+                    // Only true for server after receiving the last handshake packet of the client; 
+                    //      after this packet everything needs to be send in shortheader packet
+                    return;
+                }
+            
+        }
+
         var framePacket = <BaseEncryptedPacket> packet;
         framePacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.isRetransmittable()) {
@@ -407,10 +431,8 @@ export class Connection extends FlowControlledObject {
                 this.queueFrame(frame);
             }
         });
-        if (packet.isHandshake()) {
-            this.sendPackets();
-        }
-        
+        // Send packets
+        this.sendPackets();
     }
 
     /**

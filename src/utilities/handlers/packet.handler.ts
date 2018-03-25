@@ -21,7 +21,7 @@ import { Constants } from '../constants';
 import { HeaderType } from '../../packet/header/base.header';
 import { VersionValidation } from '../validation/version.validation';
 import { QuicError } from '../errors/connection.error';
-import { ConnectionErrorCodes } from '../errors/connection.codes';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { Time, TimeFormat } from '../../types/time';
 

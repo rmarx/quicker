@@ -7,7 +7,7 @@ import { LongHeader } from '../../packet/header/long.header';
 import { Constants } from '../../utilities/constants';
 import { EndpointType } from '../../types/endpoint.type';
 import { QuicError } from '../errors/connection.error';
-import { ConnectionErrorCodes } from '../errors/connection.codes';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
 
 export class VersionValidation {
 

@@ -1,4 +1,4 @@
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { Bignum } from '../types/bignum';
 import { Connection } from '../quicker/connection';
@@ -86,27 +86,36 @@ export class FlowControl {
         var isServer = connection.getEndpointType() !== EndpointType.Client;
         if (!isServer && handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
             var isHandshake = false;
+            var is0RTT = false;
             frames.forEach((frame: BaseFrame) => {
                 if (frame.getType() >= FrameType.STREAM) {
                     var streamFrame = <StreamFrame> frame;
                     if (streamFrame.getStreamID().equals(0)) {
+                        is0RTT = false;
                         isHandshake = true;
                     }
+                } else {
+                    is0RTT = false;
                 }
             });
-            if (isHandshake) {
-                return PacketFactory.createHandshakePacket(connection, frames);
-            } else {
+            if (is0RTT) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
+            } else if (connection.getStream(0).getLocalOffset().equals(0) && connection.getEndpointType() === EndpointType.Client && isHandshake) {
+                return PacketFactory.createClientInitialPacket(connection, frames);
+            } else {
+                return PacketFactory.createHandshakePacket(connection, frames);
             }
         } else {
             return PacketFactory.createShortHeaderPacket(connection, frames);
         }
     }
 
+    /**
+     * Only called when remoteTransportParameters is undefined, this is a more simple version of createNewPacket
+     */
     private static createHandshakePackets(connection: Connection, frames: BaseFrame[]) {
         if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            if (connection.getEndpointType() === EndpointType.Client && connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_HELLO) {
+            if (connection.getEndpointType() === EndpointType.Client && connection.getStream(0).getLocalOffset().equals(0)) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
             } else {
                 return PacketFactory.createHandshakePacket(connection, frames);

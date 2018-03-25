@@ -7,7 +7,7 @@ import { VersionValidation } from '../validation/version.validation';
 import { HeaderOffset } from '../parsers/header.parser';
 import { PacketNumber } from '../../packet/header/header.properties';
 import { EndpointType } from '../../types/endpoint.type';
-import { ConnectionErrorCodes } from '../errors/connection.codes';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
 
 export class HeaderHandler {

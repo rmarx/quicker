@@ -18,7 +18,7 @@ import { PacketLogging } from './../utilities/logging/packet.logging';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { QuicError } from "./../utilities/errors/connection.error";
 import { ConnectionCloseFrame } from '../frame/close';
-import { ConnectionErrorCodes } from '../utilities/errors/connection.codes';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { SecureContext, createSecureContext } from 'tls';
 import { QuicStream } from './quic.stream';

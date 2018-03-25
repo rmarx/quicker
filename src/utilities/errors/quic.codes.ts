@@ -13,3 +13,9 @@ export enum ConnectionErrorCodes {
     UNSOLICITED_PONG = 0xb,
     FRAME_ERROR = 0x100
 }
+
+export enum TlsErrorCodes {
+    TLS_HANDSHAKE_FAILED = 0x201,
+    TLS_FATAL_ALERT_GENERATED = 0x202,
+    TLS_FATAL_ALERT_RECEIVED = 0x203
+}
