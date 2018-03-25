@@ -42,16 +42,18 @@ export class FlowControl {
             packets.push(this.createHandshakePackets(connection, [frame]));
         });
 
-        frames.flowControlFrames.forEach((frame: BaseFrame) => {
-            var frameSize = frame.toBuffer().byteLength
-            if (size.add(frameSize).greaterThan(maxPacketSize)) {
-                packets.push(this.createNewPacket(connection, packetFrames));
-                size = new Bignum(0);
-                packetFrames = [];
-            }
-            size = size.add(frameSize);
-            packetFrames.push(frame);
-        });
+        if (connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
+            frames.flowControlFrames.forEach((frame: BaseFrame) => {
+                var frameSize = frame.toBuffer().byteLength
+                if (size.add(frameSize).greaterThan(maxPacketSize)) {
+                    packets.push(this.createNewPacket(connection, packetFrames));
+                    size = new Bignum(0);
+                    packetFrames = [];
+                }
+                size = size.add(frameSize);
+                packetFrames.push(frame);
+            });
+        }
 
         bufferedFrames.forEach((frame: BaseFrame) => {
             var frameSize = frame.toBuffer().byteLength
