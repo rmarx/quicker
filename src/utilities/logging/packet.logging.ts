@@ -14,7 +14,7 @@ import { ConnectionCloseFrame, ApplicationCloseFrame } from '../../frame/close';
 import { MaxDataFrame } from '../../frame/max.data';
 import { MaxStreamFrame } from '../../frame/max.stream';
 import { MaxStreamIdFrame } from '../../frame/max.stream.id';
-import { PingFrame, PongFrame } from '../../frame/ping';
+import { PingFrame } from '../../frame/ping';
 import { BlockedFrame } from '../../frame/blocked';
 import { StreamBlockedFrame } from '../../frame/stream.blocked';
 import { StreamIdBlockedFrame } from '../../frame/stream.id.blocked';
@@ -27,6 +27,7 @@ import { TransportParameterType } from '../../crypto/transport.parameters';
 import { HeaderType } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
+import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 
 
 
@@ -176,8 +177,7 @@ export class PacketLogging {
                 log += this.logMaxStreamIdFrame(maxStreamIdFrame, color);
                 break;
             case FrameType.PING:
-                var pingFrame: PingFrame = <PingFrame>baseFrame;
-                log += this.logPingFrame(pingFrame, color);
+                // nothing to log
                 break;
             case FrameType.BLOCKED:
                 var blockedFrame: BlockedFrame = <BlockedFrame>baseFrame;
@@ -199,13 +199,17 @@ export class PacketLogging {
                 var stopSendingFrame: StopSendingFrame = <StopSendingFrame>baseFrame;
                 log += this.logStopSendingFrame(stopSendingFrame, color);
                 break;
-            case FrameType.PONG:
-                var pongFrame: PongFrame = <PongFrame>baseFrame;
-                log += this.logPongFrame(pongFrame, color);
-                break;
             case FrameType.ACK:
                 var ackFrame: AckFrame = <AckFrame>baseFrame;
                 log += this.logAckFrame(connection, ackFrame, color);
+                break;
+            case FrameType.PATH_CHALLENGE:
+                var pathChallengeFrame: PathChallengeFrame = <PathChallengeFrame>baseFrame;
+                log += this.logPathChallengeFrame(pathChallengeFrame, color);
+                break;
+            case FrameType.PATH_RESPONSE:
+                var pathResponseFrame: PathResponseFrame = <PathResponseFrame>baseFrame;
+                log += this.logPathResponseFrame(pathResponseFrame, color);
                 break;
         }
         if (baseFrame.getType() >= FrameType.STREAM) {
@@ -260,12 +264,6 @@ export class PacketLogging {
         return log;
     }
 
-    private logPingFrame(pingFrame: PingFrame, color: ConsoleColor): string {
-        var log = "";
-        log += this.getSpaces(4) + "length= " + pingFrame.getLength();
-        return log;
-    }
-
     private logBlockedFrame(blockedFrame: BlockedFrame, color: ConsoleColor): string {
         var log = "";
         log += this.getSpaces(4) + "Blocked offset= " + blockedFrame.getBlockedOffset().toDecimalString();
@@ -299,12 +297,6 @@ export class PacketLogging {
         return log;
     }
 
-    private logPongFrame(pongFrame: PongFrame, color: ConsoleColor): string {
-        var log = "";
-        log += this.getSpaces(4) + "length= " + pongFrame.getLength();
-        return log;
-    }
-
     private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): string {
         var log = "";
         var ackDelayExponent = connection.getLocalTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
@@ -318,6 +310,18 @@ export class PacketLogging {
             log += "\n";
             log += this.getSpaces(6) + "gap=" + ackBlock.getGap().toDecimalString() + ", ackblock=" + ackBlock.getBlock().toDecimalString();
         });
+        return log;
+    }
+
+    private logPathChallengeFrame(pathChallengeFrame: PathChallengeFrame, color: ConsoleColor): string {
+        var log = "";
+        log += this.getSpaces(4) + "data=0x" + pathChallengeFrame.getData().toString('hex');
+        return log;
+    }
+
+    private logPathResponseFrame(pathResponseFrame: PathResponseFrame, color: ConsoleColor): string {
+        var log = "";
+        log += this.getSpaces(4) + "data=0x" + pathResponseFrame.getData().toString('hex');
         return log;
     }
 
