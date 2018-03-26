@@ -91,7 +91,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	}
 
 	private isLimitExeeded(maxData: Bignum, offset: Bignum): boolean {
-		return offset.greaterThan(maxData);
+		return offset.greaterThanOrEqual(maxData);
 	}
 
     public isLocalLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
