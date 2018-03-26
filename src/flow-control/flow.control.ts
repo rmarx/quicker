@@ -215,7 +215,7 @@ export class FlowControl {
         var handshakeFrames = new Array<StreamFrame>();
 
         var streamData = stream.getData().slice(0, streamDataSize.toNumber());
-        var isHandshake = (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED && stream.getStreamID().equals(0));
+        var isHandshake = stream.getStreamID().equals(0);
 
         
         while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !connection.isRemoteLimitExceeded()))) {
