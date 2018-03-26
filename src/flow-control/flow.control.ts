@@ -39,19 +39,21 @@ export class FlowControl {
         var size = new Bignum(0);
         frames.handshakeFrames.forEach((frame: BaseFrame) => {
             // handshake frames are only more than one with server hello and they need to be in different packets
-            packets.push(this.createHandshakePackets(connection, [frame]));
+            packets.push(this.createNewPacket(connection, [frame]));
         });
 
-        frames.flowControlFrames.forEach((frame: BaseFrame) => {
-            var frameSize = frame.toBuffer().byteLength
-            if (size.add(frameSize).greaterThan(maxPacketSize)) {
-                packets.push(this.createNewPacket(connection, packetFrames));
-                size = new Bignum(0);
-                packetFrames = [];
-            }
-            size = size.add(frameSize);
-            packetFrames.push(frame);
-        });
+        if (connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
+            frames.flowControlFrames.forEach((frame: BaseFrame) => {
+                var frameSize = frame.toBuffer().byteLength
+                if (size.add(frameSize).greaterThan(maxPacketSize)) {
+                    packets.push(this.createNewPacket(connection, packetFrames));
+                    size = new Bignum(0);
+                    packetFrames = [];
+                }
+                size = size.add(frameSize);
+                packetFrames.push(frame);
+            });
+        }
 
         bufferedFrames.forEach((frame: BaseFrame) => {
             var frameSize = frame.toBuffer().byteLength
@@ -82,39 +84,29 @@ export class FlowControl {
     }
 
     private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
-        var handshakeState = connection.getQuicTLS().getHandshakeState();;
+        var handshakeState = connection.getQuicTLS().getHandshakeState();
         var isServer = connection.getEndpointType() !== EndpointType.Client;
-        if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
-            var isHandshake = false;
-            var is0RTT = true;
-            frames.forEach((frame: BaseFrame) => {
-                if (frame.getType() >= FrameType.STREAM) {
-                    var streamFrame = <StreamFrame> frame;
-                    if (streamFrame.getStreamID().equals(0)) {
-                        is0RTT = false;
-                        isHandshake = true;
-                    }
-                } else {
-                    is0RTT = false;
+        var isHandshake = false;
+        frames.forEach((frame: BaseFrame) => {
+            if (frame.getType() >= FrameType.STREAM) {
+                var streamFrame = <StreamFrame> frame;
+                if (streamFrame.getStreamID().equals(0)) {
+                    isHandshake = true;
                 }
-            });
-            if (is0RTT) {
+            }
+        });
+
+        if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
+            if (!isHandshake && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
             } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
+            } else if (connection.getQuicTLS().isEarlyDataAllowed() && connection.getQuicTLS().isSessionReused() && !isHandshake) {
+                return PacketFactory.createShortHeaderPacket(connection, frames); 
             } else {
                 return PacketFactory.createHandshakePacket(connection, frames);
             }
         } else if(handshakeState === HandshakeState.CLIENT_COMPLETED) {
-            var isHandshake = false;
-            frames.forEach((frame: BaseFrame) => {
-                if (frame.getType() >= FrameType.STREAM) {
-                    var streamFrame = <StreamFrame> frame;
-                    if (streamFrame.getStreamID().equals(0)) {
-                        isHandshake = true;
-                    }
-                }
-            });
             if (isHandshake) {
                 return PacketFactory.createHandshakePacket(connection, frames);
             } else {
@@ -124,23 +116,6 @@ export class FlowControl {
             return PacketFactory.createShortHeaderPacket(connection, frames);
         }
     }
-
-    /**
-     * Only called when remoteTransportParameters is undefined, this is a more simple version of createNewPacket
-     */
-    private static createHandshakePackets(connection: Connection, frames: BaseFrame[]) {
-        if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            if (connection.getEndpointType() === EndpointType.Client && connection.getStream(0).getLocalOffset().equals(0)) {
-                return PacketFactory.createClientInitialPacket(connection, frames);
-            } else {
-                return PacketFactory.createHandshakePacket(connection, frames);
-            }
-        } else {
-            return PacketFactory.createShortHeaderPacket(connection, frames);
-        }
-    }
-
-
 
     public static getFrames(connection: Connection, maxPacketSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
@@ -201,6 +176,10 @@ export class FlowControl {
         } else if (!connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
             var streamDataSize = new Bignum(stream.getData().length);
 
+            var createdStreamFrames = this.getStreamFrames(connection, stream, streamDataSize, maxPacketSize);
+            streamFrames = createdStreamFrames.streamFrames;
+            handshakeFrames = createdStreamFrames.handshakeFrames;
+
             if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || 
                     connection.isRemoteLimitExceeded(streamDataSize)) {
                         
@@ -223,9 +202,6 @@ export class FlowControl {
                     stream.setBlockedSent(true);
                 }
             }
-            var createdStreamFrames = this.getStreamFrames(connection, stream, streamDataSize, maxPacketSize);
-            streamFrames = createdStreamFrames.streamFrames;
-            handshakeFrames = createdStreamFrames.handshakeFrames;
         }
         return {
             streamFrames: streamFrames,
@@ -239,10 +215,18 @@ export class FlowControl {
         var handshakeFrames = new Array<StreamFrame>();
 
         var streamData = stream.getData().slice(0, streamDataSize.toNumber());
+        var isHandshake = stream.getStreamID().equals(0);
 
-        while (streamData.byteLength > 0) {
-            var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamData.length)) : false;
+        
+        while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !connection.isRemoteLimitExceeded()))) {
             streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
+
+            if(!isHandshake) {
+                streamDataSize = streamDataSize.greaterThan(connection.getRemoteMaxData().subtract(connection.getRemoteOffset())) ? connection.getRemoteMaxData().subtract(connection.getRemoteOffset()) : streamDataSize;
+                streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
+            }
+
+            var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
             var frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
             if (stream.getStreamID().equals(0)) {
                 handshakeFrames.push(frame);
