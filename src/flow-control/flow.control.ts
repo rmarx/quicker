@@ -100,7 +100,7 @@ export class FlowControl {
                     is0RTT = false;
                 }
             });
-            if (is0RTT) {
+            if (is0RTT && isServer) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
             } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
