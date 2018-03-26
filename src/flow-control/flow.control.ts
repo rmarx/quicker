@@ -84,7 +84,7 @@ export class FlowControl {
     }
 
     private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
-        var handshakeState = connection.getQuicTLS().getHandshakeState();;
+        var handshakeState = connection.getQuicTLS().getHandshakeState();
         var isServer = connection.getEndpointType() !== EndpointType.Client;
         if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
             var isHandshake = false;
@@ -100,10 +100,12 @@ export class FlowControl {
                     is0RTT = false;
                 }
             });
-            if (is0RTT && isServer) {
+            if (is0RTT && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
             } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
+            } else if (connection.getQuicTLS().isEarlyDataAllowed() && connection.getQuicTLS().isSessionReused() && !isHandshake) {
+                return PacketFactory.createShortHeaderPacket(connection, frames); 
             } else {
                 return PacketFactory.createHandshakePacket(connection, frames);
             }
