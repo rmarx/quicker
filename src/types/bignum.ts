@@ -81,11 +81,27 @@ export class Bignum {
         }
         return bn;
     }
-    
 
-    public and(num: Bignum): Bignum {
-        var bn = this.bignum.and(num.bignum);
-        return Bignum.fromBN(bn);
+    public and(num: number): Bignum;
+    public and(num: Bignum): Bignum;
+    public and(num: any): Bignum {
+        var bn = new Bignum(0);
+        if (num instanceof Bignum) {
+            bn.bignum = this.bignum.and(num.bignum);
+        } else {
+            bn.bignum = this.bignum.and(new BN(num));
+        }
+        return bn;
+    }
+
+    public modulo(num: number): Bignum;
+    public modulo(num: Bignum): Bignum;
+    public modulo(num: any): Bignum {
+        if (num instanceof Bignum) {
+            return Bignum.fromBN(this.bignum.mod(num.bignum));
+        } else {
+            return Bignum.fromBN(this.bignum.mod(new BN(num)));
+        }
     }
 
     public mask(bytesize: number): Bignum {
@@ -96,9 +112,15 @@ export class Bignum {
      * Exclusive or operation
      * @param num 
      */
-    public xor(num: Bignum): Bignum {
+    public xor(num: number): Bignum;
+    public xor(num: Bignum): Bignum;
+    public xor(num: any): Bignum {
         var bn = new Bignum(0);
-        bn.bignum = this.bignum.xor(num.bignum);
+        if (num instanceof Bignum) {
+            bn.bignum = this.bignum.xor(num.bignum);
+        } else {
+            bn.bignum = this.bignum.xor(new BN(num));
+        }
         return bn;
     }
 

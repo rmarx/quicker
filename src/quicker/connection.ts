@@ -319,6 +319,13 @@ export class Connection extends FlowControlledObject {
         return this.streams;
     }
 
+    public hasStream(streamId: number): boolean;
+    public hasStream(streamId: Bignum): boolean;
+    public hasStream(streamId: any): boolean {
+        var stream = this._getStream(streamId);
+        return stream !== undefined;
+    }
+
     public getStream(streamId: number): Stream;
     public getStream(streamId: Bignum): Stream;
     public getStream(streamId: any): Stream {
