@@ -15,7 +15,7 @@ import { AckHandler } from '../utilities/handlers/ack.handler';
 import { PacketLogging } from '../utilities/logging/packet.logging';
 import { FlowControlledObject } from '../flow-control/flow.controlled';
 import { FlowControl } from '../flow-control/flow.control';
-import { BaseFrame } from '../frame/base.frame';
+import { BaseFrame, FrameType } from '../frame/base.frame';
 import { PacketFactory } from '../utilities/factories/packet.factory';
 import { BN } from 'bn.js';
 import { QuicStream } from './quic.stream';
@@ -96,6 +96,9 @@ export class Connection extends FlowControlledObject {
     private hookLossDetectionEvents() {
         this.lossDetection.on(LossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
             this.retransmitPacket(basePacket);
+        });
+        this.lossDetection.on(LossDetectionEvents.PACKETS_ACKED, (basePacket: BasePacket) => {
+            this.ackHandler.onPacketAcked(basePacket);
         });
     }
 
@@ -417,7 +420,6 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitPacket(packet: BasePacket) {
-
         switch(packet.getPacketType()) {
             case PacketType.Initial:
                 if (this.getStream(0).getLocalOffset().greaterThan(0)) {
@@ -432,7 +434,6 @@ export class Connection extends FlowControlledObject {
                     //      after this packet everything needs to be send in shortheader packet
                     return;
                 }
-            
         }
 
         var framePacket = <BaseEncryptedPacket> packet;
@@ -455,7 +456,7 @@ export class Connection extends FlowControlledObject {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             this.queueFrames(baseEncryptedPacket.getFrames());
         } else {
-            this._sendPacket(basePacket);
+            this._sendPacket(basePacket, false);
         }
     }
 
@@ -463,18 +464,31 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm.reset();
         var bufferedFrames = this.bufferedFrames;
         this.bufferedFrames = [];
+        var containsAck = this.containsAck(bufferedFrames);
         var packets = FlowControl.getPackets(this, bufferedFrames);
-        packets.forEach((packet: BasePacket) => {
-            this._sendPacket(packet);
+        packets.forEach((packet: BasePacket, index: number) => {
+            this._sendPacket(packet, (index === 0 && !containsAck));
         });
     }
 
-    private _sendPacket(basePacket: BasePacket): void {
+    private containsAck(frames: BaseFrame[]): boolean {
+        var containsAck = false;
+        frames.forEach((baseFrame: BaseFrame) => {
+            if (baseFrame.getType() === FrameType.ACK) {
+                containsAck = true;
+            }
+        }); 
+        return containsAck;
+    }
+
+    private _sendPacket(basePacket: BasePacket, addAckFrame: boolean): void {
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-            var ackFrame = this.ackHandler.getAckFrame(this);
-            if (ackFrame !== undefined) {
-                baseEncryptedPacket.getFrames().push(ackFrame);
+            if (addAckFrame) {
+                var ackFrame = this.ackHandler.getAckFrame(this);
+                if (ackFrame !== undefined) {
+                    baseEncryptedPacket.getFrames().push(ackFrame);
+                }
             }
         }
         var packet = basePacket;

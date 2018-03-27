@@ -30,13 +30,36 @@ export class AckHandler {
         this.isAckOnly = true;
     }
 
+    public onPacketAcked(packet: BasePacket) {
+        if (packet.getPacketType() === PacketType.VersionNegotiation) {
+            return;
+        }
+        var framePacket = <BaseEncryptedPacket>packet;
+        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.toString('hex', 8)];
+        framePacket.getFrames().forEach((frame: BaseFrame) => {
+            if (frame.getType() === FrameType.ACK) {
+                var ackFrame = <AckFrame>frame;
+                var packetNumbers = this.determineAckedPacketNumbers(ackFrame);
+                packetNumbers.forEach((packetNumber: Bignum) => {
+                    this.removePacket(packetNumber);
+                });
+            }
+        });
+        if (Object.keys(this.receivedPackets).length === 0) {
+            this.receivedPackets = {};
+            this.receivedPackets[this.largestPacketNumber.toString('hex', 8)] = largestAckedTime;
+            this.largestAcked = true;
+            this.isAckOnly = true;
+        }
+    }
+
     public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
         if (packet.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
         var header = packet.getHeader();
         var pn = header.getPacketNumber().getPacketNumber();
-        if (this.largestPacketNumber === undefined || pn.greaterThan(this.largestPacketNumber)) {
+        if (this.largestPacketNumber === undefined ||  pn.greaterThan(this.largestPacketNumber)) {
             if (this.largestAcked) {
                 this.receivedPackets = {};
             }
@@ -56,7 +79,7 @@ export class AckHandler {
         } else {
             this.isAckOnly = false;
         }
-        this.receivedPackets[pn.toString()] = time;
+        this.receivedPackets[pn.toString('hex', 8)] = time;
         if (this.isAckOnly && Object.keys(this.receivedPackets).length === 1) {
             this.alarm.reset();
         } else if (!this.alarm.isRunning()) {
@@ -78,7 +101,7 @@ export class AckHandler {
             var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
         }
 
-        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString()]).format(TimeFormat.MicroSeconds);
+        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString('hex', 8)]).format(TimeFormat.MicroSeconds);
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
         var packetnumbers: Bignum[] = [];
@@ -88,17 +111,13 @@ export class AckHandler {
         });
         packetnumbers.reverse();
         var latestPacketNumber = this.largestPacketNumber;
-        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.toString()];
-        this.receivedPackets = {};
-        this.receivedPackets[latestPacketNumber.toString()] = largestAckedTime;
-        this.largestAcked = true;
-        this.isAckOnly = true;
+        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.toString('hex', 8)];
 
         var ackBlockCount = 0;
         var blocks = [];
         var gaps = [];
         blocks.push(0);
-        
+
         for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
             if (bn.compare(new Bignum(1)) !== 0) {
@@ -122,19 +141,53 @@ export class AckHandler {
 
     private setAlarm(connection: Connection) {
         this.alarm.on(AlarmEvent.TIMEOUT, () => {
-            var baseFrames: BaseFrame[] = [];
+            /*var baseFrames: BaseFrame[] = [];
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 baseFrames.push(ackFrame);
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED || 
+                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED ||
                     connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED) {
                     var packet: BaseEncryptedPacket = PacketFactory.createShortHeaderPacket(connection, baseFrames);
                 } else {
                     var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
                 }
                 connection.sendPacket(packet, false);
+            }*/
+            var ackFrame = this.getAckFrame(connection);
+            if (ackFrame !== undefined) {
+                connection.queueFrame(ackFrame);
+                connection.sendPackets();
             }
+
         });
         this.alarm.start(AckHandler.ACK_WAIT);
+    }
+
+    private removePacket(packetNumber: Bignum): void {
+        if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
+            delete this.receivedPackets[packetNumber.toString('hex', 8)];
+        }
+    }
+
+    private determineAckedPacketNumbers(ackFrame: AckFrame): Bignum[] {
+        var packetnumbers: Bignum[] = [];
+
+        var x = ackFrame.getLargestAcknowledged();
+        packetnumbers.push(x);
+        for (var i = 0; i < ackFrame.getFirstAckBlock().toNumber(); i++) {
+            x = x.subtract(1);
+            packetnumbers.push(x);
+        }
+
+        for (var i = 0; i < ackFrame.getAckBlockCount().toNumber(); i++) {
+            for (var j = 0; j < ackFrame.getFirstAckBlock().toNumber(); j++) {
+                x = x.subtract(1);
+            }
+            for (var j = 0; j < ackFrame.getFirstAckBlock().toNumber(); j++) {
+                x = x.subtract(1);
+                packetnumbers.push(x);
+            }
+        }
+        return packetnumbers;
     }
 }
