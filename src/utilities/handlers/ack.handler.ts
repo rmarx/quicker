@@ -57,15 +57,8 @@ export class AckHandler {
         if (this.largestPacketNumber === undefined ||  pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
         }
-        var ackOnly = true;
-        if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
-            var baseEncryptedPacket = <BaseEncryptedPacket>packet;
-            ackOnly = baseEncryptedPacket.isAckOnly();
-            console.log("is ack only: " + ackOnly);
-        } else {
-            ackOnly = false;
-        }
-        this.receivedPackets[pn.toString('hex', 8)] = {time: time, ackOnly: ackOnly};
+        
+        this.receivedPackets[pn.toString('hex', 8)] = {time: time, ackOnly: packet.isAckOnly()};
         if (this.onlyAckPackets()) {
             this.alarm.reset();
         } else if (!this.alarm.isRunning()) {
