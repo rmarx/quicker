@@ -141,18 +141,6 @@ export class AckHandler {
 
     private setAlarm(connection: Connection) {
         this.alarm.on(AlarmEvent.TIMEOUT, () => {
-            /*var baseFrames: BaseFrame[] = [];
-            var ackFrame = this.getAckFrame(connection);
-            if (ackFrame !== undefined) {
-                baseFrames.push(ackFrame);
-                if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED ||
-                    connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED) {
-                    var packet: BaseEncryptedPacket = PacketFactory.createShortHeaderPacket(connection, baseFrames);
-                } else {
-                    var packet: BaseEncryptedPacket = PacketFactory.createHandshakePacket(connection, baseFrames);
-                }
-                connection.sendPacket(packet, false);
-            }*/
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 connection.queueFrame(ackFrame);
