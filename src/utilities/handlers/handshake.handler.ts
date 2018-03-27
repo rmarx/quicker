@@ -42,7 +42,7 @@ export class HandshakeHandler {
             // TODO: Find TLS error better (add callback in node)
             throw new QuicError(TlsErrorCodes.TLS_HANDSHAKE_FAILED);
         }*/
-        if (data.byteLength > 0) {
+        if (data !== undefined && data.byteLength > 0) {
             this.stream.addData(data);
         } else if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client) {
             // To process NewSessionTicket
