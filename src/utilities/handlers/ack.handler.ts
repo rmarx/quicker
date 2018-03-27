@@ -14,11 +14,14 @@ import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { HandshakeState } from '../../crypto/qtls';
 
 
+interface ReceivedPacket {
+    time: Time,
+    ackOnly: boolean
+}
+
 export class AckHandler {
-    private receivedPackets: { [key: string]: Time };
+    private receivedPackets: { [key: string]: ReceivedPacket };
     private largestPacketNumber!: Bignum;
-    private largestAcked: boolean;
-    private isAckOnly: boolean;
     private alarm: Alarm;
     // ack wait in ms
     private static readonly ACK_WAIT = 15;
@@ -26,8 +29,6 @@ export class AckHandler {
     public constructor(connection: Connection) {
         this.receivedPackets = {};
         this.alarm = new Alarm();
-        this.largestAcked = true;
-        this.isAckOnly = true;
     }
 
     public onPacketAcked(packet: BasePacket) {
@@ -45,12 +46,6 @@ export class AckHandler {
                 });
             }
         });
-        if (Object.keys(this.receivedPackets).length === 0) {
-            this.receivedPackets = {};
-            this.receivedPackets[this.largestPacketNumber.toString('hex', 8)] = largestAckedTime;
-            this.largestAcked = true;
-            this.isAckOnly = true;
-        }
     }
 
     public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
@@ -60,27 +55,18 @@ export class AckHandler {
         var header = packet.getHeader();
         var pn = header.getPacketNumber().getPacketNumber();
         if (this.largestPacketNumber === undefined ||  pn.greaterThan(this.largestPacketNumber)) {
-            if (this.largestAcked) {
-                this.receivedPackets = {};
-            }
             this.largestPacketNumber = pn;
-            this.largestAcked = false;
         }
+        var ackOnly = true;
         if (packet.getPacketType() !== PacketType.Retry && packet.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket = <BaseEncryptedPacket>packet;
-            if (baseEncryptedPacket.getFrames().length === 0) {
-                this.isAckOnly = false;
-            }
-            baseEncryptedPacket.getFrames().forEach((frame: BaseFrame) => {
-                if (frame.getType() !== FrameType.ACK) {
-                    this.isAckOnly = false;
-                }
-            });
+            ackOnly = baseEncryptedPacket.isAckOnly();
+            console.log("is ack only: " + ackOnly);
         } else {
-            this.isAckOnly = false;
+            ackOnly = false;
         }
-        this.receivedPackets[pn.toString('hex', 8)] = time;
-        if (this.isAckOnly && Object.keys(this.receivedPackets).length === 1) {
+        this.receivedPackets[pn.toString('hex', 8)] = {time: time, ackOnly: ackOnly};
+        if (this.onlyAckPackets()) {
             this.alarm.reset();
         } else if (!this.alarm.isRunning()) {
             this.setAlarm(connection);
@@ -91,7 +77,7 @@ export class AckHandler {
 
     public getAckFrame(connection: Connection): AckFrame | undefined {
         this.alarm.reset();
-        if (Object.keys(this.receivedPackets).length === 0 || (Object.keys(this.receivedPackets).length === 1 && this.largestAcked) || this.isAckOnly) {
+        if (Object.keys(this.receivedPackets).length === 0 || this.onlyAckPackets()) {
             return undefined;
         }
 
@@ -101,7 +87,7 @@ export class AckHandler {
             var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
         }
 
-        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString('hex', 8)]).format(TimeFormat.MicroSeconds);
+        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString('hex', 8)].time).format(TimeFormat.MicroSeconds);
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
         var packetnumbers: Bignum[] = [];
@@ -135,7 +121,6 @@ export class AckHandler {
             var ackBlock = new AckBlock(new Bignum(gaps[i - 1]), new Bignum(blocks[i]));
             ackBlocks.push(ackBlock);
         }
-
         return new AckFrame(latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
     }
 
@@ -149,6 +134,16 @@ export class AckHandler {
 
         });
         this.alarm.start(AckHandler.ACK_WAIT);
+    }
+
+    private onlyAckPackets(): boolean {
+        var ackOnly = true;
+        Object.keys(this.receivedPackets).forEach((key: string) => {
+            if (!this.receivedPackets[key].ackOnly) {
+                ackOnly = false;
+            }
+        });
+        return ackOnly;
     }
 
     private removePacket(packetNumber: Bignum): void {
