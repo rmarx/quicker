@@ -30,7 +30,14 @@ export class Stream extends FlowControlledObject {
 		this.blockedSent = false;
 		this.data = Buffer.alloc(0);
 		this.bufferedData = {};
-    }
+	}
+	
+	public reset(): void {
+		this.blockedSent = false;
+		this.resetOffsets();
+		this.data = Buffer.alloc(0);
+		this.bufferedData = {};
+	}
 
 	public getStreamID(): Bignum {
 		return this.streamID;

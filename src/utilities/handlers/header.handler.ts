@@ -9,6 +9,8 @@ import { PacketNumber } from '../../packet/header/header.properties';
 import { EndpointType } from '../../types/endpoint.type';
 import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
+import { QuickerError } from '../errors/quicker.error';
+import { QuickerErrorCodes } from '../errors/quicker.codes';
 
 export class HeaderHandler {
 
@@ -22,6 +24,8 @@ export class HeaderHandler {
                 if (header.getPacketType() === LongHeaderType.Initial) {
                     connection.resetConnectionState();
                     throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
+                } else if(header.getPacketType() === LongHeaderType.Protected0RTT) {
+                    throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
                 } else {
                     throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
                 }

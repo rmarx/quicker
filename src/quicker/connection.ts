@@ -404,8 +404,11 @@ export class Connection extends FlowControlledObject {
 
     public resetConnectionState() {
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
-        this.streams = [];
         this.resetOffsets();
+        this.streams.forEach((stream: Stream) => {
+            stream.reset();
+        });
+        this.lossDetection.reset();
     }
 
     public queueFrame(baseFrame: BaseFrame) {
