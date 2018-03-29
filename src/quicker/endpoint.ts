@@ -56,7 +56,7 @@ export abstract class Endpoint extends EventEmitter {
         } else {
             packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
         }
-        connection.sendPacket(packet)
+        connection.sendPacket(packet, false)
         connection.setClosePacket(packet);
         connection.setState(ConnectionState.Closing);
         this.emit(QuickerEvent.ERROR, error);
