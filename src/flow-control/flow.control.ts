@@ -252,6 +252,9 @@ export class FlowControl {
     }
 
     private static getLocalFlowControlFrames(connection: Connection): BaseFrame[] {
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
+            return [];
+        }
         var frames = new Array<BaseFrame>();
         if (connection.isLocalLimitAlmostExceeded() || connection.getIsRemoteBlocked()) {
             var newMaxData = connection.getLocalMaxData().multiply(2);
