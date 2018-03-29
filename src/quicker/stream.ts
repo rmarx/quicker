@@ -13,6 +13,7 @@ interface BufferedData {
 
 export class Stream extends FlowControlledObject {
 	
+	private endpointType: EndpointType;
 	private streamID: Bignum;
 	private blockedSent: boolean;
 	private streamState: StreamState;
@@ -24,7 +25,8 @@ export class Stream extends FlowControlledObject {
 	
     public constructor(connection: Connection, streamID: Bignum) {
 		super();
-        super.init(connection);
+		super.init(connection);
+		this.endpointType = connection.getEndpointType();
 		this.streamID = streamID;
 		this.streamState = StreamState.Open;
 		this.blockedSent = false;
@@ -97,6 +99,14 @@ export class Stream extends FlowControlledObject {
 		return this.data;
 	}
 
+    public isSendOnly(): boolean {
+		return Stream.isSendOnly(this.endpointType, this.streamID);
+    }
+
+    public isReceiveOnly(): boolean {
+		return Stream.isReceiveOnly(this.endpointType, this.streamID);
+    }
+
 	public receiveData(data: Buffer, offset: Bignum, isFin: boolean): void {
 		if (this.localFinalOffset !== undefined && offset.add(data.byteLength).greaterThan(this.localFinalOffset)) {
 			throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
@@ -150,6 +160,22 @@ export class Stream extends FlowControlledObject {
 				isFin: isFin
 			};
         }
+	}
+	
+
+
+    public static isSendOnly(endpointType: EndpointType, streamID: Bignum): boolean {
+        if (endpointType === EndpointType.Server) {
+            return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
+        }
+        return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
+    }
+
+    public static isReceiveOnly(endpointType: EndpointType, streamID: Bignum): boolean {
+        if (endpointType === EndpointType.Server) {
+            return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
+        }
+        return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
     }
 }
 

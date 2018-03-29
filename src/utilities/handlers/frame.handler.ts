@@ -104,7 +104,7 @@ export class FrameHandler {
 
     private handleRstStreamFrame(connection: Connection, rstStreamFrame: RstStreamFrame) {
         var streamId = rstStreamFrame.getStreamId();
-        if (this.isSendOnly(connection, streamId)) {
+        if (Stream.isSendOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         var stream = connection.getStream(rstStreamFrame.getStreamId());
@@ -137,10 +137,10 @@ export class FrameHandler {
 
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
         var streamId = maxDataStreamFrame.getStreamId();
-        if (this.isReceiveOnly(connection, streamId)) {
+        if (Stream.isReceiveOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
-        if (this.isSendOnly(connection, streamId) && !connection.hasStream(streamId)) {
+        if (Stream.isSendOnly(connection.getEndpointType(), streamId) && !connection.hasStream(streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
 
@@ -172,7 +172,7 @@ export class FrameHandler {
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
         var streamId = streamBlocked.getStreamId();
-        if (this.isSendOnly(connection, streamId)) {
+        if (Stream.isSendOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
 
@@ -194,7 +194,7 @@ export class FrameHandler {
 
     private handleStopSendingFrame(connection: Connection, stopSendingFrame: StopSendingFrame) {
         var streamId = stopSendingFrame.getStreamId();
-        if (this.isReceiveOnly(connection, streamId)) {
+        if (Stream.isReceiveOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
 
@@ -223,24 +223,10 @@ export class FrameHandler {
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
         var streamId = streamFrame.getStreamID();
-        if (this.isSendOnly(connection, streamId)) {
+        if (Stream.isSendOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
         var stream = connection.getStream(streamFrame.getStreamID());
         stream.receiveData(streamFrame.getData(), streamFrame.getOffset(), streamFrame.getFin());
-    }
-
-    private isSendOnly(connection: Connection, streamId: Bignum): boolean {
-        if (connection.getEndpointType() === EndpointType.Server) {
-            return streamId.xor(StreamType.ServerUni).modulo(4).equals(0);
-        }
-        return streamId.xor(StreamType.ClientUni).modulo(4).equals(0);
-    }
-
-    private isReceiveOnly(connection: Connection, streamId: Bignum): boolean {
-        if (connection.getEndpointType() === EndpointType.Server) {
-            return streamId.xor(StreamType.ClientUni).modulo(4).equals(0);
-        }
-        return streamId.xor(StreamType.ServerUni).modulo(4).equals(0);
     }
 }

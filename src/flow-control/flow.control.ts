@@ -214,10 +214,16 @@ export class FlowControl {
         var streamFrames = new Array<StreamFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
+        /**
+         * If stream is receive only, reset stream data
+         */
+        if (stream.isReceiveOnly()) {
+            stream.setData(Buffer.alloc(0));
+        }
+
         var streamData = stream.getData().slice(0, streamDataSize.toNumber());
         var isHandshake = stream.getStreamID().equals(0);
 
-        
         while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !connection.isRemoteLimitExceeded()))) {
             streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
 
