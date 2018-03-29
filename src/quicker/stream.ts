@@ -80,6 +80,9 @@ export class Stream extends FlowControlledObject {
 	}
 
 	public addData(data: Buffer, isFin = false): void {
+		if (this.blockedSent) {
+			throw new Error();
+		}
 		this.data = Buffer.concat([this.data, data]);
 		if (isFin) {
 			this.remoteFinalOffset = this.getRemoteOffset().add(this.data.byteLength);
@@ -115,7 +118,7 @@ export class Stream extends FlowControlledObject {
                 this.setStreamState(StreamState.LocalClosed);
             } else if (this.getStreamState() === StreamState.RemoteClosed) {
                 this.setStreamState(StreamState.Closed);
-            }
+			}
             this.emit(StreamEvent.END);
         }
 	}
@@ -130,9 +133,11 @@ export class Stream extends FlowControlledObject {
 	}
 
     private getBufferedData(localOffset: Bignum): BufferedData | undefined {
-        var offsetString: string = localOffset.toDecimalString();
+		var offsetString: string = localOffset.toDecimalString();
         if (this.bufferedData[offsetString] !== undefined) {
-            return this.bufferedData[offsetString];
+			var bufferedData = this.bufferedData[offsetString];
+			delete this.bufferedData[offsetString];
+            return bufferedData;
         }
         return undefined;
     }
