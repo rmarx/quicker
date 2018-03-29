@@ -1,4 +1,5 @@
 import { BaseError } from "./base.error";
+import { QuickerErrorCodes } from "./quicker.codes";
 
 
 export class QuicError extends BaseError {
@@ -7,7 +8,7 @@ export class QuicError extends BaseError {
     private phrase: string | undefined;
 
     constructor (errorCode: number, phrase?: string) {
-        super();
+        super(QuickerErrorCodes[errorCode]);
         this.errorCode = errorCode;
         this.phrase = phrase;
     }

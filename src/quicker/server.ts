@@ -130,6 +130,7 @@ export class Server extends EventEmitter {
             connection.startIdleAlarm();
         } catch (err) {
             if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                connection.resetConnectionState();
                 this.deleteConnection(connection);
                 var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                 connection.sendPacket(versionNegotiationPacket);

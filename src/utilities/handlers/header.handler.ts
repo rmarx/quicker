@@ -11,6 +11,7 @@ import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
 import { QuickerError } from '../errors/quicker.error';
 import { QuickerErrorCodes } from '../errors/quicker.codes';
+import { HandshakeState } from '../../crypto/qtls';
 
 export class HeaderHandler {
 
@@ -24,7 +25,7 @@ export class HeaderHandler {
                 if (header.getPacketType() === LongHeaderType.Initial) {
                     connection.resetConnectionState();
                     throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
-                } else if(header.getPacketType() === LongHeaderType.Protected0RTT) {
+                } else if(header.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
                     throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
                 } else {
                     throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
