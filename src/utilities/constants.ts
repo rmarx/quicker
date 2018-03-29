@@ -65,12 +65,13 @@ export class Constants {
     
     public static readonly TEMPORARY_DRAINING_TIME = 15000;
 
+    public static readonly MAXIMUM_CLOSE_FRAME_SEND = 5;
 
     /**
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return 'abcdef09';
+        return 'ff000009';
     }
 
     public static getVersionSalt(version: string): string {

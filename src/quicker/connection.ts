@@ -64,6 +64,7 @@ export class Connection extends FlowControlledObject {
     private transmissionAlarm: Alarm;
     private bufferedFrames: BaseFrame[];
     private closePacket!: BaseEncryptedPacket;
+    private closeSentCount: number;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         super();
@@ -76,6 +77,7 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm = new Alarm();
         this.localMaxStreamUniBlocked = false;
         this.localMaxStreamBidiBlocked = false;
+        this.closeSentCount = 0;
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
@@ -563,15 +565,22 @@ export class Connection extends FlowControlledObject {
 
     public checkConnectionState(): void {
         if (this.connectionIsClosing()) {
+            /**
+             * Check to limit the amount of packets with closeframe inside
+             */
+            if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND) {
+                this.closeSentCount++;
+                var closePacket = this.getClosePacket();
+                closePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
+                PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
+                this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
+            }
             throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
     }
 
     private connectionIsClosing(): boolean {
         if (this.getState() === ConnectionState.Closing) {
-            var closePacket = this.getClosePacket();
-            PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
-            this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
             return true;
         }
         if (this.getState() === ConnectionState.Draining) {
