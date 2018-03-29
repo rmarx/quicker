@@ -24,6 +24,8 @@ import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
 import { LossDetection, LossDetectionEvents } from '../loss-detection/loss.detection';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 export class Connection extends FlowControlledObject {
 
@@ -467,21 +469,12 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm.reset();
         var bufferedFrames = this.bufferedFrames;
         this.bufferedFrames = [];
-        var containsAck = this.containsAck(bufferedFrames);
-        var packets = FlowControl.getPackets(this, bufferedFrames);
+        var containsAck: boolean = this.containsAck(bufferedFrames);
+        var packets: BasePacket[] = FlowControl.getPackets(this, bufferedFrames);
         packets.forEach((packet: BasePacket, index: number) => {
-            this._sendPacket(packet, (index === 0 && !containsAck));
+            var sendAck: boolean = (index === 0 && !containsAck && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open));
+            this._sendPacket(packet, sendAck);
         });
-    }
-
-    private containsAck(frames: BaseFrame[]): boolean {
-        var containsAck = false;
-        frames.forEach((baseFrame: BaseFrame) => {
-            if (baseFrame.getType() === FrameType.ACK) {
-                containsAck = true;
-            }
-        }); 
-        return containsAck;
     }
 
     private _sendPacket(basePacket: BasePacket, addAckFrame: boolean): void {
@@ -501,6 +494,16 @@ export class Connection extends FlowControlledObject {
             this.lossDetection.onPacketSent(packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
+    }
+
+    private containsAck(frames: BaseFrame[]): boolean {
+        var containsAck = false;
+        frames.forEach((baseFrame: BaseFrame) => {
+            if (baseFrame.getType() === FrameType.ACK) {
+                containsAck = true;
+            }
+        }); 
+        return containsAck;
     }
 
     private addPossibleAckFrame(baseFrames: BaseFrame[]) {
@@ -553,6 +556,17 @@ export class Connection extends FlowControlledObject {
         alarm.on(AlarmEvent.TIMEOUT, () => {
             this.emit(ConnectionEvent.CLOSE);
         });
+    }
+
+    public checkConnectionState(): void {
+        if (this.getState() === ConnectionState.Closing) {
+            var closePacket = this.getClosePacket();
+            this.sendPacket(closePacket);
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+        }
+        if (this.getState() === ConnectionState.Draining) {
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+        }
     }
 
     public resetIdleAlarm(): void {

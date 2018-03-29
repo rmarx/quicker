@@ -105,25 +105,12 @@ export class Server extends EventEmitter {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        var receivedTime = Time.now();
+        var headerOffset: HeaderOffset = this.headerParser.parse(msg);
+        var connection: Connection = this.getConnection(headerOffset, rinfo);
         try {
-            var receivedTime = Time.now();
-            var headerOffset: HeaderOffset = this.headerParser.parse(msg);
-            var connection: Connection = this.getConnection(headerOffset, rinfo);
-            if (connection.getState() === ConnectionState.Closing) {
-                var closePacket = connection.getClosePacket();
-                connection.sendPacket(closePacket);
-                return;
-            }
-            if (connection.getState() === ConnectionState.Draining) {
-                return;
-            }
+            connection.checkConnectionState();
             connection.resetIdleAlarm();
-        } catch (err) {
-            // ignore message on error
-            return;
-        }
-
-        try {
             headerOffset = this.headerHandler.handle(connection, headerOffset);
             var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
             this.packetHandler.handle(connection, packetOffset.packet, receivedTime);

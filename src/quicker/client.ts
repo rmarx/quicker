@@ -27,6 +27,8 @@ import { QuicStream } from './quic.stream';
 import { QuickerEvent } from './quicker.event';
 import { TransportParameters } from '../crypto/transport.parameters';
 import { isIPv6 } from 'net';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 
 export class Client extends EventEmitter {
@@ -162,20 +164,8 @@ export class Client extends EventEmitter {
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         try {
-
-            if (this.connection.getState() === ConnectionState.Closing) {
-                var closePacket = this.connection.getClosePacket();
-                this.connection.sendPacket(closePacket);
-                return;
-            }
-            if (this.connection.getState() === ConnectionState.Draining) {
-                return;
-            }
+            this.connection.checkConnectionState();
             this.connection.resetIdleAlarm();
-        } catch(err) {
-            return;
-        }
-        try {
             var receivedTime = Time.now();
             var headerOffset: HeaderOffset = this.headerParser.parse(msg);
             headerOffset = this.headerHandler.handle(this.connection, headerOffset);
@@ -183,6 +173,9 @@ export class Client extends EventEmitter {
             this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             this.connection.startIdleAlarm();
         } catch (err) {
+            if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
+                return;
+            }
             this.onError(this.connection, err);
             return;
         }
