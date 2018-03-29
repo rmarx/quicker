@@ -478,6 +478,9 @@ export class Connection extends FlowControlledObject {
     }
 
     private _sendPacket(basePacket: BasePacket, addAckFrame: boolean): void {
+        if (this.connectionIsClosing()) {
+            return;
+        }
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             if (addAckFrame) {
@@ -559,14 +562,22 @@ export class Connection extends FlowControlledObject {
     }
 
     public checkConnectionState(): void {
+        if (this.connectionIsClosing()) {
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+        }
+    }
+
+    private connectionIsClosing(): boolean {
         if (this.getState() === ConnectionState.Closing) {
             var closePacket = this.getClosePacket();
-            this.sendPacket(closePacket);
-            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+            PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
+            this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
+            return true;
         }
         if (this.getState() === ConnectionState.Draining) {
-            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+            return true;
         }
+        return false;
     }
 
     public resetIdleAlarm(): void {

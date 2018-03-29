@@ -19,3 +19,5 @@ export enum TlsErrorCodes {
     TLS_FATAL_ALERT_GENERATED = 0x202,
     TLS_FATAL_ALERT_RECEIVED = 0x203
 }
+
+export type QuicErrorCode = (ConnectionErrorCodes | TlsErrorCodes);
