@@ -128,7 +128,7 @@ export class PacketLogging {
         var log = "";
         vnPacket.getVersions().forEach((version: Version) => {
             log += "\n";
-            log += this.getSpaces(4) + "version: 0x" + version.toString() + "\n";
+            log += this.getSpaces(4) + "version: 0x" + version.toString();
         });
         return log;
     }

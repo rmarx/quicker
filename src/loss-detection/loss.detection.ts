@@ -398,6 +398,11 @@ export class LossDetection extends EventEmitter {
             this.emit(LossDetectionEvents.RETRANSMIT_PACKET, sentPacket.packet);
         }
     }
+
+    public reset() {
+        this.lossDetectionAlarm.reset();
+        this.sentPackets = {};
+    }
 }
 
 export enum LossDetectionEvents {

@@ -6,9 +6,12 @@ import { TransportParameters, TransportParameterType } from './transport.paramet
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
 import { EventEmitter } from 'events';
+import { QuicError } from '../utilities/errors/connection.error';
+import { TlsErrorCodes } from '../utilities/errors/quic.codes';
 
 enum NodeQTLSEvent {
-    HANDSHAKE_DONE = "handshakedone"
+    HANDSHAKE_DONE = "handshakedone",
+    ERROR = "error",
 }
 
 /**
@@ -53,6 +56,9 @@ export class QTLS extends EventEmitter{
         var qtlsHelper = new QuicTLS(this.isServer, this.options);
         qtlsHelper.on(NodeQTLSEvent.HANDSHAKE_DONE, () => {
             this.handleHandshakeDone();
+        });
+        qtlsHelper.on(NodeQTLSEvent.ERROR, (error: Error) => {
+            throw new QuicError(TlsErrorCodes.TLS_HANDSHAKE_FAILED);
         });
         return qtlsHelper;
     }

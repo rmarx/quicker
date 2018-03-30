@@ -16,38 +16,40 @@ if (isNaN(Number(port))) {
 console.log("QUICker client connecting to " + host + ":" + port);
 
 var httpHelper = new HttpHelper();
-var client = Client.connect(host, Number(port));
-client.on(QuickerEvent.CLIENT_CONNECTED, () => {
-    for (var i = 0; i < 2; i++) {
-        var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
-        var bufferedData = Buffer.alloc(0);
+for (var i = 0; i < 1; i++) {
+    var client = Client.connect(host, Number(port));
+    client.on(QuickerEvent.CLIENT_CONNECTED, () => {
+        for (var i = 0; i < 5; i++) {
+            var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
+            var bufferedData = Buffer.alloc(0);
 
-        quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
-            //bufferedData = Buffer.concat([bufferedData, data]);
-        });
+            quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
+                //bufferedData = Buffer.concat([bufferedData, data]);
+            });
 
-        quicStream.on(QuickerEvent.STREAM_END, () => {
-            //console.log(bufferedData.toString('utf8'));
-        });
-    }
+            quicStream.on(QuickerEvent.STREAM_END, () => {
+                //console.log(bufferedData.toString('utf8'));
+            });
+        }
 
-    setTimeout(() => {
-        var client2 = Client.connect(host, Number(port), {
-            session: client.getSession(),
-            transportparameters: client.getTransportParameters()
-        }, httpHelper.createRequest("index.html"));
-        client2.on(QuickerEvent.CLIENT_CONNECTED, () => {
-            //
-        });
-    }, 5000);
-});
+        setTimeout(() => {
+            var client2 = Client.connect(host, Number(port), {
+                session: client.getSession(),
+                transportparameters: client.getTransportParameters()
+            }, httpHelper.createRequest("index.html"));
+            client2.on(QuickerEvent.CLIENT_CONNECTED, () => {
+                //
+            });
+        }, 5000);
+    });
 
-client.on(QuickerEvent.ERROR, (error: Error) => {
-    console.log("error");
-    console.log(error.message);
-    console.log(error.stack);
-});
+    client.on(QuickerEvent.ERROR, (error: Error) => {
+        console.log("error");
+        console.log(error.message);
+        console.log(error.stack);
+    });
 
-client.on(QuickerEvent.CONNECTION_CLOSE, () => {
-    process.exit(0);
-});
+    client.on(QuickerEvent.CONNECTION_CLOSE, () => {
+        process.exit(0);
+    });
+}

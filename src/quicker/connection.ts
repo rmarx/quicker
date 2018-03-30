@@ -15,7 +15,7 @@ import { AckHandler } from '../utilities/handlers/ack.handler';
 import { PacketLogging } from '../utilities/logging/packet.logging';
 import { FlowControlledObject } from '../flow-control/flow.controlled';
 import { FlowControl } from '../flow-control/flow.control';
-import { BaseFrame } from '../frame/base.frame';
+import { BaseFrame, FrameType } from '../frame/base.frame';
 import { PacketFactory } from '../utilities/factories/packet.factory';
 import { BN } from 'bn.js';
 import { QuicStream } from './quic.stream';
@@ -24,6 +24,8 @@ import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
 import { LossDetection, LossDetectionEvents } from '../loss-detection/loss.detection';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 export class Connection extends FlowControlledObject {
 
@@ -62,6 +64,7 @@ export class Connection extends FlowControlledObject {
     private transmissionAlarm: Alarm;
     private bufferedFrames: BaseFrame[];
     private closePacket!: BaseEncryptedPacket;
+    private closeSentCount: number;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         super();
@@ -74,6 +77,7 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm = new Alarm();
         this.localMaxStreamUniBlocked = false;
         this.localMaxStreamBidiBlocked = false;
+        this.closeSentCount = 0;
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
@@ -96,6 +100,9 @@ export class Connection extends FlowControlledObject {
     private hookLossDetectionEvents() {
         this.lossDetection.on(LossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
             this.retransmitPacket(basePacket);
+        });
+        this.lossDetection.on(LossDetectionEvents.PACKETS_ACKED, (basePacket: BasePacket) => {
+            this.ackHandler.onPacketAcked(basePacket);
         });
     }
 
@@ -319,6 +326,13 @@ export class Connection extends FlowControlledObject {
         return this.streams;
     }
 
+    public hasStream(streamId: number): boolean;
+    public hasStream(streamId: Bignum): boolean;
+    public hasStream(streamId: any): boolean {
+        var stream = this._getStream(streamId);
+        return stream !== undefined;
+    }
+
     public getStream(streamId: number): Stream;
     public getStream(streamId: Bignum): Stream;
     public getStream(streamId: any): Stream {
@@ -394,8 +408,11 @@ export class Connection extends FlowControlledObject {
 
     public resetConnectionState() {
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
-        this.streams = [];
         this.resetOffsets();
+        this.streams.forEach((stream: Stream) => {
+            stream.reset();
+        });
+        this.lossDetection.reset();
     }
 
     public queueFrame(baseFrame: BaseFrame) {
@@ -410,7 +427,6 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitPacket(packet: BasePacket) {
-
         switch(packet.getPacketType()) {
             case PacketType.Initial:
                 if (this.getStream(0).getLocalOffset().greaterThan(0)) {
@@ -425,7 +441,6 @@ export class Connection extends FlowControlledObject {
                     //      after this packet everything needs to be send in shortheader packet
                     return;
                 }
-            
         }
 
         var framePacket = <BaseEncryptedPacket> packet;
@@ -448,7 +463,7 @@ export class Connection extends FlowControlledObject {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             this.queueFrames(baseEncryptedPacket.getFrames());
         } else {
-            this._sendPacket(basePacket);
+            this._sendPacket(basePacket, false);
         }
     }
 
@@ -456,18 +471,25 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm.reset();
         var bufferedFrames = this.bufferedFrames;
         this.bufferedFrames = [];
-        var packets = FlowControl.getPackets(this, bufferedFrames);
-        packets.forEach((packet: BasePacket) => {
-            this._sendPacket(packet);
+        var containsAck: boolean = this.containsAck(bufferedFrames);
+        var packets: BasePacket[] = FlowControl.getPackets(this, bufferedFrames);
+        packets.forEach((packet: BasePacket, index: number) => {
+            var sendAck: boolean = (index === 0 && !containsAck && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open));
+            this._sendPacket(packet, sendAck);
         });
     }
 
-    private _sendPacket(basePacket: BasePacket): void {
+    private _sendPacket(basePacket: BasePacket, addAckFrame: boolean): void {
+        if (this.connectionIsClosing()) {
+            return;
+        }
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-            var ackFrame = this.ackHandler.getAckFrame(this);
-            if (ackFrame !== undefined) {
-                baseEncryptedPacket.getFrames().push(ackFrame);
+            if (addAckFrame) {
+                var ackFrame = this.ackHandler.getAckFrame(this);
+                if (ackFrame !== undefined) {
+                    baseEncryptedPacket.getFrames().push(ackFrame);
+                }
             }
         }
         var packet = basePacket;
@@ -477,6 +499,16 @@ export class Connection extends FlowControlledObject {
             this.lossDetection.onPacketSent(packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
+    }
+
+    private containsAck(frames: BaseFrame[]): boolean {
+        var containsAck = false;
+        frames.forEach((baseFrame: BaseFrame) => {
+            if (baseFrame.getType() === FrameType.ACK) {
+                containsAck = true;
+            }
+        }); 
+        return containsAck;
     }
 
     private addPossibleAckFrame(baseFrames: BaseFrame[]) {
@@ -529,6 +561,32 @@ export class Connection extends FlowControlledObject {
         alarm.on(AlarmEvent.TIMEOUT, () => {
             this.emit(ConnectionEvent.CLOSE);
         });
+    }
+
+    public checkConnectionState(): void {
+        if (this.connectionIsClosing()) {
+            /**
+             * Check to limit the amount of packets with closeframe inside
+             */
+            if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND) {
+                this.closeSentCount++;
+                var closePacket = this.getClosePacket();
+                closePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
+                PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
+                this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
+            }
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+        }
+    }
+
+    private connectionIsClosing(): boolean {
+        if (this.getState() === ConnectionState.Closing) {
+            return true;
+        }
+        if (this.getState() === ConnectionState.Draining) {
+            return true;
+        }
+        return false;
     }
 
     public resetIdleAlarm(): void {

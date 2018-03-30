@@ -1,4 +1,5 @@
 import { BaseError } from "./base.error";
+import { QuickerErrorCodes } from "./quicker.codes";
 
 
 /**
@@ -6,10 +7,10 @@ import { BaseError } from "./base.error";
  */
 export class QuickerError extends BaseError {
 
-    private errorCode: number;
+    private errorCode: QuickerErrorCodes;
 
-    constructor (errorCode: number) {
-        super();
+    constructor (errorCode: QuickerErrorCodes) {
+        super(QuickerErrorCodes[errorCode]);
         this.errorCode = errorCode;
     }
 

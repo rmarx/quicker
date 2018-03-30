@@ -97,7 +97,7 @@ export class FlowControl {
         });
 
         if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
-            if (!isHandshake && !isServer) {
+            if (connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
             } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
@@ -214,10 +214,16 @@ export class FlowControl {
         var streamFrames = new Array<StreamFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
+        /**
+         * If stream is receive only, reset stream data
+         */
+        if (stream.isReceiveOnly()) {
+            stream.setData(Buffer.alloc(0));
+        }
+
         var streamData = stream.getData().slice(0, streamDataSize.toNumber());
         var isHandshake = (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED && stream.getStreamID().equals(0));
 
-        
         while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !connection.isRemoteLimitExceeded()))) {
             streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
 
@@ -252,6 +258,9 @@ export class FlowControl {
     }
 
     private static getLocalFlowControlFrames(connection: Connection): BaseFrame[] {
+        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
+            return [];
+        }
         var frames = new Array<BaseFrame>();
         if (connection.isLocalLimitAlmostExceeded() || connection.getIsRemoteBlocked()) {
             var newMaxData = connection.getLocalMaxData().multiply(2);

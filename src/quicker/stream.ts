@@ -13,6 +13,7 @@ interface BufferedData {
 
 export class Stream extends FlowControlledObject {
 	
+	private endpointType: EndpointType;
 	private streamID: Bignum;
 	private blockedSent: boolean;
 	private streamState: StreamState;
@@ -24,13 +25,21 @@ export class Stream extends FlowControlledObject {
 	
     public constructor(connection: Connection, streamID: Bignum) {
 		super();
-        super.init(connection);
+		super.init(connection);
+		this.endpointType = connection.getEndpointType();
 		this.streamID = streamID;
 		this.streamState = StreamState.Open;
 		this.blockedSent = false;
 		this.data = Buffer.alloc(0);
 		this.bufferedData = {};
-    }
+	}
+	
+	public reset(): void {
+		this.blockedSent = false;
+		this.resetOffsets();
+		this.data = Buffer.alloc(0);
+		this.bufferedData = {};
+	}
 
 	public getStreamID(): Bignum {
 		return this.streamID;
@@ -73,6 +82,9 @@ export class Stream extends FlowControlledObject {
 	}
 
 	public addData(data: Buffer, isFin = false): void {
+		if (this.blockedSent) {
+			throw new Error();
+		}
 		this.data = Buffer.concat([this.data, data]);
 		if (isFin) {
 			this.remoteFinalOffset = this.getRemoteOffset().add(this.data.byteLength);
@@ -86,6 +98,14 @@ export class Stream extends FlowControlledObject {
 	public getData(): Buffer {
 		return this.data;
 	}
+
+    public isSendOnly(): boolean {
+		return Stream.isSendOnly(this.endpointType, this.streamID);
+    }
+
+    public isReceiveOnly(): boolean {
+		return Stream.isReceiveOnly(this.endpointType, this.streamID);
+    }
 
 	public receiveData(data: Buffer, offset: Bignum, isFin: boolean): void {
 		if (this.localFinalOffset !== undefined && offset.add(data.byteLength).greaterThan(this.localFinalOffset)) {
@@ -108,7 +128,7 @@ export class Stream extends FlowControlledObject {
                 this.setStreamState(StreamState.LocalClosed);
             } else if (this.getStreamState() === StreamState.RemoteClosed) {
                 this.setStreamState(StreamState.Closed);
-            }
+			}
             this.emit(StreamEvent.END);
         }
 	}
@@ -123,9 +143,11 @@ export class Stream extends FlowControlledObject {
 	}
 
     private getBufferedData(localOffset: Bignum): BufferedData | undefined {
-        var offsetString: string = localOffset.toDecimalString();
+		var offsetString: string = localOffset.toDecimalString();
         if (this.bufferedData[offsetString] !== undefined) {
-            return this.bufferedData[offsetString];
+			var bufferedData = this.bufferedData[offsetString];
+			delete this.bufferedData[offsetString];
+            return bufferedData;
         }
         return undefined;
     }
@@ -138,6 +160,22 @@ export class Stream extends FlowControlledObject {
 				isFin: isFin
 			};
         }
+	}
+	
+
+
+    public static isSendOnly(endpointType: EndpointType, streamID: Bignum): boolean {
+        if (endpointType === EndpointType.Server) {
+            return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
+        }
+        return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
+    }
+
+    public static isReceiveOnly(endpointType: EndpointType, streamID: Bignum): boolean {
+        if (endpointType === EndpointType.Server) {
+            return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
+        }
+        return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
     }
 }
 

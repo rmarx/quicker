@@ -68,6 +68,7 @@ export class Constants {
     
     public static readonly TEMPORARY_DRAINING_TIME = 15000;
 
+    public static readonly MAXIMUM_CLOSE_FRAME_SEND = 5;
 
     /**
      * Method for testing purposes only

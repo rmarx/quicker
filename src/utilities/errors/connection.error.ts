@@ -1,18 +1,19 @@
 import { BaseError } from "./base.error";
+import { ConnectionErrorCodes, TlsErrorCodes, QuicErrorCode } from "./quic.codes";
 
 
 export class QuicError extends BaseError {
 
-    private errorCode: number;
+    private errorCode: QuicErrorCode;
     private phrase: string | undefined;
 
-    constructor (errorCode: number, phrase?: string) {
-        super();
+    constructor (errorCode: QuicErrorCode, phrase?: string) {
+        super(errorCode.toString());
         this.errorCode = errorCode;
         this.phrase = phrase;
     }
 
-    public getErrorCode(): number {
+    public getErrorCode(): QuicErrorCode {
         return this.errorCode;
     }
 
