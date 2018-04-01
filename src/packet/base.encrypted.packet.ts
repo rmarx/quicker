@@ -1,5 +1,5 @@
 import {BasePacket, PacketType} from './base.packet';
-import {BaseFrame} from '../frame/base.frame';
+import {BaseFrame, FrameType} from '../frame/base.frame';
 import {BaseHeader} from './header/base.header';
 import {Connection} from '../quicker/connection';
 import {Constants} from '../utilities/constants';
@@ -15,7 +15,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
     public constructor(packetType: PacketType, header: BaseHeader, frames: BaseFrame[]) {
         super(packetType,header);
         this.frames = frames;
-        this.retransmittable = this.retransmittableCheck(frames);
+        this.retransmittableCheck(frames);
     }
 
     public getFrames(): BaseFrame[] {
@@ -58,14 +58,19 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         return dataBuffer;
     }
 
-    private retransmittableCheck(frames: BaseFrame[]): boolean {
+    private retransmittableCheck(frames: BaseFrame[]): void {
         var retransmittable = false;
+        var ackOnly = true;
         frames.forEach((baseFrame: BaseFrame) => {
             if (baseFrame.isRetransmittable()) {
                 retransmittable = true;
+                ackOnly = false;
+            } else if (baseFrame.getType() === FrameType.PADDING) {
+                ackOnly = false;
             }
         });
-        return retransmittable;
+        this.retransmittable = retransmittable;
+        this.ackOnly = ackOnly;
     }
 
     protected abstract getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer;
