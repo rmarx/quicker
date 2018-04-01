@@ -51,33 +51,29 @@ export class HeaderParser {
         var keyPhaseBit = (type & 0x20) === 0x20;
         var connectionId = undefined;
 
-        type = this.correctShortHeaderType(type, connectionIdOmitted, keyPhaseBit);
+        type = this.correctShortHeaderType(type);
         if (!connectionIdOmitted) {
             connectionId = new ConnectionID(buf.slice(offset, offset + 8));
             offset = offset + 8;
         }
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
-        offset = offset + (1 << (0x1f - type));
+        offset = offset + (1 << type );
         return { header: new ShortHeader(type, connectionId, packetNumber, connectionIdOmitted, keyPhaseBit), offset: offset };
     }
 
     /**
-     *  subtracts C and K bit from type if they are set.
+     *  subtracts first five bits from type if they are set.
      *  value of returned type is needed to get the size of the packet number
      * 
      * @param type 
-     * @param connectionIdOmitted 
-     * @param keyPhaseBit 
      */
-    private correctShortHeaderType(type: number, connectionIdOmitted: boolean, keyPhaseBit: boolean): number {
-        return type & 0x1f;
+    private correctShortHeaderType(type: number): number {
+        return type & 0x7;
     }
 
     /**
      * Get the packet number from the buffer by getting the size of the packet number field 
-     *   from the short header type field:
-     * 
-     * TODO: still needs decoding of the packet number
+     *   from the short header type field
      * @param type type field of the header
      * @param buffer packet buffer
      * @param offset start offset of the buffer to get the packet number
