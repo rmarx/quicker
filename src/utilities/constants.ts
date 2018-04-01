@@ -3,7 +3,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff000010'
+        'ff00000a'
     ];
 
     public static readonly LOG_TYPE = "stdout";
@@ -15,10 +15,10 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000010': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
-        'abcdef10': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'ff00000a': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'abcdef0a': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
     }
-    public static readonly ALPN_LABEL = "hq-09";
+    public static readonly ALPN_LABEL = "hq-10";
     
     public static readonly LONG_HEADER_SIZE = 17;
     public static readonly LONG_HEADER_VN_SIZE = 13;
@@ -35,6 +35,9 @@ export class Constants {
     public static readonly DEFAULT_HASH = 'sha256';
     public static readonly DEFAULT_HASH_SIZE = 32;
     public static readonly IV_LENGTH = 12;
+    // All ciphersuites currently defined for TLS 1.3 - and therefore QUIC -	
+ 	// have a 16-byte authentication tag and produce an output 16 bytes	
+ 	// larger than their input.
     public static readonly TAG_LENGTH = 16;
 
 
@@ -74,7 +77,7 @@ export class Constants {
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return 'ff000009';
+        return this.SUPPORTED_VERSIONS[0];
     }
 
     public static getVersionSalt(version: string): string {

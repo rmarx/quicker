@@ -66,4 +66,12 @@ export class HKDF {
         var hkdfLabel = Buffer.concat([length, Buffer.from([label.length]), bufLabel, hashLength]);
         return this.expand(prk, hkdfLabel, lengthOutput);
     }
+
+    public qhkdfExpandLabel(prk: Buffer, label: string, lengthOutput: number): Buffer {
+        label = Constants.QHKDF_BASE_LABEL + label;
+        var length = Buffer.from([lengthOutput / 256, lengthOutput % 256]);
+        var bufLabel = Buffer.from(label);
+        var hkdfLabel = Buffer.concat([length, Buffer.from([label.length]), bufLabel]);
+        return this.expand(prk, hkdfLabel, lengthOutput);
+    }
 }

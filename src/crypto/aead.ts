@@ -52,8 +52,8 @@ export class AEAD {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var longHeader = <LongHeader> header;
         var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), longHeader.getVersion(), encryptingEndpoint);
-        var key = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", Constants.DEFAULT_AEAD_LENGTH);
-        var iv = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
@@ -68,8 +68,8 @@ export class AEAD {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var longHeader = <LongHeader> header;
         var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), longHeader.getVersion(), encryptingEndpoint);
-        var key = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", Constants.DEFAULT_AEAD_LENGTH);
-        var iv = hkdf.expandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
@@ -141,25 +141,25 @@ export class AEAD {
     private generateProtected0RTTSecrets(qtls: QTLS): void {
         var hkdf = new HKDF(qtls.getCipher().getHash());
         this.protected0RTTClientSecret = qtls.exportEarlyKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.CLIENT_0RTT_LABEL);
-        this.protected0RTTKey = hkdf.expandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
-        this.protected0RTTIv = hkdf.expandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        this.protected0RTTKey = hkdf.qhkdfExpandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, qtls.getCipher().getAEADKeyLength());
+        this.protected0RTTIv = hkdf.qhkdfExpandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
     }
 
     public updateProtected1RTTSecret(qtls: QTLS): void {
         var hkdf = new HKDF(qtls.getCipher().getHash());
-        this.protected1RTTClientSecret = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.CLIENT_1RTT_LABEL, "", qtls.getCipher().getHashLength());
-        this.protected1RTTServerSecret = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.SERVER_1RTT_LABEL, "", qtls.getCipher().getHashLength());
+        this.protected1RTTClientSecret = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.CLIENT_1RTT_LABEL, qtls.getCipher().getHashLength());
+        this.protected1RTTServerSecret = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.SERVER_1RTT_LABEL, qtls.getCipher().getHashLength());
         this.generateKeyAndIv(qtls);
     }
 
     private generateKeyAndIv(qtls: QTLS) {
         var hkdf = new HKDF(qtls.getCipher().getHash());
         // Generate Client key and IV
-        this.protected1RTTClientKey = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
-        this.protected1RTTClientIv = hkdf.expandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        this.protected1RTTClientKey = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, qtls.getCipher().getAEADKeyLength());
+        this.protected1RTTClientIv = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         // Generate Server key and IV
-        this.protected1RTTServerKey = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, "", qtls.getCipher().getAEADKeyLength());
-        this.protected1RTTServerIv = hkdf.expandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, "", Constants.IV_LENGTH);
+        this.protected1RTTServerKey = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, qtls.getCipher().getAEADKeyLength());
+        this.protected1RTTServerIv = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
     }
 
     /**
@@ -175,7 +175,7 @@ export class AEAD {
         if (encryptingEndpoint === EndpointType.Server) {
             label = Constants.SERVER_HANDSHAKE_LABEL;
         }
-        return hkdf.expandLabel(clearTextSecret, label, "", Constants.DEFAULT_HASH_SIZE);
+        return hkdf.qhkdfExpandLabel(clearTextSecret, label, Constants.DEFAULT_HASH_SIZE);
     }
 
     /**
