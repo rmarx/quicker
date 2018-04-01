@@ -51,7 +51,8 @@ export abstract class Endpoint extends EventEmitter {
         } else {
             closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR);
         }
-        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+        var handshakeState = connection.getQuicTLS().getHandshakeState();
+        if (handshakeState === HandshakeState.CLIENT_COMPLETED || handshakeState === HandshakeState.COMPLETED) {
             packet = PacketFactory.createShortHeaderPacket(connection, [closeFrame]);
         } else {
             packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
