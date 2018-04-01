@@ -10,11 +10,13 @@ export abstract class BasePacket {
     private packetType: PacketType;
 
     protected retransmittable: boolean;
+    protected ackOnly: boolean;
 
     public constructor(packetType: PacketType, header: BaseHeader) {
         this.packetType = packetType;
         this.header = header;
         this.retransmittable = false;
+        this.ackOnly = true;
     }
 
 
@@ -39,7 +41,7 @@ export abstract class BasePacket {
     }
 
     public isAckOnly(): boolean {
-        return !this.retransmittable;
+        return this.ackOnly;
     }
 
     abstract toBuffer(connection: Connection): Buffer;

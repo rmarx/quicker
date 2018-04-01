@@ -176,6 +176,14 @@ export class Stream extends FlowControlledObject {
             return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
         }
         return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
+	}
+	
+	public static isUniStreamId(streamId: Bignum): boolean {
+        return streamId.and(new Bignum(2)).equals(new Bignum(2));
+    }
+	
+	public static isBidiStreamId(streamId: Bignum): boolean {
+        return !this.isUniStreamId(streamId);
     }
 }
 

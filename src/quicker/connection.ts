@@ -5,7 +5,7 @@ import { QTLS, HandshakeState, QuicTLSEvents } from '../crypto/qtls';
 import { ConnectionID, PacketNumber, Version } from '../packet/header/header.properties';
 import { Bignum } from '../types/bignum';
 import { RemoteInfo, Socket } from "dgram";
-import { Stream, StreamType } from './stream';
+import { Stream, StreamType, StreamState } from './stream';
 import { EndpointType } from '../types/endpoint.type';
 import { Constants } from '../utilities/constants';
 import { TransportParameters } from '../crypto/transport.parameters';
@@ -26,6 +26,11 @@ import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
+import { StreamFrame } from '../frame/stream';
+import { MaxStreamIdFrame } from '../frame/max.stream.id';
+import { MaxStreamFrame } from '../frame/max.stream';
+import { MaxDataFrame } from '../frame/max.data';
+import { CongestionControl } from '../congestion-control/congestion.control';
 
 export class Connection extends FlowControlledObject {
 
@@ -38,6 +43,7 @@ export class Connection extends FlowControlledObject {
     private ackHandler: AckHandler;
     private handshakeHandler!: HandshakeHandler;
     private lossDetection: LossDetection;
+    private congestionControl: CongestionControl;
 
     private firstConnectionID!: ConnectionID;
     private connectionID!: ConnectionID;
@@ -93,15 +99,16 @@ export class Connection extends FlowControlledObject {
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
 
-        this.lossDetection = new LossDetection();
+        this.lossDetection = new LossDetection(this);
         this.hookLossDetectionEvents();
+        this.congestionControl = new CongestionControl(this, this.lossDetection);
     }
 
     private hookLossDetectionEvents() {
         this.lossDetection.on(LossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
             this.retransmitPacket(basePacket);
         });
-        this.lossDetection.on(LossDetectionEvents.PACKETS_ACKED, (basePacket: BasePacket) => {
+        this.lossDetection.on(LossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
             this.ackHandler.onPacketAcked(basePacket);
         });
     }
@@ -446,12 +453,54 @@ export class Connection extends FlowControlledObject {
         var framePacket = <BaseEncryptedPacket> packet;
         framePacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.isRetransmittable()) {
-                // TODO: Should create new frames AND retransmit data instead of streamframes
-                this.queueFrame(frame);
+                this.retransmitFrame(frame);
             }
         });
         // Send packets
         this.sendPackets();
+    }
+
+    private retransmitFrame(frame: BaseFrame) {
+        switch(frame.getType()) {
+            case FrameType.STREAM:
+                var stream: Stream | undefined = this._getStream((<StreamFrame>frame).getStreamID());
+                // Check if stream exists and if RST_STREAM has been sent
+                // TODO: first check if RST_STREAM has been acked
+                // TODO: don't retransmit frame, retransmit data
+                if (stream === undefined || stream.getStreamState() === StreamState.LocalClosed || stream.getStreamState() === StreamState.Closed) {
+                    return;
+                }
+                break;
+            case FrameType.MAX_STREAM_ID:
+                var streamID = (<MaxStreamIdFrame>frame).getMaxStreamId();
+                // Check if not a bigger maxStreamID frame has been sent
+                if (Stream.isUniStreamId(streamID) && this.localMaxStreamUni.greaterThan(streamID)) {
+                    return;
+                }
+                if (Stream.isBidiStreamId(streamID) && this.localMaxStreamBidi.greaterThan(streamID)) {
+                    return;
+                }
+                break;
+            case FrameType.MAX_STREAM_DATA:
+                // Check if not a bigger MaxStreamData frame has been sent
+                var maxStreamDataFrame = <MaxStreamFrame>frame;
+                var stream = this._getStream(maxStreamDataFrame.getStreamId());
+                if (stream === undefined || stream.getLocalMaxData().greaterThan(maxStreamDataFrame.getMaxData())) {
+                    return;
+                }
+                break;
+            case FrameType.MAX_DATA:
+                // Check if not a bigger MaxData frame has been sent
+                var maxDataFrame = <MaxDataFrame>frame;
+                if (this.getLocalMaxData().greaterThan(maxDataFrame.getMaxData())) {
+                    return;
+                }
+                break;
+            case FrameType.STOP_SENDING:
+                break;
+                
+        }
+        this.queueFrame(frame);
     }
 
     /**
@@ -496,7 +545,7 @@ export class Connection extends FlowControlledObject {
         if (packet !== undefined) {
             packet.getHeader().setPacketNumber(this.getNextPacketNumber());
             PacketLogging.getInstance().logOutgoingPacket(this, packet);
-            this.lossDetection.onPacketSent(packet);
+            this.emit(ConnectionEvent.PACKET_SENT, packet);
             this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
     }
@@ -621,5 +670,6 @@ export enum ConnectionEvent {
     HANDSHAKE_DONE = "con-handshake-done",
     STREAM = "con-stream",
     DRAINING = "con-draining",
-    CLOSE = "con-close"
+    CLOSE = "con-close",
+    PACKET_SENT = "con-packet-sent"
 }

@@ -3,6 +3,7 @@ import { Bignum } from '../types/bignum';
 import { Alarm, AlarmEvent } from '../types/alarm';
 import { AckFrame } from '../frame/ack';
 import { EventEmitter } from 'events';
+import { Connection, ConnectionEvent } from '../quicker/connection';
 
 // SentPackets type:
 // Key is the value of the packet number toString
@@ -16,9 +17,9 @@ interface SentPacket {
     packet: BasePacket,
     // Milliseconds sinds epoch
     time: number,
-    // Does the packet contain only ack frames or not
+    // Does the packet contain frames that are retransmittable
     // This value could be a function in BasePacket
-    isAckOnly: boolean
+    isRetransmittable: boolean
 };
 
 /**
@@ -95,7 +96,7 @@ export class LossDetection extends EventEmitter {
     private retransmittablePacketsOutstanding: number;
     private handshakeOutstanding: number;
 
-    public constructor() {
+    public constructor(connection: Connection) {
         super();
         this.lossDetectionAlarm = new Alarm();
         this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, () => {
@@ -124,13 +125,18 @@ export class LossDetection extends EventEmitter {
         this.handshakeOutstanding = 0;
         this.handshakeCount = 0;
         this.sentPackets = {};
+        this.hookEvents(connection);
+    }
+
+    private hookEvents(connection: Connection) {
+        connection.on(ConnectionEvent.PACKET_SENT, (packet: BasePacket) => {
+            this.onPacketSent(packet);
+        });
     }
 
     /**
      * After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called
      * @param basePacket The packet that is being sent. From this packet, the packetnumber and the number of bytes sent can be derived.
-     * @param isAckOnly A boolean that indicates whether a packet only contains an ACK frame. 
-     *                  If true, it is still expected an ack will be received for this packet, but it is not congestion controlled.
      */
     public onPacketSent(basePacket: BasePacket): void {
         this.timeOfLastSentPacket = (new Date()).getTime();
@@ -139,7 +145,7 @@ export class LossDetection extends EventEmitter {
         var sentPacket: SentPacket = {
             packet: basePacket,
             time: this.timeOfLastSentPacket,
-            isAckOnly: basePacket.isAckOnly()
+            isRetransmittable: basePacket.isRetransmittable()
         };
         if (basePacket.isRetransmittable()) {
             this.retransmittablePacketsOutstanding++;
@@ -148,7 +154,7 @@ export class LossDetection extends EventEmitter {
             this.handshakeOutstanding++;
         }
         this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
-        if (!basePacket.isAckOnly()) {
+        if (basePacket.isRetransmittable()) {
             // this.congestionControl.onPacketSent(basePacket.toBuffer().byteLength);
             this.setLossDetectionAlarm();
         }
@@ -175,7 +181,7 @@ export class LossDetection extends EventEmitter {
         this.minRtt = Bignum.min(this.minRtt, this.latestRtt);
         if (this.latestRtt.subtract(this.minRtt).greaterThan(ackFrame.getAckDelay())) {
             this.latestRtt = this.latestRtt.subtract(ackFrame.getAckDelay());
-            if (this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex', 8)].isAckOnly) {
+            if (!this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex', 8)].isRetransmittable) {
                 this.maxAckDelay = Bignum.max(this.maxAckDelay, ackFrame.getAckDelay());
             }
         }
@@ -235,7 +241,7 @@ export class LossDetection extends EventEmitter {
      * @param ackedPacketNumber The packetnumber of the packet that is being acked.
      */
     public onPacketAcked(ackedPacketNumber: Bignum, packet: BasePacket): void {
-        this.emit(LossDetectionEvents.PACKETS_ACKED, packet);
+        this.emit(LossDetectionEvents.PACKET_ACKED, packet);
         if (this.rtoCount > 0 && ackedPacketNumber.greaterThan(this.largestSentBeforeRto)) {
             this.emit(LossDetectionEvents.RETRANSMISSION_TIMEOUT_VERIFIED);
         }
@@ -408,6 +414,6 @@ export class LossDetection extends EventEmitter {
 export enum LossDetectionEvents {
     RETRANSMISSION_TIMEOUT_VERIFIED = "ld-retransmission-timeout-verified",
     PACKETS_LOST = "ld-packets-lost",
-    PACKETS_ACKED = "ld-packets-acked",
+    PACKET_ACKED = "ld-packet-acked",
     RETRANSMIT_PACKET = "ld-retransmit-packet"
 }

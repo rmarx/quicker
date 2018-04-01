@@ -134,11 +134,11 @@ export class FlowControl {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 } 
                 if (this.isRemoteStreamIdBlocked(connection, stream)) {
-                    if (this.isUniStreamId(stream.getStreamID()) && !uniAdded) {
+                    if (Stream.isUniStreamId(stream.getStreamID()) && !uniAdded) {
                         var frame = this.addRemoteStreamIdBlocked(connection, stream);
                         flowControlFrames.push(frame);
                         uniAdded = true;
-                    } else if (this.isUniStreamId(stream.getStreamID()) && !bidiAdded) {
+                    } else if (Stream.isUniStreamId(stream.getStreamID()) && !bidiAdded) {
                         var frame = this.addRemoteStreamIdBlocked(connection, stream);
                         flowControlFrames.push(frame);
                         bidiAdded = true;
@@ -293,7 +293,7 @@ export class FlowControl {
                 return;
             }
             var newStreamId = undefined;
-            if (this.isUniStreamId(streamId)) {
+            if (Stream.isUniStreamId(streamId)) {
                 if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamUni())) {
                     newStreamId = connection.getLocalMaxStreamUni().add(Constants.MAX_STREAM_ID_INCREMENT);
                     connection.setLocalMaxStreamUni(newStreamId);
@@ -319,16 +319,13 @@ export class FlowControl {
         return streamId.and(new Bignum(0x1)).equals(0);
     }
 
-    private static isUniStreamId(streamId: Bignum): boolean {
-        return streamId.and(new Bignum(2)).equals(new Bignum(2));
-    }
 
     private static isRemoteStreamIdBlocked(connection: Connection, stream: Stream): boolean {
         if (!this.isRemoteStreamId(connection, stream.getStreamID())) {
             return false;
         }
         var streamId = stream.getStreamID();
-        if (this.isUniStreamId(streamId)) {
+        if (Stream.isUniStreamId(streamId)) {
             return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamUni());
         } else {
             return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamBidi());
@@ -339,7 +336,7 @@ export class FlowControl {
         var frames = new Array<BaseFrame>();
         var streamId = stream.getStreamID();
         var newStreamId = undefined;
-        if (this.isUniStreamId(streamId)) {
+        if (Stream.isUniStreamId(streamId)) {
             return FrameFactory.createStreamIdBlockedFrame(connection.getRemoteMaxStreamUni());
         } else {
             return FrameFactory.createStreamIdBlockedFrame(connection.getRemoteMaxStreamBidi());
