@@ -90,7 +90,7 @@ export class CongestionControl extends EventEmitter {
         var packetByteSize = ackedPacket.toBuffer(this.connection).byteLength;
         // Remove from bytesInFlight.
         this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
-        if (ackedPacket.getHeader().getPacketNumber().getPacketNumber().lessThan(this.endOfRecovery)) {
+        if (this.inRecovery(ackedPacket.getHeader().getPacketNumber().getPacketNumber())) {
             // Do not increase congestion window in recovery period.
             return;
         }
@@ -117,7 +117,7 @@ export class CongestionControl extends EventEmitter {
         });
         // Start a new recovery epoch if the lost packet is larger
         // than the end of the previous recovery epoch.
-        if (this.endOfRecovery.lessThan(largestLost)) {
+        if (!this.inRecovery(largestLost)) {
             this.endOfRecovery = largestLost;
             this.congestionWindow = this.congestionWindow.multiply(CongestionControl.LOSS_REDUCTION_FACTOR);
             this.congestionWindow = Bignum.max(this.congestionWindow, CongestionControl.MINIMUM_WINDOW);
