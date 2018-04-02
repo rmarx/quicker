@@ -7,6 +7,7 @@ export class Cipher {
 
     public constructor(cipher: string) {
         this.cipher = cipher;
+        console.log(this.cipher);
     }
 
     public getHash(): string {
