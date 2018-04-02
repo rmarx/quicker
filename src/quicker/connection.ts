@@ -59,7 +59,7 @@ export class Connection extends FlowControlledObject {
     private localMaxStreamUni!: Bignum;
     private localMaxStreamBidi!: Bignum;
     private localMaxStreamUniBlocked: boolean;
-    private localMaxStreamBidiBlocked: boolean; 
+    private localMaxStreamBidiBlocked: boolean;
 
     private earlyData?: Buffer;
 
@@ -87,7 +87,7 @@ export class Connection extends FlowControlledObject {
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
-        
+
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
         // Hook QuicTLS Events
@@ -190,8 +190,8 @@ export class Connection extends FlowControlledObject {
         return this.remoteMaxStreamBidi;
     }
 
-    setRemoteMaxStreamUni(remoteMaxStreamUni: number): void 
-    setRemoteMaxStreamUni(remoteMaxStreamUni: Bignum): void 
+    setRemoteMaxStreamUni(remoteMaxStreamUni: number): void
+    setRemoteMaxStreamUni(remoteMaxStreamUni: Bignum): void
     public setRemoteMaxStreamUni(remoteMaxStreamUni: any): void {
         if (remoteMaxStreamUni instanceof Bignum) {
             this.remoteMaxStreamUni = remoteMaxStreamUni;
@@ -200,8 +200,8 @@ export class Connection extends FlowControlledObject {
         this.remoteMaxStreamUni = new Bignum(remoteMaxStreamUni);
     }
 
-    setRemoteMaxStreamBidi(remoteMaxStreamBidi: number): void 
-    setRemoteMaxStreamBidi(remoteMaxStreamBidi: Bignum): void 
+    setRemoteMaxStreamBidi(remoteMaxStreamBidi: number): void
+    setRemoteMaxStreamBidi(remoteMaxStreamBidi: Bignum): void
     public setRemoteMaxStreamBidi(remoteMaxStreamBidi: any): void {
         if (remoteMaxStreamBidi instanceof Bignum) {
             this.remoteMaxStreamBidi = remoteMaxStreamBidi;
@@ -218,8 +218,8 @@ export class Connection extends FlowControlledObject {
         return this.localMaxStreamBidi;
     }
 
-    setLocalMaxStreamUni(localMaxStreamUni: number): void 
-    setLocalMaxStreamUni(localMaxStreamUni: Bignum): void 
+    setLocalMaxStreamUni(localMaxStreamUni: number): void
+    setLocalMaxStreamUni(localMaxStreamUni: Bignum): void
     public setLocalMaxStreamUni(localMaxStreamUni: any): void {
         if (localMaxStreamUni instanceof Bignum) {
             this.localMaxStreamUni = localMaxStreamUni;
@@ -228,8 +228,8 @@ export class Connection extends FlowControlledObject {
         this.localMaxStreamUni = new Bignum(localMaxStreamUni);
     }
 
-    setLocalMaxStreamBidi(localMaxStreamBidi: number): void 
-    setLocalMaxStreamBidi(localMaxStreamBidi: Bignum): void 
+    setLocalMaxStreamBidi(localMaxStreamBidi: number): void
+    setLocalMaxStreamBidi(localMaxStreamBidi: Bignum): void
     public setLocalMaxStreamBidi(localMaxStreamBidi: any): void {
         if (localMaxStreamBidi instanceof Bignum) {
             this.localMaxStreamBidi = localMaxStreamBidi;
@@ -237,19 +237,19 @@ export class Connection extends FlowControlledObject {
         }
         this.localMaxStreamBidi = new Bignum(localMaxStreamBidi);
     }
-    
+
     public setLocalMaxStreamUniBlocked(blocked: boolean): void {
         this.localMaxStreamUniBlocked = blocked;
     }
-    
+
     public setLocalMaxStreamBidiBlocked(blocked: boolean): void {
         this.localMaxStreamBidiBlocked = blocked;
     }
-    
+
     public getLocalMaxStreamUniBlocked(): boolean {
         return this.localMaxStreamUniBlocked;
     }
-    
+
     public getLocalMaxStreamBidiBlocked(): boolean {
         return this.localMaxStreamBidiBlocked;
     }
@@ -425,7 +425,7 @@ export class Connection extends FlowControlledObject {
     public queueFrame(baseFrame: BaseFrame) {
         this.queueFrames([baseFrame]);
     }
-    
+
     public queueFrames(baseFrames: BaseFrame[]): void {
         this.bufferedFrames = this.bufferedFrames.concat(baseFrames);
         if (!this.transmissionAlarm.isRunning()) {
@@ -434,7 +434,7 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitPacket(packet: BasePacket) {
-        switch(packet.getPacketType()) {
+        switch (packet.getPacketType()) {
             case PacketType.Initial:
                 if (this.getStream(0).getLocalOffset().greaterThan(0)) {
                     // Server hello is already received, packet does not need to be retransmitted
@@ -450,7 +450,7 @@ export class Connection extends FlowControlledObject {
                 }
         }
 
-        var framePacket = <BaseEncryptedPacket> packet;
+        var framePacket = <BaseEncryptedPacket>packet;
         framePacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.isRetransmittable()) {
                 this.retransmitFrame(frame);
@@ -461,16 +461,7 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitFrame(frame: BaseFrame) {
-        switch(frame.getType()) {
-            case FrameType.STREAM:
-                var stream: Stream | undefined = this._getStream((<StreamFrame>frame).getStreamID());
-                // Check if stream exists and if RST_STREAM has been sent
-                // TODO: first check if RST_STREAM has been acked
-                // TODO: don't retransmit frame, retransmit data
-                if (stream === undefined || stream.getStreamState() === StreamState.LocalClosed || stream.getStreamState() === StreamState.Closed) {
-                    return;
-                }
-                break;
+        switch (frame.getType()) {
             case FrameType.MAX_STREAM_ID:
                 var streamID = (<MaxStreamIdFrame>frame).getMaxStreamId();
                 // Check if not a bigger maxStreamID frame has been sent
@@ -498,7 +489,17 @@ export class Connection extends FlowControlledObject {
                 break;
             case FrameType.STOP_SENDING:
                 break;
-                
+            default:
+                if (frame.getType() >= FrameType.STREAM) {
+                    var stream: Stream | undefined = this._getStream((<StreamFrame>frame).getStreamID());
+                    // Check if stream exists and if RST_STREAM has been sent
+                    // TODO: first check if RST_STREAM has been acked
+                    // TODO: don't retransmit frame, retransmit data
+                    if (stream === undefined || stream.getStreamState() === StreamState.LocalClosed || stream.getStreamState() === StreamState.Closed) {
+                        return;
+                    }
+                    break;
+                }
         }
         this.queueFrame(frame);
     }
@@ -556,7 +557,7 @@ export class Connection extends FlowControlledObject {
             if (baseFrame.getType() === FrameType.ACK) {
                 containsAck = true;
             }
-        }); 
+        });
         return containsAck;
     }
 
