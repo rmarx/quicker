@@ -8,7 +8,7 @@ export class QuicError extends BaseError {
     private phrase: string | undefined;
 
     constructor (errorCode: QuicErrorCode, phrase?: string) {
-        super(errorCode.toString());
+        super(errorCode.toString() + ": " + phrase);
         this.errorCode = errorCode;
         this.phrase = phrase;
     }
