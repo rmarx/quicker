@@ -26,10 +26,10 @@ export class HttpHelper {
 
     private parse(data: Buffer) {
         var request = data.toString('utf8');
+        request = request.split('\n').join('').split('\r').join('');
         if (request.endsWith('/')) {
             request += "index.html";
         }
-        request = request.split('\n').join('').split('\r').join('');
         return request.toLowerCase().replace('get ','');
     }
 }
