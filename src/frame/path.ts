@@ -6,7 +6,7 @@ abstract class BasePathFrame extends BaseFrame {
     private data: Buffer;
 
     public constructor(type: FrameType, data: Buffer) {
-        super(type);
+        super(type, true);
         this.data = data;
     }
 
