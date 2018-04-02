@@ -51,7 +51,7 @@ export class CongestionControl extends EventEmitter {
         this.bytesInFlight = new Bignum(0);
         this.endOfRecovery = new Bignum(0);
         this.sshtresh = Bignum.infinity();
-        this.hookCongestionControlEvents(lossDetection);
+        //this.hookCongestionControlEvents(lossDetection);
     }
 
     private hookCongestionControlEvents(lossDetection: LossDetection) {
