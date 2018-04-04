@@ -45,7 +45,7 @@ export class FlowControl {
         if (connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
             frames.flowControlFrames.forEach((frame: BaseFrame) => {
                 var frameSize = frame.toBuffer().byteLength
-                if (size.add(frameSize).greaterThan(maxPacketSize)) {
+                if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
                     packets.push(this.createNewPacket(connection, packetFrames));
                     size = new Bignum(0);
                     packetFrames = [];
@@ -56,8 +56,8 @@ export class FlowControl {
         }
 
         bufferedFrames.forEach((frame: BaseFrame) => {
-            var frameSize = frame.toBuffer().byteLength
-            if (size.add(frameSize).greaterThan(maxPacketSize)) {
+            var frameSize = frame.toBuffer().byteLength;
+            if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
                 packets.push(this.createNewPacket(connection, packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
@@ -67,8 +67,8 @@ export class FlowControl {
         });
 
         frames.streamFrames.forEach((frame: BaseFrame) => {
-            var frameSize = frame.toBuffer().byteLength
-            if (size.add(frameSize).greaterThan(maxPacketSize)) {
+            var frameSize = frame.toBuffer().byteLength;
+            if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
                 packets.push(this.createNewPacket(connection, packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
