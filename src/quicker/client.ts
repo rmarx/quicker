@@ -73,10 +73,12 @@ export class Client extends Endpoint {
 
     private setupConnectionEvents() {
         this.connection.on(ConnectionEvent.DRAINING, () => {
-            this.emit(QuickerEvent.CONNECTION_DRAINING, this.connection.getConnectionID().toString());
+            var connectionID = this.connection.getConnectionID() !== undefined ? this.connection.getConnectionID() : this.connection.getFirstConnectionID();
+            this.emit(QuickerEvent.CONNECTION_DRAINING, connectionID.toString());
         });
         this.connection.on(ConnectionEvent.CLOSE, () => {
-            this.emit(QuickerEvent.CONNECTION_CLOSE, this.connection.getConnectionID().toString());
+            var connectionID = this.connection.getConnectionID() !== undefined ? this.connection.getConnectionID() : this.connection.getFirstConnectionID();
+            this.emit(QuickerEvent.CONNECTION_CLOSE, connectionID.toString());
         });
         this.connection.on(ConnectionEvent.HANDSHAKE_DONE, () => {
             this.connected = true;
