@@ -619,7 +619,7 @@ export class Connection extends FlowControlledObject {
             /**
              * Check to limit the amount of packets with closeframe inside
              */
-            if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND) {
+            if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND && this.getState() !== ConnectionState.Draining) {
                 this.closeSentCount++;
                 var closePacket = this.getClosePacket();
                 closePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
