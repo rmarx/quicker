@@ -99,7 +99,7 @@ export class FlowControl {
         if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
             if (connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(connection, frames);
-            } else if (connection.getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
+            } else if (connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(connection, frames);
             } else if (connection.getQuicTLS().isEarlyDataAllowed() && connection.getQuicTLS().isSessionReused() && !isHandshake) {
                 return PacketFactory.createShortHeaderPacket(connection, frames); 
@@ -123,13 +123,13 @@ export class FlowControl {
         var handshakeFrames = new Array<StreamFrame>();
 
         if (connection.getRemoteTransportParameters() === undefined) {
-            var stream = connection.getStream(new Bignum(0));
+            var stream = connection.getStreamManager().getStream(new Bignum(0));
             handshakeFrames = handshakeFrames.concat(this.getStreamFrames(connection, stream, new Bignum(stream.getData().byteLength), maxPacketSize).handshakeFrames);
         } else if (connection.isRemoteLimitExceeded()) {
             flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
             var uniAdded = false;
             var bidiAdded = false;
-            connection.getStreams().forEach((stream: Stream) => {
+            connection.getStreamManager().getStreams().forEach((stream: Stream) => {
                 if (stream.isRemoteLimitExceeded()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 } 
@@ -146,7 +146,7 @@ export class FlowControl {
                 }
             });
         } else {
-            connection.getStreams().forEach((stream: Stream) => {
+            connection.getStreamManager().getStreams().forEach((stream: Stream) => {
                 var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(connection, stream, maxPacketSize);
                 streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
                 flowControlFrames = flowControlFrames.concat(flowControlFrameObject.flowControlFrames);
@@ -269,7 +269,7 @@ export class FlowControl {
             connection.setIsRemoteBlocked(false);
         }
 
-        connection.getStreams().forEach((stream: Stream) => {
+        connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             if (!stream.getStreamID().equals(0) && stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
                 var newMaxStreamData = stream.getLocalMaxData().multiply(2);
                 frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));
@@ -287,7 +287,7 @@ export class FlowControl {
         var frames = new Array<BaseFrame>();
         var uniAdded = false;
         var bidiAdded = false;
-        connection.getStreams().forEach((stream: Stream) => {
+        connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             var streamId = stream.getStreamID();
             if (stream.getStreamID().equals(0) || this.isRemoteStreamId(connection, streamId)) {
                 return;

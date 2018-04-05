@@ -41,7 +41,7 @@ export class Client extends Endpoint {
         var packetNumber = PacketNumber.randomPacketNumber();
         client.connection.setLocalPacketNumber(packetNumber);
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        var stream = client.connection.getStream(new Bignum(0));
+        var stream = client.connection.getStreamManager().getStream(new Bignum(0));
         client.connection.startConnection();
         client.connection.attemptEarlyData(earlyDataRequest);
         return client;
@@ -91,7 +91,7 @@ export class Client extends Endpoint {
     }
 
     public request(request: Buffer): QuicStream {
-        var stream: Stream = this.connection.getNextStream(StreamType.ClientBidi);
+        var stream: Stream = this.connection.getStreamManager().getNextStream(StreamType.ClientBidi);
         if (this.connected) {
             this.sendRequest(stream, request);
         } else {
