@@ -593,6 +593,7 @@ export class Connection extends FlowControlledObject {
         }
         this.handshakeHandler.startHandshake();
         this.sendPackets();
+        this.startIdleAlarm();
     }
 
 
