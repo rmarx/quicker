@@ -277,6 +277,7 @@ export class Connection extends FlowControlledObject {
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
+        this.getStreamManager().setLocalMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     public getRemoteTransportParameter(type: TransportParameterType): any {
@@ -299,6 +300,7 @@ export class Connection extends FlowControlledObject {
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
+        this.getStreamManager().setRemoteMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     public getSocket(): Socket {

@@ -5,10 +5,12 @@ import { EndpointType } from "../types/endpoint.type";
 import { EventEmitter } from "events";
 
 
-export class StreamManager extends EventEmitter{
+export class StreamManager extends EventEmitter {
 
     private streams: Stream[];
     private endpointType: EndpointType;
+    private localMaxStreamData!: Bignum
+    private remoteMaxStreamData!: Bignum
 
     public constructor(endpointType: EndpointType) {
         super();
@@ -18,6 +20,14 @@ export class StreamManager extends EventEmitter{
     
     public getStreams(): Stream[] {
         return this.streams;
+    }
+
+    public setLocalMaxStreamData(maxStreamData: Bignum) {
+        this.localMaxStreamData = maxStreamData;
+    }
+
+    public setRemoteMaxStreamData(maxStreamData: Bignum) {
+        this.remoteMaxStreamData = maxStreamData;
     }
 
     public hasStream(streamId: number): boolean;
@@ -37,14 +47,14 @@ export class StreamManager extends EventEmitter{
         return stream;
     }
 
-    private initializeStream(streamId: Bignum, localTransportParameters?: TransportParameters, remoteTransportParameters?: TransportParameters): Stream {
+    private initializeStream(streamId: Bignum): Stream {
         var stream = new Stream(this.endpointType, streamId);
         this.addStream(stream);
-        if (localTransportParameters !== undefined) {
-            stream.setLocalMaxData(localTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        if (this.localMaxStreamData !== undefined) {
+            stream.setLocalMaxData(this.localMaxStreamData);
         }
-        if (remoteTransportParameters !== undefined) {
-            stream.setRemoteMaxData(remoteTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        if (this.remoteMaxStreamData !== undefined) {
+            stream.setRemoteMaxData(this.remoteMaxStreamData);
         }
         this.emit(StreamManagerEvents.INITIALIZED_STREAM, stream);
         return stream;
