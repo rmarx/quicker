@@ -17,7 +17,7 @@ export class HandshakePacket extends BaseEncryptedPacket {
 
     protected getValidFrameTypes(): FrameType[] {
         return [
-            FrameType.STREAM, FrameType.PADDING, FrameType.ACK, FrameType.PATH_CHALLENGE, FrameType.PATH_RESPONSE
+            FrameType.STREAM, FrameType.PADDING, FrameType.ACK, FrameType.PATH_CHALLENGE, FrameType.PATH_RESPONSE, FrameType.CONNECTION_CLOSE
         ];
     }
 }
