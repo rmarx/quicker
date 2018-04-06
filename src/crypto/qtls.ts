@@ -12,6 +12,7 @@ import { TlsErrorCodes } from '../utilities/errors/quic.codes';
 enum NodeQTLSEvent {
     HANDSHAKE_DONE = "handshakedone",
     ERROR = "error",
+    NEW_SESSION = "newsession",
 }
 
 /**
@@ -59,6 +60,9 @@ export class QTLS extends EventEmitter{
         });
         qtlsHelper.on(NodeQTLSEvent.ERROR, (error: Error) => {
             throw new QuicError(TlsErrorCodes.TLS_HANDSHAKE_FAILED);
+        });
+        qtlsHelper.on(NodeQTLSEvent.NEW_SESSION, () => {
+            this.handleNewSession();
         });
         return qtlsHelper;
     }
@@ -154,9 +158,6 @@ export class QTLS extends EventEmitter{
     }
 
     public readSSL(): Buffer {
-        if (this.handshakeState === HandshakeState.CLIENT_COMPLETED) {
-            this.handshakeState = HandshakeState.COMPLETED;
-        }
         return this.qtlsHelper.readSSL();
     }
 
@@ -234,6 +235,12 @@ export class QTLS extends EventEmitter{
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
         this.earlyData = undefined;
+    }
+
+    private handleNewSession(): void {
+        if (!this.isServer) {
+            this.handshakeState = HandshakeState.COMPLETED;
+        }
     }
 
     private setLocalTransportParameters() {

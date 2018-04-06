@@ -12,9 +12,11 @@ export class HandshakeHandler {
 
     private connection: Connection;
     private stream!: Stream;
+    private handshakeEmitted: boolean;
 
     public constructor(connection: Connection) {
         this.connection = connection;
+        this.handshakeEmitted = false;
     }
 
     public startHandshake(): void {
@@ -22,6 +24,7 @@ export class HandshakeHandler {
             throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
         }
         var clientInitial = this.connection.getQuicTLS().getClientInitial(true);
+        this.handshakeEmitted = false;
         this.stream.addData(clientInitial);
     }
 
@@ -40,10 +43,12 @@ export class HandshakeHandler {
         var data = this.connection.getQuicTLS().readHandshake();
         if (data !== undefined && data.byteLength > 0) {
             this.stream.addData(data);
-        } else if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client) {
-            // To process NewSessionTicket
-            this.connection.getQuicTLS().readSSL();
+        }
+        if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client && !this.handshakeEmitted) {
+            this.handshakeEmitted = true;
             this.connection.emit(ConnectionEvent.HANDSHAKE_DONE);
         }
+        // To process NewSessionTicket
+        this.connection.getQuicTLS().readSSL();
     }
 }
