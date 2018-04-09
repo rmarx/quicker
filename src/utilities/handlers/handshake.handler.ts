@@ -7,7 +7,9 @@ import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
 
 
-
+/**
+ * TODO: deal better with handshake data in the correct packets
+ */
 export class HandshakeHandler {
 
     private connection: Connection;
@@ -48,6 +50,7 @@ export class HandshakeHandler {
             this.handshakeEmitted = true;
             this.connection.emit(ConnectionEvent.HANDSHAKE_DONE);
         }
+        this.connection.sendPackets();
         // To process NewSessionTicket
         this.connection.getQuicTLS().readSSL();
     }
