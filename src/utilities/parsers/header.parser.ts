@@ -3,7 +3,9 @@ import { BaseHeader } from "../../packet/header/base.header";
 import { LongHeader } from "../../packet/header/long.header";
 import { ShortHeader, ShortHeaderType } from "../../packet/header/short.header";
 import { Constants } from "../constants";
-import {ConnectionID, PacketNumber, Version} from '../../packet/header/header.properties';
+import { ConnectionID, PacketNumber, Version } from '../../packet/header/header.properties';
+import { QuicError } from "../errors/connection.error";
+import { ConnectionErrorCodes } from "../errors/quic.codes";
 
 
 export class HeaderParser {
@@ -47,18 +49,20 @@ export class HeaderParser {
     private parseShortHeader(buf: Buffer): HeaderOffset {
         var offset = 1;
         var type = buf.readUIntBE(0, 1);
-        var connectionIdOmitted: boolean = (type & 0x40) === 0x40;
-        var keyPhaseBit = (type & 0x20) === 0x20;
-        var connectionId = undefined;
-
-        type = this.correctShortHeaderType(type);
-        if (!connectionIdOmitted) {
-            connectionId = new ConnectionID(buf.slice(offset, offset + 8));
-            offset = offset + 8;
+        var keyPhaseBit: boolean = (type & 0x40) === 0x40;
+        var thirdBitCheck = (type & 0x20) === 0x20;
+        var fourthBitCheck = (type & 0x10) === 0x10;
+        var fifthBitCheck = (type & 0x08) === 0x08;
+        if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
+        
+        type = this.correctShortHeaderType(type);
+        var connectionId = new ConnectionID(buf.slice(offset, offset + 8));
+        offset = offset + 8;
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
-        offset = offset + (1 << type );
-        return { header: new ShortHeader(type, connectionId, packetNumber, connectionIdOmitted, keyPhaseBit), offset: offset };
+        offset = offset + (1 << type);
+        return { header: new ShortHeader(type, connectionId, packetNumber, keyPhaseBit), offset: offset };
     }
 
     /**

@@ -41,11 +41,9 @@ export class ConnectionManager extends EventEmitter{
             }
         } else {
             var shortHeader = <ShortHeader>header;
-            if (shortHeader.getConnectionIDOmitted()) {
-                var connection = this.getConnectionByRemoteInformation(rinfo);
-                if (connection !== undefined) {
-                    return connection;
-                }
+            var connection = this.getConnectionByRemoteInformation(rinfo);
+            if (connection !== undefined) {
+                return connection;
             } else if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
                 return this.connections[connectionID.toString()];
             }

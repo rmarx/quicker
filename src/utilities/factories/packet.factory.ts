@@ -87,8 +87,7 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var omitConnectionID: boolean = connection.getRemoteTransportParameter(TransportParameterType.OMIT_CONNECTION_ID);
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), undefined, omitConnectionID, false)
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), undefined, false)
         return new ShortHeaderPacket(header, frames);
     }
 }

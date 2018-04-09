@@ -3,7 +3,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff00000a'
+        'ff00000b'
     ];
 
     public static readonly LOG_TYPE = "stdout";
@@ -15,10 +15,10 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff00000a': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
-        'abcdef0a': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'ff00000b': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'abcdef0b': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
     }
-    public static readonly ALPN_LABEL = "hq-10";
+    public static readonly ALPN_LABEL = "hq-11";
     
     public static readonly LONG_HEADER_SIZE = 17;
     public static readonly LONG_HEADER_VN_SIZE = 13;
@@ -45,9 +45,9 @@ export class Constants {
      * default values for transport extensions
      */
     public static readonly DEFAULT_MAX_STREAM_CLIENT_BIDI = 12;
-    public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 12 + 1;
-    public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12 + 2;
-    public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12 + 3;
+    public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 12;
+    public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
+    public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
     public static readonly DEFAULT_MAX_DATA = 50 * 1024;
     public static readonly DEFAULT_ACK_EXPONENT = 3;

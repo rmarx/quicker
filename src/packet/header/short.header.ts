@@ -1,5 +1,5 @@
-import {BaseHeader, HeaderType} from './base.header';
-import {ConnectionID, PacketNumber} from './header.properties';
+import { BaseHeader, HeaderType } from './base.header';
+import { ConnectionID, PacketNumber } from './header.properties';
 
 
 /**           0              [1-7]                      *                       *
@@ -8,21 +8,11 @@ import {ConnectionID, PacketNumber} from './header.properties';
  *   +--------------------------------------------------------------------------------------+
  */
 export class ShortHeader extends BaseHeader {
-    private connectionIDOmitted: boolean;
     private keyPhaseBit: boolean;
 
-    public constructor(type: number, connectionID: (ConnectionID | undefined), packetNumber: (PacketNumber | undefined), connectionIDOmitted: boolean, keyPhaseBit: boolean) {
+    public constructor(type: number, connectionID: (ConnectionID | undefined), packetNumber: (PacketNumber | undefined), keyPhaseBit: boolean) {
         super(HeaderType.ShortHeader, type, connectionID, packetNumber);
-        this.connectionIDOmitted = connectionIDOmitted;
         this.keyPhaseBit = keyPhaseBit;
-    }
-
-    public getConnectionIDOmitted(): boolean {
-        return this.connectionIDOmitted;
-    }
-
-    public setConnectionIDOmitted(isOmitted: boolean) {
-        this.connectionIDOmitted = isOmitted;
     }
 
     public getKeyPhaseBit(): boolean {
@@ -38,26 +28,23 @@ export class ShortHeader extends BaseHeader {
         var buffer = Buffer.alloc(size);
         var offset = 0;
         buffer.writeUInt8(this.getType(), offset++);
-        if (!this.connectionIDOmitted) {
-            var connectionID = this.getConnectionID();
-            if (connectionID === undefined) {
-                throw Error("undefined connectionID");
-            }
-            connectionID.toBuffer().copy(buffer, offset);
-            offset += 8;
+        var connectionID = this.getConnectionID();
+        if (connectionID === undefined) {
+            throw Error("undefined connectionID");
         }
+        connectionID.toBuffer().copy(buffer, offset);
+        offset += 8;
         this.getPacketNumber().getLeastSignificantBits(this.getPacketNumberSize()).copy(buffer, offset);
         return buffer;
     }
 
     private getType(): number {
         var type = this.getPacketType();
-        if (this.connectionIDOmitted) {
+        if (this.keyPhaseBit) {
             type += 0x40;
         }
-        if (this.keyPhaseBit) {
-            type += 0x20;
-        }
+        // Since Draft-11: Third bit:  The third bit (0x20) of octet 0 is set to 1.
+        type += 0x20;
         // Since Draft-10: Fourth bit:  The fourth bit (0x10) of octet 0 is set to 1.
         type += 0x10;
 
@@ -65,7 +52,7 @@ export class ShortHeader extends BaseHeader {
     }
 
     public getPacketNumberSize(): number {
-        switch(this.getPacketType()) {
+        switch (this.getPacketType()) {
             case ShortHeaderType.OneOctet:
                 return 1;
             case ShortHeaderType.TwoOctet:
@@ -75,10 +62,7 @@ export class ShortHeader extends BaseHeader {
     }
 
     private calculateHeaderSize(): number {
-        var size = 1;
-        if (!this.connectionIDOmitted) {
-            size += 8;
-        }
+        var size = 9;
         size += this.getPacketNumberSize();
 
         return size;

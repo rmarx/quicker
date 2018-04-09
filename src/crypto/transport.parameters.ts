@@ -13,7 +13,6 @@ export class TransportParameters {
     private maxStreamIdBidi!: number;
     private maxStreamIdUni!: number;
     private idleTimeout: number;
-    private omitConnectionId!: boolean;
     private maxPacketSize!: number;
     private statelessResetToken!: Buffer;
     private ackDelayExponent!: number;
@@ -51,9 +50,6 @@ export class TransportParameters {
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 this.ackDelayExponent = value;
                 break;
-            case TransportParameterType.OMIT_CONNECTION_ID:
-                this.omitConnectionId = value;
-                break;
         }
     }
 
@@ -75,8 +71,6 @@ export class TransportParameters {
                 return this.maxPacketSize === undefined ? Constants.MAX_PACKET_SIZE : this.maxPacketSize;
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 return this.ackDelayExponent === undefined ? Constants.DEFAULT_ACK_EXPONENT : this.ackDelayExponent;
-            case TransportParameterType.OMIT_CONNECTION_ID:
-                return this.omitConnectionId;
         }
         return undefined;
     }
@@ -101,9 +95,6 @@ export class TransportParameters {
         }
         if (this.ackDelayExponent !== undefined) {
             bufferOffset = this.writeTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, bufferOffset.buffer, bufferOffset.offset);
-        }
-        if (this.omitConnectionId !== undefined && this.omitConnectionId) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.OMIT_CONNECTION_ID, bufferOffset.buffer, bufferOffset.offset);
         }
         return bufferOffset.buffer;
     }
@@ -144,13 +135,13 @@ export class TransportParameters {
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
                 bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdBidi, bufferOffset.offset);
-                bufferOffset.offset += 4;
+                bufferOffset.buffer.writeUInt16BE(this.maxStreamIdBidi, bufferOffset.offset);
+                bufferOffset.offset += 2;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
                 bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxStreamIdUni, bufferOffset.offset);
-                bufferOffset.offset += 4;
+                bufferOffset.buffer.writeUInt16BE(this.maxStreamIdUni, bufferOffset.offset);
+                bufferOffset.offset += 2;
                 break;
             case TransportParameterType.MAX_PACKET_SIZE:
                 bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
@@ -161,9 +152,6 @@ export class TransportParameters {
                 bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 1);
                 bufferOffset.buffer.writeUInt8(this.ackDelayExponent, bufferOffset.offset);
                 bufferOffset.offset += 1;
-                break;
-            case TransportParameterType.OMIT_CONNECTION_ID:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 0);
                 break;
         }
         return bufferOffset;
@@ -178,16 +166,12 @@ export class TransportParameters {
         // idle timeout: 2 byte for type, 2 byte for length and 2 byte for value
         size += 2 + 2 + 2;
         if (this.maxStreamIdBidi !== undefined) {
-            // max stream id for bidirectional streams: 2 byte for type,2 byte for length and 4 byte for value
-            size += 2 + 2 + 4;
+            // max stream id for bidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
+            size += 2 + 2 + 2;
         }
         if (this.maxStreamIdUni !== undefined) {
-            // max stream id for unidirectional streams: 2 byte for type,2 byte for length and 4 byte for value
-            size += 2 + 2 + 4;
-        }
-        if (this.omitConnectionId !== undefined && this.omitConnectionId) {
-            // omit connection id: only 2 byte for type and 2 byte for length
-            size += 2 + 2;
+            // max stream id for unidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
+            size += 2 + 2 + 2;
         }
         if (this.maxPacketSize !== undefined) {
             // max size for a packet: 2 byte for type, 2 byte for length and 2 byte for value
@@ -241,7 +225,6 @@ export enum TransportParameterType {
     MAX_DATA = 0x01,
     INITIAL_MAX_STREAM_ID_BIDI = 0x02,
     IDLE_TIMEOUT = 0x03,
-    OMIT_CONNECTION_ID = 0x04,
     MAX_PACKET_SIZE = 0x05,
     STATELESS_RESET_TOKEN = 0x06,
     ACK_DELAY_EXPONENT = 0x07,
