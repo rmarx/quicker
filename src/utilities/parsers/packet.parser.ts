@@ -1,20 +1,21 @@
-import {ConnectionErrorCodes} from '../errors/quic.codes';
-import {QuicError} from '../errors/connection.error';
-import {FrameParser} from './frame.parser';
-import {AEAD} from '../../crypto/aead';
-import {Connection} from '../../quicker/connection';
-import {HeaderOffset} from './header.parser';
-import {EndpointType} from '../../types/endpoint.type';
-import {HeaderType, BaseHeader} from '../../packet/header/base.header';
-import {LongHeader, LongHeaderType} from '../../packet/header/long.header';
-import {Version} from "../../packet/header/header.properties";
-import {Constants} from '../constants';
-import {ClientInitialPacket} from '../../packet/packet/client.initial';
-import {VersionNegotiationPacket} from '../../packet/packet/version.negotiation';
-import {HandshakePacket} from '../../packet/packet/handshake';
-import {BasePacket} from '../../packet/base.packet';
+import { ConnectionErrorCodes } from '../errors/quic.codes';
+import { QuicError } from '../errors/connection.error';
+import { FrameParser } from './frame.parser';
+import { AEAD } from '../../crypto/aead';
+import { Connection } from '../../quicker/connection';
+import { HeaderOffset } from './header.parser';
+import { EndpointType } from '../../types/endpoint.type';
+import { HeaderType, BaseHeader } from '../../packet/header/base.header';
+import { LongHeader, LongHeaderType } from '../../packet/header/long.header';
+import { Version } from "../../packet/header/header.properties";
+import { Constants } from '../constants';
+import { ClientInitialPacket } from '../../packet/packet/client.initial';
+import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
+import { HandshakePacket } from '../../packet/packet/handshake';
+import { BasePacket } from '../../packet/base.packet';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
+import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 
 
 export class PacketParser {
@@ -38,22 +39,33 @@ export class PacketParser {
         if (longheader.getVersion().toString() === "00000000") {
             return this.parseVersionNegotiationPacket(headerOffset, buffer);
         }
+
+        var packetOffset: PacketOffset;
         switch (longheader.getPacketType()) {
             case LongHeaderType.Initial:
-                return this.parseClientInitialPacket(connection, headerOffset, buffer, endpoint);
                 // Initial
+                packetOffset = this.parseClientInitialPacket(connection, headerOffset, buffer, endpoint);
+                break;
             case LongHeaderType.Protected0RTT:
-                return this.parseProtected0RTTPacket(connection, headerOffset, buffer, endpoint);
                 // 0-RTT Protected
+                packetOffset = this.parseProtected0RTTPacket(connection, headerOffset, buffer, endpoint);
+                break;
             case LongHeaderType.Retry:
                 // Server Stateless Retry
                 throw new Error("Method not implemented.");
             case LongHeaderType.Handshake:
-                return this.parseHandshakePacket(connection, headerOffset, buffer, endpoint);
+                // Handshake packet
+                packetOffset = this.parseHandshakePacket(connection, headerOffset, buffer, endpoint);
+                break;
             default:
                 // Unknown packet type
-                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid packet type");
         }
+        var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket> packetOffset.packet;
+        if (!baseEncryptedPacket.containsValidFrames()) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet");
+        }
+        return packetOffset;
     }
 
     private parseShortHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {

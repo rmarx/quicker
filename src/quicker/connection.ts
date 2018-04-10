@@ -31,6 +31,7 @@ import { MaxStreamIdFrame } from '../frame/max.stream.id';
 import { MaxStreamFrame } from '../frame/max.stream';
 import { MaxDataFrame } from '../frame/max.data';
 import { CongestionControl } from '../congestion-control/congestion.control';
+import { StreamManager, StreamManagerEvents } from './stream.manager';
 
 export class Connection extends FlowControlledObject {
 
@@ -65,7 +66,7 @@ export class Connection extends FlowControlledObject {
     private earlyData?: Buffer;
 
     private state!: ConnectionState;
-    private streams: Stream[];
+    private streamManager: StreamManager;
 
     private idleTimeoutAlarm: Alarm;
     private transmissionAlarm: Alarm;
@@ -75,10 +76,10 @@ export class Connection extends FlowControlledObject {
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
         super();
-        super.init(this);
         this.remoteInfo = remoteInfo;
         this.endpointType = endpointType;
-        this.streams = [];
+        this.streamManager = new StreamManager(endpointType);
+        this.hookStreamManagerEvents();
         this.bufferedFrames = [];
         this.idleTimeoutAlarm = new Alarm();
         this.transmissionAlarm = new Alarm();
@@ -120,6 +121,16 @@ export class Connection extends FlowControlledObject {
         });
         this.qtls.on(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, (transportParams: TransportParameters) => {
             this.setRemoteTransportParameters(transportParams);
+        });
+    }
+
+    private hookStreamManagerEvents() {
+        this.streamManager.on(StreamManagerEvents.INITIALIZED_STREAM, (stream: Stream) => {
+            if (stream.getStreamID().compare(new Bignum(0)) !== 0) {
+                this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
+            } else {
+                this.handshakeHandler.setHandshakeStream(stream);
+            }
         });
     }
 
@@ -177,6 +188,10 @@ export class Connection extends FlowControlledObject {
 
     public getLossDetection(): LossDetection {
         return this.lossDetection;
+    }
+
+    public getStreamManager(): StreamManager {
+        return this.streamManager;
     }
 
     public getLocalTransportParameter(type: TransportParameterType): any {
@@ -268,9 +283,10 @@ export class Connection extends FlowControlledObject {
         this.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
         this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI));
         this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI));
-        this.streams.forEach((stream: Stream) => {
+        this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
+        this.getStreamManager().setLocalMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     public getRemoteTransportParameter(type: TransportParameterType): any {
@@ -290,9 +306,10 @@ export class Connection extends FlowControlledObject {
         this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
         this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI));
         this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI));
-        this.streams.forEach((stream: Stream) => {
+        this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
+        this.getStreamManager().setRemoteMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     public getSocket(): Socket {
@@ -338,94 +355,10 @@ export class Connection extends FlowControlledObject {
         this.socket = socket;
     }
 
-    public getStreams(): Stream[] {
-        return this.streams;
-    }
-
-    public hasStream(streamId: number): boolean;
-    public hasStream(streamId: Bignum): boolean;
-    public hasStream(streamId: any): boolean {
-        var stream = this._getStream(streamId);
-        return stream !== undefined;
-    }
-
-    public getStream(streamId: number): Stream;
-    public getStream(streamId: Bignum): Stream;
-    public getStream(streamId: any): Stream {
-        var stream = this._getStream(streamId);
-        if (stream === undefined) {
-            stream = this.initializeStream(streamId);
-        }
-        return stream;
-    }
-
-    private initializeStream(streamId: Bignum): Stream {
-        var stream = new Stream(this, streamId);
-        this.addStream(stream);
-        if (this.localTransportParameters !== undefined) {
-            stream.setLocalMaxData(this.localTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
-        }
-        if (this.remoteTransportParameters !== undefined) {
-            stream.setRemoteMaxData(this.remoteTransportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
-        }
-        if (streamId.compare(new Bignum(0)) !== 0) {
-            this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
-        } else {
-            this.handshakeHandler.setHandshakeStream(stream);
-        }
-        return stream;
-    }
-
-    private _getStream(streamId: number): Stream | undefined;
-    private _getStream(streamId: Bignum): Stream | undefined;
-    private _getStream(streamId: any): Stream | undefined {
-        var res = undefined;
-        this.streams.forEach((stream: Stream) => {
-            if (stream.getStreamID().equals(streamId)) {
-                res = stream;
-            }
-        });
-        return res;
-    }
-
-    public addStream(stream: Stream): void {
-        if (this._getStream(stream.getStreamID()) === undefined) {
-            this.streams.push(stream);
-        }
-    }
-
-    public deleteStream(streamId: Bignum): void;
-    public deleteStream(stream: Stream): void;
-    public deleteStream(obj: any): void {
-        var stream = undefined;
-        if (obj instanceof Bignum) {
-            stream = this._getStream(obj);
-        } else {
-            stream = obj;
-        }
-        if (stream === undefined) {
-            return;
-        }
-        var index = this.streams.indexOf(stream);
-        if (index > -1) {
-            this.streams.splice(index, 1);
-        }
-    }
-
-    public getNextStream(streamType: StreamType): Stream {
-        var next = new Bignum(streamType);
-        var stream = this._getStream(next);
-        while (stream != undefined) {
-            next = next.add(4);
-            stream = this._getStream(next);
-        }
-        return this.getStream(next);
-    }
-
     public resetConnectionState() {
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
         this.resetOffsets();
-        this.streams.forEach((stream: Stream) => {
+        this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.reset();
         });
         this.lossDetection.reset();
@@ -445,7 +378,7 @@ export class Connection extends FlowControlledObject {
     private retransmitPacket(packet: BasePacket) {
         switch (packet.getPacketType()) {
             case PacketType.Initial:
-                if (this.getStream(0).getLocalOffset().greaterThan(0)) {
+                if (this.getStreamManager().getStream(0).getLocalOffset().greaterThan(0)) {
                     // Server hello is already received, packet does not need to be retransmitted
                     return;
                 }
@@ -486,8 +419,11 @@ export class Connection extends FlowControlledObject {
             case FrameType.MAX_STREAM_DATA:
                 // Check if not a bigger MaxStreamData frame has been sent
                 var maxStreamDataFrame = <MaxStreamFrame>frame;
-                var stream = this._getStream(maxStreamDataFrame.getStreamId());
-                if (stream === undefined || stream.getLocalMaxData().greaterThan(maxStreamDataFrame.getMaxData())) {
+                if (!this.getStreamManager().hasStream(maxStreamDataFrame.getStreamId())) {
+                    return;
+                }
+                var stream = this.getStreamManager().getStream(maxStreamDataFrame.getStreamId());
+                if (stream.getLocalMaxData().greaterThan(maxStreamDataFrame.getMaxData())) {
                     return;
                 }
                 break;
@@ -502,11 +438,15 @@ export class Connection extends FlowControlledObject {
                 break;
             default:
                 if (frame.getType() >= FrameType.STREAM) {
-                    var stream: Stream | undefined = this._getStream((<StreamFrame>frame).getStreamID());
+                    var streamFrame = <StreamFrame>frame;
                     // Check if stream exists and if RST_STREAM has been sent
                     // TODO: first check if RST_STREAM has been acked
                     // TODO: don't retransmit frame, retransmit data
-                    if (stream === undefined || stream.getStreamState() === StreamState.LocalClosed || stream.getStreamState() === StreamState.Closed) {
+                    if (!this.getStreamManager().hasStream(streamFrame.getStreamID())) {
+                        return;
+                    }
+                    var stream = this.getStreamManager().getStream(streamFrame.getStreamID());
+                    if (stream.getStreamState() === StreamState.LocalClosed || stream.getStreamState() === StreamState.Closed) {
                         return;
                     }
                     break;
@@ -592,7 +532,7 @@ export class Connection extends FlowControlledObject {
             this.earlyData = earlyData;
         }
         if (this.earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
-            var stream = this.getNextStream(StreamType.ClientBidi);
+            var stream = this.getStreamManager().getNextStream(StreamType.ClientBidi);
             stream.addData(this.earlyData, true);
             this.sendPackets();
         }

@@ -1,4 +1,4 @@
-import {BaseFrame} from '../../frame/base.frame';
+import {BaseFrame, FrameType} from '../../frame/base.frame';
 import {BaseHeader} from '../header/base.header';
 import {PacketType} from '../base.packet';
 import {Connection} from '../../quicker/connection';
@@ -15,5 +15,11 @@ export class Protected0RTTPacket extends BaseEncryptedPacket {
     
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {
         return connection.getAEAD().protected0RTTEncrypt(connection, header, dataBuffer, connection.getEndpointType());
+    }
+
+    protected getValidFrameTypes(): FrameType[] {
+        return [
+            FrameType.STREAM
+        ];
     }
 }

@@ -57,9 +57,9 @@ export class PacketFactory {
      * 
      * @param connection
      */
-    public static createServerStatelessRetryPacket(connection: Connection): ServerStatelessRetryPacket {
+    public static createServerStatelessRetryPacket(connection: Connection, frame: StreamFrame): ServerStatelessRetryPacket {
         var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, connection.getVersion());
-        return new ServerStatelessRetryPacket(header);
+        return new ServerStatelessRetryPacket(header, frame);
     }
 
     /**

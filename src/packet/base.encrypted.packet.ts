@@ -73,5 +73,21 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         this.ackOnly = ackOnly;
     }
 
+    public containsValidFrames(): boolean {
+        var isValidPacket = true;
+        this.frames.forEach((frame: BaseFrame) => {
+            if (this.getValidFrameTypes().indexOf(frame.getType()) === -1) {
+                if (frame.getType() > FrameType.STREAM) {
+                    if (this.getValidFrameTypes().indexOf(FrameType.STREAM) !== -1) {
+                        return;
+                    }
+                }
+                isValidPacket = false;
+            }
+        });
+        return isValidPacket;
+    }
+
+    protected abstract getValidFrameTypes(): FrameType[];
     protected abstract getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer;
 }

@@ -1,4 +1,4 @@
-import {BaseFrame} from '../../frame/base.frame';
+import {BaseFrame, FrameType} from '../../frame/base.frame';
 import {BaseHeader} from '../header/base.header';
 import {PacketType} from '../base.packet';
 import {Connection} from '../../quicker/connection';
@@ -15,5 +15,11 @@ export class ClientInitialPacket extends BaseEncryptedPacket {
     
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {
         return connection.getAEAD().clearTextEncrypt(connection, header, dataBuffer, connection.getEndpointType());
+    }
+
+    protected getValidFrameTypes(): FrameType[] {
+        return [
+            FrameType.STREAM, FrameType.PADDING
+        ];
     }
 }

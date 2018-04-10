@@ -23,10 +23,9 @@ export class Stream extends FlowControlledObject {
     private bufferedData: { [key: string]: BufferedData };
 
 	
-    public constructor(connection: Connection, streamID: Bignum) {
+    public constructor(endpointType: EndpointType, streamID: Bignum) {
 		super();
-		super.init(connection);
-		this.endpointType = connection.getEndpointType();
+		this.endpointType = endpointType;
 		this.streamID = streamID;
 		this.streamState = StreamState.Open;
 		this.blockedSent = false;

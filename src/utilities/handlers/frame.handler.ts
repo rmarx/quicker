@@ -112,7 +112,7 @@ export class FrameHandler {
         if (Stream.isSendOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
-        var stream = connection.getStream(rstStreamFrame.getStreamId());
+        var stream = connection.getStreamManager().getStream(rstStreamFrame.getStreamId());
         if (stream.getStreamState() === StreamState.Open) {
             stream.setStreamState(StreamState.RemoteClosed);
         } else if (stream.getStreamState() === StreamState.LocalClosed) {
@@ -145,11 +145,11 @@ export class FrameHandler {
         if (Stream.isReceiveOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
-        if (Stream.isSendOnly(connection.getEndpointType(), streamId) && !connection.hasStream(streamId)) {
+        if (Stream.isSendOnly(connection.getEndpointType(), streamId) && !connection.getStreamManager().hasStream(streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
 
-        var stream = connection.getStream(maxDataStreamFrame.getStreamId());
+        var stream = connection.getStreamManager().getStream(maxDataStreamFrame.getStreamId());
         if (stream.getRemoteMaxData().lessThan(maxDataStreamFrame.getMaxData())) {
             stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
             stream.setBlockedSent(false);
@@ -179,7 +179,7 @@ export class FrameHandler {
         }
 
         var streamId = streamBlocked.getStreamId()
-        connection.getStream(streamId).setIsRemoteBlocked(true);
+        connection.getStreamManager().getStream(streamId).setIsRemoteBlocked(true);
     }
 
     private handleStreamIdBlockedFrame(connection: Connection, streamIdBlockedFrame: StreamIdBlockedFrame) {
@@ -200,7 +200,7 @@ export class FrameHandler {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
 
-        var stream = connection.getStream(stopSendingFrame.getStreamId());
+        var stream = connection.getStreamManager().getStream(stopSendingFrame.getStreamId());
         if (stream.getStreamState() === StreamState.Open) {
             stream.setStreamState(StreamState.LocalClosed);
         } else if (stream.getStreamState() === StreamState.RemoteClosed) {
@@ -228,7 +228,7 @@ export class FrameHandler {
         if (Stream.isSendOnly(connection.getEndpointType(), streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
-        var stream = connection.getStream(streamFrame.getStreamID());
+        var stream = connection.getStreamManager().getStream(streamFrame.getStreamID());
         stream.receiveData(streamFrame.getData(), streamFrame.getOffset(), streamFrame.getFin());
     }
 }

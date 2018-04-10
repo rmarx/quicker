@@ -1,4 +1,3 @@
-import {Connection} from '../quicker/connection';
 import {EndpointType} from '../types/endpoint.type';
 import {TransportParameterType} from '../crypto/transport.parameters';
 import {Bignum} from '../types/bignum';
@@ -17,13 +16,10 @@ export abstract class FlowControlledObject extends EventEmitter {
     public constructor() {
 		super();
         this.isRemoteBlocked = false;
-    }
-
-    protected init(connection: Connection) {
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
-    }
-
+	}
+	
     public getLocalOffset(): Bignum {
 		return this.localOffset;
 	}
