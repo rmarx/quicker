@@ -46,6 +46,10 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         return size;
     }
 
+    public getSize(): number {
+        return this.getHeader().getSize() + this.getFrameSizes();
+    }
+
     protected getFramesBuffer(connection: Connection, header: BaseHeader): Buffer {
         var frameSizes = this.getFrameSizes();
         var dataBuffer = Buffer.alloc(frameSizes);

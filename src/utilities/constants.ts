@@ -57,7 +57,11 @@ export class Constants {
     public static readonly MAX_STREAM_ID_INCREMENT = 100;
     public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;
 
-    public static readonly CLIENT_INITIAL_MIN_FRAME_SIZE = 1166;
+    /**
+     * UDP datagram must be 1200, UDP datagram has a header length of 8 bytes, so subtract
+     * this from the client initial size
+     */
+    public static readonly CLIENT_INITIAL_MIN_SIZE = 1200 - 8;
 
     public static readonly QHKDF_BASE_LABEL = "QUIC ";
     public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";

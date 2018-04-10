@@ -55,6 +55,10 @@ export class LongHeader extends BaseHeader {
     public getPacketNumberSize(): number {
         return Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
     }
+
+    public getSize(): number {
+        return Constants.LONG_HEADER_SIZE;
+    }
 }
 
 export enum LongHeaderType {

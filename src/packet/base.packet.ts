@@ -44,6 +44,7 @@ export abstract class BasePacket {
         return this.ackOnly;
     }
 
+    abstract getSize(): number;
     abstract toBuffer(connection: Connection): Buffer;
 }
 
