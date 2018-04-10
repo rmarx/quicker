@@ -35,7 +35,9 @@ export class HeaderParser {
         offset += 4;
         var conLengths = buf.readUInt8(offset++);
         var destLength = conLengths >> 4;
+        destLength = destLength === 0 ? destLength : destLength + 3;
         var srcLength = conLengths & 0xF;
+        srcLength = srcLength === 0 ? srcLength : srcLength + 3;
 
         var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
         offset += destLength;
@@ -71,9 +73,9 @@ export class HeaderParser {
         type = this.correctShortHeaderType(type);
 
         var destLen = buf.readUInt32BE(offset);
-        var destConIDBuffer = Buffer.alloc(length);
-        buf.copy(destConIDBuffer, 0, offset, offset + length);
-        var destConnectionID = new ConnectionID(buf, destLen);
+        var destConIDBuffer = Buffer.alloc(destLen);
+        buf.copy(destConIDBuffer, 0, offset, offset + destLen);
+        var destConnectionID = new ConnectionID(destConIDBuffer, destLen);
         offset += destLen;
 
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)

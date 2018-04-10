@@ -60,8 +60,9 @@ export class LongHeader extends BaseHeader {
         buf.writeUInt8(type, offset++);
         this.getVersion().toBuffer().copy(buf, offset);
         offset += 4;
-
-        buf.writeUInt8(((this.destConnectionID.getLength() << 4) + this.srcConnectionID.getLength()), offset++);
+        var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
+        var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
+        buf.writeUInt8(((destLength << 4) + srcLength), offset++);
         this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.destConnectionID.getLength();
         this.srcConnectionID.toBuffer().copy(buf, offset);

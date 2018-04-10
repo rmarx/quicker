@@ -49,7 +49,12 @@ export class ConnectionID extends BaseProperty {
     }
 
     public static randomConnectionID(): ConnectionID {
-        var randomBignum = Bignum.random('ffffffffffffffff', 14);
+        var len = Math.round(Math.random() * 14);
+        var highHex = "";
+        for (var i = 0; i < len; i++) {
+            highHex += "ff";
+        }
+        var randomBignum = Bignum.random(highHex, len);
         var randomBuffer = randomBignum.toBuffer();
         var length = randomBuffer.byteLength + 4;
         var buf = Buffer.alloc(length);

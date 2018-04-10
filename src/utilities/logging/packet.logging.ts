@@ -104,7 +104,7 @@ export class PacketLogging {
             log += " Version: 0x" + longHeader.getVersion().getVersion().toString();
             var destConnectionID = longHeader.getDestConnectionID();
             log += " Dest CID: 0x" + destConnectionID.toString();
-            var srcConnectionID = longHeader.getDestConnectionID();
+            var srcConnectionID = longHeader.getSrcConnectionID();
             log += " Src CID: 0x" + srcConnectionID.toString();
         } else {
             var connectionID = (<ShortHeader>header).getDestConnectionID();
