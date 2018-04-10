@@ -28,8 +28,11 @@ export class BaseProperty {
 
 export class ConnectionID extends BaseProperty {
 
-    public constructor(buffer: Buffer) {
-        super(buffer, 8);
+    private length: number;
+
+    public constructor(buffer: Buffer, length: number) {
+        super(buffer, length);
+        this.length = length;
     }
 
     public getConnectionID(): Bignum {
@@ -38,11 +41,21 @@ export class ConnectionID extends BaseProperty {
 
     public setConnectionID(bignum: Bignum) {
         this.setProperty(bignum);
+        this.length = bignum.getByteLength();
+    }
+
+    public getLength(): number {
+        return this.length;
     }
 
     public static randomConnectionID(): ConnectionID {
-        var randomBignum = Bignum.random('ffffffffffffffff', 8);
-        return new ConnectionID(randomBignum.toBuffer());
+        var randomBignum = Bignum.random('ffffffffffffffff', 14);
+        var randomBuffer = randomBignum.toBuffer();
+        var length = randomBuffer.byteLength + 4;
+        var buf = Buffer.alloc(length);
+        buf.writeUInt32BE(length, 0);
+        randomBuffer.copy(buf, 4);
+        return new ConnectionID(buf, length);
     }
 }
 

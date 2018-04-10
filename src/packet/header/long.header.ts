@@ -10,6 +10,8 @@ import { Constants } from "../../utilities/constants";
  */
 export class LongHeader extends BaseHeader {
     private version: Version;
+    private destConnectionID: ConnectionID;
+    private srcConnectionID: ConnectionID;
 
     /**
      * 
@@ -18,9 +20,27 @@ export class LongHeader extends BaseHeader {
      * @param packetNumber 
      * @param version 
      */
-    public constructor(type: number, connectionID: ConnectionID, packetNumber: (PacketNumber | undefined), version: Version) {
-        super(HeaderType.LongHeader, type, connectionID, packetNumber);
+    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), version: Version) {
+        super(HeaderType.LongHeader, type, packetNumber);
         this.version = version;
+        this.destConnectionID = destConnectionID;
+        this.srcConnectionID = srcConnectionID;
+    }
+
+    public getSrcConnectionID(): ConnectionID {
+        return this.srcConnectionID;
+    }
+
+    public setSrcConnectionID(connectionId: ConnectionID) {
+        this.srcConnectionID = connectionId;
+    }
+
+    public getDestConnectionID(): ConnectionID {
+        return this.destConnectionID;
+    }
+
+    public setDestConnectionID(connectionId: ConnectionID) {
+        this.destConnectionID = connectionId;
     }
 
     public getVersion(): Version {
@@ -42,11 +62,16 @@ export class LongHeader extends BaseHeader {
         // create LongHeader
         var type = 0x80 + this.getPacketType();
         buf.writeUInt8(type, offset++);
-        this.getConnectionID().toBuffer().copy(buf, offset);
-        offset += 8; // 9
         this.getVersion().toBuffer().copy(buf, offset);
+        offset += 4;
+
+        buf.writeUInt8(((this.destConnectionID.getLength() << 4) + this.srcConnectionID.getLength()), offset++);
+        this.destConnectionID.toBuffer().copy(buf, offset);
+        offset += this.destConnectionID.getLength();
+        this.srcConnectionID.toBuffer().copy(buf, offset);
+        offset += this.srcConnectionID.getLength();
+
         if (this.getVersion().toString() !== "00000000") {
-            offset += 4; // 13
             this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
         }
         return buf;

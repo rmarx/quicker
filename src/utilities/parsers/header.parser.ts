@@ -29,16 +29,27 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseLongHeader(buf: Buffer): HeaderOffset {
-        var type = (buf.readUIntBE(0, 1) - 0x80);
-        var connectionId = new ConnectionID(buf.slice(1, 9));
-        var version = new Version(buf.slice(9, 13));
+        var offset = 0;
+        var type = (buf.readUInt8(offset++) - 0x80);
+        var version = new Version(buf.slice(offset, offset + 4));
+        offset += 4;
+        var conLengths = buf.readUInt8(offset++);
+        var destLength = conLengths >> 4;
+        var srcLength = conLengths & 0xF;
+
+        var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
+        offset += destLength;
+        var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
+        offset += srcLength;
+        
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
         var packetNumber;
         if (version.toString() !== "00000000") {
-            packetNumber = new PacketNumber(buf.slice(13, 17));
+            packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
+            offset += 4;
         }
 
-        return { header: new LongHeader(type, connectionId, packetNumber, version), offset: Constants.LONG_HEADER_SIZE };
+        return { header: new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, version), offset: offset };
     }
 
     /**
@@ -56,13 +67,18 @@ export class HeaderParser {
         if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
-        
+
         type = this.correctShortHeaderType(type);
-        var connectionId = new ConnectionID(buf.slice(offset, offset + 8));
-        offset = offset + 8;
+
+        var destLen = buf.readUInt32BE(offset);
+        var destConIDBuffer = Buffer.alloc(length);
+        buf.copy(destConIDBuffer, 0, offset, offset + length);
+        var destConnectionID = new ConnectionID(buf, destLen);
+        offset += destLen;
+
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
         offset = offset + (1 << type);
-        return { header: new ShortHeader(type, connectionId, packetNumber, keyPhaseBit), offset: offset };
+        return { header: new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit), offset: offset };
     }
 
     /**

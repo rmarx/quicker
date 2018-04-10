@@ -28,7 +28,7 @@ export class PacketFactory {
      */
     public static createVersionNegotiationPacket(connection: Connection): VersionNegotiationPacket {
         var version = new Version(Buffer.from('00000000', 'hex'));
-        var header = new LongHeader((Math.random() * 128), connection.getFirstConnectionID(), undefined, version);
+        var header = new LongHeader((Math.random() * 128), connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
@@ -42,7 +42,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createClientInitialPacket(connection: Connection, frames: BaseFrame[]): ClientInitialPacket {
-        var header = new LongHeader(LongHeaderType.Initial, connection.getFirstConnectionID(), undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Initial, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, connection.getVersion());
         var clientInitial = new ClientInitialPacket(header, frames);
         var size = clientInitial.getFrameSizes();
         if (size < Constants.CLIENT_INITIAL_MIN_FRAME_SIZE) {
@@ -58,7 +58,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createServerStatelessRetryPacket(connection: Connection): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.Retry, connection.getConnectionID(), undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Retry, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, connection.getVersion());
         return new ServerStatelessRetryPacket(header);
     }
 
@@ -69,14 +69,12 @@ export class PacketFactory {
      * @param frames 
      */
     public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
-        var conID = connection.getConnectionID() === undefined ? connection.getFirstConnectionID() : connection.getConnectionID();
-        var header = new LongHeader(LongHeaderType.Handshake, conID, undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Handshake, connection.getDestConnectionID(), connection.getSrcConnectionID(), undefined, connection.getVersion());
         return new HandshakePacket(header, frames);
     }
 
     public static createProtected0RTTPacket(connection: Connection, frames: BaseFrame[]): Protected0RTTPacket {
-        var conID = connection.getFirstConnectionID();
-        var header = new LongHeader(LongHeaderType.Protected0RTT, conID, undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, connection.getVersion());
         return new Protected0RTTPacket(header, frames);
     }
 
@@ -87,7 +85,7 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getConnectionID(), undefined, false)
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getDestConnectionID(), undefined, false)
         return new ShortHeaderPacket(header, frames);
     }
 }

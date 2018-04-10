@@ -2,17 +2,19 @@ import { BaseHeader, HeaderType } from './base.header';
 import { ConnectionID, PacketNumber } from './header.properties';
 
 
-/**           0              [1-7]                      *                       *
- *   +--------------------------------------------------------------------------------------+
- *   |0|C|K|1|0|type(3)|  [connection ID (64)] |  packet nr (8/16/32) |  Protected Payload(*) |
- *   +--------------------------------------------------------------------------------------+
+/**             0                   [1- (1 - 18)]                       *                       *
+ *   +----------------------------------------------------------------------------------------------------+
+ *   |0|K|1|1|0|type(3)| [dest connection ID (0/32/.../144)] | packet nr (8/16/32) |  Protected Payload(*)|
+ *   +----------------------------------------------------------------------------------------------------+
  */
 export class ShortHeader extends BaseHeader {
     private keyPhaseBit: boolean;
+    private destConnectionID: ConnectionID;
 
-    public constructor(type: number, connectionID: (ConnectionID | undefined), packetNumber: (PacketNumber | undefined), keyPhaseBit: boolean) {
-        super(HeaderType.ShortHeader, type, connectionID, packetNumber);
+    public constructor(type: number, destConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), keyPhaseBit: boolean) {
+        super(HeaderType.ShortHeader, type, packetNumber);
         this.keyPhaseBit = keyPhaseBit;
+        this.destConnectionID = destConnectionID;
     }
 
     public getKeyPhaseBit(): boolean {
@@ -23,17 +25,22 @@ export class ShortHeader extends BaseHeader {
         this.keyPhaseBit = bit;
     }
 
+    public getDestConnectionID(): ConnectionID {
+        return this.destConnectionID;
+    }
+
+    public setDestConnectionID(connectionId: ConnectionID) {
+        this.destConnectionID = connectionId;
+    }
+
     public toBuffer(): Buffer {
         var size = this.calculateHeaderSize();
         var buffer = Buffer.alloc(size);
         var offset = 0;
         buffer.writeUInt8(this.getType(), offset++);
-        var connectionID = this.getConnectionID();
-        if (connectionID === undefined) {
-            throw Error("undefined connectionID");
-        }
+        var connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
-        offset += 8;
+        offset += connectionID.getLength();
         this.getPacketNumber().getLeastSignificantBits(this.getPacketNumberSize()).copy(buffer, offset);
         return buffer;
     }

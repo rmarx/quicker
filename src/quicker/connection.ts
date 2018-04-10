@@ -45,8 +45,9 @@ export class Connection extends FlowControlledObject {
     private lossDetection: LossDetection;
     private congestionControl: CongestionControl;
 
-    private firstConnectionID!: ConnectionID;
-    private connectionID!: ConnectionID;
+    private initialDestConnectionID!: ConnectionID;
+    private srcConnectionID!: ConnectionID;
+    private destConnectionID!: ConnectionID;
     private initialPacketNumber!: PacketNumber;
     private localPacketNumber!: PacketNumber;
     private remotePacketNumber!: PacketNumber;
@@ -126,20 +127,28 @@ export class Connection extends FlowControlledObject {
         return this.remoteInfo;
     }
 
-    public getFirstConnectionID(): ConnectionID {
-        return this.firstConnectionID;
+    public getInitialDestConnectionID(): ConnectionID {
+        return this.initialDestConnectionID;
     }
 
-    public setFirstConnectionID(connectionID: ConnectionID): void {
-        this.firstConnectionID = connectionID;
+    public setInitialDestConnectionID(connectionID: ConnectionID): void {
+        this.initialDestConnectionID = connectionID;
     }
 
-    public getConnectionID(): ConnectionID {
-        return this.connectionID;
+    public getSrcConnectionID(): ConnectionID {
+        return this.srcConnectionID;
     }
 
-    public setConnectionID(connectionID: ConnectionID) {
-        this.connectionID = connectionID;
+    public setSrcConnectionID(connectionID: ConnectionID) {
+        this.srcConnectionID = connectionID;
+    }
+
+    public getDestConnectionID(): ConnectionID {
+        return this.destConnectionID;
+    }
+
+    public setDestConnectionID(connectionID: ConnectionID) {
+        this.destConnectionID = connectionID;
     }
 
     public getState(): ConnectionState {
