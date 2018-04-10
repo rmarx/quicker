@@ -27,31 +27,29 @@ export class PacketParser {
     public parse(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, endpoint: EndpointType): PacketOffset {
         var header = headerOffset.header;
         if (header.getHeaderType() === HeaderType.LongHeader) {
-            return this.parseLongHeaderPacket(connection, header, msg, endpoint)
+            return this.parseLongHeaderPacket(connection, headerOffset, msg, endpoint)
         }
         return this.parseShortHeaderPacket(connection, headerOffset, msg, endpoint);
     }
 
-    private parseLongHeaderPacket(connection: Connection, header: BaseHeader, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        var longheader = <LongHeader>header;
-        var offset = Constants.LONG_HEADER_SIZE;
+    private parseLongHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+        var longheader = <LongHeader>(headerOffset.header);
         // Version negotiation packet
         if (longheader.getVersion().toString() === "00000000") {
-            offset = Constants.LONG_HEADER_VN_SIZE;
-            return this.parseVersionNegotiationPacket(header, buffer, offset);
+            return this.parseVersionNegotiationPacket(headerOffset, buffer);
         }
-        switch (header.getPacketType()) {
+        switch (longheader.getPacketType()) {
             case LongHeaderType.Initial:
-                return this.parseClientInitialPacket(connection, header, buffer, offset, endpoint);
+                return this.parseClientInitialPacket(connection, headerOffset, buffer, endpoint);
                 // Initial
             case LongHeaderType.Protected0RTT:
-                return this.parseProtected0RTTPacket(connection, header, buffer, offset, endpoint);
+                return this.parseProtected0RTTPacket(connection, headerOffset, buffer, endpoint);
                 // 0-RTT Protected
             case LongHeaderType.Retry:
                 // Server Stateless Retry
                 throw new Error("Method not implemented.");
             case LongHeaderType.Handshake:
-                return this.parseHandshakePacket(connection, header, buffer, offset, endpoint);
+                return this.parseHandshakePacket(connection, headerOffset, buffer, endpoint);
             default:
                 // Unknown packet type
                 throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
@@ -69,49 +67,50 @@ export class PacketParser {
         };
     }
 
-    private parseVersionNegotiationPacket(header: BaseHeader, buffer: Buffer, offset: number): PacketOffset {
+    private parseVersionNegotiationPacket(headerOffset: HeaderOffset, buffer: Buffer): PacketOffset {
         var versions: Version[] = [];
+        var offset = headerOffset.offset;
         while (buffer.length > offset) {
             var version: Version = new Version(buffer.slice(offset, offset + 4));
             versions.push(version);
             offset += 4;
         }
         return {
-            packet: new VersionNegotiationPacket(header, versions),
+            packet: new VersionNegotiationPacket(headerOffset.header, versions),
             offset: offset
         };
     }
 
-    private parseClientInitialPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
-        buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, header, dataBuffer, endpoint);
+    private parseClientInitialPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
+        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
-            packet: new ClientInitialPacket(header, frames),
-            offset: offset
+            packet: new ClientInitialPacket(headerOffset.header, frames),
+            offset: headerOffset.offset
         };
     }
 
-    private parseProtected0RTTPacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
-        buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = connection.getAEAD().protected0RTTDecrypt(connection, header, dataBuffer, endpoint);
+    private parseProtected0RTTPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
+        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        dataBuffer = connection.getAEAD().protected0RTTDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
-            packet: new Protected0RTTPacket(header, frames),
-            offset: offset
+            packet: new Protected0RTTPacket(headerOffset.header, frames),
+            offset: headerOffset.offset
         };
     }
 
-    private parseHandshakePacket(connection: Connection, header: BaseHeader, buffer: Buffer, offset: number, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - offset);
-        buffer.copy(dataBuffer, 0, offset);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, header, dataBuffer, endpoint);
+    private parseHandshakePacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
+        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
-            packet: new HandshakePacket(header, frames),
-            offset: offset
+            packet: new HandshakePacket(headerOffset.header, frames),
+            offset: headerOffset.offset
         };
     }
 }

@@ -29,10 +29,11 @@ export class FlowControl {
 
     public static getPackets(connection: Connection, bufferedFrames: BaseFrame[]): BasePacket[] {
         var packets = new Array<BasePacket>();
+        // TODO: calculate maxpacketsize better
         if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
             var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_FRAME_SIZE);
         } else {
-            var maxPacketSize = new Bignum(connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - Constants.LONG_HEADER_SIZE);
+            var maxPacketSize = new Bignum(connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE));
         }
         var frames = this.getFrames(connection, maxPacketSize);
         var packetFrames = new Array<BaseFrame>();

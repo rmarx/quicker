@@ -52,11 +52,7 @@ export class LongHeader extends BaseHeader {
     }
 
     public toBuffer(): Buffer {
-        if (this.getVersion().toString() !== "00000000") {
-            var buf = Buffer.alloc( Constants.LONG_HEADER_SIZE );
-        } else {
-            var buf = Buffer.alloc( Constants.LONG_HEADER_VN_SIZE );
-        }
+        var buf = Buffer.alloc(this.getSize());
         var offset = 0;
         
         // create LongHeader
@@ -79,6 +75,17 @@ export class LongHeader extends BaseHeader {
 
     public getPacketNumberSize(): number {
         return Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
+    }
+
+    public getSize(): number {
+        // one byte for type, four bytes for version, one byte for connection ID lengths
+        var size = 6;
+        size += this.destConnectionID.getLength();
+        size += this.srcConnectionID.getLength();
+        if (this.getVersion().toString() !== "00000000") {
+            size += this.getPacketNumberSize();
+        }
+        return size;
     }
 }
 

@@ -34,7 +34,7 @@ export class ShortHeader extends BaseHeader {
     }
 
     public toBuffer(): Buffer {
-        var size = this.calculateHeaderSize();
+        var size = this.getSize();
         var buffer = Buffer.alloc(size);
         var offset = 0;
         buffer.writeUInt8(this.getType(), offset++);
@@ -68,8 +68,8 @@ export class ShortHeader extends BaseHeader {
         return 4;
     }
 
-    private calculateHeaderSize(): number {
-        var size = 9;
+    public getSize(): number {
+        var size = 1 + this.getDestConnectionID().getLength();
         size += this.getPacketNumberSize();
 
         return size;
