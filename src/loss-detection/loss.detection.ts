@@ -159,9 +159,9 @@ export class LossDetection extends EventEmitter {
                 this.timeOfLastSentHandshakePacket = currentTime;
             }
             // this.congestionControl.onPacketSent(basePacket.toBuffer().byteLength);
-            this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
             this.setLossDetectionAlarm();
         }
+        this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
     }
 
     /**
@@ -245,9 +245,7 @@ export class LossDetection extends EventEmitter {
      * @param ackedPacketNumber The packetnumber of the packet that is being acked.
      */
     public onPacketAcked(ackedPacketNumber: Bignum, packet: BasePacket): void {
-        if (!packet.isAckOnly()) {
-            this.emit(LossDetectionEvents.PACKET_ACKED, packet);
-        }
+        this.emit(LossDetectionEvents.PACKET_ACKED, packet);
         if (this.rtoCount > 0 && ackedPacketNumber.greaterThan(this.largestSentBeforeRto)) {
             this.emit(LossDetectionEvents.RETRANSMISSION_TIMEOUT_VERIFIED);
         }
@@ -305,6 +303,7 @@ export class LossDetection extends EventEmitter {
                 this.lossDetectionAlarm.reset();
                 this.onLossDetectionAlarm();
             });
+            time = time - (new Date()).getTime();
             this.lossDetectionAlarm.start(time + alarmDuration.toNumber());
         }
     }
