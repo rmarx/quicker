@@ -264,7 +264,9 @@ export class Bignum {
             num = num.shln(8);
             num = num.add(this.mathRandom());
         }
-        num = num.mod(high.bignum);
+        if (num.toString(10) !== '0') {
+            num = num.mod(high.bignum);
+        }
 
         return this.fromBN(num);
     }

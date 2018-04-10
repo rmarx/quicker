@@ -303,8 +303,7 @@ export class LossDetection extends EventEmitter {
                 this.lossDetectionAlarm.reset();
                 this.onLossDetectionAlarm();
             });
-            time = time - (new Date()).getTime();
-            this.lossDetectionAlarm.start(time + alarmDuration.toNumber());
+            this.lossDetectionAlarm.start(alarmDuration.toNumber());
         }
     }
 
@@ -352,7 +351,8 @@ export class LossDetection extends EventEmitter {
         if (lostPackets.length > 0) {
             this.emit(LossDetectionEvents.PACKETS_LOST, lostPackets);
             lostPackets.forEach((packet: BasePacket) => {
-                if (this.sentPackets[packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)].packet.isHandshake()) {
+                var sentPacket = this.sentPackets[packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)];
+                if (sentPacket !== undefined && sentPacket.packet.isHandshake()) {
                     this.handshakeOutstanding--;
                 }
             });
