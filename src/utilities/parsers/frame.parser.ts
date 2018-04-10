@@ -186,16 +186,17 @@ export class FrameParser {
 
     private parseNewConnectionId(buffer: Buffer, offset: number): FrameOffset {
         var sequence = VLIE.decode(buffer, offset);
-        var connectionIdBuffer = Buffer.alloc(8);
         offset = sequence.offset;
-        buffer.copy(connectionIdBuffer, 0, offset, offset + 8)
-        offset += 8;
+        var connectionIDLength = buffer.readUInt8(offset++);
+        var connectionIDBuffer = Buffer.alloc(connectionIDLength);
+        buffer.copy(connectionIDBuffer, 0, offset, offset + connectionIDLength)
+        offset += connectionIDLength;
         var statelessResetToken = Buffer.alloc(16);
         buffer.copy(statelessResetToken, 0, offset, offset + 16)
         offset += 16;
-        var connectionId = new ConnectionID(connectionIdBuffer);
+        var connectionID = new ConnectionID(connectionIDBuffer, connectionIDLength);
         return {
-            frame: FrameFactory.createNewConnectionIdFrame(connectionId, statelessResetToken),
+            frame: FrameFactory.createNewConnectionIdFrame(sequence.value, connectionID, statelessResetToken),
             offset: offset
         };
     }

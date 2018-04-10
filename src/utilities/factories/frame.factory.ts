@@ -91,8 +91,8 @@ export class FrameFactory {
         return new StopSendingFrame(streamID, applicationErrorCode);
     }
 
-    public static createNewConnectionIdFrame(connectionID: ConnectionID, statelessResetToken: Buffer): NewConnectionIdFrame {
-        return new NewConnectionIdFrame(connectionID, statelessResetToken);
+    public static createNewConnectionIdFrame(sequence: Bignum, connectionID: ConnectionID, statelessResetToken: Buffer): NewConnectionIdFrame {
+        return new NewConnectionIdFrame(sequence, connectionID, statelessResetToken);
     }
 
     public static createPathChallengeFrame(data: Buffer): PathChallengeFrame {
