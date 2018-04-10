@@ -295,12 +295,12 @@ export class FlowControl {
             }
             var newStreamId = undefined;
             if (Stream.isUniStreamId(streamId)) {
-                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamUni())) {
+                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamUni().multiply(4))) {
                     newStreamId = connection.getLocalMaxStreamUni().add(Constants.MAX_STREAM_ID_INCREMENT);
                     connection.setLocalMaxStreamUni(newStreamId);
                 }
             } else {
-                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamBidi())) {
+                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamBidi().multiply(4))) {
                     newStreamId = connection.getLocalMaxStreamBidi().add(Constants.MAX_STREAM_ID_INCREMENT);
                     connection.setLocalMaxStreamBidi(newStreamId);
                 }
@@ -327,9 +327,9 @@ export class FlowControl {
         }
         var streamId = stream.getStreamID();
         if (Stream.isUniStreamId(streamId)) {
-            return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamUni());
+            return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamUni().multiply(4));
         } else {
-            return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamBidi());
+            return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamBidi().multiply(4));
         }
     }
 
