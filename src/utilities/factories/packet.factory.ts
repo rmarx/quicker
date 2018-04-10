@@ -44,9 +44,9 @@ export class PacketFactory {
     public static createClientInitialPacket(connection: Connection, frames: BaseFrame[]): ClientInitialPacket {
         var header = new LongHeader(LongHeaderType.Initial, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, connection.getVersion());
         var clientInitial = new ClientInitialPacket(header, frames);
-        var size = clientInitial.getFrameSizes();
-        if (size < Constants.CLIENT_INITIAL_MIN_FRAME_SIZE) {
-            var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_FRAME_SIZE - size)
+        var size = clientInitial.getSize();
+        if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
+            var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size)
             clientInitial.getFrames().push(padding);
         }
         return clientInitial;

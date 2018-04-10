@@ -39,4 +39,8 @@ export class VersionNegotiationPacket extends BasePacket {
         payloadBuffer.copy(buf, outOffset)
         return buf;
     }
+
+    public getSize(): number {
+        return this.getHeader().getSize() + this.versions.length * 4;
+    }
 }

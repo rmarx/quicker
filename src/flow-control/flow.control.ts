@@ -31,7 +31,7 @@ export class FlowControl {
         var packets = new Array<BasePacket>();
         // TODO: calculate maxpacketsize better
         if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_FRAME_SIZE);
+            var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
         } else {
             var maxPacketSize = new Bignum(connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE));
         }

@@ -71,7 +71,6 @@ export class ShortHeader extends BaseHeader {
     public getSize(): number {
         var size = 1 + this.getDestConnectionID().getLength();
         size += this.getPacketNumberSize();
-
         return size;
     }
 }
