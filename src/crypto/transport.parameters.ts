@@ -1,4 +1,4 @@
-import {Constants} from '../utilities/constants';
+import { Constants } from '../utilities/constants';
 import { EndpointType } from '../types/endpoint.type';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
@@ -23,9 +23,9 @@ export class TransportParameters {
         this.maxData = maxData;
         this.idleTimeout = idleTimeout;
     }
-    
+
     public setTransportParameter(type: TransportParameterType, value: any): void {
-        switch(type) {
+        switch (type) {
             case TransportParameterType.MAX_STREAM_DATA:
                 this.maxStreamData = value;
                 break;
@@ -54,7 +54,7 @@ export class TransportParameters {
     }
 
     public getTransportParameter(type: TransportParameterType): any {
-        switch(type) {
+        switch (type) {
             case TransportParameterType.MAX_STREAM_DATA:
                 return this.maxStreamData;
             case TransportParameterType.MAX_DATA:
@@ -74,116 +74,86 @@ export class TransportParameters {
         }
         return undefined;
     }
-        
+
     public toBuffer(): Buffer {
         var buffer = Buffer.alloc(this.getBufferSize());
         var offset = 0;
-        var bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_STREAM_DATA, buffer, offset);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_DATA, bufferOffset.buffer, bufferOffset.offset);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.IDLE_TIMEOUT, bufferOffset.buffer, bufferOffset.offset);
+        var bufferOffset: BufferOffset = {
+            buffer: buffer,
+            offset: offset
+        };
+        bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_STREAM_DATA, bufferOffset, this.maxStreamData);
+        bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_DATA, bufferOffset, this.maxData);
+        bufferOffset = this.writeTransportParameter(TransportParameterType.IDLE_TIMEOUT, bufferOffset, this.idleTimeout);
         if (this.isServer) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset.buffer, bufferOffset.offset);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset, this.statelessResetToken);
         }
         if (this.maxStreamIdBidi !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI,bufferOffset.buffer, bufferOffset.offset);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, bufferOffset, this.maxStreamIdBidi);
         }
         if (this.maxStreamIdUni !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, bufferOffset.buffer, bufferOffset.offset);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, bufferOffset, this.maxStreamIdUni);
         }
         if (this.maxPacketSize !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_PACKET_SIZE,bufferOffset.buffer, bufferOffset.offset);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_PACKET_SIZE, bufferOffset, this.maxPacketSize);
         }
         if (this.ackDelayExponent !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, bufferOffset.buffer, bufferOffset.offset);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, bufferOffset, this.ackDelayExponent);
         }
         return bufferOffset.buffer;
     }
 
-    private writeTypeAndLength(type: TransportParameterType, buffer: Buffer, offset: number, length: number): BufferOffset {
+    private writeTypeAndLength(type: TransportParameterType, buffer: Buffer, offset: number, length: number): BufferOffset {
         buffer.writeUInt16BE(type, offset);
         offset += 2;
         buffer.writeUInt16BE(length, offset);
         offset += 2;
         return {
-            buffer: buffer, 
+            buffer: buffer,
             offset: offset
         }
     }
 
-    private writeTransportParameter(type: TransportParameterType, buffer: Buffer, offset: number): BufferOffset {
-        var bufferOffset: BufferOffset = {buffer: buffer, offset: offset};
-        switch(type) {
-            case TransportParameterType.MAX_STREAM_DATA:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxStreamData, bufferOffset.offset);
-                bufferOffset.offset += 4;
-                break;
-            case TransportParameterType.MAX_DATA:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
-                bufferOffset.buffer.writeUInt32BE(this.maxData, bufferOffset.offset);
-                bufferOffset.offset += 4;
-                break;
-            case TransportParameterType.STATELESS_RESET_TOKEN:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 16);
-                this.statelessResetToken.copy(bufferOffset.buffer, bufferOffset.offset);
-                bufferOffset.offset += 16;
-                break;
-            case TransportParameterType.IDLE_TIMEOUT:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, offset, 2);
-                bufferOffset.buffer.writeUInt16BE(this.idleTimeout, bufferOffset.offset);
-                bufferOffset.offset += 2;
-                break;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
-                bufferOffset.buffer.writeUInt16BE(this.maxStreamIdBidi, bufferOffset.offset);
-                bufferOffset.offset += 2;
-                break;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
-                bufferOffset.buffer.writeUInt16BE(this.maxStreamIdUni, bufferOffset.offset);
-                bufferOffset.offset += 2;
-                break;
-            case TransportParameterType.MAX_PACKET_SIZE:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
-                bufferOffset.buffer.writeUInt16BE(this.maxPacketSize, bufferOffset.offset);
-                bufferOffset.offset += 2;
-                break;
-            case TransportParameterType.ACK_DELAY_EXPONENT:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 1);
-                bufferOffset.buffer.writeUInt8(this.ackDelayExponent, bufferOffset.offset);
-                bufferOffset.offset += 1;
-                break;
+    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: number): BufferOffset;
+    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: Buffer): BufferOffset;
+    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: any): BufferOffset {
+        bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, this.getTransportParameterTypeByteSize(type));
+        if (value instanceof Buffer) {
+            value.copy(bufferOffset.buffer, bufferOffset.offset);
+        } else {
+            bufferOffset.buffer.writeUIntBE(value, bufferOffset.offset, this.getTransportParameterTypeByteSize(type));
         }
+        bufferOffset.offset += this.getTransportParameterTypeByteSize(type);
         return bufferOffset;
     }
 
     private getBufferSize(): number {
         var size = 0;
         // max stream data: 2 byte for type, 2 byte for length and 4 byte for value
-        size += 2 + 2 + 4;
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.MAX_STREAM_DATA);
         // max data: 2 byte for type, 2 byte for length and 4 byte for value
-        size += 2 + 2 + 4;
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.MAX_DATA);
         // idle timeout: 2 byte for type, 2 byte for length and 2 byte for value
-        size += 2 + 2 + 2;
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.IDLE_TIMEOUT);
         if (this.maxStreamIdBidi !== undefined) {
             // max stream id for bidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + 2;
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI);
         }
         if (this.maxStreamIdUni !== undefined) {
             // max stream id for unidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + 2;
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI);
         }
         if (this.maxPacketSize !== undefined) {
             // max size for a packet: 2 byte for type, 2 byte for length and 2 byte for value
-            size += 2 + 2 + 2;
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.MAX_PACKET_SIZE);
         }
         if (this.ackDelayExponent !== undefined) {
             // ack delay exponent: 2 byte for type, 2 byte for length and 1 for the exponent
-            size += 2 + 2 + 1;
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.ACK_DELAY_EXPONENT);
         }
         if (this.isServer) {
             // stateless reset token: 2 byte for type, 2 byte for length and 16 byte for value
-            size += 2 + 2 + 16;
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.STATELESS_RESET_TOKEN);
         }
         return size;
     }
@@ -217,6 +187,28 @@ export class TransportParameters {
             }
         }
         return transportParameters;
+    }
+
+    private getTransportParameterTypeByteSize(type: TransportParameterType): number {
+        switch (type) {
+            case TransportParameterType.MAX_STREAM_DATA:
+                return 4;
+            case TransportParameterType.MAX_DATA:
+                return 4;
+            case TransportParameterType.IDLE_TIMEOUT:
+                return 2;
+            case TransportParameterType.STATELESS_RESET_TOKEN:
+                return 16;
+            case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
+                return 2;
+            case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
+                return 2;
+            case TransportParameterType.MAX_PACKET_SIZE:
+                return 2;
+            case TransportParameterType.ACK_DELAY_EXPONENT:
+                return 1;
+        }
+        return 0;
     }
 }
 
