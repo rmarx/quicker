@@ -72,11 +72,11 @@ export class Server extends Endpoint {
             this.emit(QuickerEvent.NEW_STREAM, quicStream);
         });
         connection.on(ConnectionEvent.DRAINING, () => {
-            this.emit(QuickerEvent.CONNECTION_DRAINING, connection.getConnectionID().toString());
+            this.emit(QuickerEvent.CONNECTION_DRAINING, connection.getSrcConnectionID().toString());
         });
         connection.on(ConnectionEvent.CLOSE, () => {
             this.connectionManager.deleteConnection(connection);
-            this.emit(QuickerEvent.CONNECTION_CLOSE, connection.getConnectionID().toString());
+            this.emit(QuickerEvent.CONNECTION_CLOSE, connection.getSrcConnectionID().toString());
         });
     }
 

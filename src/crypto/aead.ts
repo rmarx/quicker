@@ -51,7 +51,7 @@ export class AEAD {
     public clearTextEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var longHeader = <LongHeader> header;
-        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), longHeader.getVersion(), encryptingEndpoint);
+        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), longHeader.getVersion(), encryptingEndpoint);
         var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
@@ -67,7 +67,7 @@ export class AEAD {
     public clearTextDecrypt(connection: Connection, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var longHeader = <LongHeader> header;
-        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getFirstConnectionID(), longHeader.getVersion(), encryptingEndpoint);
+        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), longHeader.getVersion(), encryptingEndpoint);
         var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();

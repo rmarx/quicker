@@ -24,6 +24,8 @@ import { QuicError } from '../errors/connection.error';
 import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { Time, TimeFormat } from '../../types/time';
+import { QuickerError } from '../errors/quicker.error';
+import { QuickerErrorCodes } from '../errors/quicker.codes';
 
 export class PacketHandler {
 
@@ -64,8 +66,10 @@ export class PacketHandler {
 
     private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
         var longHeader = <LongHeader>versionNegotiationPacket.getHeader();
-        var connectionId = longHeader.getConnectionID();
-        if (connection.getFirstConnectionID().toString() !== connectionId.toString()) {
+        var connectionId = longHeader.getSrcConnectionID();
+        var connectionId = longHeader.getDestConnectionID();
+        if (connection.getInitialDestConnectionID().getConnectionID().compare(longHeader.getSrcConnectionID().getConnectionID()) !== 0 ||
+                connection.getSrcConnectionID().getConnectionID().compare(longHeader.getDestConnectionID().getConnectionID()) !== 0) {
             return;
         }
         var negotiatedVersion = undefined;
@@ -85,7 +89,6 @@ export class PacketHandler {
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
-        var connectionID = clientInitialPacket.getHeader().getConnectionID();
         if (clientInitialPacket.getFrameSizes() < Constants.CLIENT_INITIAL_MIN_FRAME_SIZE) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
@@ -93,9 +96,14 @@ export class PacketHandler {
     }
 
     private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
-        var connectionID = handshakePacket.getHeader().getConnectionID();
+        var longHeader = <LongHeader>handshakePacket.getHeader();
+        var connectionID = longHeader.getSrcConnectionID();
         if (connection.getEndpointType() === EndpointType.Client) {
-            connection.setConnectionID(connectionID);
+            if (connection.getDestConnectionID() === undefined) {
+                connection.setDestConnectionID(connectionID);
+            } else if (connection.getDestConnectionID().getConnectionID().compare(connectionID.getConnectionID()) !== 0){
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+            }
         }
         this.handleFrames(connection, handshakePacket);
     }

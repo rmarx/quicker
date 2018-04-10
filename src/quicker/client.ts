@@ -62,7 +62,8 @@ export class Client extends Endpoint {
         };
 
         this.connection = new Connection(remoteInfo, EndpointType.Client, this.options);
-        this.connection.setFirstConnectionID(ConnectionID.randomConnectionID());
+        this.connection.setSrcConnectionID(ConnectionID.randomConnectionID());
+        this.connection.setInitialDestConnectionID(ConnectionID.randomConnectionID());
         this.connection.setSocket(socket);
         this.setupConnectionEvents();
 
@@ -73,11 +74,11 @@ export class Client extends Endpoint {
 
     private setupConnectionEvents() {
         this.connection.on(ConnectionEvent.DRAINING, () => {
-            var connectionID = this.connection.getConnectionID() !== undefined ? this.connection.getConnectionID() : this.connection.getFirstConnectionID();
+            var connectionID = this.connection.getSrcConnectionID();
             this.emit(QuickerEvent.CONNECTION_DRAINING, connectionID.toString());
         });
         this.connection.on(ConnectionEvent.CLOSE, () => {
-            var connectionID = this.connection.getConnectionID() !== undefined ? this.connection.getConnectionID() : this.connection.getFirstConnectionID();
+            var connectionID = this.connection.getSrcConnectionID();
             this.emit(QuickerEvent.CONNECTION_CLOSE, connectionID.toString());
         });
         this.connection.on(ConnectionEvent.HANDSHAKE_DONE, () => {
