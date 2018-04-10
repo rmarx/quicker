@@ -28,7 +28,7 @@ export class PacketFactory {
      */
     public static createVersionNegotiationPacket(connection: Connection): VersionNegotiationPacket {
         var version = new Version(Buffer.from('00000000', 'hex'));
-        var header = new LongHeader((Math.random() * 128), connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, version);
+        var header = new LongHeader((Math.random() * 128), connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
@@ -58,7 +58,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createServerStatelessRetryPacket(connection: Connection): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.Retry, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, connection.getVersion());
         return new ServerStatelessRetryPacket(header);
     }
 
