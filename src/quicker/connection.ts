@@ -373,6 +373,7 @@ export class Connection extends FlowControlledObject {
                     // Server hello is already received, packet does not need to be retransmitted
                     return;
                 }
+                break;
             case PacketType.Handshake:
                 if (this.qtls.getHandshakeState() === HandshakeState.COMPLETED) {
                     // Only true for client after receiving the last stream 0 packet 
@@ -381,6 +382,7 @@ export class Connection extends FlowControlledObject {
                     //      after this packet everything needs to be send in shortheader packet
                     return;
                 }
+                break;
         }
 
         var framePacket = <BaseEncryptedPacket>packet;
