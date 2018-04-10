@@ -28,6 +28,7 @@ import { HeaderType } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
+import { ShortHeader } from '../../packet/header/short.header';
 
 
 
@@ -96,15 +97,21 @@ export class PacketLogging {
 
     private logPackets(connection: Connection, basePacket: BasePacket, direction: string, color: ConsoleColor): string {
         var log = "";
-        var connectionID = basePacket.getHeader().getConnectionID();
-        var connectionIDString = connectionID === undefined ? "omitted" : connectionID.toString();
-        log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset + " CID: 0x" + connectionIDString;
+        var header = basePacket.getHeader();
+        log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset;
+        if (header.getHeaderType() === HeaderType.LongHeader) {
+            var longHeader = (<LongHeader>header);
+            log += " Version: 0x" + longHeader.getVersion().getVersion().toString();
+            var destConnectionID = longHeader.getDestConnectionID();
+            log += " Dest CID: 0x" + destConnectionID.toString();
+            var srcConnectionID = longHeader.getDestConnectionID();
+            log += " Src CID: 0x" + srcConnectionID.toString();
+        } else {
+            var connectionID = (<ShortHeader>header).getDestConnectionID();
+            log += " Dest CID: 0x" + connectionID.toString();
+        }
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             log += color + ", PKN: " + basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString() + ConsoleColor.Reset;
-        }
-        if (basePacket.getHeader().getHeaderType() === HeaderType.LongHeader) {
-            var lh: LongHeader = <LongHeader>(basePacket.getHeader());
-            log += ", Version: 0x" + lh.getVersion().getVersion().toString();
         }
 
         switch (basePacket.getPacketType()) {
