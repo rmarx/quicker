@@ -134,12 +134,12 @@ export class TransportParameters {
                 bufferOffset.offset += 2;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
                 bufferOffset.buffer.writeUInt16BE(this.maxStreamIdBidi, bufferOffset.offset);
                 bufferOffset.offset += 2;
                 break;
             case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
-                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 4);
+                bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 2);
                 bufferOffset.buffer.writeUInt16BE(this.maxStreamIdUni, bufferOffset.offset);
                 bufferOffset.offset += 2;
                 break;
