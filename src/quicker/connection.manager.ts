@@ -7,6 +7,7 @@ import {EndpointType} from '../types/endpoint.type';
 import { RemoteInfo, Socket } from 'dgram';
 import { SecureContext } from 'tls';
 import { EventEmitter } from 'events';
+import { LongHeader } from '../packet/header/long.header';
 
 
 export class ConnectionManager extends EventEmitter{
@@ -32,8 +33,9 @@ export class ConnectionManager extends EventEmitter{
      */
     public getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {
         var header: BaseHeader = headerOffset.header;
-        var connectionID = header.getConnectionID();
         if (header.getHeaderType() === HeaderType.LongHeader) {
+            var longHeader = <LongHeader>header;
+            var connectionID = longHeader.getDestConnectionID();
             if (this.connections[connectionID.toString()] !== undefined) {
                 return this.connections[connectionID.toString()];
             } else if (this.mappedConnections[connectionID.toString()] !== undefined && this.connections[this.mappedConnections[connectionID.toString()]] !== undefined) {
@@ -41,14 +43,16 @@ export class ConnectionManager extends EventEmitter{
             }
         } else {
             var shortHeader = <ShortHeader>header;
+            var connectionID = shortHeader.getDestConnectionID();
             var connection = this.getConnectionByRemoteInformation(rinfo);
             if (connection !== undefined) {
                 return connection;
             } else if (connectionID !== undefined && this.connections[connectionID.toString()] !== undefined) {
                 return this.connections[connectionID.toString()];
             }
+            // TODO: in this case, it may be a stateless reset
         }
-        var connection = this.createConnection(connectionID, rinfo);
+        var connection = this.createConnection(header, rinfo);
         return connection;
     }
 
@@ -62,28 +66,33 @@ export class ConnectionManager extends EventEmitter{
         return connection;
     }
 
-    private createConnection(connectionID: ConnectionID, rinfo: RemoteInfo): Connection {
+    private createConnection(header: BaseHeader, rinfo: RemoteInfo): Connection {
         var remoteInfo = {
             address: rinfo.address,
             port: rinfo.port,
             family: rinfo.family
         };
+        var longHeader = <LongHeader> header;
+        var headerSrcConnectionID = longHeader.getSrcConnectionID();
+        var headerDestConnectionID = longHeader.getDestConnectionID();
+
         var connection = new Connection(remoteInfo, EndpointType.Server, this.options);
         connection.setSocket(this.serverSockets[rinfo.family]);
-        connection.setFirstConnectionID(connectionID);
-        var newConnectionID = ConnectionID.randomConnectionID();
-        while (newConnectionID.toString() in Object.keys(this.connections)) {
-            newConnectionID = ConnectionID.randomConnectionID();
+        connection.setInitialDestConnectionID(headerDestConnectionID);
+        var srcConnectionID = ConnectionID.randomConnectionID();
+        while (srcConnectionID.toString() in Object.keys(this.connections)) {
+            srcConnectionID = ConnectionID.randomConnectionID();
         }
-        connection.setConnectionID(newConnectionID);
-        this.connections[connection.getConnectionID().toString()] = connection;
-        this.mappedConnections[connection.getFirstConnectionID().toString()] = connection.getConnectionID().toString();
+        connection.setSrcConnectionID(srcConnectionID);
+        connection.setDestConnectionID(headerSrcConnectionID);
+        this.connections[connection.getSrcConnectionID().toString()] = connection;
+        this.mappedConnections[connection.getInitialDestConnectionID().toString()] = connection.getSrcConnectionID().toString();
         this.emit(ConnectionManagerEvents.CONNECTION_CREATED, connection);
         return connection;
     }
 
     public deleteConnection(connection: Connection) {
-        var conId = connection.getConnectionID().toString();
+        var conId = connection.getSrcConnectionID().toString();
         Object.keys(this.mappedConnections).forEach((key: string) => {
             if (key === conId) {
                 delete this.mappedConnections[key];
