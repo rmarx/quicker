@@ -11,10 +11,10 @@ export class Cipher {
 
     public getHash(): string {
         switch(this.cipher) {
-            case "TLS13-AES-128-GCM-SHA256":
-            case "TLS13-CHACHA20-POLY1305-SHA256":
+            case "TLS_AES_128_GCM_SHA256":
+            case "TLS_CHACHA20_POLY1305_SHA256":
                 return "sha256";
-            case "TLS13-AES-256-GCM-SHA384":
+            case "TLS_AES_256_GCM_SHA384":
                 return "sha384";
         }
         throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported hash function: " + this.cipher);
@@ -26,11 +26,11 @@ export class Cipher {
 
     public getAEAD(): string {
         switch(this.cipher) {
-            case "TLS13-AES-128-GCM-SHA256":
+            case "TLS_AES_128_GCM_SHA256":
                 return "aes-128-gcm";
-            case "TLS13-CHACHA20-POLY1305-SHA256":
+            case "TLS_CHACHA20_POLY1305_SHA256":
                 return "chacha20-poly1305";
-            case "TLS13-AES-256-GCM-SHA384":
+            case "TLS_AES_256_GCM_SHA384":
                 return "aes-256-gcm";
         }
         throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported aead function: " + this.cipher);

@@ -55,7 +55,7 @@ export class Constants {
     public static readonly MAX_STREAM_ID_INCREMENT = 100;
     public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;
 
-    public static readonly CLIENT_INITIAL_MIN_FRAME_SIZE = 1166;
+    public static readonly CLIENT_INITIAL_MIN_FRAME_SIZE = 1131;
 
     public static readonly QHKDF_BASE_LABEL = "QUIC ";
     public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";
