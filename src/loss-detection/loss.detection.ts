@@ -62,8 +62,10 @@ export class LossDetection extends EventEmitter {
     private rtoCount: number;
     // The last packet number sent prior to the first retransmission timeout.
     private largestSentBeforeRto: Bignum;
-    // The time the most recent packet was sent.
-    private timeOfLastSentPacket: number;
+    // The time the most recent retransmittable packet was sent.
+    private timeOfLastSentRetransmittablePacket: number;
+    // The time the most recent packet containing handshake data was sent.
+    private timeOfLastSentHandshakePacket: number
     // The packet number of the most recently sent packet.
     private largestSentPacket: Bignum;
     // The largest packet number acknowledged in an ACK frame.
@@ -79,8 +81,9 @@ export class LossDetection extends EventEmitter {
     // The maximum ack delay in an incoming ACK frame for this connection. 
     // Excludes ack delays for ack only packets and those that create an RTT sample less than min_rtt.
     private maxAckDelay: Bignum;
-    // The largest delta between the largest acked retransmittable packet and a packet containing 
-    // retransmittable frames before it’s declared lost.
+    // The largest packet number gap between the
+    // largest acked retransmittable packet and an unacknowledged
+    // retransmittable packet before it is declared lost.
     private reorderingTreshold: Bignum;
     // The reordering window as a fraction of max(smoothed_rtt, latest_rtt).
     private timeReorderingTreshold: Bignum;
@@ -114,10 +117,11 @@ export class LossDetection extends EventEmitter {
         this.lossTime = new Bignum(0);
         this.smoothedRtt = new Bignum(0);
         this.rttVar = new Bignum(0);
-        this.minRtt = new Bignum(0);
+        this.minRtt = Bignum.infinity();
         this.maxAckDelay = new Bignum(0);
         this.largestSentBeforeRto = new Bignum(0);
-        this.timeOfLastSentPacket = 0;
+        this.timeOfLastSentRetransmittablePacket = 0;
+        this.timeOfLastSentHandshakePacket = 0;
         this.largestSentPacket = new Bignum(0);
 
         this.largestAckedPacket = new Bignum(0);
@@ -139,23 +143,23 @@ export class LossDetection extends EventEmitter {
      * @param basePacket The packet that is being sent. From this packet, the packetnumber and the number of bytes sent can be derived.
      */
     public onPacketSent(basePacket: BasePacket): void {
-        this.timeOfLastSentPacket = (new Date()).getTime();
+        var currentTime = (new Date()).getTime();
         var packetNumber = basePacket.getHeader().getPacketNumber().getPacketNumber();
         this.largestSentPacket = packetNumber;
         var sentPacket: SentPacket = {
             packet: basePacket,
-            time: this.timeOfLastSentPacket,
+            time: currentTime,
             isRetransmittable: basePacket.isRetransmittable()
         };
         if (basePacket.isRetransmittable()) {
             this.retransmittablePacketsOutstanding++;
-        }
-        if (basePacket.isHandshake()) {
-            this.handshakeOutstanding++;
-        }
-        this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
-        if (basePacket.isRetransmittable()) {
+            this.timeOfLastSentRetransmittablePacket = currentTime;
+            if (basePacket.isHandshake()) {
+                this.handshakeOutstanding++;
+                this.timeOfLastSentHandshakePacket = currentTime;
+            }
             // this.congestionControl.onPacketSent(basePacket.toBuffer().byteLength);
+            this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
             this.setLossDetectionAlarm();
         }
     }
@@ -241,7 +245,9 @@ export class LossDetection extends EventEmitter {
      * @param ackedPacketNumber The packetnumber of the packet that is being acked.
      */
     public onPacketAcked(ackedPacketNumber: Bignum, packet: BasePacket): void {
-        this.emit(LossDetectionEvents.PACKET_ACKED, packet);
+        if (!packet.isAckOnly()) {
+            this.emit(LossDetectionEvents.PACKET_ACKED, packet);
+        }
         if (this.rtoCount > 0 && ackedPacketNumber.greaterThan(this.largestSentBeforeRto)) {
             this.emit(LossDetectionEvents.RETRANSMISSION_TIMEOUT_VERIFIED);
         }
@@ -260,11 +266,13 @@ export class LossDetection extends EventEmitter {
     public setLossDetectionAlarm(): void {
         // Don't arm the alarm if there are no packets with
         // retransmittable data in flight.
+        // TODO: replace retransmittablePacketsOutstanding by bytesInFlight
         if (this.retransmittablePacketsOutstanding === 0) {
             this.lossDetectionAlarm.reset();
             return;
         }
         var alarmDuration: Bignum;
+        var time: number = this.timeOfLastSentRetransmittablePacket;
         if (this.handshakeOutstanding !== 0) {
             // Handshake retransmission alarm.
             if (this.smoothedRtt.equals(0)) {
@@ -275,14 +283,21 @@ export class LossDetection extends EventEmitter {
             alarmDuration = Bignum.max(alarmDuration.add(this.maxAckDelay), LossDetection.MIN_TLP_TIMEOUT);
             var pw = Math.pow(2, this.handshakeCount);
             alarmDuration = alarmDuration.multiply(pw);
+            time = this.timeOfLastSentHandshakePacket;
         } else if (!this.lossTime.equals(0)) {
-            alarmDuration = this.lossTime.subtract(this.timeOfLastSentPacket);
-        } else if (this.tlpCount > LossDetection.MAX_TLP) {
-            alarmDuration = Bignum.max(this.smoothedRtt.multiply(1.5).add(this.maxAckDelay), LossDetection.MIN_TLP_TIMEOUT);
+            // Early retansmit timer or time loss detection
+            alarmDuration = this.lossTime.subtract(this.timeOfLastSentRetransmittablePacket);
         } else {
+            // RTO or TLP alarm
+            //Calculate RTO duration
             alarmDuration = this.smoothedRtt.add(this.rttVar.multiply(4)).add(this.maxAckDelay);
             alarmDuration = Bignum.max(alarmDuration, LossDetection.MIN_RTO_TIMEOUT);
             alarmDuration = alarmDuration.multiply(Math.pow(2, this.rtoCount));
+            if (this.tlpCount < LossDetection.MAX_TLP) {
+                // Tail Loss Probe
+                var tlpAlarmDuration = Bignum.max(this.maxAckDelay.add(this.smoothedRtt.multiply(1.5)), LossDetection.MIN_TLP_TIMEOUT);
+                alarmDuration = Bignum.min(tlpAlarmDuration, alarmDuration);
+            }
         }
 
         if (!this.lossDetectionAlarm.isRunning()) {
@@ -290,7 +305,7 @@ export class LossDetection extends EventEmitter {
                 this.lossDetectionAlarm.reset();
                 this.onLossDetectionAlarm();
             });
-            this.lossDetectionAlarm.start(alarmDuration.toNumber());
+            this.lossDetectionAlarm.start(time + alarmDuration.toNumber());
         }
     }
 
@@ -301,7 +316,7 @@ export class LossDetection extends EventEmitter {
     public onLossDetectionAlarm(): void {
         if (this.handshakeOutstanding > 0) {
             // Handshake retransmission alarm.
-            this.retransmitAllHandshakePackets();
+            this.retransmitAllUnackedHandshakeData();
             this.handshakeCount++;
         } else if (!this.lossTime.equals(0)) {
             // Early retransmit or Time Loss Detection
@@ -317,8 +332,8 @@ export class LossDetection extends EventEmitter {
             }
             this.sendTwoPackets();
             this.rtoCount++;
-            this.setLossDetectionAlarm();
         }
+        this.setLossDetectionAlarm();
     }
 
     private detectLostPackets(largestAcked: Bignum): void {
@@ -341,7 +356,6 @@ export class LossDetection extends EventEmitter {
                 if (this.sentPackets[packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)].packet.isHandshake()) {
                     this.handshakeOutstanding--;
                 }
-                delete this.sentPackets[packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)];
             });
         }
     }
@@ -355,8 +369,11 @@ export class LossDetection extends EventEmitter {
                 var unacked = this.sentPackets[key];
                 var timeSinceSent = new Bignum((new Date()).getTime() - unacked.time);
                 var delta = this.largestAckedPacket.subtract(unackedPacketNumber);
-                if (timeSinceSent.greaterThan(delayUntilLost)) {
-                    lostPackets.push(unacked.packet);
+                if (timeSinceSent.greaterThan(delayUntilLost) || delta.greaterThan(this.reorderingTreshold)) {
+                    delete this.sentPackets[unacked.packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)];
+                    if (unacked.packet.isRetransmittable()) {
+                        lostPackets.push(unacked.packet);
+                    }
                 } else if (delta.greaterThan(this.reorderingTreshold)) {
                     lostPackets.push(unacked.packet);
                 } else if (this.lossTime.equals(0) && !delayUntilLost.equals(Bignum.infinity())) {
@@ -393,7 +410,7 @@ export class LossDetection extends EventEmitter {
         }
     }
 
-    private retransmitAllHandshakePackets(): void {
+    private retransmitAllUnackedHandshakeData(): void {
         Object.keys(this.sentPackets).forEach((key: string) => {
             if (this.sentPackets[key].packet.isHandshake()) {
                 this.retransmitPacket(this.sentPackets[key]);
