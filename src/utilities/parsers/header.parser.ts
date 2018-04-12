@@ -72,7 +72,7 @@ export class HeaderParser {
 
         type = this.correctShortHeaderType(type);
 
-        var destLen = buf.readUInt32BE(offset);
+        var destLen = buf.readUInt8(offset);
         var destConIDBuffer = Buffer.alloc(destLen);
         buf.copy(destConIDBuffer, 0, offset, offset + destLen);
         var destConnectionID = new ConnectionID(destConIDBuffer, destLen);

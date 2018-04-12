@@ -49,17 +49,17 @@ export class ConnectionID extends BaseProperty {
     }
 
     public static randomConnectionID(): ConnectionID {
-        var len = Math.round(Math.random() * 14);
+        var len = Math.round(Math.random() * 14) + 3;
         var highHex = "";
         for (var i = 0; i < len; i++) {
             highHex += "ff";
         }
         var randomBignum = Bignum.random(highHex, len);
         var randomBuffer = randomBignum.toBuffer();
-        var length = randomBuffer.byteLength + 4;
+        var length = randomBuffer.byteLength + 1;
         var buf = Buffer.alloc(length);
-        buf.writeUInt32BE(length, 0);
-        randomBuffer.copy(buf, 4);
+        buf.writeUInt8(length, 0);
+        randomBuffer.copy(buf, 1);
         return new ConnectionID(buf, length);
     }
 }
