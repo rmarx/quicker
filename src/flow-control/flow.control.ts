@@ -23,30 +23,32 @@ import { Time, TimeFormat } from '../types/time';
 
 export class FlowControl {
 
-    public constructor() {
-        //
+    private connection: Connection;
+
+    public constructor(connection: Connection) {
+        this.connection = connection;
     }
 
-    public static getPackets(connection: Connection, bufferedFrames: BaseFrame[]): BasePacket[] {
+    public getPackets(bufferedFrames: BaseFrame[]): BasePacket[] {
         var packets = new Array<BasePacket>();
-        if (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
+        if (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
             var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
         } else {
-            var maxPacketSize = new Bignum(connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - Constants.LONG_HEADER_SIZE);
+            var maxPacketSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - Constants.LONG_HEADER_SIZE);
         }
-        var frames = this.getFrames(connection, maxPacketSize);
+        var frames = this.getFrames(maxPacketSize);
         var packetFrames = new Array<BaseFrame>();
         var size = new Bignum(0);
         frames.handshakeFrames.forEach((frame: BaseFrame) => {
             // handshake frames are only more than one with server hello and they need to be in different packets
-            packets.push(this.createNewPacket(connection, [frame]));
+            packets.push(this.createNewPacket([frame]));
         });
 
-        if (connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
+        if (this.connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
             frames.flowControlFrames.forEach((frame: BaseFrame) => {
                 var frameSize = frame.toBuffer().byteLength
                 if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
-                    packets.push(this.createNewPacket(connection, packetFrames));
+                    packets.push(this.createNewPacket(packetFrames));
                     size = new Bignum(0);
                     packetFrames = [];
                 }
@@ -58,7 +60,7 @@ export class FlowControl {
         bufferedFrames.forEach((frame: BaseFrame) => {
             var frameSize = frame.toBuffer().byteLength;
             if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
-                packets.push(this.createNewPacket(connection, packetFrames));
+                packets.push(this.createNewPacket(packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
             }
@@ -69,7 +71,7 @@ export class FlowControl {
         frames.streamFrames.forEach((frame: BaseFrame) => {
             var frameSize = frame.toBuffer().byteLength;
             if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
-                packets.push(this.createNewPacket(connection, packetFrames));
+                packets.push(this.createNewPacket(packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
             }
@@ -77,15 +79,15 @@ export class FlowControl {
             packetFrames.push(frame);
         });
         if (packetFrames.length > 0) {
-            packets.push(this.createNewPacket(connection, packetFrames));
+            packets.push(this.createNewPacket(packetFrames));
         }
 
         return packets;
     }
 
-    private static createNewPacket(connection: Connection, frames: BaseFrame[]) {
-        var handshakeState = connection.getQuicTLS().getHandshakeState();
-        var isServer = connection.getEndpointType() !== EndpointType.Client;
+    private createNewPacket(frames: BaseFrame[]) {
+        var handshakeState = this.connection.getQuicTLS().getHandshakeState();
+        var isServer = this.connection.getEndpointType() !== EndpointType.Client;
         var isHandshake = false;
         frames.forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
@@ -97,64 +99,64 @@ export class FlowControl {
         });
 
         if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
-            if (connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
-                return PacketFactory.createProtected0RTTPacket(connection, frames);
-            } else if (connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
-                return PacketFactory.createClientInitialPacket(connection, frames);
-            } else if (connection.getQuicTLS().isEarlyDataAllowed() && connection.getQuicTLS().isSessionReused() && !isHandshake) {
-                return PacketFactory.createShortHeaderPacket(connection, frames); 
+            if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
+                return PacketFactory.createProtected0RTTPacket(this.connection, frames);
+            } else if (this.connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
+                return PacketFactory.createClientInitialPacket(this.connection, frames);
+            } else if (this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused() && !isHandshake) {
+                return PacketFactory.createShortHeaderPacket(this.connection, frames); 
             } else {
-                return PacketFactory.createHandshakePacket(connection, frames);
+                return PacketFactory.createHandshakePacket(this.connection, frames);
             }
         } else if(handshakeState === HandshakeState.CLIENT_COMPLETED) {
             if (isHandshake) {
-                return PacketFactory.createHandshakePacket(connection, frames);
+                return PacketFactory.createHandshakePacket(this.connection, frames);
             } else {
-                return PacketFactory.createShortHeaderPacket(connection, frames);   
+                return PacketFactory.createShortHeaderPacket(this.connection, frames);   
             }
         } else {
-            return PacketFactory.createShortHeaderPacket(connection, frames);
+            return PacketFactory.createShortHeaderPacket(this.connection, frames);
         }
     }
 
-    public static getFrames(connection: Connection, maxPacketSize: Bignum): FlowControlFrames {
+    public getFrames(maxPacketSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
-        if (connection.getRemoteTransportParameters() === undefined) {
-            var stream = connection.getStreamManager().getStream(new Bignum(0));
-            handshakeFrames = handshakeFrames.concat(this.getStreamFrames(connection, stream, new Bignum(stream.getData().byteLength), maxPacketSize).handshakeFrames);
-        } else if (connection.isRemoteLimitExceeded()) {
-            flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
+        if (this.connection.getRemoteTransportParameters() === undefined) {
+            var stream = this.connection.getStreamManager().getStream(new Bignum(0));
+            handshakeFrames = handshakeFrames.concat(this.getStreamFrames(stream, new Bignum(stream.getData().byteLength), maxPacketSize).handshakeFrames);
+        } else if (this.connection.isRemoteLimitExceeded()) {
+            flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
             var uniAdded = false;
             var bidiAdded = false;
-            connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+            this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
                 if (stream.isRemoteLimitExceeded()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 } 
-                if (this.isRemoteStreamIdBlocked(connection, stream)) {
+                if (this.isRemoteStreamIdBlocked(stream)) {
                     if (Stream.isUniStreamId(stream.getStreamID()) && !uniAdded) {
-                        var frame = this.addRemoteStreamIdBlocked(connection, stream);
+                        var frame = this.addRemoteStreamIdBlocked(stream);
                         flowControlFrames.push(frame);
                         uniAdded = true;
                     } else if (Stream.isUniStreamId(stream.getStreamID()) && !bidiAdded) {
-                        var frame = this.addRemoteStreamIdBlocked(connection, stream);
+                        var frame = this.addRemoteStreamIdBlocked(stream);
                         flowControlFrames.push(frame);
                         bidiAdded = true;
                     }
                 }
             });
         } else {
-            connection.getStreamManager().getStreams().forEach((stream: Stream) => {
-                var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(connection, stream, maxPacketSize);
+            this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+                var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(stream, maxPacketSize);
                 streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
                 flowControlFrames = flowControlFrames.concat(flowControlFrameObject.flowControlFrames);
                 handshakeFrames = handshakeFrames.concat(flowControlFrameObject.handshakeFrames);
             });
         }
 
-        flowControlFrames = flowControlFrames.concat(this.getLocalFlowControlFrames(connection));
+        flowControlFrames = flowControlFrames.concat(this.getLocalFlowControlFrames());
 
         return {
             streamFrames: streamFrames,
@@ -163,39 +165,39 @@ export class FlowControl {
         };
     }
 
-    private static getStreamFramesForRemote(connection: Connection, stream: Stream, maxPacketSize: Bignum): FlowControlFrames {
+    private getStreamFramesForRemote(stream: Stream, maxPacketSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
-        if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded() || this.isRemoteStreamIdBlocked(connection, stream))) {
+        if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded() || this.isRemoteStreamIdBlocked(stream))) {
             if (stream.isRemoteLimitExceeded() && !stream.getBlockedSent()) {
                 flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 stream.setBlockedSent(true);
             }
-        } else if (!connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
+        } else if (!this.connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
             var streamDataSize = new Bignum(stream.getData().length);
 
-            var createdStreamFrames = this.getStreamFrames(connection, stream, streamDataSize, maxPacketSize);
+            var createdStreamFrames = this.getStreamFrames(stream, streamDataSize, maxPacketSize);
             streamFrames = createdStreamFrames.streamFrames;
             handshakeFrames = createdStreamFrames.handshakeFrames;
 
             if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || 
-                    connection.isRemoteLimitExceeded(streamDataSize)) {
+                    this.connection.isRemoteLimitExceeded(streamDataSize)) {
                         
-                var conDataLeft = connection.getRemoteMaxData().subtract(connection.getRemoteOffset());
+                var conDataLeft = this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset());
                 var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
                 streamDataSize = conDataLeft.lessThan(streamDataLeft) ? conDataLeft : streamDataLeft;
                 if (conDataLeft.equals(streamDataLeft)) {
-                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
+                    flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 } else if (conDataLeft.lessThan(streamDataLeft)) {
-                    flowControlFrames.push(FrameFactory.createBlockedFrame(connection.getRemoteOffset()));
+                    flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
                 } else if (!stream.getBlockedSent()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true);
                 }
-            } else if (stream.isRemoteLimitExceeded(streamDataSize) && stream.getStreamID().equals(0) && connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            } else if (stream.isRemoteLimitExceeded(streamDataSize) && stream.getStreamID().equals(0) && this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 var streamDataSize = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
                 if (!stream.getBlockedSent()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
@@ -210,7 +212,7 @@ export class FlowControl {
         };
     }
 
-    private static getStreamFrames(connection: Connection, stream: Stream, streamDataSize: Bignum, maxPacketSize: Bignum): FlowControlFrames {
+    private getStreamFrames(stream: Stream, streamDataSize: Bignum, maxPacketSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
@@ -222,13 +224,13 @@ export class FlowControl {
         }
 
         var streamData = stream.getData().slice(0, streamDataSize.toNumber());
-        var isHandshake = (connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED && stream.getStreamID().equals(0));
+        var isHandshake = (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED && stream.getStreamID().equals(0));
 
-        while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !connection.isRemoteLimitExceeded()))) {
+        while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !this.connection.isRemoteLimitExceeded()))) {
             streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
 
             if(!isHandshake) {
-                streamDataSize = streamDataSize.greaterThan(connection.getRemoteMaxData().subtract(connection.getRemoteOffset())) ? connection.getRemoteMaxData().subtract(connection.getRemoteOffset()) : streamDataSize;
+                streamDataSize = streamDataSize.greaterThan(this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset())) ? this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset()) : streamDataSize;
                 streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
             }
 
@@ -243,7 +245,7 @@ export class FlowControl {
             stream.setData(stream.getData().slice(streamDataSize.toNumber(), originalData.byteLength));
             stream.addRemoteOffset(streamDataSize);
             if (!stream.getStreamID().equals(0)) {
-                connection.addRemoteOffset(streamDataSize);
+                this.connection.addRemoteOffset(streamDataSize);
             }
 
             streamData = stream.getData();
@@ -257,19 +259,19 @@ export class FlowControl {
         };
     }
 
-    private static getLocalFlowControlFrames(connection: Connection): BaseFrame[] {
-        if (connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
+    private getLocalFlowControlFrames(): BaseFrame[] {
+        if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
             return [];
         }
         var frames = new Array<BaseFrame>();
-        if (connection.isLocalLimitAlmostExceeded() || connection.getIsRemoteBlocked()) {
-            var newMaxData = connection.getLocalMaxData().multiply(2);
+        if (this.connection.isLocalLimitAlmostExceeded() || this.connection.getIsRemoteBlocked()) {
+            var newMaxData = this.connection.getLocalMaxData().multiply(2);
             frames.push(FrameFactory.createMaxDataFrame(newMaxData));
-            connection.setLocalMaxData(newMaxData);
-            connection.setIsRemoteBlocked(false);
+            this.connection.setLocalMaxData(newMaxData);
+            this.connection.setIsRemoteBlocked(false);
         }
 
-        connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+        this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             if (!stream.getStreamID().equals(0) && stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
                 var newMaxStreamData = stream.getLocalMaxData().multiply(2);
                 frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));
@@ -278,30 +280,30 @@ export class FlowControl {
             }
         });
 
-        frames = frames.concat(this.checkLocalStreamId(connection));
+        frames = frames.concat(this.checkLocalStreamId());
         return frames;
     }
 
 
-    private static checkLocalStreamId(connection: Connection): BaseFrame[] {
+    private checkLocalStreamId(): BaseFrame[] {
         var frames = new Array<BaseFrame>();
         var uniAdded = false;
         var bidiAdded = false;
-        connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+        this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             var streamId = stream.getStreamID();
-            if (stream.getStreamID().equals(0) || this.isRemoteStreamId(connection, streamId)) {
+            if (stream.getStreamID().equals(0) || this.isRemoteStreamId(streamId)) {
                 return;
             }
             var newStreamId = undefined;
             if (Stream.isUniStreamId(streamId)) {
-                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamUni())) {
-                    newStreamId = connection.getLocalMaxStreamUni().add(Constants.MAX_STREAM_ID_INCREMENT);
-                    connection.setLocalMaxStreamUni(newStreamId);
+                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamUni())) {
+                    newStreamId = this.connection.getLocalMaxStreamUni().add(Constants.MAX_STREAM_ID_INCREMENT);
+                    this.connection.setLocalMaxStreamUni(newStreamId);
                 }
             } else {
-                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(connection.getLocalMaxStreamBidi())) {
-                    newStreamId = connection.getLocalMaxStreamBidi().add(Constants.MAX_STREAM_ID_INCREMENT);
-                    connection.setLocalMaxStreamBidi(newStreamId);
+                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamBidi())) {
+                    newStreamId = this.connection.getLocalMaxStreamBidi().add(Constants.MAX_STREAM_ID_INCREMENT);
+                    this.connection.setLocalMaxStreamBidi(newStreamId);
                 }
             }
             if (newStreamId !== undefined) {
@@ -312,34 +314,34 @@ export class FlowControl {
         return frames;
     }
 
-    private static isRemoteStreamId(connection: Connection, streamId: Bignum): boolean {
-        if (connection.getEndpointType() === EndpointType.Server) {
+    private isRemoteStreamId(streamId: Bignum): boolean {
+        if (this.connection.getEndpointType() === EndpointType.Server) {
             return streamId.and(new Bignum(0x1)).equals(1);
         }
         return streamId.and(new Bignum(0x1)).equals(0);
     }
 
 
-    private static isRemoteStreamIdBlocked(connection: Connection, stream: Stream): boolean {
-        if (!this.isRemoteStreamId(connection, stream.getStreamID())) {
+    private isRemoteStreamIdBlocked(stream: Stream): boolean {
+        if (!this.isRemoteStreamId(stream.getStreamID())) {
             return false;
         }
         var streamId = stream.getStreamID();
         if (Stream.isUniStreamId(streamId)) {
-            return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamUni());
+            return streamId.greaterThanOrEqual(this.connection.getRemoteMaxStreamUni());
         } else {
-            return streamId.greaterThanOrEqual(connection.getRemoteMaxStreamBidi());
+            return streamId.greaterThanOrEqual(this.connection.getRemoteMaxStreamBidi());
         }
     }
 
-    private static addRemoteStreamIdBlocked(connection: Connection, stream: Stream): BaseFrame {
+    private addRemoteStreamIdBlocked(stream: Stream): BaseFrame {
         var frames = new Array<BaseFrame>();
         var streamId = stream.getStreamID();
         var newStreamId = undefined;
         if (Stream.isUniStreamId(streamId)) {
-            return FrameFactory.createStreamIdBlockedFrame(connection.getRemoteMaxStreamUni());
+            return FrameFactory.createStreamIdBlockedFrame(this.connection.getRemoteMaxStreamUni());
         } else {
-            return FrameFactory.createStreamIdBlockedFrame(connection.getRemoteMaxStreamBidi());
+            return FrameFactory.createStreamIdBlockedFrame(this.connection.getRemoteMaxStreamBidi());
         }
     }
 }

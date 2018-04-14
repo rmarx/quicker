@@ -45,6 +45,7 @@ export class Connection extends FlowControlledObject {
     private handshakeHandler!: HandshakeHandler;
     private lossDetection: LossDetection;
     private congestionControl: CongestionControl;
+    private flowControl: FlowControl;
 
     private firstConnectionID!: ConnectionID;
     private connectionID!: ConnectionID;
@@ -102,6 +103,7 @@ export class Connection extends FlowControlledObject {
 
         this.lossDetection = new LossDetection(this);
         this.hookLossDetectionEvents();
+        this.flowControl = new FlowControl(this);
         this.congestionControl = new CongestionControl(this, this.lossDetection);
     }
 
@@ -464,7 +466,7 @@ export class Connection extends FlowControlledObject {
         var bufferedFrames = this.bufferedFrames;
         this.bufferedFrames = [];
         var containsAck: boolean = this.containsAck(bufferedFrames);
-        var packets: BasePacket[] = FlowControl.getPackets(this, bufferedFrames);
+        var packets: BasePacket[] = this.flowControl.getPackets(bufferedFrames);
         packets.forEach((packet: BasePacket, index: number) => {
             var sendAck: boolean = (index === 0 && !containsAck && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open));
             this._sendPacket(packet, sendAck);
