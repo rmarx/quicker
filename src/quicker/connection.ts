@@ -71,7 +71,6 @@ export class Connection extends FlowControlledObject {
 
     private idleTimeoutAlarm: Alarm;
     private transmissionAlarm: Alarm;
-    private bufferedFrames: BaseFrame[];
     private closePacket!: BaseEncryptedPacket;
     private closeSentCount: number;
 
@@ -81,7 +80,6 @@ export class Connection extends FlowControlledObject {
         this.endpointType = endpointType;
         this.streamManager = new StreamManager(endpointType);
         this.hookStreamManagerEvents();
-        this.bufferedFrames = [];
         this.idleTimeoutAlarm = new Alarm();
         this.transmissionAlarm = new Alarm();
         this.localMaxStreamUniBlocked = false;
@@ -367,11 +365,13 @@ export class Connection extends FlowControlledObject {
     }
 
     public queueFrame(baseFrame: BaseFrame) {
-        this.queueFrames([baseFrame]);
+        this.flowControl.queueFrame(baseFrame);
     }
 
     public queueFrames(baseFrames: BaseFrame[]): void {
-        this.bufferedFrames = this.bufferedFrames.concat(baseFrames);
+        baseFrames.forEach((baseFrame: BaseFrame) => {
+            this.flowControl.queueFrame(baseFrame);
+        })
         if (!this.transmissionAlarm.isRunning()) {
             this.startTransmissionAlarm();
         }
@@ -466,52 +466,35 @@ export class Connection extends FlowControlledObject {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             this.queueFrames(baseEncryptedPacket.getFrames());
         } else {
-            this._sendPacket(basePacket, false);
+            this._sendPacket(basePacket);
         }
     }
 
     public sendPackets(): void {
         this.transmissionAlarm.reset();
-        var bufferedFrames = this.bufferedFrames;
-        this.bufferedFrames = [];
-        var containsAck: boolean = this.containsAck(bufferedFrames);
-        var packets: BasePacket[] = this.flowControl.getPackets(bufferedFrames);
+        var ackBuffered: boolean = this.flowControl.isAckBuffered();
+        if (!ackBuffered && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open)) {
+            var ackFrame = this.ackHandler.getAckFrame(this);
+            if (ackFrame !== undefined) {
+                this.flowControl.queueFrame(ackFrame);
+            }
+        }
+        var packets: BasePacket[] = this.flowControl.getPackets();
         packets.forEach((packet: BasePacket, index: number) => {
-            var sendAck: boolean = (index === 0 && !containsAck && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open));
-            this._sendPacket(packet, sendAck);
+            this._sendPacket(packet);
         });
     }
 
-    private _sendPacket(basePacket: BasePacket, addAckFrame: boolean): void {
+    private _sendPacket(basePacket: BasePacket): void {
         if (this.connectionIsClosing()) {
             return;
         }
-        if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
-            if (addAckFrame) {
-                var ackFrame = this.ackHandler.getAckFrame(this);
-                if (ackFrame !== undefined) {
-                    baseEncryptedPacket.getFrames().push(ackFrame);
-                }
-            }
+        if (basePacket !== undefined) {
+            basePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
+            PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
+            this.emit(ConnectionEvent.PACKET_SENT, basePacket);
+            this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
         }
-        var packet = basePacket;
-        if (packet !== undefined) {
-            packet.getHeader().setPacketNumber(this.getNextPacketNumber());
-            PacketLogging.getInstance().logOutgoingPacket(this, packet);
-            this.emit(ConnectionEvent.PACKET_SENT, packet);
-            this.getSocket().send(packet.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
-        }
-    }
-
-    private containsAck(frames: BaseFrame[]): boolean {
-        var containsAck = false;
-        frames.forEach((baseFrame: BaseFrame) => {
-            if (baseFrame.getType() === FrameType.ACK) {
-                containsAck = true;
-            }
-        });
-        return containsAck;
     }
 
     private addPossibleAckFrame(baseFrames: BaseFrame[]) {

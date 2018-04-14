@@ -24,12 +24,28 @@ import { Time, TimeFormat } from '../types/time';
 export class FlowControl {
 
     private connection: Connection;
+    private bufferedFrames: BaseFrame[];
 
     public constructor(connection: Connection) {
         this.connection = connection;
+        this.bufferedFrames = [];
     }
 
-    public getPackets(bufferedFrames: BaseFrame[]): BasePacket[] {
+    public queueFrame(baseFrame: BaseFrame): void {
+        this.bufferedFrames.push(baseFrame);
+    }
+
+    public isAckBuffered(): boolean {
+        var containsAck = false;
+        this.bufferedFrames.forEach((baseFrame: BaseFrame) => {
+            if (baseFrame.getType() === FrameType.ACK) {
+                containsAck = true;
+            }
+        });
+        return containsAck;
+    }   
+
+    public getPackets(): BasePacket[] {
         var packets = new Array<BasePacket>();
         // TODO: calculate maxpacketsize better
         if (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
@@ -58,16 +74,18 @@ export class FlowControl {
             });
         }
 
-        bufferedFrames.forEach((frame: BaseFrame) => {
-            var frameSize = frame.toBuffer().byteLength;
+        var bufferedFrame: BaseFrame | undefined = this.bufferedFrames.shift();
+        while (bufferedFrame !== undefined) {
+            var frameSize = bufferedFrame.toBuffer().byteLength;
             if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
                 packets.push(this.createNewPacket(packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
             }
             size = size.add(frameSize);
-            packetFrames.push(frame);
-        });
+            packetFrames.push(bufferedFrame);
+            bufferedFrame = this.bufferedFrames.shift();
+        }
 
         frames.streamFrames.forEach((frame: BaseFrame) => {
             var frameSize = frame.toBuffer().byteLength;
