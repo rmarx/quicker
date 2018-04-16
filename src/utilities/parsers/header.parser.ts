@@ -117,7 +117,7 @@ export class HeaderParser {
      * @param type 
      */
     private correctShortHeaderType(type: number): number {
-        return type & 0x7;
+        return type & 0x3;
     }
 
     /**
