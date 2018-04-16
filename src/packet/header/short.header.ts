@@ -9,11 +9,13 @@ import { ConnectionID, PacketNumber } from './header.properties';
  */
 export class ShortHeader extends BaseHeader {
     private keyPhaseBit: boolean;
+    private spinBit: boolean;
     private destConnectionID: ConnectionID;
 
-    public constructor(type: number, destConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), keyPhaseBit: boolean) {
+    public constructor(type: number, destConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), keyPhaseBit: boolean, spinBit: boolean) {
         super(HeaderType.ShortHeader, type, packetNumber);
         this.keyPhaseBit = keyPhaseBit;
+        this.spinBit = spinBit;
         this.destConnectionID = destConnectionID;
     }
 
@@ -31,6 +33,10 @@ export class ShortHeader extends BaseHeader {
 
     public setDestConnectionID(connectionId: ConnectionID) {
         this.destConnectionID = connectionId;
+    }
+
+    public getSpinBit(): boolean {
+        return this.spinBit;
     }
 
     public toBuffer(): Buffer {
@@ -54,6 +60,11 @@ export class ShortHeader extends BaseHeader {
         type += 0x20;
         // Since Draft-10: Fourth bit:  The fourth bit (0x10) of octet 0 is set to 1.
         type += 0x10;
+        
+        // Since Draft-10: Sixth bit:  The sixth bit (0x04) is reserved for spinbit.
+        if (this.spinBit) {
+            type += 0x04;
+        }
 
         return type;
     }

@@ -63,6 +63,7 @@ export class Connection extends FlowControlledObject {
     private localMaxStreamBidi!: Bignum;
     private localMaxStreamUniBlocked: boolean;
     private localMaxStreamBidiBlocked: boolean;
+    private spinBit: boolean;
 
     private earlyData?: Buffer;
 
@@ -85,6 +86,7 @@ export class Connection extends FlowControlledObject {
         this.localMaxStreamUniBlocked = false;
         this.localMaxStreamBidiBlocked = false;
         this.closeSentCount = 0;
+        this.spinBit = false;
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
@@ -349,6 +351,14 @@ export class Connection extends FlowControlledObject {
 
     public setVersion(version: Version): void {
         this.version = version;
+    }
+
+    public getSpinBit(): boolean {
+        return this.spinBit;
+    }
+
+    public setSpinBit(spinbit: boolean): void {
+        this.spinBit = spinbit;
     }
 
     public setSocket(socket: Socket): void {

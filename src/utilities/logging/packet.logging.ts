@@ -101,17 +101,30 @@ export class PacketLogging {
         log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset;
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = (<LongHeader>header);
-            log += " Version: 0x" + longHeader.getVersion().getVersion().toString();
+            log += ", Version: 0x" + longHeader.getVersion().getVersion().toString();
             var destConnectionID = longHeader.getDestConnectionID();
-            log += " Dest CID: 0x" + destConnectionID.toString();
+            log += ", Dest CID: 0x" + destConnectionID.toString();
             var srcConnectionID = longHeader.getSrcConnectionID();
-            log += " Src CID: 0x" + srcConnectionID.toString();
+            log += ", Src CID: 0x" + srcConnectionID.toString();
         } else {
             var connectionID = (<ShortHeader>header).getDestConnectionID();
-            log += " Dest CID: 0x" + connectionID.toString();
+            log += ", Dest CID: 0x" + connectionID.toString();
         }
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString() + ConsoleColor.Reset;
+        }
+
+        if (header.getHeaderType() === HeaderType.LongHeader) {
+            var payloadLength = (<LongHeader>header).getPayloadLength();
+            log += ", payload length: ";
+            if (payloadLength !== undefined) {
+                log += payloadLength.toDecimalString();
+            } else {
+                log += "undefined";
+            }
+        } else {
+            var spinbit = (<ShortHeader>header).getSpinBit();
+            log += ", spinbit: " + (spinbit ? 1 : 0);
         }
 
 
@@ -125,13 +138,6 @@ export class PacketLogging {
             case PacketType.Initial:
             case PacketType.Handshake:
             case PacketType.Protected0RTT:
-                var payloadLength = (<LongHeader>header).getPayloadLength();
-                log += " payload length: ";
-                if (payloadLength !== undefined) {
-                    log += payloadLength.toDecimalString();
-                } else {
-                    log += "undefined";
-                }
             case PacketType.Protected1RTT:
                 var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
                 log += this.logFrames(connection, baseEncryptedPacket, color);

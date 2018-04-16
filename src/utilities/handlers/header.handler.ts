@@ -17,6 +17,7 @@ export class HeaderHandler {
 
     public handle(connection: Connection, headerOffset: HeaderOffset): HeaderOffset {
         var header = headerOffset.header;
+        var highestCurrentPacketNumber = false;
 
         if (header.getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>header;
@@ -37,10 +38,12 @@ export class HeaderHandler {
             // adjust remote packet number
             if (connection.getRemotePacketNumber() === undefined) {
                 connection.setRemotePacketNumber(header.getPacketNumber());
+                highestCurrentPacketNumber = true;
             } else {
                 var adjustedNumber = connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
                 if (connection.getRemotePacketNumber().getPacketNumber().lessThan(adjustedNumber)) {
                     connection.getRemotePacketNumber().setPacketNumber(adjustedNumber);
+                    highestCurrentPacketNumber = true;
                 }
                 // adjust the packet number in the header
                 header.getPacketNumber().setPacketNumber(adjustedNumber);
@@ -50,10 +53,10 @@ export class HeaderHandler {
         // custom handlers for long and short headers
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var lh = <LongHeader>header;
-            this.handleLongHeader(connection, lh);
+            this.handleLongHeader(connection, lh, highestCurrentPacketNumber);
         } else {
             var sh = <ShortHeader>header;
-            this.handleShortHeader(connection, sh);
+            this.handleShortHeader(connection, sh, highestCurrentPacketNumber);
         }
         return {
             header: header, 
@@ -61,10 +64,13 @@ export class HeaderHandler {
         };
     }
 
-    private handleLongHeader(connection: Connection, longHeader: LongHeader): void {
+    private handleLongHeader(connection: Connection, longHeader: LongHeader, highestCurrentPacketNumber: boolean): void {
         //
     }
-    private handleShortHeader(connection: Connection, shortHeader: ShortHeader): void {
-        //
+    private handleShortHeader(connection: Connection, shortHeader: ShortHeader, highestCurrentPacketNumber: boolean): void {
+        if (highestCurrentPacketNumber) {
+            var spinbit = connection.getEndpointType() === EndpointType.Client ? !shortHeader.getSpinBit() : shortHeader.getSpinBit();
+            connection.setSpinBit(spinbit);
+        }
     }
 }

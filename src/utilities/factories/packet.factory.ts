@@ -90,7 +90,7 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getDestConnectionID(), undefined, false)
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getDestConnectionID(), undefined, false, connection.getSpinBit());
         return new ShortHeaderPacket(header, frames);
     }
 }

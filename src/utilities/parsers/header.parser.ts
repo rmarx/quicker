@@ -89,9 +89,10 @@ export class HeaderParser {
     private parseShortHeader(buf: Buffer, offset: number): HeaderOffset {
         var type = buf.readUIntBE(offset++, 1);
         var keyPhaseBit: boolean = (type & 0x40) === 0x40;
-        var thirdBitCheck = (type & 0x20) === 0x20;
-        var fourthBitCheck = (type & 0x10) === 0x10;
-        var fifthBitCheck = (type & 0x08) === 0x08;
+        var thirdBitCheck: boolean = (type & 0x20) === 0x20;
+        var fourthBitCheck: boolean = (type & 0x10) === 0x10;
+        var fifthBitCheck: boolean = (type & 0x08) === 0x08;
+        var spinBit: boolean = (type & 0x04) === 0x04;
         if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
@@ -106,7 +107,7 @@ export class HeaderParser {
 
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
         offset = offset + (1 << type);
-        return { header: new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit), offset: offset };
+        return { header: new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit, spinBit), offset: offset };
     }
 
     /**
