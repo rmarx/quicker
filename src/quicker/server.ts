@@ -82,29 +82,31 @@ export class Server extends Endpoint {
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         var receivedTime = Time.now();
-        var headerOffset: HeaderOffset = this.headerParser.parse(msg);
-        var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
-        try {
-            connection.checkConnectionState();
-            connection.resetIdleAlarm();
-            headerOffset = this.headerHandler.handle(connection, headerOffset);
-            var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
-            this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
-            connection.startIdleAlarm();
-        } catch (err) {
-            if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
-                connection.resetConnectionState();
-                this.connectionManager.deleteConnection(connection)
-                var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
-                connection.sendPacket(versionNegotiationPacket);
-                return;
-            } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
-                return;
-            } else {
-                this.handleError(connection, err);
-                return;
+        var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
+        headerOffsets.forEach((headerOffset: HeaderOffset) => {
+            var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
+            try {
+                connection.checkConnectionState();
+                connection.resetIdleAlarm();
+                headerOffset = this.headerHandler.handle(connection, headerOffset);
+                var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
+                this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+                connection.startIdleAlarm();
+            } catch (err) {
+                if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                    connection.resetConnectionState();
+                    this.connectionManager.deleteConnection(connection)
+                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
+                    connection.sendPacket(versionNegotiationPacket);
+                    return;
+                } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
+                    return;
+                } else {
+                    this.handleError(connection, err);
+                    return;
+                }
             }
-        }
+        });
     }
 
 

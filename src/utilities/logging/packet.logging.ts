@@ -111,8 +111,9 @@ export class PacketLogging {
             log += " Dest CID: 0x" + connectionID.toString();
         }
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            log += color + ", PKN: " + basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString() + ConsoleColor.Reset;
+            log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString() + ConsoleColor.Reset;
         }
+
 
         switch (basePacket.getPacketType()) {
             case PacketType.Retry:
@@ -124,6 +125,13 @@ export class PacketLogging {
             case PacketType.Initial:
             case PacketType.Handshake:
             case PacketType.Protected0RTT:
+                var payloadLength = (<LongHeader>header).getPayloadLength();
+                log += " payload length: ";
+                if (payloadLength !== undefined) {
+                    log += payloadLength.toDecimalString();
+                } else {
+                    log += "undefined";
+                }
             case PacketType.Protected1RTT:
                 var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
                 log += this.logFrames(connection, baseEncryptedPacket, color);

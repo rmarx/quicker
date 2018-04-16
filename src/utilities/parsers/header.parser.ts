@@ -1,11 +1,13 @@
 import { BasePacket } from "../../packet/base.packet";
-import { BaseHeader } from "../../packet/header/base.header";
+import { BaseHeader, HeaderType } from "../../packet/header/base.header";
 import { LongHeader } from "../../packet/header/long.header";
 import { ShortHeader, ShortHeaderType } from "../../packet/header/short.header";
 import { Constants } from "../constants";
 import { ConnectionID, PacketNumber, Version } from '../../packet/header/header.properties';
 import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes } from "../errors/quic.codes";
+import { VLIE } from "../../crypto/vlie";
+import { Bignum } from "../../types/bignum";
 
 
 export class HeaderParser {
@@ -15,12 +17,34 @@ export class HeaderParser {
      * returns a ShortHeader or LongHeader, depending on the first bit
      * @param buf packet buffer
      */
-    public parse(buf: Buffer): HeaderOffset {
-        var type = buf.readUIntBE(0, 1);
-        if ((type & 0x80) === 0x80) {
-            return this.parseLongHeader(buf);
+    public parse(buf: Buffer): HeaderOffset[] {
+        var headerOffsets: HeaderOffset[] = [];
+        var headerOffset: HeaderOffset = this.parseHeader(buf, 0);
+        headerOffsets.push(headerOffset);
+        var totalSize: Bignum = new Bignum(0);
+        while (headerOffset.header.getHeaderType() === HeaderType.LongHeader) {
+            var longHeader: LongHeader = <LongHeader>(headerOffset.header);
+            var payloadLength = longHeader.getPayloadLength();
+            if (payloadLength !== undefined && payloadLength.add(totalSize).add(longHeader.getSize()).lessThan(buf.byteLength)) {
+                totalSize = totalSize.add(payloadLength).add(longHeader.getSize());
+                headerOffset = this.parseHeader(buf, totalSize.toNumber());
+                headerOffsets.push(headerOffset);
+            } else {
+                if (payloadLength !== undefined) {
+                    totalSize = totalSize.add(payloadLength).add(longHeader.getSize());
+                }
+                break;
+            }
         }
-        return this.parseShortHeader(buf);
+        return headerOffsets;
+    }
+
+    private parseHeader(buf: Buffer, offset: number): HeaderOffset {
+        var type = buf.readUIntBE(offset, 1);
+        if ((type & 0x80) === 0x80) {
+            return this.parseLongHeader(buf, offset);
+        }
+        return this.parseShortHeader(buf, offset);
     }
 
     /**
@@ -28,8 +52,7 @@ export class HeaderParser {
      * 
      * @param buf packet buffer
      */
-    private parseLongHeader(buf: Buffer): HeaderOffset {
-        var offset = 0;
+    private parseLongHeader(buf: Buffer, offset: number): HeaderOffset {
         var type = (buf.readUInt8(offset++) - 0x80);
         var version = new Version(buf.slice(offset, offset + 4));
         offset += 4;
@@ -43,15 +66,19 @@ export class HeaderParser {
         offset += destLength;
         var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
         offset += srcLength;
-        
+
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
         var packetNumber;
+        var payloadLength;
         if (version.toString() !== "00000000") {
+            var vlieOffset = VLIE.decode(buf, offset);
+            payloadLength = vlieOffset.value;
+            offset = vlieOffset.offset;
             packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
             offset += 4;
         }
 
-        return { header: new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, version), offset: offset };
+        return { header: new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version), offset: offset };
     }
 
     /**
@@ -59,9 +86,8 @@ export class HeaderParser {
      * 
      * @param buf packet buffer
      */
-    private parseShortHeader(buf: Buffer): HeaderOffset {
-        var offset = 1;
-        var type = buf.readUIntBE(0, 1);
+    private parseShortHeader(buf: Buffer, offset: number): HeaderOffset {
+        var type = buf.readUIntBE(offset++, 1);
         var keyPhaseBit: boolean = (type & 0x40) === 0x40;
         var thirdBitCheck = (type & 0x20) === 0x20;
         var fourthBitCheck = (type & 0x10) === 0x10;

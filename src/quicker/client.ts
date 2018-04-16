@@ -1,17 +1,17 @@
-import {Connection, RemoteInformation, ConnectionEvent} from './connection';
-import {PacketNumber, Version, ConnectionID} from '../packet/header/header.properties';
-import {Constants} from '../utilities/constants';
-import {Bignum} from '../types/bignum';
-import {EndpointType} from '../types/endpoint.type';
-import {QuickerEvent} from './quicker.event';
-import {QuicStream} from './quic.stream';
-import {Stream, StreamType} from './stream';
-import {TransportParameters} from '../crypto/transport.parameters';
-import {Time} from '../types/time';
-import {HeaderOffset} from '../utilities/parsers/header.parser';
-import {PacketOffset} from '../utilities/parsers/packet.parser';
-import {QuickerError} from '../utilities/errors/quicker.error';
-import {QuickerErrorCodes} from '../utilities/errors/quicker.codes';
+import { Connection, RemoteInformation, ConnectionEvent } from './connection';
+import { PacketNumber, Version, ConnectionID } from '../packet/header/header.properties';
+import { Constants } from '../utilities/constants';
+import { Bignum } from '../types/bignum';
+import { EndpointType } from '../types/endpoint.type';
+import { QuickerEvent } from './quicker.event';
+import { QuicStream } from './quic.stream';
+import { Stream, StreamType } from './stream';
+import { TransportParameters } from '../crypto/transport.parameters';
+import { Time } from '../types/time';
+import { HeaderOffset } from '../utilities/parsers/header.parser';
+import { PacketOffset } from '../utilities/parsers/packet.parser';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 import { isIPv6 } from 'net';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import { Endpoint } from './endpoint';
@@ -134,10 +134,12 @@ export class Client extends Endpoint {
             this.connection.checkConnectionState();
             this.connection.resetIdleAlarm();
             var receivedTime = Time.now();
-            var headerOffset: HeaderOffset = this.headerParser.parse(msg);
-            headerOffset = this.headerHandler.handle(this.connection, headerOffset);
-            var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
-            this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
+            var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
+            headerOffsets.forEach((headerOffset: HeaderOffset) => {
+                headerOffset = this.headerHandler.handle(this.connection, headerOffset);
+                var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
+                this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
+            });
             this.connection.startIdleAlarm();
         } catch (err) {
             if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {

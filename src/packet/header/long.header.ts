@@ -2,6 +2,7 @@ import { BaseHeader, HeaderType } from "./base.header";
 import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
+import { VLIE } from "../../crypto/vlie";
 
 /**        0              1-7                 8-12           13 - 16          17-*  
  *   +--------------------------------------------------------------------------------+
@@ -12,6 +13,7 @@ export class LongHeader extends BaseHeader {
     private version: Version;
     private destConnectionID: ConnectionID;
     private srcConnectionID: ConnectionID;
+    private payloadLength: Bignum | undefined;
 
     /**
      * 
@@ -20,11 +22,12 @@ export class LongHeader extends BaseHeader {
      * @param packetNumber 
      * @param version 
      */
-    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), version: Version) {
+    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), payloadLength: (Bignum | undefined) ,version: Version) {
         super(HeaderType.LongHeader, type, packetNumber);
         this.version = version;
         this.destConnectionID = destConnectionID;
         this.srcConnectionID = srcConnectionID;
+        this.payloadLength = payloadLength;
     }
 
     public getSrcConnectionID(): ConnectionID {
@@ -51,6 +54,20 @@ export class LongHeader extends BaseHeader {
         this.version = version;
     }
 
+    public getPayloadLength(): Bignum | undefined {
+        return this.payloadLength;
+    }
+
+    public setPayloadLength(value: number): void;
+    public setPayloadLength(value: Bignum): void;
+    public setPayloadLength(value: any): void {
+        if (value instanceof Bignum) {
+            this.payloadLength = value;
+            return;
+        }
+        this.payloadLength = new Bignum(value);
+    }
+
     public toBuffer(): Buffer {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
@@ -58,18 +75,19 @@ export class LongHeader extends BaseHeader {
         // create LongHeader
         var type = 0x80 + this.getPacketType();
         buf.writeUInt8(type, offset++);
-        this.getVersion().toBuffer().copy(buf, offset);
-        offset += 4;
+        offset += this.getVersion().toBuffer().copy(buf, offset);
         var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
         var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
         buf.writeUInt8(((destLength << 4) + srcLength), offset++);
-        this.destConnectionID.toBuffer().copy(buf, offset);
-        offset += this.destConnectionID.getLength();
-        this.srcConnectionID.toBuffer().copy(buf, offset);
-        offset += this.srcConnectionID.getLength();
+        offset += this.destConnectionID.toBuffer().copy(buf, offset);
+        offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
         if (this.getVersion().toString() !== "00000000") {
-            this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
+            if (this.payloadLength !== undefined) {
+                var payloadLengthBuffer = VLIE.encode(this.payloadLength);
+                offset += payloadLengthBuffer.copy(buf, offset);
+            }
+            offset += this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
         }
         return buf;
     }
@@ -85,6 +103,9 @@ export class LongHeader extends BaseHeader {
         size += this.srcConnectionID.getLength();
         if (this.getVersion().toString() !== "00000000") {
             size += this.getPacketNumberSize();
+        }
+        if (this.payloadLength !== undefined) {
+            size += VLIE.encode(this.payloadLength).byteLength;
         }
         return size;
     }

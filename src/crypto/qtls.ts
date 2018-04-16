@@ -148,7 +148,7 @@ export class QTLS extends EventEmitter{
 
     public getCipher(): Cipher {
         if (this.cipher === undefined) {
-            this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
+            this.cipher = new Cipher(Constants.DEFAULT_CIPHER);
         }
         return this.cipher;
     }

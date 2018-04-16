@@ -6,7 +6,8 @@ export class Cipher {
     private cipher: string;
 
     public constructor(cipher: string) {
-        this.cipher = cipher;
+        // Just to be sure to be compatible
+        this.cipher = cipher.split('-').join('_');
     }
 
     public getHash(): string {

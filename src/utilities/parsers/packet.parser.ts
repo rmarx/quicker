@@ -16,6 +16,7 @@ import { BasePacket } from '../../packet/base.packet';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
+import { Bignum } from '../../types/bignum';
 
 
 export class PacketParser {
@@ -94,8 +95,7 @@ export class PacketParser {
     }
 
     private parseClientInitialPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
-        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
@@ -105,8 +105,7 @@ export class PacketParser {
     }
 
     private parseProtected0RTTPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
-        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().protected0RTTDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
@@ -116,14 +115,22 @@ export class PacketParser {
     }
 
     private parseHandshakePacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
-        buffer.copy(dataBuffer, 0, headerOffset.offset);
+        var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new HandshakePacket(headerOffset.header, frames),
             offset: headerOffset.offset
         };
+    }
+
+    private getDataBuffer(headerOffset: HeaderOffset, buffer: Buffer): Buffer {
+        var longHeader = <LongHeader> headerOffset.header;
+        var payloadLength = longHeader.getPayloadLength();
+        var length = payloadLength !== undefined ? payloadLength.toNumber() : buffer.byteLength;
+        var dataBuffer = Buffer.alloc(length);
+        buffer.copy(dataBuffer, 0, headerOffset.offset, headerOffset.offset + length);
+        return dataBuffer;
     }
 }
 /**
