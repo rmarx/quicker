@@ -81,8 +81,12 @@ export class Server extends Endpoint {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-        var receivedTime = Time.now();
-        var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
+        try {
+            var receivedTime = Time.now();
+            var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
+        } catch(err) {
+            return;
+        }
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
         var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
             try {

@@ -93,9 +93,9 @@ export class HeaderParser {
         var fourthBitCheck: boolean = (type & 0x10) === 0x10;
         var fifthBitCheck: boolean = (type & 0x08) === 0x08;
         var spinBit: boolean = (type & 0x04) === 0x04;
-        if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
+        /*if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
-        }
+        }*/
 
         type = this.correctShortHeaderType(type);
 

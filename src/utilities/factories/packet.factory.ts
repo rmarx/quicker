@@ -70,7 +70,8 @@ export class PacketFactory {
      * @param frames 
      */
     public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
-        var header = new LongHeader(LongHeaderType.Handshake, connection.getDestConnectionID(), connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
+        var dstConnectionID = connection.getDestConnectionID() === undefined ? connection.getInitialDestConnectionID() : connection.getDestConnectionID();
+        var header = new LongHeader(LongHeaderType.Handshake, dstConnectionID, connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
         var packet = new HandshakePacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
         return packet;
