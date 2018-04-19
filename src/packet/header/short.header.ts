@@ -61,7 +61,7 @@ export class ShortHeader extends BaseHeader {
         // Since Draft-10: Fourth bit:  The fourth bit (0x10) of octet 0 is set to 1.
         type += 0x10;
         
-        // Since Draft-10: Sixth bit:  The sixth bit (0x04) is reserved for spinbit.
+        // Since Draft-11: Sixth bit:  The sixth bit (0x04) is reserved for spinbit.
         if (this.spinBit) {
             type += 0x04;
         }

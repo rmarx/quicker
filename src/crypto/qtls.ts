@@ -148,7 +148,7 @@ export class QTLS extends EventEmitter{
 
     public getCipher(): Cipher {
         if (this.cipher === undefined) {
-            this.cipher = new Cipher(Constants.DEFAULT_CIPHER);
+            this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
         }
         return this.cipher;
     }
@@ -227,14 +227,15 @@ export class QTLS extends EventEmitter{
     }
 
     private handleHandshakeDone(): void {
+        // Get 1-RTT Negotiated Cipher
+        this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
+        this.earlyData = undefined;
+        // Set handshake state
         if (this.isServer) {
             this.handshakeState = HandshakeState.COMPLETED;
         } else {
             this.handshakeState = HandshakeState.CLIENT_COMPLETED;
         }
-        // Get 1-RTT Negotiated Cipher
-        this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
-        this.earlyData = undefined;
     }
 
     private handleNewSession(): void {

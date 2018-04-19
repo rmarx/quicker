@@ -84,7 +84,7 @@ export class Server extends Endpoint {
         var receivedTime = Time.now();
         var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
-            var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
+        var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
             try {
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
