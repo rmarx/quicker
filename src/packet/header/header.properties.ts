@@ -35,11 +35,11 @@ export class ConnectionID extends BaseProperty {
         this.length = length;
     }
 
-    public getConnectionID(): Bignum {
+    public getValue(): Bignum {
         return this.getProperty();
     }
 
-    public setConnectionID(bignum: Bignum) {
+    public setValue(bignum: Bignum) {
         this.setProperty(bignum);
         this.length = bignum.getByteLength();
     }
@@ -70,11 +70,11 @@ export class PacketNumber extends BaseProperty {
         super(buffer, 8);
     }
 
-    public getPacketNumber(): Bignum {
+    public getValue(): Bignum {
         return this.getProperty();
     }
 
-    public setPacketNumber(bignum: Bignum) {
+    public setValue(bignum: Bignum) {
         bignum.setByteLength(8);
         this.setProperty(bignum);
     }
@@ -101,8 +101,8 @@ export class PacketNumber extends BaseProperty {
                 mask = mask.add(1);
             }
         }
-        var maskedResult = this.getPacketNumber().and(mask);
-        var next = packetNumber.getPacketNumber().mask(size);
+        var maskedResult = this.getValue().and(mask);
+        var next = packetNumber.getValue().mask(size);
         next = next.add(maskedResult);
         return next;
     }
@@ -115,8 +115,8 @@ export class PacketNumber extends BaseProperty {
                 mask = mask.add(1);
             }
         }
-        var maskedResult = this.getPacketNumber().and(mask);
-        var next = packetNumber.getPacketNumber().mask(size);
+        var maskedResult = this.getValue().and(mask);
+        var next = packetNumber.getValue().mask(size);
         next = next.add(maskedResult);
         return new PacketNumber(next.toBuffer());
     }
@@ -136,11 +136,11 @@ export class Version extends BaseProperty {
         super(buffer);
     }
 
-    public getVersion(): Bignum {
+    public getValue(): Bignum {
         return this.getProperty();
     }
 
-    public setVersion(bignum: Bignum) {
+    public setValue(bignum: Bignum) {
         this.setProperty(bignum);
     }
 }

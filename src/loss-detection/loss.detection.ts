@@ -144,7 +144,7 @@ export class LossDetection extends EventEmitter {
      */
     public onPacketSent(basePacket: BasePacket): void {
         var currentTime = (new Date()).getTime();
-        var packetNumber = basePacket.getHeader().getPacketNumber().getPacketNumber();
+        var packetNumber = basePacket.getHeader().getPacketNumber().getValue();
         this.largestSentPacket = packetNumber;
         var sentPacket: SentPacket = {
             packet: basePacket,
@@ -175,7 +175,7 @@ export class LossDetection extends EventEmitter {
             this.updateRtt(ackFrame);
         }
         this.determineNewlyAckedPackets(ackFrame).forEach((packet: BasePacket) => {
-            this.onPacketAcked(packet.getHeader().getPacketNumber().getPacketNumber(), packet);
+            this.onPacketAcked(packet.getHeader().getPacketNumber().getValue(), packet);
         });
         this.detectLostPackets(ackFrame.getLargestAcknowledged());
         this.setLossDetectionAlarm();
@@ -203,7 +203,7 @@ export class LossDetection extends EventEmitter {
 
     private determineNewlyAckedPackets(ackFrame: AckFrame): BasePacket[] {
         var ackedPackets: BasePacket[] = [];
-        var ackedPacketnumbers = this.determineAckedPacketNumbers(ackFrame);
+        var ackedPacketnumbers = ackFrame.determineAckedPacketNumbers();
 
         ackedPacketnumbers.forEach((packetnumber: Bignum) => {
             if (this.sentPackets[packetnumber.toString('hex', 8)] !== undefined) {
@@ -212,28 +212,6 @@ export class LossDetection extends EventEmitter {
         });
 
         return ackedPackets;
-    }
-
-    private determineAckedPacketNumbers(ackFrame: AckFrame): Bignum[] {
-        var packetnumbers: Bignum[] = [];
-
-        var x = ackFrame.getLargestAcknowledged();
-        packetnumbers.push(x);
-        for (var i = 0; i < ackFrame.getFirstAckBlock().toNumber(); i++) {
-            x = x.subtract(1);
-            packetnumbers.push(x);
-        }
-
-        for (var i = 0; i < ackFrame.getAckBlockCount().toNumber(); i++) {
-            for (var j = 0; j < ackFrame.getFirstAckBlock().toNumber(); j++) {
-                x = x.subtract(1);
-            }
-            for (var j = 0; j < ackFrame.getFirstAckBlock().toNumber(); j++) {
-                x = x.subtract(1);
-                packetnumbers.push(x);
-            }
-        }
-        return packetnumbers;
     }
 
     /**
@@ -351,7 +329,7 @@ export class LossDetection extends EventEmitter {
         if (lostPackets.length > 0) {
             this.emit(LossDetectionEvents.PACKETS_LOST, lostPackets);
             lostPackets.forEach((packet: BasePacket) => {
-                var sentPacket = this.sentPackets[packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)];
+                var sentPacket = this.sentPackets[packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
                 if (sentPacket !== undefined && sentPacket.packet.isHandshake()) {
                     this.handshakeOutstanding--;
                 }
@@ -369,7 +347,7 @@ export class LossDetection extends EventEmitter {
                 var timeSinceSent = new Bignum((new Date()).getTime() - unacked.time);
                 var delta = this.largestAckedPacket.subtract(unackedPacketNumber);
                 if (timeSinceSent.greaterThan(delayUntilLost) || delta.greaterThan(this.reorderingTreshold)) {
-                    delete this.sentPackets[unacked.packet.getHeader().getPacketNumber().getPacketNumber().toString('hex', 8)];
+                    delete this.sentPackets[unacked.packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
                     if (unacked.packet.isRetransmittable()) {
                         lostPackets.push(unacked.packet);
                     }

@@ -4,11 +4,14 @@ import { Bignum } from "../types/bignum";
 import { BasePacket } from "../packet/base.packet";
 import { Connection, ConnectionEvent } from "../quicker/connection";
 import { LossDetection, LossDetectionEvents } from "../loss-detection/loss.detection";
+import { Socket } from "dgram";
+import { PacketLogging } from "../utilities/logging/packet.logging";
 
 
 export class CongestionControl extends EventEmitter {
 
     private connection: Connection;
+    private packetsQueue: BasePacket[];
 
     ///////////////////////////
     // Constants of interest
@@ -51,7 +54,8 @@ export class CongestionControl extends EventEmitter {
         this.bytesInFlight = new Bignum(0);
         this.endOfRecovery = new Bignum(0);
         this.sshtresh = Bignum.infinity();
-        //this.hookCongestionControlEvents(lossDetection);
+        this.packetsQueue = [];
+        this.hookCongestionControlEvents(lossDetection);
     }
 
     private hookCongestionControlEvents(lossDetection: LossDetection) {
@@ -90,7 +94,7 @@ export class CongestionControl extends EventEmitter {
         var packetByteSize = ackedPacket.toBuffer(this.connection).byteLength;
         // Remove from bytesInFlight.
         this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
-        if (this.inRecovery(ackedPacket.getHeader().getPacketNumber().getPacketNumber())) {
+        if (this.inRecovery(ackedPacket.getHeader().getPacketNumber().getValue())) {
             // Do not increase congestion window in recovery period.
             return;
         }
@@ -101,6 +105,7 @@ export class CongestionControl extends EventEmitter {
             // Congestion avoidance
             this.congestionWindow = this.congestionWindow.add(new Bignum(CongestionControl.DEFAULT_MSS * packetByteSize).divide(this.congestionWindow));
         }
+        this.sendPackets();
     }
 
     private onPacketsLost(lostPackets: BasePacket[]) {
@@ -111,8 +116,8 @@ export class CongestionControl extends EventEmitter {
             var packetByteSize = lostPacket.toBuffer(this.connection).byteLength;
             // Remove lost packets from bytesInFlight.
             this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
-            if (lostPacket.getHeader().getPacketNumber().getPacketNumber().greaterThan(largestLost)) {
-                largestLost = lostPacket.getHeader().getPacketNumber().getPacketNumber();
+            if (lostPacket.getHeader().getPacketNumber().getValue().greaterThan(largestLost)) {
+                largestLost = lostPacket.getHeader().getPacketNumber().getValue();
             }
         });
         // Start a new recovery epoch if the lost packet is larger
@@ -123,10 +128,31 @@ export class CongestionControl extends EventEmitter {
             this.congestionWindow = Bignum.max(this.congestionWindow, CongestionControl.MINIMUM_WINDOW);
             this.sshtresh = this.congestionWindow;
         }
+        this.sendPackets();
     }
 
     private onRetransmissionTimeoutVerified() {
         this.congestionWindow = new Bignum(CongestionControl.MINIMUM_WINDOW);
     }
 
+
+    public queuePackets(packets: BasePacket[]) {
+        this.packetsQueue = this.packetsQueue.concat(packets);
+        this.sendPackets();
+    }
+
+    private sendPackets() {
+        while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
+            var packet: BasePacket | undefined = this.packetsQueue.shift();
+            if (packet !== undefined) {
+                packet.getHeader().setPacketNumber(this.connection.getNextPacketNumber());
+                this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                this.emit(CongestionControlEvents.PACKET_SENT, packet);
+            }
+        }
+    }
+}
+
+export enum CongestionControlEvents {
+    PACKET_SENT = 'cc-packet-sent'
 }

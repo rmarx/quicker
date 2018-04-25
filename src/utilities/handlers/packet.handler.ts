@@ -68,8 +68,8 @@ export class PacketHandler {
         var longHeader = <LongHeader>versionNegotiationPacket.getHeader();
         var connectionId = longHeader.getSrcConnectionID();
         var connectionId = longHeader.getDestConnectionID();
-        if (connection.getInitialDestConnectionID().getConnectionID().compare(longHeader.getSrcConnectionID().getConnectionID()) !== 0 ||
-                connection.getSrcConnectionID().getConnectionID().compare(longHeader.getDestConnectionID().getConnectionID()) !== 0) {
+        if (connection.getInitialDestConnectionID().getValue().compare(longHeader.getSrcConnectionID().getValue()) !== 0 ||
+                connection.getSrcConnectionID().getValue().compare(longHeader.getDestConnectionID().getValue()) !== 0) {
             return;
         }
         var negotiatedVersion = undefined;
@@ -89,9 +89,6 @@ export class PacketHandler {
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
-        if (clientInitialPacket.getSize() < Constants.CLIENT_INITIAL_MIN_SIZE) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
-        }
         this.handleFrames(connection, clientInitialPacket);
     }
 
@@ -101,7 +98,7 @@ export class PacketHandler {
         if (connection.getEndpointType() === EndpointType.Client) {
             if (connection.getDestConnectionID() === undefined) {
                 connection.setDestConnectionID(connectionID);
-            } else if (connection.getDestConnectionID().getConnectionID().compare(connectionID.getConnectionID()) !== 0){
+            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0){
                 throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
             }
         }

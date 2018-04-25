@@ -17,7 +17,6 @@ import { FlowControlledObject } from '../flow-control/flow.controlled';
 import { FlowControl } from '../flow-control/flow.control';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { PacketFactory } from '../utilities/factories/packet.factory';
-import { BN } from 'bn.js';
 import { QuicStream } from './quic.stream';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
@@ -30,22 +29,14 @@ import { StreamFrame } from '../frame/stream';
 import { MaxStreamIdFrame } from '../frame/max.stream.id';
 import { MaxStreamFrame } from '../frame/max.stream';
 import { MaxDataFrame } from '../frame/max.data';
-import { CongestionControl } from '../congestion-control/congestion.control';
+import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
 import { StreamManager, StreamManagerEvents } from './stream.manager';
 
 export class Connection extends FlowControlledObject {
 
-    private qtls: QTLS;
-    private aead: AEAD;
-    private socket!: Socket;
     private remoteInfo: RemoteInformation;
+    private socket: Socket;
     private endpointType: EndpointType;
-
-    private ackHandler: AckHandler;
-    private handshakeHandler!: HandshakeHandler;
-    private lossDetection: LossDetection;
-    private congestionControl: CongestionControl;
-    private flowControl: FlowControl;
 
     private initialDestConnectionID!: ConnectionID;
     private srcConnectionID!: ConnectionID;
@@ -56,6 +47,9 @@ export class Connection extends FlowControlledObject {
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
     private version!: Version;
+    private state!: ConnectionState;
+    private earlyData?: Buffer;
+    private spinBit: boolean;
 
     private remoteMaxStreamUni!: Bignum;
     private remoteMaxStreamBidi!: Bignum;
@@ -63,24 +57,27 @@ export class Connection extends FlowControlledObject {
     private localMaxStreamBidi!: Bignum;
     private localMaxStreamUniBlocked: boolean;
     private localMaxStreamBidiBlocked: boolean;
-    private spinBit: boolean;
-
-    private earlyData?: Buffer;
-
-    private state!: ConnectionState;
-    private streamManager: StreamManager;
 
     private idleTimeoutAlarm: Alarm;
     private transmissionAlarm: Alarm;
     private closePacket!: BaseEncryptedPacket;
     private closeSentCount: number;
 
-    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, options?: any) {
+    private qtls: QTLS;
+    private aead: AEAD;
+
+    private lossDetection!: LossDetection;
+    private congestionControl!: CongestionControl;
+    private flowControl!: FlowControl;
+    private streamManager!: StreamManager;
+    private ackHandler!: AckHandler;
+    private handshakeHandler!: HandshakeHandler;
+
+    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, options?: any) {
         super();
         this.remoteInfo = remoteInfo;
+        this.socket = socket;
         this.endpointType = endpointType;
-        this.streamManager = new StreamManager(endpointType);
-        this.hookStreamManagerEvents();
         this.idleTimeoutAlarm = new Alarm();
         this.transmissionAlarm = new Alarm();
         this.localMaxStreamUniBlocked = false;
@@ -91,21 +88,35 @@ export class Connection extends FlowControlledObject {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
 
+        this.initializeHandlers(socket);
+        
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
         // Hook QuicTLS Events
         this.hookQuicTLSEvents();
         // Initialize QuicTLS Object
         this.qtls.init();
-
         this.aead = new AEAD(this.qtls);
+    }
+
+    private initializeHandlers(socket: Socket) {
         this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this);
-
+        this.streamManager = new StreamManager(this.endpointType);
         this.lossDetection = new LossDetection(this);
-        this.hookLossDetectionEvents();
         this.flowControl = new FlowControl(this);
         this.congestionControl = new CongestionControl(this, this.lossDetection);
+
+        this.hookStreamManagerEvents();
+        this.hookLossDetectionEvents();
+        this.hookCongestionControlEvents();
+    }
+
+    private hookCongestionControlEvents() {
+        this.congestionControl.on(CongestionControlEvents.PACKET_SENT, (basePacket: BasePacket) => {
+            PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
+            this.emit(ConnectionEvent.PACKET_SENT, basePacket);
+        });
     }
 
     private hookLossDetectionEvents() {
@@ -134,10 +145,6 @@ export class Connection extends FlowControlledObject {
                 this.handshakeHandler.setHandshakeStream(stream);
             }
         });
-    }
-
-    public getRemoteInfo(): RemoteInfo {
-        return this.remoteInfo;
     }
 
     public getInitialDestConnectionID(): ConnectionID {
@@ -283,8 +290,8 @@ export class Connection extends FlowControlledObject {
     public setLocalTransportParameters(transportParameters: TransportParameters): void {
         this.localTransportParameters = transportParameters;
         this.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI));
-        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI));
+        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI));
+        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI));
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
@@ -306,16 +313,12 @@ export class Connection extends FlowControlledObject {
     public setRemoteTransportParameters(transportParameters: TransportParameters): void {
         this.remoteTransportParameters = transportParameters;
         this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI));
-        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI));
+        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI));
+        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI));
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
         this.getStreamManager().setRemoteMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
-    }
-
-    public getSocket(): Socket {
-        return this.socket;
     }
 
     public getLocalPacketNumber(): PacketNumber {
@@ -332,8 +335,8 @@ export class Connection extends FlowControlledObject {
             this.initialPacketNumber = this.localPacketNumber;
             return this.localPacketNumber;
         }
-        var bn = this.localPacketNumber.getPacketNumber().add(1);
-        this.localPacketNumber.setPacketNumber(bn);
+        var bn = this.localPacketNumber.getValue().add(1);
+        this.localPacketNumber.setValue(bn);
         return this.localPacketNumber;
     }
 
@@ -353,16 +356,20 @@ export class Connection extends FlowControlledObject {
         this.version = version;
     }
 
+    public getSocket(): Socket {
+        return this.socket;
+    }
+
+    public getRemoteInformation(): RemoteInformation {
+        return this.remoteInfo;
+    }
+
     public getSpinBit(): boolean {
         return this.spinBit;
     }
 
     public setSpinBit(spinbit: boolean): void {
         this.spinBit = spinbit;
-    }
-
-    public setSocket(socket: Socket): void {
-        this.socket = socket;
     }
 
     public resetConnectionState() {
@@ -476,11 +483,14 @@ export class Connection extends FlowControlledObject {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             this.queueFrames(baseEncryptedPacket.getFrames());
         } else {
-            this._sendPacket(basePacket);
+            this.congestionControl.queuePackets([basePacket]);
         }
     }
 
     public sendPackets(): void {
+        if (this.connectionIsClosing()) {
+            return;
+        }
         this.transmissionAlarm.reset();
         var ackBuffered: boolean = this.flowControl.isAckBuffered();
         if (!ackBuffered && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open)) {
@@ -490,21 +500,7 @@ export class Connection extends FlowControlledObject {
             }
         }
         var packets: BasePacket[] = this.flowControl.getPackets();
-        packets.forEach((packet: BasePacket, index: number) => {
-            this._sendPacket(packet);
-        });
-    }
-
-    private _sendPacket(basePacket: BasePacket): void {
-        if (this.connectionIsClosing()) {
-            return;
-        }
-        if (basePacket !== undefined) {
-            basePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
-            PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
-            this.emit(ConnectionEvent.PACKET_SENT, basePacket);
-            this.getSocket().send(basePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
-        }
+        this.congestionControl.queuePackets(packets);
     }
 
     private addPossibleAckFrame(baseFrames: BaseFrame[]) {
@@ -570,7 +566,7 @@ export class Connection extends FlowControlledObject {
                 var closePacket = this.getClosePacket();
                 closePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
-                this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInfo().port, this.getRemoteInfo().address);
+                this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);
             }
             throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
@@ -589,6 +585,7 @@ export class Connection extends FlowControlledObject {
     public resetIdleAlarm(): void {
         this.idleTimeoutAlarm.reset();
     }
+
     public startIdleAlarm(): void {
         var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
         this.idleTimeoutAlarm.on(AlarmEvent.TIMEOUT, () => {
@@ -599,7 +596,6 @@ export class Connection extends FlowControlledObject {
         this.idleTimeoutAlarm.start(time * 1000);
     }
 }
-
 export interface RemoteInformation {
     address: string;
     port: number,

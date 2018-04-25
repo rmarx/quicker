@@ -101,7 +101,7 @@ export class PacketLogging {
         log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset;
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = (<LongHeader>header);
-            log += ", Version: 0x" + longHeader.getVersion().getVersion().toString();
+            log += ", Version: 0x" + longHeader.getVersion().getValue().toString();
             var destConnectionID = longHeader.getDestConnectionID();
             log += ", Dest CID: 0x" + destConnectionID.toString();
             var srcConnectionID = longHeader.getSrcConnectionID();
@@ -111,7 +111,7 @@ export class PacketLogging {
             log += ", Dest CID: 0x" + connectionID.toString();
         }
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber().getPacketNumber().toDecimalString() + ConsoleColor.Reset;
+            log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber().getValue().toDecimalString() + ConsoleColor.Reset;
         }
 
         if (header.getHeaderType() === HeaderType.LongHeader) {

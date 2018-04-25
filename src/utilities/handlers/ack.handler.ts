@@ -40,7 +40,7 @@ export class AckHandler {
         framePacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() === FrameType.ACK) {
                 var ackFrame = <AckFrame>frame;
-                var packetNumbers = this.determineAckedPacketNumbers(ackFrame);
+                var packetNumbers = ackFrame.determineAckedPacketNumbers();
                 packetNumbers.forEach((packetNumber: Bignum) => {
                     this.removePacket(packetNumber);
                 });
@@ -53,7 +53,7 @@ export class AckHandler {
             return;
         }
         var header = packet.getHeader();
-        var pn = header.getPacketNumber().getPacketNumber();
+        var pn = header.getPacketNumber().getValue();
         if (this.largestPacketNumber === undefined ||  pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
         }
@@ -122,7 +122,6 @@ export class AckHandler {
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 connection.queueFrame(ackFrame);
-                connection.sendPackets();
             }
 
         });
@@ -143,27 +142,5 @@ export class AckHandler {
         if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
             delete this.receivedPackets[packetNumber.toString('hex', 8)];
         }
-    }
-
-    private determineAckedPacketNumbers(ackFrame: AckFrame): Bignum[] {
-        var packetnumbers: Bignum[] = [];
-
-        var x = ackFrame.getLargestAcknowledged();
-        packetnumbers.push(x);
-        for (var i = 0; i < ackFrame.getFirstAckBlock().toNumber(); i++) {
-            x = x.subtract(1);
-            packetnumbers.push(x);
-        }
-
-        for (var i = 0; i < ackFrame.getAckBlockCount().toNumber(); i++) {
-            for (var j = 0; j < ackFrame.getFirstAckBlock().toNumber(); j++) {
-                x = x.subtract(1);
-            }
-            for (var j = 0; j < ackFrame.getFirstAckBlock().toNumber(); j++) {
-                x = x.subtract(1);
-                packetnumbers.push(x);
-            }
-        }
-        return packetnumbers;
     }
 }

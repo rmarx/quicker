@@ -61,10 +61,9 @@ export class Client extends Endpoint {
             family: family
         };
 
-        this.connection = new Connection(remoteInfo, EndpointType.Client, this.options);
+        this.connection = new Connection(remoteInfo, EndpointType.Client, socket, this.options);
         this.connection.setSrcConnectionID(ConnectionID.randomConnectionID());
         this.connection.setInitialDestConnectionID(ConnectionID.randomConnectionID());
-        this.connection.setSocket(socket);
         this.setupConnectionEvents();
 
         socket.on(QuickerEvent.ERROR, (err) => { this.handleError(this.connection, err) });

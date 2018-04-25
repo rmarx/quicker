@@ -38,10 +38,10 @@ export class TransportParameters {
             case TransportParameterType.IDLE_TIMEOUT:
                 this.idleTimeout = value;
                 break;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
+            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
                 this.maxStreamIdBidi = value;
                 break;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
+            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
                 this.maxStreamIdUni = value;
                 break;
             case TransportParameterType.MAX_PACKET_SIZE:
@@ -63,9 +63,9 @@ export class TransportParameters {
                 return this.statelessResetToken;
             case TransportParameterType.IDLE_TIMEOUT:
                 return this.idleTimeout;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
+            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
                 return this.maxStreamIdBidi;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
+            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
                 return this.maxStreamIdUni;
             case TransportParameterType.MAX_PACKET_SIZE:
                 return this.maxPacketSize === undefined ? Constants.MAX_PACKET_SIZE : this.maxPacketSize;
@@ -89,10 +89,10 @@ export class TransportParameters {
             bufferOffset = this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset, this.statelessResetToken);
         }
         if (this.maxStreamIdBidi !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI, bufferOffset, this.maxStreamIdBidi);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, bufferOffset, this.maxStreamIdBidi);
         }
         if (this.maxStreamIdUni !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI, bufferOffset, this.maxStreamIdUni);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, bufferOffset, this.maxStreamIdUni);
         }
         if (this.maxPacketSize !== undefined) {
             bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_PACKET_SIZE, bufferOffset, this.maxPacketSize);
@@ -137,11 +137,11 @@ export class TransportParameters {
         size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.IDLE_TIMEOUT);
         if (this.maxStreamIdBidi !== undefined) {
             // max stream id for bidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI);
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAMS_BIDI);
         }
         if (this.maxStreamIdUni !== undefined) {
             // max stream id for unidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_ID_UNI);
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAMS_UNI);
         }
         if (this.maxPacketSize !== undefined) {
             // max size for a packet: 2 byte for type, 2 byte for length and 2 byte for value
@@ -199,9 +199,9 @@ export class TransportParameters {
                 return 2;
             case TransportParameterType.STATELESS_RESET_TOKEN:
                 return 16;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_BIDI:
+            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
                 return 2;
-            case TransportParameterType.INITIAL_MAX_STREAM_ID_UNI:
+            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
                 return 2;
             case TransportParameterType.MAX_PACKET_SIZE:
                 return 2;
@@ -215,12 +215,12 @@ export class TransportParameters {
 export enum TransportParameterType {
     MAX_STREAM_DATA = 0x00,
     MAX_DATA = 0x01,
-    INITIAL_MAX_STREAM_ID_BIDI = 0x02,
+    INITIAL_MAX_STREAMS_BIDI = 0x02,
     IDLE_TIMEOUT = 0x03,
     MAX_PACKET_SIZE = 0x05,
     STATELESS_RESET_TOKEN = 0x06,
     ACK_DELAY_EXPONENT = 0x07,
-    INITIAL_MAX_STREAM_ID_UNI = 0x08
+    INITIAL_MAX_STREAMS_UNI = 0x08
 }
 
 export interface BufferOffset {

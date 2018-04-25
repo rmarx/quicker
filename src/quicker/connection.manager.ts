@@ -76,8 +76,7 @@ export class ConnectionManager extends EventEmitter{
         var headerSrcConnectionID = longHeader.getSrcConnectionID();
         var headerDestConnectionID = longHeader.getDestConnectionID();
 
-        var connection = new Connection(remoteInfo, EndpointType.Server, this.options);
-        connection.setSocket(this.serverSockets[rinfo.family]);
+        var connection = new Connection(remoteInfo, EndpointType.Server, this.serverSockets[rinfo.family], this.options);
         connection.setInitialDestConnectionID(headerDestConnectionID);
         var srcConnectionID = ConnectionID.randomConnectionID();
         while (srcConnectionID.toString() in Object.keys(this.connections)) {

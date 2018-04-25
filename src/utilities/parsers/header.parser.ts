@@ -25,14 +25,14 @@ export class HeaderParser {
         while (headerOffset.header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader: LongHeader = <LongHeader>(headerOffset.header);
             var payloadLength = longHeader.getPayloadLength();
-            if (payloadLength !== undefined && payloadLength.add(totalSize).add(longHeader.getSize()).lessThan(buf.byteLength)) {
-                totalSize = totalSize.add(payloadLength).add(longHeader.getSize());
+            var headerSize = new Bignum(headerOffset.offset).subtract(totalSize);
+            if (payloadLength !== undefined) {
+                totalSize = totalSize.add(payloadLength).add(headerSize);
+            }
+            if (totalSize.lessThan(buf.byteLength)) {
                 headerOffset = this.parseHeader(buf, totalSize.toNumber());
                 headerOffsets.push(headerOffset);
             } else {
-                if (payloadLength !== undefined) {
-                    totalSize = totalSize.add(payloadLength).add(longHeader.getSize());
-                }
                 break;
             }
         }

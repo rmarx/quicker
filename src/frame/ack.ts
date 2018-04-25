@@ -1,6 +1,6 @@
-import {VLIE} from '../crypto/vlie';
-import {Bignum} from '../types/bignum';
-import {BaseFrame, FrameType} from './base.frame';
+import { VLIE } from '../crypto/vlie';
+import { Bignum } from '../types/bignum';
+import { BaseFrame, FrameType } from './base.frame';
 
 
 
@@ -8,7 +8,7 @@ export class AckFrame extends BaseFrame {
     private largestAcknowledged: Bignum;
     private ackDelay: Bignum;
     private ackBlockCount: Bignum;
-    
+
     private firstAckBlock: Bignum;
     private ackBlocks: AckBlock[];
 
@@ -61,7 +61,7 @@ export class AckFrame extends BaseFrame {
         size += VLIE.getEncodedByteLength(this.ackBlockCount);
         size += VLIE.getEncodedByteLength(this.firstAckBlock);
         size += ackBlockByteSize;
-    
+
         var returnBuffer: Buffer = Buffer.alloc(size);
         returnBuffer.writeUInt8(this.getType(), 0);
         laBuffer.copy(returnBuffer, offset);
@@ -78,6 +78,32 @@ export class AckFrame extends BaseFrame {
         });
 
         return returnBuffer;
+    }
+
+
+
+    public determineAckedPacketNumbers(): Bignum[] {
+        var packetnumbers: Bignum[] = [];
+
+        var x = this.getLargestAcknowledged();
+        packetnumbers.push(x);
+        for (var i = 0; i < this.getFirstAckBlock().toNumber(); i++) {
+            x = x.subtract(1);
+            packetnumbers.push(x);
+        }
+
+        var ackBlock: AckBlock | undefined = this.getAckBlocks().shift();;
+        while (ackBlock !== undefined) {
+            for (var j = 0; j < ackBlock.getGap().toNumber(); j++) {
+                x = x.subtract(1);
+            }
+            for (var j = 0; j < ackBlock.getBlock().toNumber(); j++) {
+                x = x.subtract(1);
+                packetnumbers.push(x);
+            }
+            ackBlock = this.getAckBlocks().shift();
+        }
+        return packetnumbers;
     }
 }
 

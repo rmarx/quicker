@@ -95,6 +95,9 @@ export class PacketParser {
     }
 
     private parseClientInitialPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
+        if (buffer.byteLength < Constants.CLIENT_INITIAL_MIN_SIZE) {
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
+        }
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);

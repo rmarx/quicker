@@ -41,12 +41,12 @@ export class HeaderHandler {
                 highestCurrentPacketNumber = true;
             } else {
                 var adjustedNumber = connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
-                if (connection.getRemotePacketNumber().getPacketNumber().lessThan(adjustedNumber)) {
-                    connection.getRemotePacketNumber().setPacketNumber(adjustedNumber);
+                if (connection.getRemotePacketNumber().getValue().lessThan(adjustedNumber)) {
+                    connection.getRemotePacketNumber().setValue(adjustedNumber);
                     highestCurrentPacketNumber = true;
                 }
                 // adjust the packet number in the header
-                header.getPacketNumber().setPacketNumber(adjustedNumber);
+                header.getPacketNumber().setValue(adjustedNumber);
             }
         }
 

@@ -54,7 +54,7 @@ export class AEAD {
         var clearTextSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), longHeader.getVersion(), encryptingEndpoint);
         var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
-        var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
     }
@@ -70,7 +70,7 @@ export class AEAD {
         var clearTextSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), longHeader.getVersion(), encryptingEndpoint);
         var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
-        var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
     }
@@ -86,7 +86,7 @@ export class AEAD {
             var key = this.protected1RTTServerKey;
             var iv = this.protected1RTTServerIv;
         }
-        var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
@@ -102,7 +102,7 @@ export class AEAD {
             var key = this.protected1RTTServerKey;
             var iv = this.protected1RTTServerIv;
         }
-        var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
@@ -114,7 +114,7 @@ export class AEAD {
         }
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
-        var nonce = this.calculateNonce(header, iv, connection.getLocalPacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
@@ -126,7 +126,7 @@ export class AEAD {
 
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
-        var nonce = this.calculateNonce(header, iv, connection.getRemotePacketNumber()).toBuffer();
+        var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
     }
@@ -212,8 +212,8 @@ export class AEAD {
         return Buffer.concat([update, final]);
     }
 
-    private calculateNonce(header: BaseHeader, iv: Buffer, packetNumber: PacketNumber): Bignum {
-        var pnb = header.getPacketNumber().getPacketNumber();
+    private calculateNonce(header: BaseHeader, iv: Buffer): Bignum {
+        var pnb = header.getPacketNumber().getValue();
         var ivb = new Bignum(iv, iv.byteLength);
         ivb = ivb.xor(pnb);
         return ivb;
