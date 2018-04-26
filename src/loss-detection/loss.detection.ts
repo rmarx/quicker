@@ -18,7 +18,6 @@ interface SentPacket {
     // Milliseconds sinds epoch
     time: number,
     // Does the packet contain frames that are retransmittable
-    // This value could be a function in BasePacket
     isRetransmittable: boolean
 };
 

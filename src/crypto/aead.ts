@@ -15,6 +15,14 @@ import { LongHeader } from '../packet/header/long.header';
 export class AEAD {
 
     private qtls: QTLS;
+    // Version used to generate clear text secrets
+    private usedVersion!: Version;
+    // Client key and iv
+    private clearTextClientKey!: Buffer;
+    private clearTextClientIv!: Buffer;
+    // Server key and iv
+    private clearTextServerKey!: Buffer;
+    private clearTextServerIv!: Buffer;
 
     // Client earlyData secret
     private protected0RTTClientSecret!: Buffer;
@@ -49,11 +57,17 @@ export class AEAD {
      * @param encryptingEndpoint the encrypting endpoint
      */
     public clearTextEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
-        var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var longHeader = <LongHeader> header;
-        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), longHeader.getVersion(), encryptingEndpoint);
-        var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
-        var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
+        if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
+            this.generateClearTextSecrets(connection, this.qtls, longHeader.getVersion());
+        }
+        if (encryptingEndpoint === EndpointType.Client) {
+            var key = this.clearTextClientKey;
+            var iv = this.clearTextClientIv;
+        } else {
+            var key = this.clearTextServerKey;
+            var iv = this.clearTextServerIv;
+        }
         var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
@@ -65,11 +79,17 @@ export class AEAD {
      * @param encryptingEndpoint The endpoint that encrypted the payload
      */
     public clearTextDecrypt(connection: Connection, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType): Buffer {
-        var hkdf = new HKDF(Constants.DEFAULT_HASH);
         var longHeader = <LongHeader> header;
-        var clearTextSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), longHeader.getVersion(), encryptingEndpoint);
-        var key = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
-        var iv = hkdf.qhkdfExpandLabel(clearTextSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
+        if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
+            this.generateClearTextSecrets(connection, this.qtls, longHeader.getVersion());
+        }
+        if (encryptingEndpoint === EndpointType.Client) {
+            var key = this.clearTextClientKey;
+            var iv = this.clearTextClientIv;
+        } else {
+            var key = this.clearTextServerKey;
+            var iv = this.clearTextServerIv;
+        }
         var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
@@ -123,12 +143,27 @@ export class AEAD {
         if (this.protected0RTTClientSecret === undefined) {
             throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
-
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
         var nonce = this.calculateNonce(header, iv).toBuffer();
         var ad = this.calculateAssociatedData(header);
         return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+    }
+
+    private generateClearTextSecrets(connection: Connection, qtls: QTLS, version: Version): void {
+        var hkdf = new HKDF(Constants.DEFAULT_HASH);
+        // Generate client key and iv
+        var clearTextClientSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), version, EndpointType.Client);
+        this.clearTextClientKey = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        this.clearTextClientIv = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
+
+        // Generate server key and iv
+        var clearTextServerSecret = this.getClearTextSecret(hkdf, connection.getInitialDestConnectionID(), version, EndpointType.Server);
+        this.clearTextServerKey = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        this.clearTextServerIv = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
+
+        // Keep track of what version is used to generate these keys
+        this.usedVersion = version;
     }
 
     private generateProtected1RTTSecrets(qtls: QTLS): void {
