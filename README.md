@@ -24,6 +24,8 @@ npm install typescript -g && npm install
 # Clone quicker sources
 git clone https://github.com/rmarx/quicker
 cd ./quicker
+# Install quicker dependencies
+npm install
 tsc -p ./
 # Run Server
 ./../node/out/Release/node ./out/main.js 127.0.0.1 4433 ./keys/selfsigned_default.key ./keys/selfsigned_default.crt
