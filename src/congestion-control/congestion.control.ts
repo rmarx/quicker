@@ -82,7 +82,7 @@ export class CongestionControl extends EventEmitter {
         if (!packetSent.isAckOnly()) {
             var bytesSent = packetSent.toBuffer(this.connection).byteLength;
             // Add bytes sent to bytesInFlight.
-            this.bytesInFlight.add(bytesSent);
+            this.bytesInFlight = this.bytesInFlight.add(bytesSent);
         }
     }
 
