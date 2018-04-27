@@ -19,10 +19,12 @@ import { Constants } from '../utilities/constants';
 import { HandshakeState } from '../crypto/qtls';
 import { EndpointType } from '../types/endpoint.type';
 import { Time, TimeFormat } from '../types/time';
+import { ShortHeaderType, ShortHeader } from '../packet/header/short.header';
 
 
 export class FlowControl {
 
+    private shortHeaderSize!: number;
     private connection: Connection;
     private bufferedFrames: BaseFrame[];
 
@@ -49,11 +51,14 @@ export class FlowControl {
         var packets = new Array<BasePacket>();
         // TODO: calculate maxpacketsize better
         if (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            var maxPacketSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
+            var maxPayloadSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
         } else {
-            var maxPacketSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE));
+            if (this.shortHeaderSize === undefined) {
+                this.shortHeaderSize = new ShortHeader(ShortHeaderType.FourOctet, this.connection.getDestConnectionID(), undefined, false, this.connection.getSpinBit()).getSize();
+            }
+            var maxPayloadSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - this.shortHeaderSize);
         }
-        var frames = this.getFrames(maxPacketSize);
+        var frames = this.getFrames(maxPayloadSize);
         var packetFrames = new Array<BaseFrame>();
         var size = new Bignum(0);
         frames.handshakeFrames.forEach((frame: BaseFrame) => {
@@ -64,7 +69,7 @@ export class FlowControl {
         if (this.connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
             frames.flowControlFrames.forEach((frame: BaseFrame) => {
                 var frameSize = frame.toBuffer().byteLength
-                if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
+                if (size.add(frameSize).greaterThan(maxPayloadSize) && !size.equals(0)) {
                     packets.push(this.createNewPacket(packetFrames));
                     size = new Bignum(0);
                     packetFrames = [];
@@ -77,7 +82,7 @@ export class FlowControl {
         var bufferedFrame: BaseFrame | undefined = this.bufferedFrames.shift();
         while (bufferedFrame !== undefined) {
             var frameSize = bufferedFrame.toBuffer().byteLength;
-            if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
+            if (size.add(frameSize).greaterThan(maxPayloadSize) && !size.equals(0)) {
                 packets.push(this.createNewPacket(packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
@@ -89,7 +94,7 @@ export class FlowControl {
 
         frames.streamFrames.forEach((frame: BaseFrame) => {
             var frameSize = frame.toBuffer().byteLength;
-            if (size.add(frameSize).greaterThan(maxPacketSize) && !size.equals(0)) {
+            if (size.add(frameSize).greaterThan(maxPayloadSize) && !size.equals(0)) {
                 packets.push(this.createNewPacket(packetFrames));
                 size = new Bignum(0);
                 packetFrames = [];
@@ -138,14 +143,14 @@ export class FlowControl {
         }
     }
 
-    public getFrames(maxPacketSize: Bignum): FlowControlFrames {
+    public getFrames(maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
         if (this.connection.getRemoteTransportParameters() === undefined) {
             var stream = this.connection.getStreamManager().getStream(new Bignum(0));
-            handshakeFrames = handshakeFrames.concat(this.getStreamFrames(stream, new Bignum(stream.getData().byteLength), maxPacketSize).handshakeFrames);
+            handshakeFrames = handshakeFrames.concat(this.getStreamFrames(stream, maxPayloadSize).handshakeFrames);
         } else if (this.connection.isRemoteLimitExceeded()) {
             flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
             var uniAdded = false;
@@ -168,7 +173,7 @@ export class FlowControl {
             });
         } else {
             this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
-                var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(stream, maxPacketSize);
+                var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(stream, maxPayloadSize);
                 streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
                 flowControlFrames = flowControlFrames.concat(flowControlFrameObject.flowControlFrames);
                 handshakeFrames = handshakeFrames.concat(flowControlFrameObject.handshakeFrames);
@@ -184,7 +189,7 @@ export class FlowControl {
         };
     }
 
-    private getStreamFramesForRemote(stream: Stream, maxPacketSize: Bignum): FlowControlFrames {
+    private getStreamFramesForRemote(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
         var handshakeFrames = new Array<StreamFrame>();
@@ -195,14 +200,12 @@ export class FlowControl {
                 stream.setBlockedSent(true);
             }
         } else if (!this.connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
-            var streamDataSize = new Bignum(stream.getData().length);
-
-            var createdStreamFrames = this.getStreamFrames(stream, streamDataSize, maxPacketSize);
+            var createdStreamFrames = this.getStreamFrames(stream, maxPayloadSize);
             streamFrames = createdStreamFrames.streamFrames;
             handshakeFrames = createdStreamFrames.handshakeFrames;
 
-            if ((stream.isRemoteLimitExceeded(streamDataSize) && !stream.getStreamID().equals(0)) || 
-                    this.connection.isRemoteLimitExceeded(streamDataSize)) {
+            if ((stream.isRemoteLimitExceeded() && !stream.getStreamID().equals(0)) || 
+                    this.connection.isRemoteLimitExceeded()) {
                         
                 var conDataLeft = this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset());
                 var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
@@ -216,7 +219,7 @@ export class FlowControl {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true);
                 }
-            } else if (stream.isRemoteLimitExceeded(streamDataSize) && stream.getStreamID().equals(0) && this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+            } else if (stream.isRemoteLimitExceeded() && stream.getStreamID().equals(0) && this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
                 var streamDataSize = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
                 if (!stream.getBlockedSent()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
@@ -231,7 +234,7 @@ export class FlowControl {
         };
     }
 
-    private getStreamFrames(stream: Stream, streamDataSize: Bignum, maxPacketSize: Bignum): FlowControlFrames {
+    private getStreamFrames(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
@@ -239,20 +242,19 @@ export class FlowControl {
          * If stream is receive only, reset stream data
          */
         if (stream.isReceiveOnly()) {
-            stream.setData(Buffer.alloc(0));
+            stream.resetData();
         }
-
-        var streamData = stream.getData().slice(0, streamDataSize.toNumber());
         var isHandshake = (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED && stream.getStreamID().equals(0));
 
-        while (streamData.byteLength > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !this.connection.isRemoteLimitExceeded()))) {
-            streamDataSize = streamDataSize.greaterThan(maxPacketSize) ? maxPacketSize : streamDataSize;
+        while (stream.getOutgoingDataSize() > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !this.connection.isRemoteLimitExceeded()))) {
+            var streamDataSize = maxPayloadSize.lessThan(stream.getOutgoingDataSize()) ? maxPayloadSize : new Bignum(stream.getOutgoingDataSize());
 
             if(!isHandshake) {
                 streamDataSize = streamDataSize.greaterThan(this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset())) ? this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset()) : streamDataSize;
                 streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
             }
 
+            var streamData = stream.popData(streamDataSize.toNumber());
             var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
             var frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
             if (stream.getStreamID().equals(0)) {
@@ -260,15 +262,10 @@ export class FlowControl {
             } else {
                 streamFrames.push(frame);
             }
-            var originalData = stream.getData();
-            stream.setData(stream.getData().slice(streamDataSize.toNumber(), originalData.byteLength));
             stream.addRemoteOffset(streamDataSize);
             if (!stream.getStreamID().equals(0)) {
                 this.connection.addRemoteOffset(streamDataSize);
             }
-
-            streamData = stream.getData();
-            streamDataSize = new Bignum(streamData.length);
         }
 
         return {

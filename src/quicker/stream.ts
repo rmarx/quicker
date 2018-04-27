@@ -89,13 +89,29 @@ export class Stream extends FlowControlledObject {
 			this.remoteFinalOffset = this.getRemoteOffset().add(this.data.byteLength);
 		}
 	}
+	
+	public resetData(): void {
+		this.data = Buffer.alloc(0);
+	}
 
 	public setData(data: Buffer): void {
 		this.data = data;
 	}
 
-	public getData(): Buffer {
-		return this.data;
+	public popData(size: number = this.data.byteLength): Buffer {
+		var buf = this.data.slice(0, size);
+		this.data = this.data.slice(size);
+		return buf;
+	}
+
+	public getOutgoingDataSize(): number {
+		return this.data.byteLength;
+	}
+
+	public getData(size: number = this.data.byteLength): Buffer {
+		var buf = Buffer.alloc(size);
+		this.data.copy(buf, 0, 0, size);
+		return buf;
 	}
 
     public isSendOnly(): boolean {
