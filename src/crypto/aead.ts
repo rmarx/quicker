@@ -69,8 +69,7 @@ export class AEAD {
             var iv = this.clearTextServerIv;
         }
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        var ad = this.calculateAssociatedData(header);
-        return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, ad, payload);
+        return this._encrypt(Constants.DEFAULT_AEAD, key, nonce, header.toBuffer(), payload);
     }
     /**
      * Method to decrypt the payload (cleartext)
@@ -91,8 +90,7 @@ export class AEAD {
             var iv = this.clearTextServerIv;
         }
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        var ad = this.calculateAssociatedData(header);
-        return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, ad, encryptedPayload);
+        return this._decrypt(Constants.DEFAULT_AEAD, key, nonce, header.getParsedBuffer(), encryptedPayload);
     }
 
     public protected1RTTEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
@@ -107,8 +105,7 @@ export class AEAD {
             var iv = this.protected1RTTServerIv;
         }
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        var ad = this.calculateAssociatedData(header);
-        return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+        return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, header.toBuffer(), payload);
     }
 
     public protected1RTTDecrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
@@ -123,8 +120,7 @@ export class AEAD {
             var iv = this.protected1RTTServerIv;
         }
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        var ad = this.calculateAssociatedData(header);
-        return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+        return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, header.getParsedBuffer(), payload);
     }
 
     public protected0RTTEncrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
@@ -135,8 +131,7 @@ export class AEAD {
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        var ad = this.calculateAssociatedData(header);
-        return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+        return this._encrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, header.toBuffer(), payload);
     }
 
     public protected0RTTDecrypt(connection: Connection, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
@@ -146,8 +141,7 @@ export class AEAD {
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        var ad = this.calculateAssociatedData(header);
-        return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, ad, payload);
+        return this._decrypt(connection.getQuicTLS().getCipher().getAEAD(), key, nonce, header.getParsedBuffer(), payload);
     }
 
     private generateClearTextSecrets(connection: Connection, qtls: QTLS, version: Version): void {
@@ -252,9 +246,5 @@ export class AEAD {
         var ivb = new Bignum(iv, iv.byteLength);
         ivb = ivb.xor(pnb);
         return ivb;
-    }
-
-    private calculateAssociatedData(header: BaseHeader): Buffer {
-        return header.toBuffer();
     }
 }

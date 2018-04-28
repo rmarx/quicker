@@ -53,6 +53,7 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseLongHeader(buf: Buffer, offset: number): HeaderOffset {
+        var startOffset = offset;
         var type = (buf.readUInt8(offset++) - 0x80);
         var version = new Version(buf.slice(offset, offset + 4));
         offset += 4;
@@ -77,8 +78,11 @@ export class HeaderParser {
             packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
             offset += 4;
         }
-
-        return { header: new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version), offset: offset };
+        var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version);
+        var parsedBuffer = buf.slice(startOffset, offset);
+        header.setParsedBuffer(parsedBuffer);
+        
+        return { header: header, offset: offset };
     }
 
     /**
@@ -87,6 +91,7 @@ export class HeaderParser {
      * @param buf packet buffer
      */
     private parseShortHeader(buf: Buffer, offset: number): HeaderOffset {
+        var startOffset = offset;
         var type = buf.readUIntBE(offset++, 1);
         var keyPhaseBit: boolean = (type & 0x40) === 0x40;
         var thirdBitCheck: boolean = (type & 0x20) === 0x20;
@@ -107,7 +112,12 @@ export class HeaderParser {
 
         var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
         offset = offset + (1 << type);
-        return { header: new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit, spinBit), offset: offset };
+
+        var header = new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit, spinBit)
+        var parsedBuffer = buf.slice(startOffset, offset);
+        header.setParsedBuffer(parsedBuffer);
+
+        return { header: header, offset: offset };
     }
 
     /**
