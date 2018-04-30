@@ -26,6 +26,7 @@ import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { Time, TimeFormat } from '../../types/time';
 import { QuickerError } from '../errors/quicker.error';
 import { QuickerErrorCodes } from '../errors/quicker.codes';
+import { RetryPacket } from '../../packet/packet/retry';
 
 export class PacketHandler {
 
@@ -38,7 +39,7 @@ export class PacketHandler {
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
         this.onPacketReceived(connection, packet, receivedTime);
-        
+
         switch (packet.getPacketType()) {
             case PacketType.VersionNegotiation:
                 var versionNegotiationPacket: VersionNegotiationPacket = <VersionNegotiationPacket>packet;
@@ -48,19 +49,22 @@ export class PacketHandler {
                 var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket>packet;
                 this.handleInitialPacket(connection, clientInitialPacket);
                 break;
-            case PacketType.Handshake:
-                var handshakePacket: HandshakePacket = <HandshakePacket>packet;
-                this.handleHandshakePacket(connection, handshakePacket);
-                break;
             case PacketType.Protected0RTT:
                 var protected0RTTPacket: Protected0RTTPacket = <Protected0RTTPacket>packet;
                 this.handleProtected0RTTPacket(connection, protected0RTTPacket);
+                break;
+            case PacketType.Retry:
+                var retryPacket: RetryPacket = <RetryPacket>packet;
+                this.handleRetryPacket(connection, retryPacket);
+                break;
+            case PacketType.Handshake:
+                var handshakePacket: HandshakePacket = <HandshakePacket>packet;
+                this.handleHandshakePacket(connection, handshakePacket);
                 break;
             case PacketType.Protected1RTT:
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
                 this.handleProtected1RTTPacket(connection, shortHeaderPacket);
         }
-        
         connection.sendPackets();
     }
 
@@ -69,7 +73,7 @@ export class PacketHandler {
         var connectionId = longHeader.getSrcConnectionID();
         var connectionId = longHeader.getDestConnectionID();
         if (connection.getInitialDestConnectionID().getValue().compare(longHeader.getSrcConnectionID().getValue()) !== 0 ||
-                connection.getSrcConnectionID().getValue().compare(longHeader.getDestConnectionID().getValue()) !== 0) {
+            connection.getSrcConnectionID().getValue().compare(longHeader.getDestConnectionID().getValue()) !== 0) {
             return;
         }
         var negotiatedVersion = undefined;
@@ -83,37 +87,52 @@ export class PacketHandler {
         if (negotiatedVersion === undefined) {
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
         }
-        connection.resetConnectionState();
+        connection.resetConnection();
         connection.setVersion(negotiatedVersion);
-        connection.startConnection();
     }
 
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
         this.handleFrames(connection, clientInitialPacket);
     }
 
-    private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
-        var longHeader = <LongHeader>handshakePacket.getHeader();
+    private handleProtected0RTTPacket(connection: Connection, protected0RTTPacket: Protected0RTTPacket): void {
+        this.handleFrames(connection, protected0RTTPacket);
+    }
+
+    private handleRetryPacket(connection: Connection, retryPacket: RetryPacket): void {
+        var longHeader = <LongHeader>retryPacket.getHeader();
         var connectionID = longHeader.getSrcConnectionID();
         if (connection.getEndpointType() === EndpointType.Client) {
             if (connection.getDestConnectionID() === undefined) {
                 connection.setDestConnectionID(connectionID);
-            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0){
+                connection.setRetrySent(true);
+            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+            }
+        }
+        this.handleFrames(connection, retryPacket);
+        connection.resetConnectionState();
+    }
+
+    private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
+        var longHeader = <LongHeader>handshakePacket.getHeader();
+        var connectionID = longHeader.getSrcConnectionID();
+        if (connection.getEndpointType() === EndpointType.Client) {
+            if (connection.getDestConnectionID() === undefined || connection.getRetrySent()) {
+                connection.setDestConnectionID(connectionID);
+                connection.setRetrySent(false);
+            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
                 throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
             }
         }
         this.handleFrames(connection, handshakePacket);
     }
 
-    private handleProtected0RTTPacket(connection: Connection, protected0RTTPacket: Protected0RTTPacket): any {
-        this.handleFrames(connection, protected0RTTPacket);
-    }
-
-    private handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket) {
+    private handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket): void {
         this.handleFrames(connection, shortHeaderPacket);
     }
 
-    private handleFrames(connection: Connection, packet: BaseEncryptedPacket) {
+    private handleFrames(connection: Connection, packet: BaseEncryptedPacket): void {
         packet.getFrames().forEach((baseFrame: BaseFrame) => {
             this.frameHandler.handle(connection, baseFrame);
         });

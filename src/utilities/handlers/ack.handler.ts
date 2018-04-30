@@ -143,4 +143,10 @@ export class AckHandler {
             delete this.receivedPackets[packetNumber.toString('hex', 8)];
         }
     }
+
+    public reset(): void {
+        this.receivedPackets = {};
+        this.alarm.reset();
+        this.largestPacketNumber = new Bignum(-1);
+    }
 }

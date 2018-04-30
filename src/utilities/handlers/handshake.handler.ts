@@ -42,15 +42,15 @@ export class HandshakeHandler {
         if (this.connection.getEndpointType() === EndpointType.Server) {
             this.connection.getQuicTLS().readEarlyData();
         }
-        var data = this.connection.getQuicTLS().readHandshake();
-        if (data !== undefined && data.byteLength > 0) {
-            this.stream.addData(data);
+        var readData = this.connection.getQuicTLS().readHandshake();
+        if (readData !== undefined && readData.byteLength > 0) {
+            this.stream.addData(readData);
         }
         if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client && !this.handshakeEmitted) {
             this.handshakeEmitted = true;
             this.connection.emit(ConnectionEvent.HANDSHAKE_DONE);
         }
-        this.connection.sendPackets();
+        //this.connection.sendPackets();
         // To process NewSessionTicket
         this.connection.getQuicTLS().readSSL();
     }

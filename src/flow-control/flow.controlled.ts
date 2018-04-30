@@ -109,7 +109,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	/**
 	 * Used for version negotiation packet received
 	 */
-	protected resetOffsets(): void {
+	public resetOffsets(): void {
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
 	}

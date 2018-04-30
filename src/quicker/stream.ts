@@ -135,8 +135,8 @@ export class Stream extends FlowControlledObject {
 	}
 
 	private _receiveData(data: Buffer, isFin: boolean): void {
-		this.emit(StreamEvent.DATA, data);
 		this.addLocalOffset(data.byteLength);
+		this.emit(StreamEvent.DATA, data);
         if (isFin) {
             this.setLocalFinalOffset(this.getLocalOffset());
             if (this.getStreamState() === StreamState.Open) {

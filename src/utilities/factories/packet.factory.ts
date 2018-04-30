@@ -8,7 +8,7 @@ import {Constants} from '../constants';
 import {ClientInitialPacket} from '../../packet/packet/client.initial';
 import {StreamFrame} from '../../frame/stream';
 import {Bignum} from '../../types/bignum';
-import {ServerStatelessRetryPacket} from '../../packet/packet/server.stateless.retry';
+import {RetryPacket} from '../../packet/packet/retry';
 import {BaseFrame} from '../../frame/base.frame';
 import {HandshakePacket} from '../../packet/packet/handshake';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
@@ -58,9 +58,9 @@ export class PacketFactory {
      * 
      * @param connection
      */
-    public static createServerStatelessRetryPacket(connection: Connection, frame: StreamFrame): ServerStatelessRetryPacket {
-        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, new Bignum(frame.toBuffer().byteLength), connection.getVersion());
-        return new ServerStatelessRetryPacket(header, frame);
+    public static createRetryPacket(connection: Connection, frames: BaseFrame[]): RetryPacket {
+        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, undefined, connection.getVersion());
+        return new RetryPacket(header, frames);
     }
 
     /**

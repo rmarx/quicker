@@ -129,15 +129,14 @@ export class PacketLogging {
 
 
         switch (basePacket.getPacketType()) {
-            case PacketType.Retry:
-                break;
             case PacketType.VersionNegotiation:
                 var vnPacket: VersionNegotiationPacket = <VersionNegotiationPacket>basePacket;
                 log += this.logVersionNegotiationPacket(vnPacket);
                 break;
             case PacketType.Initial:
-            case PacketType.Handshake:
             case PacketType.Protected0RTT:
+            case PacketType.Retry:
+            case PacketType.Handshake:
             case PacketType.Protected1RTT:
                 var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
                 log += this.logFrames(connection, baseEncryptedPacket, color);

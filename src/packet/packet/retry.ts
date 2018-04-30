@@ -2,18 +2,18 @@ import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 import { Connection } from "../../quicker/connection";
 import { BaseEncryptedPacket } from "../base.encrypted.packet";
-import { FrameType } from "../../frame/base.frame";
+import { FrameType, BaseFrame } from "../../frame/base.frame";
 import { StreamFrame } from "../../frame/stream";
 
 
-export class ServerStatelessRetryPacket extends BaseEncryptedPacket {
+export class RetryPacket extends BaseEncryptedPacket {
     
-    public constructor(header: BaseHeader, streamFrame: StreamFrame) {
-        super(PacketType.Retry, header, [streamFrame]);
+    public constructor(header: BaseHeader, frames: BaseFrame[]) {
+        super(PacketType.Retry, header, frames);
     }
 
     /**
-     * Method to get buffer object from a ServerStatelessRetryPacket object
+     * Method to get buffer object from a RetryPacket object
      */
     public toBuffer(connection: Connection) {
         var headerBuffer = this.getHeader().toBuffer();
@@ -27,7 +27,7 @@ export class ServerStatelessRetryPacket extends BaseEncryptedPacket {
 
     protected getValidFrameTypes(): FrameType[] {
         return [
-            FrameType.STREAM
+            FrameType.STREAM, FrameType.ACK
         ];
     }
 }

@@ -121,7 +121,6 @@ export class FlowControl {
                 }
             }
         });
-
         if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
             if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);

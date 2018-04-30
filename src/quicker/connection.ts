@@ -62,6 +62,7 @@ export class Connection extends FlowControlledObject {
     private transmissionAlarm: Alarm;
     private closePacket!: BaseEncryptedPacket;
     private closeSentCount: number;
+    private retrySent: boolean;
 
     private qtls: QTLS;
     private aead: AEAD;
@@ -84,6 +85,7 @@ export class Connection extends FlowControlledObject {
         this.localMaxStreamBidiBlocked = false;
         this.closeSentCount = 0;
         this.spinBit = false;
+        this.retrySent = false;
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
@@ -153,6 +155,14 @@ export class Connection extends FlowControlledObject {
 
     public setInitialDestConnectionID(connectionID: ConnectionID): void {
         this.initialDestConnectionID = connectionID;
+    }
+
+    public setRetrySent(ret: boolean): void {
+        this.retrySent = ret;
+    }
+
+    public getRetrySent(): boolean {
+        return this.retrySent;
     }
 
     public getSrcConnectionID(): ConnectionID {
@@ -372,12 +382,21 @@ export class Connection extends FlowControlledObject {
         this.spinBit = spinbit;
     }
 
+    public resetConnection() {
+        this.resetConnectionState();
+        this.getStreamManager().getStreams().forEach((stream: Stream) => {
+            stream.reset();
+        });
+        this.startConnection();
+    }
+
     public resetConnectionState() {
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
-            stream.reset();
+            stream.resetOffsets();
         });
+        this.ackHandler.reset();
         this.lossDetection.reset();
     }
 
