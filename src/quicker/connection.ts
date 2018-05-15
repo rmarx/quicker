@@ -300,8 +300,8 @@ export class Connection extends FlowControlledObject {
     public setLocalTransportParameters(transportParameters: TransportParameters): void {
         this.localTransportParameters = transportParameters;
         this.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI));
-        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI));
+        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI) * 4);
+        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI) * 4);
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
