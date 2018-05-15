@@ -357,9 +357,9 @@ export class FlowControl {
         }
         var streamId = stream.getStreamID();
         if (Stream.isUniStreamId(streamId)) {
-            return streamId.greaterThanOrEqual(this.connection.getRemoteMaxStreamUni());
+            return streamId.greaterThan(this.connection.getRemoteMaxStreamUni());
         } else {
-            return streamId.greaterThanOrEqual(this.connection.getRemoteMaxStreamBidi());
+            return streamId.greaterThan(this.connection.getRemoteMaxStreamBidi());
         }
     }
 
