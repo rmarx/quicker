@@ -323,8 +323,8 @@ export class Connection extends FlowControlledObject {
     public setRemoteTransportParameters(transportParameters: TransportParameters): void {
         this.remoteTransportParameters = transportParameters;
         this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI));
-        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI));
+        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI) * 4);
+        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI) * 4);
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
         });
