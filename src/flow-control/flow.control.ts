@@ -146,14 +146,14 @@ export class FlowControl {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
         var handshakeFrames = new Array<StreamFrame>();
+        var uniAdded = false;
+        var bidiAdded = false;
 
         if (this.connection.getRemoteTransportParameters() === undefined) {
             var stream = this.connection.getStreamManager().getStream(new Bignum(0));
             handshakeFrames = handshakeFrames.concat(this.getStreamFrames(stream, maxPayloadSize).handshakeFrames);
         } else if (this.connection.isRemoteLimitExceeded()) {
             flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
-            var uniAdded = false;
-            var bidiAdded = false;
             this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
                 if (stream.isRemoteLimitExceeded()) {
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
@@ -172,13 +172,29 @@ export class FlowControl {
             });
         } else {
             this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+                if (stream.isRemoteLimitExceeded()) {
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
+                    return;
+                } 
+                if (this.isRemoteStreamIdBlocked(stream)) {
+                    if (Stream.isUniStreamId(stream.getStreamID()) && !uniAdded) {
+                        var frame = this.addRemoteStreamIdBlocked(stream);
+                        flowControlFrames.push(frame);
+                        uniAdded = true;
+                        return;
+                    } else if (Stream.isUniStreamId(stream.getStreamID()) && !bidiAdded) {
+                        var frame = this.addRemoteStreamIdBlocked(stream);
+                        flowControlFrames.push(frame);
+                        bidiAdded = true;
+                        return;
+                    }
+                }
                 var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(stream, maxPayloadSize);
                 streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
                 flowControlFrames = flowControlFrames.concat(flowControlFrameObject.flowControlFrames);
                 handshakeFrames = handshakeFrames.concat(flowControlFrameObject.handshakeFrames);
             });
         }
-
         flowControlFrames = flowControlFrames.concat(this.getLocalFlowControlFrames());
 
         return {
@@ -193,7 +209,7 @@ export class FlowControl {
         var flowControlFrames = new Array<BaseFrame>();
         var handshakeFrames = new Array<StreamFrame>();
 
-        if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded() || this.isRemoteStreamIdBlocked(stream))) {
+        if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded())) {
             if (stream.isRemoteLimitExceeded() && !stream.getBlockedSent()) {
                 flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                 stream.setBlockedSent(true);
@@ -205,7 +221,6 @@ export class FlowControl {
 
             if ((stream.isRemoteLimitExceeded() && !stream.getStreamID().equals(0)) || 
                     this.connection.isRemoteLimitExceeded()) {
-                        
                 var conDataLeft = this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset());
                 var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
                 streamDataSize = conDataLeft.lessThan(streamDataLeft) ? conDataLeft : streamDataLeft;
