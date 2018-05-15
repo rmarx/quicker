@@ -163,7 +163,7 @@ export class FlowControl {
                         var frame = this.addRemoteStreamIdBlocked(stream);
                         flowControlFrames.push(frame);
                         uniAdded = true;
-                    } else if (Stream.isUniStreamId(stream.getStreamID()) && !bidiAdded) {
+                    } else if (Stream.isBidiStreamId(stream.getStreamID()) && !bidiAdded) {
                         var frame = this.addRemoteStreamIdBlocked(stream);
                         flowControlFrames.push(frame);
                         bidiAdded = true;
@@ -181,13 +181,12 @@ export class FlowControl {
                         var frame = this.addRemoteStreamIdBlocked(stream);
                         flowControlFrames.push(frame);
                         uniAdded = true;
-                        return;
-                    } else if (Stream.isUniStreamId(stream.getStreamID()) && !bidiAdded) {
+                    } else if (Stream.isBidiStreamId(stream.getStreamID()) && !bidiAdded) {
                         var frame = this.addRemoteStreamIdBlocked(stream);
                         flowControlFrames.push(frame);
                         bidiAdded = true;
-                        return;
                     }
+                    return;
                 }
                 var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(stream, maxPayloadSize);
                 streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
