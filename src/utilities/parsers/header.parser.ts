@@ -71,21 +71,16 @@ export class HeaderParser {
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
         var packetNumber;
         var payloadLength;
-        console.log("before if");
         if (version.toString() !== "00000000") {
-            console.log("decoding payloadlen");
             var vlieOffset = VLIE.decode(buf, offset);
             payloadLength = vlieOffset.value;
             offset = vlieOffset.offset;
-            console.log("getting pn");
             packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
             offset += 4;
         }
         var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version);
         var parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
-        console.log("buf length: " + buf.byteLength);
-        console.log("offset: " + offset);
         return { header: header, offset: offset };
     }
 
