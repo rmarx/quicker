@@ -1,6 +1,6 @@
-import { BasePacket } from "../../packet/base.packet";
+import { BasePacket, PacketType } from "../../packet/base.packet";
 import { BaseHeader, HeaderType } from "../../packet/header/base.header";
-import { LongHeader } from "../../packet/header/long.header";
+import { LongHeader, LongHeaderType } from "../../packet/header/long.header";
 import { ShortHeader, ShortHeaderType } from "../../packet/header/short.header";
 import { Constants } from "../constants";
 import { ConnectionID, PacketNumber, Version } from '../../packet/header/header.properties';
@@ -22,7 +22,7 @@ export class HeaderParser {
         var headerOffset: HeaderOffset = this.parseHeader(buf, 0);
         headerOffsets.push(headerOffset);
         var totalSize: Bignum = new Bignum(0);
-        while (headerOffset.header.getHeaderType() === HeaderType.LongHeader) {
+        while (headerOffset.header.getHeaderType() === HeaderType.LongHeader && (<LongHeader>(headerOffset.header)).getPayloadLength() !== undefined) {
             var longHeader: LongHeader = <LongHeader>(headerOffset.header);
             var payloadLength = longHeader.getPayloadLength();
             var headerSize = new Bignum(headerOffset.offset).subtract(totalSize);
@@ -71,17 +71,21 @@ export class HeaderParser {
         // packetnumber is actually 64-bit but on the wire, it is only 32-bit
         var packetNumber;
         var payloadLength;
+        console.log("before if");
         if (version.toString() !== "00000000") {
+            console.log("decoding payloadlen");
             var vlieOffset = VLIE.decode(buf, offset);
             payloadLength = vlieOffset.value;
             offset = vlieOffset.offset;
+            console.log("getting pn");
             packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
             offset += 4;
         }
         var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version);
         var parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
-        
+        console.log("buf length: " + buf.byteLength);
+        console.log("offset: " + offset);
         return { header: header, offset: offset };
     }
 
