@@ -3,6 +3,17 @@ import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { ConnectionErrorCodes } from "../../utilities/errors/quic.codes";
 import { QuicError } from "../../utilities/errors/connection.error";
 
+// QUIC defines two types of header formats: Long and Short
+// https://tools.ietf.org/html/draft-ietf-quic-transport#section-4
+// This is mainly to reduce the size overhead of the headers
+// - Long: used during connection setup (we don't know the exact settings we will use yet, have to be present in the headers)
+// - Short: used afterwards (both client and server know the agreed upon settings, no need to keep sending them in each packet)
+export enum HeaderType {
+    LongHeader,
+    ShortHeader
+}
+
+/** BaseHeader : defines the shared fields between Long and Short headers */
 export abstract class BaseHeader {
 
     private headerType: HeaderType;
@@ -52,9 +63,4 @@ export abstract class BaseHeader {
     public setParsedBuffer(parsedBuffer: Buffer): void {
         this.parsedBuffer = parsedBuffer;
     }
-}
-
-export enum HeaderType {
-    LongHeader,
-    ShortHeader
 }

@@ -128,6 +128,11 @@ export class Client extends Endpoint {
         return this.connection.getQuicTLS().isSessionReused();
     }
 
+    /**
+     * 
+     * @param msg The buffer containing one full UDP datagram (can consist of multiple compound QUIC-level packets)
+     * @param rinfo 
+     */
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         try {
             this.connection.checkConnectionState();

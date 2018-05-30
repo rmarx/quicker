@@ -48,6 +48,11 @@ export class ConnectionID extends BaseProperty {
         return this.length;
     }
 
+    // REFACTOR TODO: override the toBuffer() method and only include the connectionID length in there, instead of in the randomConnectionID function, see below
+    // in the current setup, if you create a new ConnectionID yourself, the serialization into Short header won't be correct!!! 
+    // although, take care here: that is actually what you want if you use this to just hold the other party's connectionID, which might use a different logic!!!
+    // -> so check the logic when SENDING packets and how we fill the ConnectionID there before manhandling this  
+
     public static randomConnectionID(): ConnectionID {
         var len = Math.round(Math.random() * 14) + 3;
         var highHex = "";
