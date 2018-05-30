@@ -21,7 +21,8 @@
   },
   "homepage": "https://github.com/rmarx/quicker#readme",
   "devDependencies": {
-    "@types/node": "^8.0.53"
+    "@types/node": "^8.10.17",
+    "typescript": "^2.8.3"
   },
   "dependencies": {
     "bn.js": "^4.11.8",
