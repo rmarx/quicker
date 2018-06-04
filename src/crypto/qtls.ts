@@ -67,13 +67,6 @@ export class QTLS extends EventEmitter{
         return qtlsHelper;
     }
 
-    protected setTransportParameters(buffer: Buffer, createNew: boolean = false): void {
-        if (createNew) {
-            this.qtlsHelper = this.createQtlsHelper();
-        }
-        this.qtlsHelper.setTransportParameters(buffer);
-    }
-
     public getExtensionData(): Buffer {
         return this.qtlsHelper.getTransportParameters();
     }
@@ -84,12 +77,10 @@ export class QTLS extends EventEmitter{
         }
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
-            if (this.earlyData !== undefined) {
-                this.writeEarlyData(this.earlyData);
-            }
         }
-        if (!this.isEarlyDataAllowed()) {
-            this.setLocalTransportParameters();
+        this.setLocalTransportParameters();
+        if (this.earlyData !== undefined) {
+            this.writeEarlyData(this.earlyData);
         }
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         return clientInitialBuffer;
@@ -128,7 +119,6 @@ export class QTLS extends EventEmitter{
 
     public writeEarlyData(earlyData: Buffer) {
         this.earlyData = earlyData;
-        this.setLocalTransportParameters();
         return this.qtlsHelper.writeEarlyData(earlyData);
     }
 
@@ -245,7 +235,7 @@ export class QTLS extends EventEmitter{
 
     private setLocalTransportParameters() {
         var transportParams = this.generateExtensionData();
-        this.setTransportParameters(transportParams);
+        this.qtlsHelper.setTransportParameters(transportParams);
         this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
     }
 }
