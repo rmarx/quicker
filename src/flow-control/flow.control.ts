@@ -1,7 +1,7 @@
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { Bignum } from '../types/bignum';
-import { Connection } from '../quicker/connection';
+import { Connection, ConnectionState } from '../quicker/connection';
 import { Stream } from '../quicker/stream';
 import { BasePacket, PacketType } from '../packet/base.packet';
 import { StreamFrame } from '../frame/stream';
@@ -20,16 +20,19 @@ import { HandshakeState } from '../crypto/qtls';
 import { EndpointType } from '../types/endpoint.type';
 import { Time, TimeFormat } from '../types/time';
 import { ShortHeaderType, ShortHeader } from '../packet/header/short.header';
+import { AckHandler } from '../utilities/handlers/ack.handler';
 
 
 export class FlowControl {
 
     private shortHeaderSize!: number;
     private connection: Connection;
+    private ackHandler: AckHandler;
     private bufferedFrames: BaseFrame[];
 
-    public constructor(connection: Connection) {
+    public constructor(connection: Connection, ackHandler: AckHandler) {
         this.connection = connection;
+        this.ackHandler = ackHandler;
         this.bufferedFrames = [];
     }
 
@@ -61,6 +64,16 @@ export class FlowControl {
         var frames = this.getFrames(maxPayloadSize);
         var packetFrames = new Array<BaseFrame>();
         var size = new Bignum(0);
+
+
+        var ackBuffered: boolean = this.isAckBuffered();
+        if (!ackBuffered && (this.connection.getState() === ConnectionState.Handshake || this.connection.getState() === ConnectionState.Open)) {
+            var ackFrame = this.ackHandler.getAckFrame(this.connection);
+            if (ackFrame !== undefined) {
+                packets.push(this.createNewPacket([ackFrame]));
+            }
+        }
+
         frames.handshakeFrames.forEach((frame: BaseFrame) => {
             // handshake frames are only more than one with server hello and they need to be in different packets
             packets.push(this.createNewPacket([frame]));
@@ -121,21 +134,15 @@ export class FlowControl {
                 }
             }
         });
-        if (handshakeState !== HandshakeState.COMPLETED && handshakeState !== HandshakeState.CLIENT_COMPLETED ) {
+        if (handshakeState !== HandshakeState.COMPLETED) {
             if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);
             } else if (this.connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(this.connection, frames);
-            } else if (this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused() && !isHandshake) {
+            } else if (!isHandshake && ((this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused()) || (handshakeState >= HandshakeState.CLIENT_COMPLETED))) {
                 return PacketFactory.createShortHeaderPacket(this.connection, frames); 
             } else {
                 return PacketFactory.createHandshakePacket(this.connection, frames);
-            }
-        } else if(handshakeState === HandshakeState.CLIENT_COMPLETED) {
-            if (isHandshake) {
-                return PacketFactory.createHandshakePacket(this.connection, frames);
-            } else {
-                return PacketFactory.createShortHeaderPacket(this.connection, frames);   
             }
         } else {
             return PacketFactory.createShortHeaderPacket(this.connection, frames);

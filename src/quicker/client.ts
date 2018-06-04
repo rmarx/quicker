@@ -128,6 +128,10 @@ export class Client extends Endpoint {
         return this.connection.getQuicTLS().isSessionReused();
     }
 
+    public close() {
+        // TODO: close connection with applicationcloseframe
+    }
+
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         try {
             this.connection.checkConnectionState();

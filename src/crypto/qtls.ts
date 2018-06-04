@@ -116,9 +116,7 @@ export class QTLS extends EventEmitter{
 
     public writeHandshake(buffer: Buffer): void {
         if (this.handshakeState !== HandshakeState.COMPLETED) {
-            if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
-                this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
-            } else if(this.handshakeState !== HandshakeState.CLIENT_COMPLETED){
+            if(this.handshakeState !== HandshakeState.CLIENT_COMPLETED){
                 this.handshakeState = HandshakeState.HANDSHAKE;
                 if (this.isServer) {
                     this.setLocalTransportParameters();
@@ -230,18 +228,19 @@ export class QTLS extends EventEmitter{
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
         this.earlyData = undefined;
+        if (this.handshakeState >= HandshakeState.CLIENT_COMPLETED) {
+            return;
+        }
         // Set handshake state
         if (this.isServer) {
-            this.handshakeState = HandshakeState.COMPLETED;
+            this.handshakeState = HandshakeState.SERVER_COMPLETED;
         } else {
             this.handshakeState = HandshakeState.CLIENT_COMPLETED;
         }
     }
 
     private handleNewSession(): void {
-        if (!this.isServer) {
-            this.handshakeState = HandshakeState.COMPLETED;
-        }
+        this.handshakeState = HandshakeState.COMPLETED;
     }
 
     private setLocalTransportParameters() {
@@ -255,8 +254,8 @@ export enum HandshakeState {
     CLIENT_HELLO,
     SERVER_HELLO,
     HANDSHAKE,
-    NEW_SESSION_TICKET,
     CLIENT_COMPLETED,
+    SERVER_COMPLETED,
     COMPLETED
 };
 
