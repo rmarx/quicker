@@ -25,6 +25,22 @@ import { AckHandler } from '../utilities/handlers/ack.handler';
 
 export class FlowControl {
 
+    /**
+     * MAJOR REFACTOR TODO: handshake state handling
+     * This is incredibly widespread here, using multiple different methods (checking if it is stream 0, checking handshakestate from QTLS), isHandshake bool, ...
+     * The real question is: why is this in flow control in the first place?
+     * Spec says: https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
+     * the complete cryptographic handshake message MUST
+        fit in a single packet [...]
+     * The payload of a UDP datagram carrying the Initial packet MUST be
+         expanded to at least 1200 octets (see Section 8), by adding PADDING
+        frames to the Initial packet and/or by combining the Initial packet
+        with a 0-RTT packet (see Section 4.6).
+     * Given this setup, we can take a much easier, directer route for the handshake and do it outside of the general flow control logic, simplifying things greatly
+     * This will probably not change in the future either, since the initial data should always fit in a single UDP datagram
+     * TODO: check if this is easy to do outside of flow control with early data though... 
+     */
+
     private shortHeaderSize!: number;
     private connection: Connection;
     private ackHandler: AckHandler;
@@ -135,6 +151,14 @@ export class FlowControl {
             }
         });
         if (handshakeState !== HandshakeState.COMPLETED) {
+            // REFACTOR TODO: make it A LOT clearer what the different states are right here...
+            // afaik:
+            // 1. client -> server: sending early data
+            // 2. client -> server: first packet ever sent (Initial) -> ideally, this should be the first if-test then...
+            // 3. client -> server 
+                // 3.1 IF session is being reused : same as 1.
+                // 3.2 step "3" in the handshake process: client is fully setup but haven't heard final from server yet : normal data from client -> server
+            // 4. server -> client: handhsake packet in response to clientInitial 
             if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);
             } else if (this.connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
@@ -142,6 +166,8 @@ export class FlowControl {
             } else if (!isHandshake && ((this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused()) || (handshakeState >= HandshakeState.CLIENT_COMPLETED))) {
                 return PacketFactory.createShortHeaderPacket(this.connection, frames); 
             } else {
+                // REFACTOR TODO: should only send 3 handshake packets without client address validation
+                // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.3
                 return PacketFactory.createHandshakePacket(this.connection, frames);
             }
         } else {

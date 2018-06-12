@@ -132,6 +132,7 @@ export class Stream extends FlowControlledObject {
 		} else if (offset.greaterThan(this.getLocalOffset())) {
 			this.addBufferedData(data, offset, isFin);
 		}
+		// TODO: missing else? 
 	}
 
 	private _receiveData(data: Buffer, isFin: boolean): void {

@@ -142,6 +142,8 @@ export class CongestionControl extends EventEmitter {
     }
 
     private sendPackets() {
+        // TODO: allow coalescing of certain packets:
+        // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.6
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {

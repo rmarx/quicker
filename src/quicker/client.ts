@@ -38,6 +38,7 @@ export class Client extends Endpoint {
         client.options = options;
         client.init();
 
+        // UPDATE-12 TODO: packetnr should start at 0 
         var packetNumber = PacketNumber.randomPacketNumber(); // REFACTOR TODO: why don't we do this in the Connection itself? 
         client.connection.setLocalPacketNumber(packetNumber);
 

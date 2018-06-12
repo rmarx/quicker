@@ -4,6 +4,7 @@ import {Bignum} from '../types/bignum';
 import { EventEmitter } from 'events';
 import { logMethod } from '../utilities/decorators/log.decorator';
 
+// REFACTOR TODO: use composition instead of inheritance for FlowControlledObject... 
 export abstract class FlowControlledObject extends EventEmitter {
 
 	private localOffset!: Bignum;

@@ -49,10 +49,6 @@ export class PacketHandler {
                 var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket>packet;
                 this.handleInitialPacket(connection, clientInitialPacket);
                 break;
-            case PacketType.Protected0RTT:
-                var protected0RTTPacket: Protected0RTTPacket = <Protected0RTTPacket>packet;
-                this.handleProtected0RTTPacket(connection, protected0RTTPacket);
-                break;
             case PacketType.Retry:
                 var retryPacket: RetryPacket = <RetryPacket>packet;
                 this.handleRetryPacket(connection, retryPacket);
@@ -60,6 +56,10 @@ export class PacketHandler {
             case PacketType.Handshake:
                 var handshakePacket: HandshakePacket = <HandshakePacket>packet;
                 this.handleHandshakePacket(connection, handshakePacket);
+                break;
+            case PacketType.Protected0RTT:
+                var protected0RTTPacket: Protected0RTTPacket = <Protected0RTTPacket>packet;
+                this.handleProtected0RTTPacket(connection, protected0RTTPacket);
                 break;
             case PacketType.Protected1RTT:
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
@@ -91,41 +91,50 @@ export class PacketHandler {
         connection.setVersion(negotiatedVersion);
     }
 
+    // only on SERVER (client sends ClientInitial packet)
     private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
         this.handleFrames(connection, clientInitialPacket);
     }
 
-    private handleProtected0RTTPacket(connection: Connection, protected0RTTPacket: Protected0RTTPacket): void {
-        this.handleFrames(connection, protected0RTTPacket);
-    }
-
+    // only on the SERVER (client sends stateless retry packet)
     private handleRetryPacket(connection: Connection, retryPacket: RetryPacket): void {
         var longHeader = <LongHeader>retryPacket.getHeader();
         var connectionID = longHeader.getSrcConnectionID();
         if (connection.getEndpointType() === EndpointType.Client) {
+            // we only change our client destination ID for the very first retry packet
+            // subsequent changes are ignored and we check for them explicitly in the "else if" below
+            // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.7
             if (connection.getDestConnectionID() === undefined) {
                 connection.setDestConnectionID(connectionID);
                 connection.setRetrySent(true);
             } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
-                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent retry packet, ignoring");
             }
         }
         this.handleFrames(connection, retryPacket);
         connection.resetConnectionState();
     }
 
+    // only on the CLIENT (Server sends handshake in reply to ClientInitial packet)
     private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
         var longHeader = <LongHeader>handshakePacket.getHeader();
         var connectionID = longHeader.getSrcConnectionID();
         if (connection.getEndpointType() === EndpointType.Client) {
+            // we only change our server destination ID for the very first handshake packet
+            // subsequent changes are ignored and we check for them explicitly in the "else if" below
+            // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.7
             if (connection.getDestConnectionID() === undefined || connection.getRetrySent()) {
                 connection.setDestConnectionID(connectionID);
                 connection.setRetrySent(false);
             } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
-                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent handshake packet, ignoring");
             }
         }
         this.handleFrames(connection, handshakePacket);
+    }
+
+    private handleProtected0RTTPacket(connection: Connection, protected0RTTPacket: Protected0RTTPacket): void {
+        this.handleFrames(connection, protected0RTTPacket);
     }
 
     private handleProtected1RTTPacket(connection: Connection, shortHeaderPacket: ShortHeaderPacket): void {

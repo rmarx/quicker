@@ -112,8 +112,9 @@ export class LongHeader extends BaseHeader {
     }
 }
 
+// hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.4 and 4.5 
 export enum LongHeaderType {
-    Initial = 0x7F,
+    Initial = 0x7F, 
     Retry = 0x7E,
     Handshake = 0x7D,
     Protected0RTT = 0x7C

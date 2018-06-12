@@ -28,6 +28,12 @@ export class PacketFactory {
      */
     public static createVersionNegotiationPacket(connection: Connection): VersionNegotiationPacket {
         var version = new Version(Buffer.from('00000000', 'hex'));
+        // is only created by a server in response to a client that had an unsupported version in its ClientInitial packet
+        // destConnectionID must be the srcID the client wanted (is in getDestConnectionID, as expected)
+        // srcConnectionID must echo the random value the client choose for us, so NO CUSTOM GENERATED VALUE
+        // for some reason, in our implementation, we get that client-generated value from getInitialDestConnectionID (which is correct, in theory, but quite difficult to reason about)
+        // REFACTOR TODO: maybe rename the initialDestConnectionID to something that more clearly describes its goal at the server? or make a separate var for this? 
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3
         var header = new LongHeader((Math.random() * 128), connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, undefined, version);
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
@@ -42,8 +48,14 @@ export class PacketFactory {
      * @param connection
      */
     public static createClientInitialPacket(connection: Connection, frames: BaseFrame[]): ClientInitialPacket {
+        // TODO: explicitly set packet nr to 0
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1 "The first Initial packet that is sent by a client contains a packet number of 0."
         var header = new LongHeader(LongHeaderType.Initial, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
         var clientInitial = new ClientInitialPacket(header, frames);
+
+        // for security purposes, we want our initial packet to always be the exact same size (1280 bytes)
+        // so we add PADDING frames to reach that size if the encrypted initial packet isn't long enough. 
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
         var size = clientInitial.getSize();
         if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
             var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size)
@@ -78,6 +90,8 @@ export class PacketFactory {
     }
 
     public static createProtected0RTTPacket(connection: Connection, frames: BaseFrame[]): Protected0RTTPacket {
+        // UPDATE-12 TODO: new packet number encryption setup is needed here + extra protection
+        // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.5
         var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
         var packet = new Protected0RTTPacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
