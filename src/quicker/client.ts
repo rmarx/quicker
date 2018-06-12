@@ -38,9 +38,11 @@ export class Client extends Endpoint {
         client.options = options;
         client.init();
 
-        var packetNumber = PacketNumber.randomPacketNumber();
+        var packetNumber = PacketNumber.randomPacketNumber(); // REFACTOR TODO: why don't we do this in the Connection itself? 
         client.connection.setLocalPacketNumber(packetNumber);
-        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
+
+        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex')); // REFACTOR TODO: this isn't being used? 
+        
         var stream = client.connection.getStreamManager().getStream(new Bignum(0));
         client.connection.startConnection();
         client.connection.attemptEarlyData(earlyDataRequest);

@@ -546,7 +546,7 @@ export class Connection extends FlowControlledObject {
             stream.addData(this.earlyData, true);
             this.sendPackets();
         }
-        return false;
+        return false; // REFACTOR TODO: what good is a return value that's always the same? 
     }
 
     public startConnection(): void {

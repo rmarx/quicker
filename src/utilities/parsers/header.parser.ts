@@ -45,8 +45,8 @@ export class HeaderParser {
             }
         }
 
-        // IMPLEMENT TODO: section 4.6 says "A packet with a short header does not include a length, so it has to be the last packet included in a UDP datagram."
-        // we do not currently account for the case that there's a short header at the end here
+        // Note: section 4.6 says "A packet with a short header does not include a length, so it has to be the last packet included in a UDP datagram."
+        // the above while loop will account for that, but only supports a single short header packet at the end
 
         return headerOffsets;
     }

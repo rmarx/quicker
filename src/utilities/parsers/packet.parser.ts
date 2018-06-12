@@ -18,6 +18,7 @@ import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { Bignum } from '../../types/bignum';
 import { RetryPacket } from '../../packet/packet/retry';
+import { VersionValidation } from '../validation/version.validation';
 
 
 export class PacketParser {
@@ -37,8 +38,8 @@ export class PacketParser {
 
     private parseLongHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var longheader = <LongHeader>(headerOffset.header);
-        // Version negotiation packet
-        if (longheader.getVersion().toString() === "00000000") {
+        
+        if( VersionValidation.IsVersionNegotationFlag(longheader.getVersion()) ){
             return this.parseVersionNegotiationPacket(headerOffset, buffer);
         }
 
