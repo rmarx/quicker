@@ -106,7 +106,7 @@ export class Connection extends FlowControlledObject {
         this.handshakeHandler = new HandshakeHandler(this);
         this.streamManager = new StreamManager(this.endpointType);
         this.lossDetection = new LossDetection(this);
-        this.flowControl = new FlowControl(this);
+        this.flowControl = new FlowControl(this, this.ackHandler);
         this.congestionControl = new CongestionControl(this, this.lossDetection);
 
         this.hookStreamManagerEvents();
@@ -511,13 +511,6 @@ export class Connection extends FlowControlledObject {
             return;
         }
         this.transmissionAlarm.reset();
-        var ackBuffered: boolean = this.flowControl.isAckBuffered();
-        if (!ackBuffered && (this.state === ConnectionState.Handshake || this.state === ConnectionState.Open)) {
-            var ackFrame = this.ackHandler.getAckFrame(this);
-            if (ackFrame !== undefined) {
-                this.flowControl.queueFrame(ackFrame);
-            }
-        }
         var packets: BasePacket[] = this.flowControl.getPackets();
         this.congestionControl.queuePackets(packets);
     }

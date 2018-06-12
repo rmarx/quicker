@@ -67,13 +67,6 @@ export class QTLS extends EventEmitter{
         return qtlsHelper;
     }
 
-    protected setTransportParameters(buffer: Buffer, createNew: boolean = false): void {
-        if (createNew) {
-            this.qtlsHelper = this.createQtlsHelper();
-        }
-        this.qtlsHelper.setTransportParameters(buffer);
-    }
-
     public getExtensionData(): Buffer {
         return this.qtlsHelper.getTransportParameters();
     }
@@ -84,12 +77,10 @@ export class QTLS extends EventEmitter{
         }
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
-            if (this.earlyData !== undefined) {
-                this.writeEarlyData(this.earlyData);
-            }
         }
-        if (!this.isEarlyDataAllowed()) {
-            this.setLocalTransportParameters();
+        this.setLocalTransportParameters();
+        if (this.earlyData !== undefined) {
+            this.writeEarlyData(this.earlyData);
         }
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         return clientInitialBuffer;
@@ -116,9 +107,7 @@ export class QTLS extends EventEmitter{
 
     public writeHandshake(buffer: Buffer): void {
         if (this.handshakeState !== HandshakeState.COMPLETED) {
-            if (this.isServer && this.handshakeState === HandshakeState.HANDSHAKE) {
-                this.handshakeState = HandshakeState.NEW_SESSION_TICKET;
-            } else if(this.handshakeState !== HandshakeState.CLIENT_COMPLETED){
+            if(this.handshakeState !== HandshakeState.CLIENT_COMPLETED){
                 this.handshakeState = HandshakeState.HANDSHAKE;
                 if (this.isServer) {
                     this.setLocalTransportParameters();
@@ -130,7 +119,6 @@ export class QTLS extends EventEmitter{
 
     public writeEarlyData(earlyData: Buffer) {
         this.earlyData = earlyData;
-        this.setLocalTransportParameters();
         return this.qtlsHelper.writeEarlyData(earlyData);
     }
 
@@ -230,23 +218,24 @@ export class QTLS extends EventEmitter{
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
         this.earlyData = undefined;
+        if (this.handshakeState >= HandshakeState.CLIENT_COMPLETED) {
+            return;
+        }
         // Set handshake state
         if (this.isServer) {
-            this.handshakeState = HandshakeState.COMPLETED;
+            this.handshakeState = HandshakeState.SERVER_COMPLETED;
         } else {
             this.handshakeState = HandshakeState.CLIENT_COMPLETED;
         }
     }
 
     private handleNewSession(): void {
-        if (!this.isServer) {
-            this.handshakeState = HandshakeState.COMPLETED;
-        }
+        this.handshakeState = HandshakeState.COMPLETED;
     }
 
     private setLocalTransportParameters() {
         var transportParams = this.generateExtensionData();
-        this.setTransportParameters(transportParams);
+        this.qtlsHelper.setTransportParameters(transportParams);
         this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
     }
 }
@@ -255,8 +244,8 @@ export enum HandshakeState {
     CLIENT_HELLO,
     SERVER_HELLO,
     HANDSHAKE,
-    NEW_SESSION_TICKET,
     CLIENT_COMPLETED,
+    SERVER_COMPLETED,
     COMPLETED
 };
 

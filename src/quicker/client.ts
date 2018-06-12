@@ -130,6 +130,10 @@ export class Client extends Endpoint {
         return this.connection.getQuicTLS().isSessionReused();
     }
 
+    public close() {
+        // TODO: close connection with applicationcloseframe
+    }
+
     /**
      * 
      * @param msg The buffer containing one full UDP datagram (can consist of multiple compound QUIC-level packets)
