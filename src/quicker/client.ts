@@ -43,7 +43,7 @@ export class Client extends Endpoint {
 
         var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex')); // REFACTOR TODO: this isn't being used? 
         
-        var stream = client.connection.getStreamManager().getStream(new Bignum(0));
+        var stream = client.connection.getStreamManager().getStream(new Bignum(0)); // REFACTOR TODO: this is needed so the connection knows the handshake stream, but would make much more sense to set this up in the connection itself. See also Stream 0 DT discussion? 
         client.connection.startConnection();
         client.connection.attemptEarlyData(earlyDataRequest);
         return client;

@@ -21,20 +21,28 @@ export class HandshakeHandler {
         this.handshakeEmitted = false;
     }
 
-    public startHandshake(): void {
-        if (this.connection.getEndpointType() === EndpointType.Server) {
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
-        }
-        var clientInitial = this.connection.getQuicTLS().getClientInitial(true);
-        this.handshakeEmitted = false;
-        this.stream.addData(clientInitial);
-    }
-
+    // this should be called first before startHandshake 
+    // this should be done on stream 0 
+    // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
     public setHandshakeStream(stream: Stream) {
         this.stream = stream;
         this.stream.on(StreamEvent.DATA, (data: Buffer) => {
             this.handle(data);
         });
+    }
+
+    public startHandshake(): void {
+        if (this.connection.getEndpointType() === EndpointType.Server) {
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: We are server, cannot start handshake");
+        }
+        if ( !this.stream ) {
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: Handshake stream not set, has to be done externally!");
+        }
+        // TEST TODO: what is handshakeEmitted is true here? 
+        this.handshakeEmitted = false;
+
+        var clientInitial = this.connection.getQuicTLS().getClientInitial(true); // REFACTOR TODO: pass quicTLS in as parameter to this function?
+        this.stream.addData(clientInitial);
     }
 
     public handle(data: Buffer) {

@@ -14,6 +14,29 @@ export class VerboseLogging{
         return this.logger;
     }
 
+    public static trace(message:string){
+        VerboseLogging.getInstance().output.trace(message);
+    }
+
+    public static debug(message:string){
+        VerboseLogging.getInstance().output.debug(message);
+    }
+
+    public static info(message:string){
+        VerboseLogging.getInstance().output.info(message);
+    }
+
+    public static warn(message:string){
+        VerboseLogging.getInstance().output.warn(message);
+    }
+
+    public static error(message:string){
+        VerboseLogging.getInstance().output.error(message);
+    }
+
+    public static fatal(message:string){
+        VerboseLogging.getInstance().output.fatal(message);
+    }
 
     private constructor() {
         this.output = getLogger();

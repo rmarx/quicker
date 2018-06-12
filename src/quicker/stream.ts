@@ -82,7 +82,7 @@ export class Stream extends FlowControlledObject {
 
 	public addData(data: Buffer, isFin = false): void {
 		if (this.blockedSent) {
-			throw new Error();
+			throw new Error("stream:addData: send was blocked");
 		}
 		this.data = Buffer.concat([this.data, data]);
 		if (isFin) {

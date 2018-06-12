@@ -31,6 +31,7 @@ import { MaxStreamFrame } from '../frame/max.stream';
 import { MaxDataFrame } from '../frame/max.data';
 import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
 import { StreamManager, StreamManagerEvents } from './stream.manager';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 export class Connection extends FlowControlledObject {
 
@@ -508,8 +509,10 @@ export class Connection extends FlowControlledObject {
 
     public sendPackets(): void {
         if (this.connectionIsClosing()) {
+            VerboseLogging.warn("Connection:sendPackets : trying to send data while connection closing");
             return;
         }
+
         this.transmissionAlarm.reset();
         var packets: BasePacket[] = this.flowControl.getPackets();
         this.congestionControl.queuePackets(packets);
@@ -544,9 +547,11 @@ export class Connection extends FlowControlledObject {
 
     public startConnection(): void {
         if (this.endpointType === EndpointType.Server) {
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "We are server, we cannot start handshake");
         }
-        this.handshakeHandler.startHandshake();
+        // TEST TODO: handshakeHandler should be ready to go (i.e., have its properties properly set) or we should initialize it
+        // REFACTOR TODO: Maybe just remove handshakeHandler completely and do it in here? 
+        this.handshakeHandler.startHandshake(); 
         this.sendPackets();
         this.startIdleAlarm();
     }
