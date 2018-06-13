@@ -147,6 +147,7 @@ export class Connection extends FlowControlledObject {
 
     private hookStreamManagerEvents() {
         this.streamManager.on(StreamManagerEvents.INITIALIZED_STREAM, (stream: Stream) => {
+            // Stream 0 is used for handshake processing and is special in how we handle it
             if (stream.getStreamID().compare(new Bignum(0)) !== 0) {
                 this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
             } else {
