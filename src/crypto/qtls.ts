@@ -28,8 +28,6 @@ export class QTLS extends EventEmitter{
     private cipher!: Cipher;
     private connection: Connection;
 
-    private earlyData?: Buffer;
-
     public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         super();
         this.isServer = isServer;
@@ -72,16 +70,13 @@ export class QTLS extends EventEmitter{
     }
 
     public getClientInitial(createNew = false): Buffer {
-        if (this.isEarlyDataAllowed()) {
-            this.writeEarlyData(Buffer.from(""));
-        }
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
         }
-        this.setLocalTransportParameters();
-        if (this.earlyData !== undefined) {
-            this.writeEarlyData(this.earlyData);
+        if (this.isEarlyDataAllowed()) {
+            this.qtlsHelper.writeEarlyData(Buffer.from(""));
         }
+        this.setLocalTransportParameters();
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         return clientInitialBuffer;
     }
@@ -115,11 +110,6 @@ export class QTLS extends EventEmitter{
             }
         }
         this.qtlsHelper.writeHandshakeData(buffer);
-    }
-
-    public writeEarlyData(earlyData: Buffer) {
-        this.earlyData = earlyData;
-        return this.qtlsHelper.writeEarlyData(earlyData);
     }
 
     public getHandshakeState(): HandshakeState {
@@ -217,7 +207,6 @@ export class QTLS extends EventEmitter{
     private handleHandshakeDone(): void {
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
-        this.earlyData = undefined;
         if (this.handshakeState >= HandshakeState.CLIENT_COMPLETED) {
             return;
         }
