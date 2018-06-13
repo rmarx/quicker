@@ -69,14 +69,21 @@ export class PacketHandler {
     }
 
     private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
+        // REFACTOR TODO: we should only react to the first VersionNegotationPacket, see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
+        // not sure if this is checked anywhere yet, but I doubt it 
         var longHeader = <LongHeader>versionNegotiationPacket.getHeader();
         var connectionId = longHeader.getSrcConnectionID();
         var connectionId = longHeader.getDestConnectionID();
         if (connection.getInitialDestConnectionID().getValue().compare(longHeader.getSrcConnectionID().getValue()) !== 0 ||
             connection.getSrcConnectionID().getValue().compare(longHeader.getDestConnectionID().getValue()) !== 0) {
-            return;
+            // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
+            throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, "Version negotation didn't include correct connectionID values");
         }
         var negotiatedVersion = undefined;
+
+        // REFACTOR TODO: we MUST ignore this packet if it contains our chosen version, see https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-6.2.2
+
+        // REFACTOR TODO: make sure we select the highest possible version? versions in negpacket aren't necessarily ordered? 
         versionNegotiationPacket.getVersions().forEach((version: Version) => {
             var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
             if (index > -1) {
@@ -85,8 +92,13 @@ export class PacketHandler {
             }
         });
         if (negotiatedVersion === undefined) {
-            throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
+            // REFACTOR TODO: this isn't caught anywhere at client side yet (only on server)... needs to be caught and propagated to library user! 
+            throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, "No supported version overlap found between Client and Server");
         }
+        // REFACTOR TODO: why does this work? shouldn't we set the version before resetting the connection OR calling startConnection() ourselves instead of in resetConnection?
+        // how does this even work? resetConnection() re-inits the handshake, so new version shouldn't be selected?
+        // unless, of course, this is because we call into C++/work with a callback, in which case this is still dirty
+        // REFACTOR TODO: pass new version into the resetConnection() method directly? 
         connection.resetConnection();
         connection.setVersion(negotiatedVersion);
     }

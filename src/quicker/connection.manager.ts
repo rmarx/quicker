@@ -27,7 +27,7 @@ export class ConnectionManager extends EventEmitter{
     }
     
     /**
-     * TODO: optimize, first connection takes 4.5ms
+     * REFACTOR TODO: optimize, first connection takes 4.5ms
      * @param headerOffset 
      * @param rinfo 
      */
@@ -44,6 +44,8 @@ export class ConnectionManager extends EventEmitter{
         } else {
             var shortHeader = <ShortHeader>header;
             var connectionID = shortHeader.getDestConnectionID();
+            // VERIFY TODO: why do we first lookup by RemoteInfo? isn't connectionID more authoritative? 
+            // see https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-6.1 -> only if connectionID is zero-length? 
             var connection = this.getConnectionByRemoteInformation(rinfo);
             if (connection !== undefined) {
                 return connection;
@@ -62,6 +64,7 @@ export class ConnectionManager extends EventEmitter{
             port: rinfo.port,
             family: rinfo.family
         };
+        // VERIFY TODO: at this moment, this.omittedConnections is never filled? why?
         var connection = this.omittedConnections[JSON.stringify(remoteInfo)];
         return connection;
     }

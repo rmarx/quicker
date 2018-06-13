@@ -32,6 +32,7 @@ export class HeaderHandler {
                     // Protected0RTT is if the client's early data is being sent along with the Initial
                     // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"
                     // VERIFY TODO: is this correct? and, if yes, do we need the Protected0RTT check, as it wil arrive during SERVER_HELLO? 
+                    // TODO: #section-6.1.2 allows us to buffer 0RTT packets in anticipation of a late ClientInitial 
                     throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
                 } else {
                     throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet");

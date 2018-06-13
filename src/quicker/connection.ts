@@ -399,6 +399,8 @@ export class Connection extends FlowControlledObject {
     }
 
     public resetConnectionState() {
+        // REFACTOR TODO: when resetting due to version mismatch, we MUST NOT reset the packet number
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
@@ -563,7 +565,10 @@ export class Connection extends FlowControlledObject {
         // VERIFY TODO: I have no idea why we need to do this handshakeHandler here
         //  -> the real ClientInitial is built in sendPackets (which calls FlowControl, which actually builds it)
         //  -> startHandshake() does something weird with early data and tries to read the ClientInitial from the socket?!? (shouldn't that only be done on the server?)
-        //  -> all in all, a bit unclear why this happens here  
+        //  -> all in all, a bit unclear why this happens here 
+        
+        // REFACTOR TODO: do we take into account what happens if the ClientInitial is lost?
+        // spec says: the client will send new packets until it successfully receives a response or it abandons the connection attempt. #6.2.1
         this.handshakeHandler.startHandshake(); 
         this.sendPackets();
         this.startIdleAlarm();

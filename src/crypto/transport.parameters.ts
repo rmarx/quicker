@@ -215,12 +215,13 @@ export class TransportParameters {
 export enum TransportParameterType {
     MAX_STREAM_DATA = 0x00,
     MAX_DATA = 0x01,
-    INITIAL_MAX_STREAMS_BIDI = 0x02,
+    INITIAL_MAX_STREAMS_BIDI = 0x02, // UPDATE-12 : rename to initial_max_bidi_streams
     IDLE_TIMEOUT = 0x03,
+    PREFERRED_ADDRESS = 0x04, // UPDATE-12 : actually use this in the implementation somewhere 
     MAX_PACKET_SIZE = 0x05,
     STATELESS_RESET_TOKEN = 0x06,
     ACK_DELAY_EXPONENT = 0x07,
-    INITIAL_MAX_STREAMS_UNI = 0x08
+    INITIAL_MAX_STREAMS_UNI = 0x08 // UPDATE-12: rename to initial_max_uni_streams
 }
 
 export interface BufferOffset {

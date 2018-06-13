@@ -22,6 +22,7 @@ export abstract class BaseFrame {
 }
 
 export enum FrameType {
+    // hardcoded in https://tools.ietf.org/html/draft-ietf-quic-transport#section-5
     PADDING = 0x00,
     RST_STREAM = 0x01,
     CONNECTION_CLOSE = 0x02,
@@ -38,5 +39,5 @@ export enum FrameType {
     ACK = 0x0d,
     PATH_CHALLENGE = 0x0e,
     PATH_RESPONSE = 0x0f,
-    STREAM = 0x10
+    STREAM = 0x10 // streams are between 0x10 and 0x17, check for stream with:  type >= FrameType.STREAM
 }

@@ -71,6 +71,7 @@ export class PacketFactory {
      * @param connection
      */
     public static createRetryPacket(connection: Connection, frames: BaseFrame[]): RetryPacket {
+        // UPDATE-12 TODO: packet number of a retry packet MUST be set to zero https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.2
         var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, undefined, connection.getVersion());
         return new RetryPacket(header, frames);
     }

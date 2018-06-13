@@ -30,6 +30,8 @@ export class PacketParser {
 
     public parse(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, endpoint: EndpointType): PacketOffset {
         var header = headerOffset.header;
+        // TODO: in theory, we MUST discard all packets with invalid version, so we have to check that for each header... but that's quite a bit of overhead?
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.1.1
         if (header.getHeaderType() === HeaderType.LongHeader) {
             return this.parseLongHeaderPacket(connection, headerOffset, msg, endpoint)
         }
