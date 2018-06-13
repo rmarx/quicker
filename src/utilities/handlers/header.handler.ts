@@ -19,6 +19,8 @@ export class HeaderHandler {
         var header = headerOffset.header;
         var highestCurrentPacketNumber = false;
 
+        // we need to check if we support the QUIC version the client is attempting to use
+        // if not, we need to explicitly send a version negotation message
         if (header.getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>header;
             var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
@@ -27,9 +29,12 @@ export class HeaderHandler {
                     connection.resetConnectionState();
                     throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
                 } else if(header.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
+                    // Protected0RTT is if the client's early data is being sent along with the Initial
+                    // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"
+                    // VERIFY TODO: is this correct? and, if yes, do we need the Protected0RTT check, as it wil arrive during SERVER_HELLO? 
                     throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
                 } else {
-                    throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
+                    throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet");
                 }
             }
             connection.setVersion(negotiatedVersion);
