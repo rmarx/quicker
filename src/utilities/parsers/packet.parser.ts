@@ -18,6 +18,7 @@ import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { Bignum } from '../../types/bignum';
 import { RetryPacket } from '../../packet/packet/retry';
+import { VersionValidation } from '../validation/version.validation';
 
 
 export class PacketParser {
@@ -29,6 +30,8 @@ export class PacketParser {
 
     public parse(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, endpoint: EndpointType): PacketOffset {
         var header = headerOffset.header;
+        // TODO: in theory, we MUST discard all packets with invalid version, so we have to check that for each header... but that's quite a bit of overhead?
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.1.1
         if (header.getHeaderType() === HeaderType.LongHeader) {
             return this.parseLongHeaderPacket(connection, headerOffset, msg, endpoint)
         }
@@ -37,8 +40,8 @@ export class PacketParser {
 
     private parseLongHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var longheader = <LongHeader>(headerOffset.header);
-        // Version negotiation packet
-        if (longheader.getVersion().toString() === "00000000") {
+        
+        if( VersionValidation.IsVersionNegotationFlag(longheader.getVersion()) ){
             return this.parseVersionNegotiationPacket(headerOffset, buffer);
         }
 

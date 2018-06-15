@@ -29,4 +29,10 @@ export class VersionValidation {
         }
         throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
     }
+
+    public static IsVersionNegotationFlag(version: Version){
+        // The version 0x00000000 is reserved to represent version negotiation.
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-3
+        return (version.toString() === "00000000");
+    }
 }

@@ -25,7 +25,7 @@ export class VersionNegotiationPacket extends BasePacket {
      * Method to get buffer object from a VersionNegotiationPacket object
      */
     public toBuffer(connection: Connection) {
-        var headerBuffer = this.getHeader().toBuffer();
+        var headerBuffer = this.getHeader().toBuffer(); 
         var outOffset = headerBuffer.length;
     
         var payloadOffset = 0

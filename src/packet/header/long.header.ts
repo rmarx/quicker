@@ -3,12 +3,8 @@ import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
 import { VLIE } from "../../crypto/vlie";
+import { VersionValidation } from "../../utilities/validation/version.validation";
 
-/**        0              1-7                 8-12           13 - 16          17-*  
- *   +--------------------------------------------------------------------------------+
- *   |1| type(7) |  connection ID (64) |  version (32) |  packet nr (32) |  Payload(*)|
- *   +--------------------------------------------------------------------------------+
- */
 export class LongHeader extends BaseHeader {
     private version: Version;
     private destConnectionID: ConnectionID;
@@ -68,21 +64,26 @@ export class LongHeader extends BaseHeader {
         this.payloadLength = new Bignum(value);
     }
 
+    // for the wire format and more in-depth info, see header.parser.ts:parseLongHeader
+    // this is simply the reverse of that operation 
     public toBuffer(): Buffer {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
-        
-        // create LongHeader
+
         var type = 0x80 + this.getPacketType();
         buf.writeUInt8(type, offset++);
+
         offset += this.getVersion().toBuffer().copy(buf, offset);
+
         var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
         var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
         buf.writeUInt8(((destLength << 4) + srcLength), offset++);
+
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
-        if (this.getVersion().toString() !== "00000000") {
+         
+        if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
             if (this.payloadLength !== undefined) {
                 var payloadLengthBuffer = VLIE.encode(this.payloadLength);
                 offset += payloadLengthBuffer.copy(buf, offset);
@@ -101,7 +102,7 @@ export class LongHeader extends BaseHeader {
         var size = 6;
         size += this.destConnectionID.getLength();
         size += this.srcConnectionID.getLength();
-        if (this.getVersion().toString() !== "00000000") {
+        if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
             size += this.getPacketNumberSize();
         }
         if (this.payloadLength !== undefined) {
@@ -111,8 +112,9 @@ export class LongHeader extends BaseHeader {
     }
 }
 
+// hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.4 and 4.5 
 export enum LongHeaderType {
-    Initial = 0x7F,
+    Initial = 0x7F, 
     Retry = 0x7E,
     Handshake = 0x7D,
     Protected0RTT = 0x7C

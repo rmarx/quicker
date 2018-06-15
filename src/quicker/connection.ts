@@ -31,6 +31,7 @@ import { MaxStreamFrame } from '../frame/max.stream';
 import { MaxDataFrame } from '../frame/max.data';
 import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
 import { StreamManager, StreamManagerEvents } from './stream.manager';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 export class Connection extends FlowControlledObject {
 
@@ -38,12 +39,17 @@ export class Connection extends FlowControlledObject {
     private socket: Socket;
     private endpointType: EndpointType;
 
+    // we do not need an initialSrcConnectionID, because we only ever have one active
+    // for the destination ID though, there are several instances where we need to store the updated value, but keep using the original one for a short time 
+    // e.g., initial value is used for encrypting the packets during handshake, for version negotiation setup, etc. 
     private initialDestConnectionID!: ConnectionID;
     private srcConnectionID!: ConnectionID;
     private destConnectionID!: ConnectionID;
+
     private initialPacketNumber!: PacketNumber;
-    private localPacketNumber!: PacketNumber;
-    private remotePacketNumber!: PacketNumber;
+    private localPacketNumber!: PacketNumber; // for sending
+    private remotePacketNumber!: PacketNumber; // for receiving
+
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
     private version!: Version;
@@ -141,6 +147,7 @@ export class Connection extends FlowControlledObject {
 
     private hookStreamManagerEvents() {
         this.streamManager.on(StreamManagerEvents.INITIALIZED_STREAM, (stream: Stream) => {
+            // Stream 0 is used for handshake processing and is special in how we handle it
             if (stream.getStreamID().compare(new Bignum(0)) !== 0) {
                 this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
             } else {
@@ -335,13 +342,14 @@ export class Connection extends FlowControlledObject {
         return this.localPacketNumber;
     }
 
+    // REFACTOR TODO: make this private? don't want people randomly setting packet number, now do we? 
     public setLocalPacketNumber(packetNumber: PacketNumber) {
         this.localPacketNumber = packetNumber;
     }
 
     public getNextPacketNumber(): PacketNumber {
         if (this.localPacketNumber === undefined) {
-            this.localPacketNumber = PacketNumber.randomPacketNumber();
+            this.localPacketNumber = PacketNumber.randomPacketNumber(); // UPDATE-12 TODO: packet number should start at 0 
             this.initialPacketNumber = this.localPacketNumber;
             return this.localPacketNumber;
         }
@@ -391,6 +399,8 @@ export class Connection extends FlowControlledObject {
     }
 
     public resetConnectionState() {
+        // REFACTOR TODO: when resetting due to version mismatch, we MUST NOT reset the packet number
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
         this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
@@ -497,6 +507,8 @@ export class Connection extends FlowControlledObject {
      * Method to send a packet
      * @param basePacket packet to send
      */
+    // REFACTOR TODO: create separate bufferPacket function so these logics don't get mixed 
+    // Also probably fixes the sendPackets function below not performing the same checks as this one 
     public sendPacket(basePacket: BasePacket, bufferPacket: boolean = true): void {
         if (basePacket.getPacketType() !== PacketType.Retry && basePacket.getPacketType() !== PacketType.VersionNegotiation && basePacket.getPacketType() !== PacketType.Initial && bufferPacket) {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
@@ -508,8 +520,10 @@ export class Connection extends FlowControlledObject {
 
     public sendPackets(): void {
         if (this.connectionIsClosing()) {
+            VerboseLogging.warn("Connection:sendPackets : trying to send data while connection closing");
             return;
         }
+
         this.transmissionAlarm.reset();
         var packets: BasePacket[] = this.flowControl.getPackets();
         this.congestionControl.queuePackets(packets);
@@ -539,14 +553,23 @@ export class Connection extends FlowControlledObject {
             stream.addData(this.earlyData, true);
             this.sendPackets();
         }
-        return false;
+        return false; // REFACTOR TODO: what good is a return value that's always the same? 
     }
 
     public startConnection(): void {
         if (this.endpointType === EndpointType.Server) {
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "We are server, we cannot start handshake");
         }
-        this.handshakeHandler.startHandshake();
+        // TEST TODO: handshakeHandler should be ready to go (i.e., have its properties properly set) or we should initialize it
+        // REFACTOR TODO: Maybe just remove handshakeHandler completely and do it in here?
+        // VERIFY TODO: I have no idea why we need to do this handshakeHandler here
+        //  -> the real ClientInitial is built in sendPackets (which calls FlowControl, which actually builds it)
+        //  -> startHandshake() does something weird with early data and tries to read the ClientInitial from the socket?!? (shouldn't that only be done on the server?)
+        //  -> all in all, a bit unclear why this happens here 
+        
+        // REFACTOR TODO: do we take into account what happens if the ClientInitial is lost?
+        // spec says: the client will send new packets until it successfully receives a response or it abandons the connection attempt. #6.2.1
+        this.handshakeHandler.startHandshake(); 
         this.sendPackets();
         this.startIdleAlarm();
     }

@@ -82,7 +82,7 @@ export class Stream extends FlowControlledObject {
 
 	public addData(data: Buffer, isFin = false): void {
 		if (this.blockedSent) {
-			throw new Error();
+			throw new Error("stream:addData: send was blocked");
 		}
 		this.data = Buffer.concat([this.data, data]);
 		if (isFin) {
@@ -132,6 +132,7 @@ export class Stream extends FlowControlledObject {
 		} else if (offset.greaterThan(this.getLocalOffset())) {
 			this.addBufferedData(data, offset, isFin);
 		}
+		// TODO: missing else? 
 	}
 
 	private _receiveData(data: Buffer, isFin: boolean): void {

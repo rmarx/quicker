@@ -4,6 +4,28 @@ import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 
 
+// hardcoded, in this order, at https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.1
+// TODO: section 6.4.4 mentions 3 more version negotation validation parameters, but doesn't explain this in detail... should add these though? 
+// https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.4
+// code example in #6.4 adds these as uint32 before all the rest? still not very clear... 
+// for more inspiration: https://github.com/NTAP/quant/blob/master/lib/src/tls.c#L400
+// apparently, the whole <4..2^8-4> syntax is not well defined (asked Lars Eggert on slack) and subject to interpretation... *head desk*
+export enum TransportParameterType {
+    MAX_STREAM_DATA = 0x00,             // max data in-flight for one individual stream
+    MAX_DATA = 0x01,                    // max data in-flight for the full connection
+    INITIAL_MAX_STREAMS_BIDI = 0x02,    // maximum amount of bi-directional streams that can be opened // UPDATE-12 TODO: rename to initial_max_bidi_streams
+    IDLE_TIMEOUT = 0x03,                // amount of seconds to wait before closing the connection if nothing is received
+    PREFERRED_ADDRESS = 0x04,           // server address to switch to after completing handshake // UPDATE-12 TODO: actually use this in the implementation somewhere 
+    MAX_PACKET_SIZE = 0x05,             // maximum total packet size (at UDP level)
+    STATELESS_RESET_TOKEN = 0x06,       // token to be used in the case of a stateless reset 
+    ACK_DELAY_EXPONENT = 0x07,          // congestion control tweaking parameter, see congestion/ack handling logic 
+    INITIAL_MAX_STREAMS_UNI = 0x08      // maximum amount of uni-directional streams that can be opened// UPDATE-12 TODO: rename to initial_max_uni_streams
+}
+
+/**
+ * The Transport parameters need to be flexible and also support unknown values (which we ignore afterwards)
+ * Thus, this class uses generic get/set based on an enum to keep things flexible and easily parse-able
+ */
 export class TransportParameters {
 
     private isServer: boolean;
@@ -17,6 +39,7 @@ export class TransportParameters {
     private statelessResetToken!: Buffer;
     private ackDelayExponent!: number;
 
+    // these three parameters MUST be set for each connection, so we require them in the constructor 
     public constructor(isServer: boolean, maxStreamData: number, maxData: number, idleTimeout: number) {
         this.isServer = isServer;
         this.maxStreamData = maxStreamData;
@@ -24,6 +47,8 @@ export class TransportParameters {
         this.idleTimeout = idleTimeout;
     }
 
+    // REFACTOR TODO: most of these values have a minimum and maximum allowed value: check for these here! 
+    // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.1
     public setTransportParameter(type: TransportParameterType, value: any): void {
         switch (type) {
             case TransportParameterType.MAX_STREAM_DATA:
@@ -176,7 +201,7 @@ export class TransportParameters {
             }
             offset += len;
             if (type in values) {
-                throw new QuicError(ConnectionErrorCodes.TRANSPORT_PARAMETER_ERROR);
+                throw new QuicError(ConnectionErrorCodes.TRANSPORT_PARAMETER_ERROR, "Dual transport parameter defined " + type);
             }
             values[type] = value;
         }
@@ -195,32 +220,23 @@ export class TransportParameters {
                 return 4;
             case TransportParameterType.MAX_DATA:
                 return 4;
+            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
+                return 2;
             case TransportParameterType.IDLE_TIMEOUT:
+                return 2;
+            case TransportParameterType.PREFERRED_ADDRESS:
+                return 4; // UPDATE-12 : draft doesn't specify how large this one can get... different for v4-v6... and a full struct... PITA
+            case TransportParameterType.MAX_PACKET_SIZE:
                 return 2;
             case TransportParameterType.STATELESS_RESET_TOKEN:
                 return 16;
-            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
-                return 2;
-            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
-                return 2;
-            case TransportParameterType.MAX_PACKET_SIZE:
-                return 2;
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 return 1;
+            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
+                return 2;
         }
         return 0;
     }
-}
-
-export enum TransportParameterType {
-    MAX_STREAM_DATA = 0x00,
-    MAX_DATA = 0x01,
-    INITIAL_MAX_STREAMS_BIDI = 0x02,
-    IDLE_TIMEOUT = 0x03,
-    MAX_PACKET_SIZE = 0x05,
-    STATELESS_RESET_TOKEN = 0x06,
-    ACK_DELAY_EXPONENT = 0x07,
-    INITIAL_MAX_STREAMS_UNI = 0x08
 }
 
 export interface BufferOffset {

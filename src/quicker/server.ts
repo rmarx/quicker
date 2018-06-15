@@ -18,6 +18,7 @@ import { Socket, RemoteInfo, createSocket, SocketType } from 'dgram';
 import { SecureContext, createSecureContext } from 'tls';
 import { Endpoint } from './endpoint';
 import { ConnectionManager, ConnectionManagerEvents } from './connection.manager';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
@@ -88,7 +89,7 @@ export class Server extends Endpoint {
             return;
         }
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
-        var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
+            var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
             try {
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
@@ -104,6 +105,7 @@ export class Server extends Endpoint {
                     connection.sendPacket(versionNegotiationPacket);
                     return;
                 } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
+                    VerboseLogging.info("server:onMessage : caught IGNORE_PACKET_ERROR : " + err);
                     return;
                 } else {
                     this.handleError(connection, err);

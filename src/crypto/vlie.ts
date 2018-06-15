@@ -19,6 +19,13 @@ export class VLIE {
         return VLIE.encodeNumber(number);
     }
 
+    /**
+     * Decodes buffer into a BigNum instance and an offset.
+     * For ease of use, the offset is NOT just the offset needed for the VLIE encoded value, but initialOffset + VLIEoffset
+     * Calling code can then just to  currentOffset = VLIE.decode, instead of currentOffset += VLIE.decode 
+     * @param buf 
+     * @param offset 
+     */
     public static decode(buf: Buffer, offset: number = 0): VLIEOffset {
         return VLIE.decodeBuffer(buf, offset);
     }

@@ -1,3 +1,5 @@
+
+
 import { HandshakeValidation } from '../utilities/validation/handshake.validation';
 import { Bignum } from '../types/bignum';
 import { Constants } from '../utilities/constants';
@@ -70,13 +72,23 @@ export class QTLS extends EventEmitter{
     }
 
     public getClientInitial(createNew = false): Buffer {
+        // TODO: this currently never happens in the codebase: for which use-case is this?
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
         }
+
         if (this.isEarlyDataAllowed()) {
+            // OpenSSL requires we write some early data first if we want to use it, but cannot write the real early data yet (QUIC uses 0-RTT packet logic), 
+            // so write an empty string for now, this triggers the necessary internal state changes 
+            // "When called by a client, SSL_write_early_data() must be the first IO function called on a new connection" 
+            //  => https://www.openssl.org/docs/man1.1.1/man3/SSL_write_early_data.html 
+            // REFACTOR TODO: if this is just an anomaly of OpenSSL, move it to the C++ side?
             this.qtlsHelper.writeEarlyData(Buffer.from(""));
         }
+        
         this.setLocalTransportParameters();
+
+        // this will call SSL_do_handshake internally, which generates the ClientHello message (containing the LocalTransportParameters)
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();
         return clientInitialBuffer;
     }

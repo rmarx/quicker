@@ -9,8 +9,8 @@ export class QuickerError extends BaseError {
 
     private errorCode: QuickerErrorCodes;
 
-    constructor (errorCode: QuickerErrorCodes) {
-        super(QuickerErrorCodes[errorCode]);
+    constructor (errorCode: QuickerErrorCodes, msg?: string) {
+        super( "" + QuickerErrorCodes[errorCode] + " : " + msg);
         this.errorCode = errorCode;
     }
 

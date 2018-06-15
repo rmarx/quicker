@@ -38,10 +38,13 @@ export class Client extends Endpoint {
         client.options = options;
         client.init();
 
-        var packetNumber = PacketNumber.randomPacketNumber();
+        // UPDATE-12 TODO: packetnr should start at 0 
+        var packetNumber = PacketNumber.randomPacketNumber(); // REFACTOR TODO: why don't we do this in the Connection itself? 
         client.connection.setLocalPacketNumber(packetNumber);
-        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex'));
-        var stream = client.connection.getStreamManager().getStream(new Bignum(0));
+
+        var version = new Version(Buffer.from(Constants.getActiveVersion(), 'hex')); // REFACTOR TODO: this isn't being used? 
+        
+        var stream = client.connection.getStreamManager().getStream(new Bignum(0)); // REFACTOR TODO: this is needed so the connection knows the handshake stream, but would make much more sense to set this up in the connection itself. See also Stream 0 DT discussion? 
         client.connection.startConnection();
         client.connection.attemptEarlyData(earlyDataRequest);
         return client;
@@ -132,6 +135,11 @@ export class Client extends Endpoint {
         // TODO: close connection with applicationcloseframe
     }
 
+    /**
+     * 
+     * @param msg The buffer containing one full UDP datagram (can consist of multiple compound QUIC-level packets)
+     * @param rinfo 
+     */
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         try {
             this.connection.checkConnectionState();
