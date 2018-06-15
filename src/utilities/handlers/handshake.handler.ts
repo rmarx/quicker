@@ -52,6 +52,9 @@ export class HandshakeHandler {
         this.connection.getQuicTLS().writeHandshake(data); // VERIFY TODO: put handshake data in a buffer for decoding by TLS?
         if (this.connection.getEndpointType() === EndpointType.Server) {
             this.connection.getQuicTLS().readEarlyData();
+            
+            // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
+            // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
         }
         var readData = this.connection.getQuicTLS().readHandshake(); // VERIFY TODO: read the decoded handshake data from TLS 
         if (readData !== undefined && readData.byteLength > 0) {
