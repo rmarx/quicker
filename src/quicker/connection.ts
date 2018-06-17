@@ -95,6 +95,7 @@ export class Connection extends FlowControlledObject {
         if (this.endpointType === EndpointType.Client) {
             this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
+        this.localPacketNumber = new PacketNumber(0);
 
         this.initializeHandlers(socket);
         
@@ -349,7 +350,7 @@ export class Connection extends FlowControlledObject {
 
     public getNextPacketNumber(): PacketNumber {
         if (this.localPacketNumber === undefined) {
-            this.localPacketNumber = PacketNumber.randomPacketNumber(); // UPDATE-12 TODO: packet number should start at 0 
+            this.localPacketNumber = new PacketNumber(0);
             this.initialPacketNumber = this.localPacketNumber;
             return this.localPacketNumber;
         }
@@ -411,13 +412,13 @@ export class Connection extends FlowControlledObject {
     }
 
     public queueFrame(baseFrame: BaseFrame) {
-        this.flowControl.queueFrame(baseFrame);
+        this.queueFrames([baseFrame]);
     }
 
     public queueFrames(baseFrames: BaseFrame[]): void {
         baseFrames.forEach((baseFrame: BaseFrame) => {
             this.flowControl.queueFrame(baseFrame);
-        })
+        });
         if (!this.transmissionAlarm.isRunning()) {
             this.startTransmissionAlarm();
         }

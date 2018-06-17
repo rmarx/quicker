@@ -76,6 +76,7 @@ export class QTLS extends EventEmitter{
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
         }
+        this.setLocalTransportParameters();
 
         if (this.isEarlyDataAllowed()) {
             // OpenSSL requires we write some early data first if we want to use it, but cannot write the real early data yet (QUIC uses 0-RTT packet logic), 
@@ -85,8 +86,6 @@ export class QTLS extends EventEmitter{
             // REFACTOR TODO: if this is just an anomaly of OpenSSL, move it to the C++ side?
             this.qtlsHelper.writeEarlyData(Buffer.from(""));
         }
-        
-        this.setLocalTransportParameters();
 
         // this will call SSL_do_handshake internally, which generates the ClientHello message (containing the LocalTransportParameters)
         var clientInitialBuffer = this.qtlsHelper.getClientInitial();

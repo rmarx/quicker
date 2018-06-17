@@ -5,8 +5,14 @@ export class BaseProperty {
 
     private property: Bignum;
 
-    public constructor(buffer: Buffer, byteSize = 4) {
-        this.property = new Bignum(buffer, byteSize);
+    public constructor(bn: Bignum);
+    public constructor(buffer: Buffer, byteSize?: number);
+    public constructor(obj: any, byteSize: number = 4) {
+        if (obj instanceof Bignum) {
+            this.property = obj;
+        } else {
+            this.property = new Bignum(obj, byteSize);
+        }
     }
 
     protected getProperty(): Bignum {
@@ -71,7 +77,9 @@ export class ConnectionID extends BaseProperty {
 
 export class PacketNumber extends BaseProperty {
 
-    public constructor(buffer: Buffer) {
+    public constructor(number: number);
+    public constructor(buffer: Buffer);
+    public constructor(buffer: any) {
         super(buffer, 8);
     }
 
@@ -125,13 +133,6 @@ export class PacketNumber extends BaseProperty {
         next = next.add(maskedResult);
         return new PacketNumber(next.toBuffer());
     }
-
-    public static randomPacketNumber(): PacketNumber {
-        var randomBignum = Bignum.random('fffffc00', 8);
-        return new PacketNumber(randomBignum.toBuffer());
-    }
-
-
 }
 
 
