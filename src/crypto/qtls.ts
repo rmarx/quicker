@@ -76,6 +76,9 @@ export class QTLS extends EventEmitter{
         if (createNew) {
             this.qtlsHelper = this.createQtlsHelper();
         }
+
+        // it is important that we set the transport parameters before callign writeEarlyData below!!! 
+        // if not, this causes problems with 0-RTT and resumption
         this.setLocalTransportParameters();
 
         if (this.isEarlyDataAllowed()) {
@@ -163,12 +166,20 @@ export class QTLS extends EventEmitter{
     }
 
     private generateExtensionData(): Buffer {
+        // The general transport parameters are implemented in transport.parameter.ts
+        // and described in https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-6.4 and 
         var transportParamBuffer: Buffer = this.getTransportParameters().toBuffer();
-        // value of 6 is: 4 for version and 2 for length
+
+        // However, these parameters need to be pre-pended with version validation info
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.4
+        // REFACTOR TODO: possibly also bring this into TransportParameter itself? 
+        // When receiving, validation is done in qtls:readHandshake (which uses HandshakeValidation internally)
+        // REFACTOR TODO: also bring this closer together? 
         var transportExt = Buffer.alloc(this.getExtensionDataSize(transportParamBuffer));
         var offset = 0;
         if (this.isServer) {
-            // version in the connection holds the negotiated version
+            // first: version that is in use
+            // second: list of supported versions (to be able to check that used version is in there + that we would have selected that through version negotiation)
             transportExt.write(this.connection.getVersion().toString(), offset, 4, 'hex');
             offset += 4;
             transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
@@ -177,8 +188,8 @@ export class QTLS extends EventEmitter{
                 offset += 4;
             });
         } else {
-            // Active version holds the first version that was 'tried' to negotiate
-            // so this is always the initial version
+            // Client sends the initial version it tried in its first packet again (protects against attacker-generated version negotiation)
+            // Active version holds the first version that was 'tried' to negotiate so this is always the initial version
             transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
             offset += 4;
         }
@@ -206,6 +217,7 @@ export class QTLS extends EventEmitter{
     }
 
     private getExtensionDataSize(transportParamBuffer: Buffer): number {
+        // 6 because: 4 for version and 2 for length
         if (this.isServer) {
             if (this.handshakeState === HandshakeState.HANDSHAKE) {
                 return transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 4 + 1;

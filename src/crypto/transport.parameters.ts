@@ -5,11 +5,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 
 
 // hardcoded, in this order, at https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.1
-// TODO: section 6.4.4 mentions 3 more version negotation validation parameters, but doesn't explain this in detail... should add these though? 
-// https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.4
-// code example in #6.4 adds these as uint32 before all the rest? still not very clear... 
-// for more inspiration: https://github.com/NTAP/quant/blob/master/lib/src/tls.c#L400
-// apparently, the whole <4..2^8-4> syntax is not well defined (asked Lars Eggert on slack) and subject to interpretation... *head desk*
+// for additional transport-parameter logic, see qtls.ts 
 export enum TransportParameterType {
     MAX_STREAM_DATA = 0x00,             // max data in-flight for one individual stream
     MAX_DATA = 0x01,                    // max data in-flight for the full connection

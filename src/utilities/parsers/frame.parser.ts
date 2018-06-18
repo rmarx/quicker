@@ -262,7 +262,7 @@ export class FrameParser {
             off = true;
         }
         var streamID = VLIE.decode(buffer, offset);
-        offset = streamID.offset
+        offset = streamID.offset;
         var dataOffset = new Bignum(0);
         if (off) {
             var vlieOffset = VLIE.decode(buffer, offset);

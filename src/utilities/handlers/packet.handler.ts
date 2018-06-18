@@ -61,11 +61,12 @@ export class PacketHandler {
                 var protected0RTTPacket: Protected0RTTPacket = <Protected0RTTPacket>packet;
                 this.handleProtected0RTTPacket(connection, protected0RTTPacket);
                 break;
+
             case PacketType.Protected1RTT:
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
                 this.handleProtected1RTTPacket(connection, shortHeaderPacket);
         }
-        connection.sendPackets();
+        connection.sendPackets(); // will process all the streams, which might have new data now because we handled an incoming packet 
     }
 
     private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
@@ -108,7 +109,7 @@ export class PacketHandler {
         this.handleFrames(connection, clientInitialPacket);
     }
 
-    // only on the SERVER (client sends stateless retry packet)
+    // only on the CLIENT (server sends stateless retry packet)
     private handleRetryPacket(connection: Connection, retryPacket: RetryPacket): void {
         var longHeader = <LongHeader>retryPacket.getHeader();
         var connectionID = longHeader.getSrcConnectionID();
@@ -123,6 +124,8 @@ export class PacketHandler {
                 throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent retry packet, ignoring");
             }
         }
+        // VERIFY TODO: if this only happens on the client, why is the check above necessary? if we receive it at the server, isn't something seriously wrong? 
+        // -> according to Kevin: indeed, extra check unnecessary, but still: verify!!! 
         this.handleFrames(connection, retryPacket);
         connection.resetConnectionState();
     }

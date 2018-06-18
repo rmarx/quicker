@@ -72,6 +72,8 @@ export class PacketFactory {
      */
     public static createRetryPacket(connection: Connection, frames: BaseFrame[]): RetryPacket {
         // UPDATE-12 TODO: packet number of a retry packet MUST be set to zero https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.2
+        // TODO: support Stateless Retry packets on our side
+        // -> this is currently not yet possible due to an OpenSSL bug/lacking implementation: https://github.com/openssl/openssl/issues/5235
         var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, undefined, connection.getVersion());
         return new RetryPacket(header, frames);
     }

@@ -103,6 +103,7 @@ export class HeaderParser {
 
         var conLengths = buf.readUInt8(offset++); // single byte containing both ConnectionID lengths DCIL and SCIL 
         // VERIFY TODO: connectionIDs can be empty if the other party can choose them freely
+        // unclear if this will work everywhere else in the code (e.g., BigNum on an empty buffer?) (though this part seems ok at first glance)
         var destLength = conLengths >> 4; // the 4 leftmost bits are the DCIL 
         destLength = destLength === 0 ? destLength : destLength + 3;
         var srcLength = conLengths & 0xF; // 0xF = 0b1111, so we keep just the 4 rightmost bits 

@@ -10,6 +10,7 @@ export class HandshakeValidation {
      * TODO: add validation
      */
     public static validateExtensionData(isServer: boolean, extensionData: Buffer): TransportParameters {
+        // see logic in qtls:generateExtensionData, where this data is being written
         var offset = 0;
         if (isServer) {
             var version = extensionData.readUInt32BE(offset);
