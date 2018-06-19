@@ -1,6 +1,6 @@
 import { BaseFrame, FrameType } from "./base.frame";
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.9
 export class PingFrame extends BaseFrame {
 
     public constructor() {

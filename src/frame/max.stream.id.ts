@@ -2,7 +2,7 @@ import {BaseFrame, FrameType} from './base.frame';
 import {Bignum} from '../types/bignum';
 import {VLIE} from '../crypto/vlie';
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.8
 export class MaxStreamIdFrame extends BaseFrame {
     private maxStreamID: Bignum
 

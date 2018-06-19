@@ -126,6 +126,9 @@ export class Stream extends FlowControlledObject {
 		if (this.localFinalOffset !== undefined && offset.add(data.byteLength).greaterThan(this.localFinalOffset)) {
 			throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
 		}
+		// REFACTOR TODO: keep track of total offset and match with STREAM_MAX_DATA
+		// -> if too large: quit with FLOW_CONTROL_ERROR
+		// -> see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.7
 		if (offset.equals(this.getLocalOffset())) {
 			this._receiveData(data, isFin);
 			this.checkBufferedData();
@@ -181,13 +184,19 @@ export class Stream extends FlowControlledObject {
 
 
     public static isSendOnly(endpointType: EndpointType, streamID: Bignum): boolean {
+		// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-9.1
+		// send-only = unidirectional and started by us
+		// REFACTOR TODO: this calculation logic seems overly convoluted? why not just modulo(4) without the xor?
         if (endpointType === EndpointType.Server) {
-            return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
+			return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);
         }
         return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
     }
 
     public static isReceiveOnly(endpointType: EndpointType, streamID: Bignum): boolean {
+		// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-9.1
+		// receive-only = unidirectional and started by our peer
+		// REFACTOR TODO: this calculation logic seems overly convoluted? why not just modulo(4) without the xor?
         if (endpointType === EndpointType.Server) {
             return streamID.xor(StreamType.ClientUni).modulo(4).equals(0);
         }
@@ -195,6 +204,7 @@ export class Stream extends FlowControlledObject {
 	}
 	
 	public static isUniStreamId(streamId: Bignum): boolean {
+		// only the uni-directional streams have the 2nd bit set (0x02 and 0x03), so we can just check that 
         return streamId.and(new Bignum(2)).equals(new Bignum(2));
     }
 	
@@ -215,10 +225,11 @@ export enum StreamState {
 }
 
 export enum StreamType {
-	ClientBidi = 0x00, 
-	ServerBidi = 0x01,
-	ClientUni = 0x02,
-	ServerUni = 0x03
+	//see https://tools.ietf.org/html/draft-ietf-quic-transport#section-9.1
+	ClientBidi = 0x00, // client initiated bi-directional // 0b00
+	ServerBidi = 0x01, // server initiated bi-directional // 0b01
+	ClientUni = 0x02,  // client initiated uni-directional// 0b10
+	ServerUni = 0x03   // server initiated uni-directional// 0b11
 }
 
 export enum StreamEvent {

@@ -3,7 +3,7 @@ import {Bignum} from '../types/bignum';
 import {VLIE} from '../crypto/vlie';
 
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.11
 export class StreamBlockedFrame extends BaseFrame {
     private streamID: Bignum;
     private blockedOffset: Bignum;

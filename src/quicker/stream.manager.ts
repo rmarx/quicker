@@ -40,6 +40,9 @@ export class StreamManager extends EventEmitter {
     public getStream(streamId: number): Stream;
     public getStream(streamId: Bignum): Stream;
     public getStream(streamId: any): Stream {
+        // REFACTOR TODO: take into account MAX_STREAM_ID here!
+        // if we attempt to open too high a stream, this means our peer hasn't listend and we should throw a STREAM_ID_ERROR 
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.8 
         var stream = this._getStream(streamId);
         if (stream === undefined) {
             stream = this.initializeStream(streamId);
@@ -99,6 +102,8 @@ export class StreamManager extends EventEmitter {
     public getNextStream(streamType: StreamType): Stream {
         var next = new Bignum(streamType);
         var stream = this._getStream(next);
+        // REFACTOR TODO: take into account MAX_STREAM_ID here!
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.8
         while (stream != undefined) {
             next = next.add(4);
             stream = this._getStream(next);

@@ -3,6 +3,8 @@ import {BaseFrame, FrameType} from './base.frame';
 
 
 
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.4
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.5
 abstract class BaseCloseFrame extends BaseFrame {
     private errorCode: number;
     private phrase: string;
@@ -16,7 +18,7 @@ abstract class BaseCloseFrame extends BaseFrame {
     public toBuffer(): Buffer {
         var phraseLengthBuffer: Buffer = VLIE.encode(this.phrase.length);
         var phraseBuffer: Buffer = Buffer.from(this.phrase, 'utf8');
-        var buf = Buffer.alloc(phraseLengthBuffer.byteLength + phraseBuffer.byteLength + 3);
+        var buf = Buffer.alloc(phraseLengthBuffer.byteLength + phraseBuffer.byteLength + 3); // 3 = 1 frame type + 2 error code
         buf.writeUInt8(this.getType(), 0);
         buf.writeUInt16BE(this.errorCode, 1);
         phraseLengthBuffer.copy(buf, 3);

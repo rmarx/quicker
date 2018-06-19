@@ -2,7 +2,7 @@ import {BaseFrame, FrameType} from './base.frame';
 import {Bignum} from '../types/bignum';
 import {VLIE} from '../crypto/vlie';
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.12
 export class StreamIdBlockedFrame extends BaseFrame {
     private streamID: Bignum;
 

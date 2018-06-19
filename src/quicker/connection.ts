@@ -573,6 +573,10 @@ export class Connection extends FlowControlledObject {
         this.handshakeHandler.startHandshake(); 
         this.sendPackets();
         this.startIdleAlarm();
+
+        // TODO: also start a keepAlive alarm for sending PING packets?
+        // spec recommends PING packet every 15-30s, though probably only if we're the client? Make this configurable? 
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.9
     }
 
 

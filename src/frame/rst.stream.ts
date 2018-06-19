@@ -3,7 +3,7 @@ import {VLIE} from '../crypto/vlie';
 import {BaseFrame, FrameType} from './base.frame';
 
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.3
 export class RstStreamFrame extends BaseFrame {
     private streamID: Bignum;
     private applicationErrorCode: number

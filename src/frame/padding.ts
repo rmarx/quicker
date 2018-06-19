@@ -9,6 +9,7 @@ export class PaddingFrame extends BaseFrame{
     }
 
     public toBuffer(): Buffer {
+        // Padding frames don't have a length of their own, as they are expected to always be at the end of a Packet and fill the full packet
         var buffer = Buffer.alloc(this.paddingLength + 1);
         buffer.fill(0);
         buffer.writeUInt8(this.getType(), 0);

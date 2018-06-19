@@ -41,7 +41,7 @@ export class QuicStream extends EventEmitter{
         } else {
             this.stream.setRemoteFinalOffset(this.stream.getRemoteOffset());
         }
-        this.connection.sendPackets();
+        this.connection.sendPackets(); // REFACTOR TODO: This seems like quite a violation of responsibility? 
     }
 
     public setEncoding(encoding: string): void {

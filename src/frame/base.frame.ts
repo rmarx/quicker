@@ -25,12 +25,12 @@ export enum FrameType {
     // hardcoded in https://tools.ietf.org/html/draft-ietf-quic-transport#section-5
     // hardcoded in https://tools.ietf.org/html/draft-ietf-quic-transport#section-7
     PADDING = 0x00,
-    RST_STREAM = 0x01,
+    RST_STREAM = 0x01,          // "closes"/terminates an individual stream
     CONNECTION_CLOSE = 0x02,    // Closing at the transport/QUIC level, probably due to error
     APPLICATION_CLOSE = 0x03,   // Closing at the application/HTTP level, probably normal shutdown
-    MAX_DATA = 0x04,
-    MAX_STREAM_DATA = 0x05,
-    MAX_STREAM_ID = 0x06,
+    MAX_DATA = 0x04,            // max amount of data that can be sent on the full connection (sum of all streams except stream 0) (cumulative since start)
+    MAX_STREAM_DATA = 0x05,     // max amount of data that can be sent on for one individual stream (cumulative since start)
+    MAX_STREAM_ID = 0x06,       // 
     PING = 0x07,
     BLOCKED = 0x08,
     STREAM_BLOCKED = 0x09,

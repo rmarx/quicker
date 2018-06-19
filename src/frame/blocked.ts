@@ -3,7 +3,7 @@ import {Bignum} from '../types/bignum';
 import {BaseFrame, FrameType} from './base.frame';
 
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.10
 export class BlockedFrame extends BaseFrame {
     private blockedOffset: Bignum;
 

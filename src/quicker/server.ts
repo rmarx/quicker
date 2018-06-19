@@ -93,6 +93,8 @@ export class Server extends Endpoint {
             try {
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
+                // REFACTOR TODO: keep track of total amount of data received. If too much, terminate with QUIC_FLOW_CONTROL_RECEIVED_TOO_MUCH_DATA 
+                //  -> see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.6 
                 headerOffset = this.headerHandler.handle(connection, headerOffset);
                 var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
                 this.packetHandler.handle(connection, packetOffset.packet, receivedTime);

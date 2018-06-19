@@ -3,7 +3,7 @@ import {Bignum} from '../types/bignum';
 import {VLIE} from '../crypto/vlie';
 
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.14
 export class StopSendingFrame extends BaseFrame {
     private streamID: Bignum;
     private applicationErrorCode: number;
@@ -16,7 +16,7 @@ export class StopSendingFrame extends BaseFrame {
 
     public toBuffer(): Buffer {
         var eStreamId: Buffer = VLIE.encode(this.streamID);
-        // 8 bit type + 16 bit applicationErrorCode
+        // 3 bytes = 8 bit type + 16 bit applicationErrorCode
         var bufLength: number = 3 + eStreamId.byteLength;
         var buffer = Buffer.alloc(bufLength);
         var offset = 0;

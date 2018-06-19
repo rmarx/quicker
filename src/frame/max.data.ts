@@ -3,7 +3,7 @@ import {VLIE} from '../crypto/vlie';
 import {BaseFrame, FrameType} from './base.frame';
 
 
-
+// see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.6
 export class MaxDataFrame extends BaseFrame {
     private maxData: Bignum;
 

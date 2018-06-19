@@ -95,11 +95,12 @@ export class FrameParser {
     }
 
     private parseRstStream(buffer: Buffer, offset: number): FrameOffset {
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.3
         var streamID: VLIEOffset = VLIE.decode(buffer, offset);
         offset = streamID.offset;
         var applicationErrorCode = buffer.readUInt16BE(offset);
         offset += 2;
-        var finalOffset = VLIE.decode(buffer, offset);
+        var finalOffset = VLIE.decode(buffer, offset); // VERIFY TODO: what is the use of this finalOffset value? why is it needed? 
         return {
             frame: FrameFactory.createRstStreamFrame(streamID.value, applicationErrorCode, finalOffset.value),
             offset: finalOffset.offset
@@ -107,6 +108,7 @@ export class FrameParser {
     }
 
     private parseClose(type: FrameTypeClose, buffer: Buffer, offset: number): FrameOffset {
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.4
         var errorCode = buffer.readUInt16BE(offset);
         offset += 2;
         var phraseLength = VLIE.decode(buffer, offset);
@@ -185,6 +187,7 @@ export class FrameParser {
     }
 
     private parseNewConnectionId(buffer: Buffer, offset: number): FrameOffset {
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.13
         var sequence = VLIE.decode(buffer, offset);
         offset = sequence.offset;
         var connectionIDLength = buffer.readUInt8(offset++);
@@ -192,7 +195,7 @@ export class FrameParser {
         buffer.copy(connectionIDBuffer, 0, offset, offset + connectionIDLength)
         offset += connectionIDLength;
         var statelessResetToken = Buffer.alloc(16);
-        buffer.copy(statelessResetToken, 0, offset, offset + 16)
+        buffer.copy(statelessResetToken, 0, offset, offset + 16);
         offset += 16;
         var connectionID = new ConnectionID(connectionIDBuffer, connectionIDLength);
         return {
@@ -202,6 +205,7 @@ export class FrameParser {
     }
 
     private parseStopSending(buffer: Buffer, offset: number): FrameOffset {
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.14
         var streamID = VLIE.decode(buffer, offset);
         var appErrorCode = buffer.readUInt16BE(streamID.offset);
         offset = streamID.offset + 2;
