@@ -1,5 +1,6 @@
 
 export enum ConnectionErrorCodes {
+    // hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport#section-11.3
     NO_ERROR = 0x0,
     INTERNAL_ERROR = 0x1,
     SERVER_BUSY = 0x2,

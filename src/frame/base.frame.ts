@@ -23,10 +23,11 @@ export abstract class BaseFrame {
 
 export enum FrameType {
     // hardcoded in https://tools.ietf.org/html/draft-ietf-quic-transport#section-5
+    // hardcoded in https://tools.ietf.org/html/draft-ietf-quic-transport#section-7
     PADDING = 0x00,
     RST_STREAM = 0x01,
-    CONNECTION_CLOSE = 0x02,
-    APPLICATION_CLOSE = 0x03,
+    CONNECTION_CLOSE = 0x02,    // Closing at the transport/QUIC level, probably due to error
+    APPLICATION_CLOSE = 0x03,   // Closing at the application/HTTP level, probably normal shutdown
     MAX_DATA = 0x04,
     MAX_STREAM_DATA = 0x05,
     MAX_STREAM_ID = 0x06,

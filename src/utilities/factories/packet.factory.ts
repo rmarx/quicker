@@ -95,6 +95,8 @@ export class PacketFactory {
     public static createProtected0RTTPacket(connection: Connection, frames: BaseFrame[]): Protected0RTTPacket {
         // UPDATE-12 TODO: new packet number encryption setup is needed here + extra protection
         // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.5
+        // important: 0RTT packets need to keep using the same initialConnectionID, even if it was updated in a received Handshake packet
+        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.5
         var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
         var packet = new Protected0RTTPacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);

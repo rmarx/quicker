@@ -41,6 +41,6 @@ export class ConnectionCloseFrame extends BaseCloseFrame {
 
 export class ApplicationCloseFrame extends BaseCloseFrame {
     public constructor(errorCode: number, phrase: string) {
-        super(FrameType.CONNECTION_CLOSE, errorCode, phrase);
+        super(FrameType.APPLICATION_CLOSE, errorCode, phrase);
     }
 }

@@ -59,7 +59,7 @@ export class Server extends Endpoint {
     private init(socketType: SocketType) {
         var server = createSocket(socketType);
         server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
-        server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.handleClose() });
+        server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.handleClose() }); // VERIFY TODO: is this ever called? Who would emit this event on a socket? If this is the case, shouldn't use QuickerEvent for this, as it is a SocketEvent
         server.bind(this.port, this.hostname);
         if (socketType === "udp4") {
             this.serverSockets["IPv4"] = server;
@@ -100,7 +100,7 @@ export class Server extends Endpoint {
             } catch (err) {
                 if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                     connection.resetConnectionState();
-                    this.connectionManager.deleteConnection(connection)
+                    this.connectionManager.deleteConnection(connection);
                     var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                     connection.sendPacket(versionNegotiationPacket);
                     return;

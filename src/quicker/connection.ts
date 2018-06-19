@@ -585,6 +585,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public closeRequested() {
+        // REFACTOR TODO: optionally also inform the application layer of this? 
         var alarm = new Alarm();
         alarm.start(Constants.TEMPORARY_DRAINING_TIME);
         alarm.on(AlarmEvent.TIMEOUT, () => {
@@ -597,8 +598,15 @@ export class Connection extends FlowControlledObject {
             /**
              * Check to limit the amount of packets with closeframe inside
              */
+            // Difference between closing and draining state: 
+            // - When draining, we don't reply with CLOSE frames. 
+            // - When closing, we reply with a CLOSE packet for everything we receive. (#6.10.3)
+            // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.10.1
             if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND && this.getState() !== ConnectionState.Draining) {
                 this.closeSentCount++;
+                // There are two types of CLOSE frames: CONNECTION_CLOSE and APPLICATION_CLOSE. 
+                // We want to send the correct one, so just copy the same one over and over with new packet nr.
+                // REFACTOR TODO: spec allows us to just send the same packet without changing the nr. as well : see #6.10.3
                 var closePacket = this.getClosePacket();
                 closePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
@@ -623,6 +631,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public startIdleAlarm(): void {
+        // REFACTOR TODO: in startIdleAlarm, we sometimes didn't have the TransportParameter's IDLE_TIMEOUT yet... need to make sure we update the timer when those arrive!
         var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
         this.idleTimeoutAlarm.on(AlarmEvent.TIMEOUT, () => {
             this.state = ConnectionState.Draining;
@@ -641,8 +650,9 @@ export interface RemoteInformation {
 export enum ConnectionState {
     Handshake,
     Open,
-    Closing,
-    Draining,
+    // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.10
+    Closing,  // set when we are the endpoint sending a CLOSE : will continue sending CLOSE frames, transitions into Draining after a timeout
+    Draining, // set when we are the endpoint receiving a CLOSE : should not send ANYTHING after this state
     Closed
 }
 
