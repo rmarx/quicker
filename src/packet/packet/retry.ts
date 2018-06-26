@@ -16,13 +16,12 @@ export class RetryPacket extends BaseEncryptedPacket {
      * Method to get buffer object from a RetryPacket object
      */
     public toBuffer(connection: Connection) {
-        var headerBuffer = this.getHeader().toBuffer();
         
-        return headerBuffer;
+        return Buffer.alloc(0);
     }
 
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {
-        return connection.getAEAD().clearTextEncrypt(connection, header, dataBuffer, connection.getEndpointType());
+        return connection.getAEAD().clearTextEncrypt(connection.getInitialDestConnectionID(), header, dataBuffer, connection.getEndpointType());
     }
 
     protected getValidFrameTypes(): FrameType[] {

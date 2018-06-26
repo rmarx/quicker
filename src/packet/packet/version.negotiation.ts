@@ -25,8 +25,6 @@ export class VersionNegotiationPacket extends BasePacket {
      * Method to get buffer object from a VersionNegotiationPacket object
      */
     public toBuffer(connection: Connection) {
-        var headerBuffer = this.getHeader().toBuffer(); 
-        var outOffset = headerBuffer.length;
     
         var payloadOffset = 0
         var payloadBuffer = Buffer.alloc(Constants.SUPPORTED_VERSIONS.length * 4);
@@ -34,6 +32,10 @@ export class VersionNegotiationPacket extends BasePacket {
             payloadBuffer.write(version, payloadOffset, 4, 'hex');
             payloadOffset += 4;
         });
+
+        var headerBuffer = this.getHeader().toPNEBuffer(connection, payloadBuffer);
+        var outOffset = headerBuffer.length;
+
         var buf = Buffer.alloc(headerBuffer.length + payloadBuffer.length);
         headerBuffer.copy(buf, 0);
         payloadBuffer.copy(buf, outOffset)

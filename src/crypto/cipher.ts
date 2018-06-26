@@ -25,7 +25,10 @@ export class Cipher {
         return createHash(this.getHash()).digest().length;
     }
 
-    public getAEAD(): string {
+    /**
+     * Get encryption algorithm for gcm mode (used by packet encryption)
+     */
+    public getAeadGcm(): string {
         switch(this.cipher) {
             case "TLS_AES_128_GCM_SHA256":
                 return "aes-128-gcm";
@@ -35,11 +38,28 @@ export class Cipher {
                 return "aes-256-gcm";
         }
         throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported aead function: " + this.cipher);
-
     }
 
-    public getAEADKeyLength(): number {
-        var aead = this.getAEAD();
+    /**
+     * Get encryption algorithm for counter mode (used by packet number encryption)
+     */
+    public getAeadCtr(): string {
+        switch(this.cipher) {
+            case "TLS_AES_128_GCM_SHA256":
+                return "aes-128-ctr";
+            case "TLS_CHACHA20_POLY1305_SHA256":
+                return "chacha20"; // Still needs to be tested
+            case "TLS_AES_256_GCM_SHA384":
+                return "aes-256-ctr";
+        }
+        throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Unsupported aead function: " + this.cipher);
+    }
+
+    /**
+     * Get length of the key that is needed for the chosen algorithm
+     */
+    public getAeadKeyLength(): number {
+        var aead = this.getAeadGcm();
         switch(aead) {
             case "aes-128-gcm":
                 return 16;

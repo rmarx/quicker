@@ -29,11 +29,13 @@ export class Constants {
      * Default algorithm for cleartext encryption/decryption in QUIC
      */
     public static readonly DEFAULT_CIPHER = "TLS_AES_128_GCM_SHA256";
-    public static readonly DEFAULT_AEAD = 'aes-128-gcm';
+    public static readonly DEFAULT_AEAD_GCM = 'aes-128-gcm';
+    public static readonly DEFAULT_AEAD_CTR = 'aes-128-ctr';
     public static readonly DEFAULT_AEAD_LENGTH = 16;
     public static readonly DEFAULT_HASH = 'sha256';
     public static readonly DEFAULT_HASH_SIZE = 32;
     public static readonly IV_LENGTH = 12;
+    public static readonly SAMPLE_LENGTH = 16;
     // All ciphersuites currently defined for TLS 1.3 - and therefore QUIC -	
  	// have a 16-byte authentication tag and produce an output 16 bytes	
  	// larger than their input.
@@ -70,6 +72,7 @@ export class Constants {
     public static readonly SERVER_1RTT_LABEL = "server 1rtt";
     public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
     public static readonly PACKET_PROTECTION_IV_LABEL = "iv";
+    public static readonly PACKET_PROTECTION_PN_LABEL = "pn";
     
     public static readonly TEMPORARY_DRAINING_TIME = 15000;
 

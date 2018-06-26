@@ -77,7 +77,7 @@ export class PacketParser {
     private parseShortHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
         buffer.copy(dataBuffer, 0, headerOffset.offset);
-        dataBuffer = connection.getAEAD().protected1RTTDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().protected1RTTDecrypt(headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new ShortHeaderPacket(headerOffset.header, frames),
@@ -104,7 +104,7 @@ export class PacketParser {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new ClientInitialPacket(headerOffset.header, frames),
@@ -114,7 +114,7 @@ export class PacketParser {
 
     private parseProtected0RTTPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
-        dataBuffer = connection.getAEAD().protected0RTTDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().protected0RTTDecrypt(headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new Protected0RTTPacket(headerOffset.header, frames),
@@ -124,7 +124,7 @@ export class PacketParser {
 
     private parseRetryPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new RetryPacket(headerOffset.header, frames),
@@ -134,7 +134,7 @@ export class PacketParser {
 
     private parseHandshakePacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection, headerOffset.header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new HandshakePacket(headerOffset.header, frames),

@@ -1,5 +1,6 @@
 import { BaseHeader, HeaderType } from './base.header';
 import { ConnectionID, PacketNumber } from './header.properties';
+import { Connection } from '../../quicker/connection';
 
 
 /**             0                   [1- (1 - 18)]                       *                       *
@@ -47,6 +48,19 @@ export class ShortHeader extends BaseHeader {
         var connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
+        this.getPacketNumber().getLeastSignificantBits(this.getPacketNumberSize()).copy(buffer, offset);
+        return buffer;
+    }
+
+    public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
+        var size = this.getSize();
+        var buffer = Buffer.alloc(size);
+        var offset = 0;
+        buffer.writeUInt8(this.getType(), offset++);
+        var connectionID = this.getDestConnectionID();
+        connectionID.toBuffer().copy(buffer, offset);
+        offset += connectionID.getLength();
+        connection.getAEAD().protected1RTTPnEncrypt(this, payload, connection.getEndpointType());
         this.getPacketNumber().getLeastSignificantBits(this.getPacketNumberSize()).copy(buffer, offset);
         return buffer;
     }

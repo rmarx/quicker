@@ -19,7 +19,7 @@ export class ShortHeaderPacket extends BaseEncryptedPacket {
     }
     
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {
-        return connection.getAEAD().protected1RTTEncrypt(connection, header, dataBuffer, connection.getEndpointType());
+        return connection.getAEAD().protected1RTTEncrypt(header, dataBuffer, connection.getEndpointType());
     }
 
     protected getValidFrameTypes(): FrameType[] {

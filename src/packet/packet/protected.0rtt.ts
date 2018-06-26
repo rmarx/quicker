@@ -14,7 +14,7 @@ export class Protected0RTTPacket extends BaseEncryptedPacket {
     }
     
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {
-        return connection.getAEAD().protected0RTTEncrypt(connection, header, dataBuffer, connection.getEndpointType());
+        return connection.getAEAD().protected0RTTEncrypt(header, dataBuffer, connection.getEndpointType());
     }
 
     protected getValidFrameTypes(): FrameType[] {

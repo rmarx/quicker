@@ -2,6 +2,7 @@ import { Bignum } from "../../types/bignum";
 import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { ConnectionErrorCodes } from "../../utilities/errors/quic.codes";
 import { QuicError } from "../../utilities/errors/connection.error";
+import { Connection } from "../../quicker/connection";
 
 // QUIC defines two types of header formats: Long and Short
 // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4
@@ -30,6 +31,7 @@ export abstract class BaseHeader {
     }
 
     abstract toBuffer(): Buffer;
+    abstract toPNEBuffer(connection: Connection, payload: Buffer): Buffer;
     abstract getPacketNumberSize(): number;
     abstract getSize(): number;
 

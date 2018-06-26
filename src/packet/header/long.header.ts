@@ -4,6 +4,7 @@ import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
 import { VLIE } from "../../crypto/vlie";
 import { VersionValidation } from "../../utilities/validation/version.validation";
+import { Connection } from "../../quicker/connection";
 
 export class LongHeader extends BaseHeader {
     private version: Version;
@@ -88,6 +89,39 @@ export class LongHeader extends BaseHeader {
                 var payloadLengthBuffer = VLIE.encode(this.payloadLength);
                 offset += payloadLengthBuffer.copy(buf, offset);
             }
+            offset += this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
+        }
+        return buf;
+    }
+
+    public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
+        var buf = Buffer.alloc(this.getSize());
+        var offset = 0;
+
+        var type = 0x80 + this.getPacketType();
+        buf.writeUInt8(type, offset++);
+
+        offset += this.getVersion().toBuffer().copy(buf, offset);
+
+        var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
+        var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
+        buf.writeUInt8(((destLength << 4) + srcLength), offset++);
+
+        offset += this.destConnectionID.toBuffer().copy(buf, offset);
+        offset += this.srcConnectionID.toBuffer().copy(buf, offset);
+
+         
+        if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
+            if (this.payloadLength !== undefined) {
+                var payloadLengthBuffer = VLIE.encode(this.payloadLength);
+                offset += payloadLengthBuffer.copy(buf, offset);
+            }
+            if (type === LongHeaderType.Protected0RTT) {
+                var pne = connection.getAEAD().protected0RTTPnEncrypt(this, payload, connection.getEndpointType());
+            } else {
+                var pne = connection.getAEAD().clearTextPnEncrypt(this, payload, connection.getEndpointType());                
+            }
+            console.log("pne: " + pne.byteLength + " => " + pne.toString('hex'));
             offset += this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
         }
         return buf;
