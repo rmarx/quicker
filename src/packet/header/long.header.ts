@@ -86,10 +86,11 @@ export class LongHeader extends BaseHeader {
          
         if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
             if (this.payloadLength !== undefined) {
-                var payloadLengthBuffer = VLIE.encode(this.payloadLength);
+                
+                var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
                 offset += payloadLengthBuffer.copy(buf, offset);
             }
-            offset += this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
+            offset += this.getPacketNumber().getLeastSignificantBytes(1).copy(buf, offset);
         }
         return buf;
     }
@@ -113,22 +114,19 @@ export class LongHeader extends BaseHeader {
          
         if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
             if (this.payloadLength !== undefined) {
-                var payloadLengthBuffer = VLIE.encode(this.payloadLength);
+                var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
                 offset += payloadLengthBuffer.copy(buf, offset);
             }
-            if (type === LongHeaderType.Protected0RTT) {
-                var pne = connection.getAEAD().protected0RTTPnEncrypt(this, payload, connection.getEndpointType());
+            var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes(1));
+            var encodedPn = VLIE.encodePn(pn);
+            if (this.getPacketType() === LongHeaderType.Protected0RTT) {
+                var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
             } else {
-                var pne = connection.getAEAD().clearTextPnEncrypt(this, payload, connection.getEndpointType());                
+                var pne = connection.getAEAD().clearTextPnEncrypt(connection.getInitialDestConnectionID(),encodedPn, this, payload, connection.getEndpointType());                
             }
-            console.log("pne: " + pne.byteLength + " => " + pne.toString('hex'));
-            offset += this.getPacketNumber().getLeastSignificantBits().copy(buf, offset);
+            offset += pne.copy(buf, offset);
         }
         return buf;
-    }
-
-    public getPacketNumberSize(): number {
-        return Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
     }
 
     public getSize(): number {
@@ -137,7 +135,11 @@ export class LongHeader extends BaseHeader {
         size += this.destConnectionID.getLength();
         size += this.srcConnectionID.getLength();
         if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
-            size += this.getPacketNumberSize();
+            if (this.getPacketNumber() === undefined) {
+                size += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
+            } else {
+                size += this.getPacketNumberSize();
+            }
         }
         if (this.payloadLength !== undefined) {
             size += VLIE.encode(this.payloadLength).byteLength;

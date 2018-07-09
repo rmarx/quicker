@@ -19,6 +19,16 @@ export class VLIE {
         return VLIE.encodeNumber(number);
     }
 
+    static encodePn(bignum: Bignum): Buffer;
+    static encodePn(num: number): Buffer;
+    public static encodePn(number: any): Buffer {
+        if (number instanceof Bignum) {
+            return VLIE.encodePnBignum(number);
+        }
+        return VLIE.encodePnNumber(number);
+    }
+    
+
     /**
      * Decodes buffer into a BigNum instance and an offset.
      * For ease of use, the offset is NOT just the offset needed for the VLIE encoded value, but initialOffset + VLIEoffset
@@ -34,6 +44,28 @@ export class VLIE {
         return this.decodeBuffer(Buffer.from(str, 'hex'), 0).value;
     }
 
+    public static decodePn(buffer: Buffer, offset: number = 0): VLIEOffset {
+        var pnSize = 1;
+        var msb = buffer.readUInt8(offset++);
+        if(msb & 0x80) {
+            pnSize++;
+            msb -= 0x80;
+            if (msb & 0x40) {
+                pnSize += 2;
+                msb -= 0x40;
+            }
+        }
+        var bn = new Bignum(msb);
+        for(var i = 1; i < pnSize; i++) {
+            bn = bn.shiftLeft(8);
+            bn = bn.add(buffer.readUInt8(offset++));
+        }
+        return {
+            value: bn,
+            offset: offset
+        };
+    }
+
     private static encodeBignum(bignum: Bignum): Buffer {
         var count = this.getBytesNeeded(bignum);
         var bn = new Bignum(count);
@@ -43,6 +75,10 @@ export class VLIE {
         bn = bn.shiftLeft(6);
         bn = bn.add(bignum);
         return bn.toBuffer(2**count);
+    }
+
+    private static encodeNumber(num: number): Buffer {
+        return this.encodeBignum(new Bignum(num));
     }
 
     private static decodeBuffer(buffer: Buffer, offset: number): VLIEOffset {
@@ -67,8 +103,27 @@ export class VLIE {
         };
     }
 
-    private static encodeNumber(num: number): Buffer {
-        return this.encodeBignum(new Bignum(num));
+    private static encodePnBignum(bignum: Bignum): Buffer {
+        var count = this.getBytesNeededPn(bignum);
+        if (count === 0) {
+            var bn = new Bignum(count);
+        } else {
+            var bn = new Bignum(count + 1);
+        }
+        for(var i = 1; i < (2**count); i++) {
+            bn = bn.shiftLeft(8);
+        }
+        if (count === 0) {
+            bn = bn.shiftLeft(7);
+        } else {
+            bn = bn.shiftLeft(6);
+        }
+        bn = bn.add(bignum);
+        return bn.toBuffer(2**count);
+    }
+
+    private static encodePnNumber(num: number): Buffer {
+        return this.encodePnBignum(new Bignum(num));
     }
 
     private static getBytesNeeded(bignum: Bignum): number {
@@ -82,6 +137,15 @@ export class VLIE {
             return 2;
         }
         return 3;
+    }
+
+    public static getBytesNeededPn(bignum: Bignum): number {
+        // getBytesNeeded would return 2 when size is bit
+        // However, for PNE, only 1 bit is needed to indicate that the size is 1 byte
+        if(bignum.getBitLength() <= 7) {
+            return 0;
+        }
+        return this.getBytesNeeded(bignum);
     }
 }
 

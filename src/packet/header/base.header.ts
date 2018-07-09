@@ -3,6 +3,8 @@ import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { ConnectionErrorCodes } from "../../utilities/errors/quic.codes";
 import { QuicError } from "../../utilities/errors/connection.error";
 import { Connection } from "../../quicker/connection";
+import { VLIE } from "../../crypto/vlie";
+import { Constants } from "../../utilities/constants";
 
 // QUIC defines two types of header formats: Long and Short
 // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4
@@ -32,7 +34,6 @@ export abstract class BaseHeader {
 
     abstract toBuffer(): Buffer;
     abstract toPNEBuffer(connection: Connection, payload: Buffer): Buffer;
-    abstract getPacketNumberSize(): number;
     abstract getSize(): number;
 
     public getPacketType(): number {
@@ -49,6 +50,14 @@ export abstract class BaseHeader {
 
     public setPacketNumber(packetNumber: PacketNumber) {
         this.packetNumber = packetNumber;
+    }
+
+
+    public getPacketNumberSize(): number {
+        if (this.packetNumber === undefined) {
+            return 4;
+        }
+        return 2**VLIE.getBytesNeededPn(new Bignum(this.getPacketNumber().getLeastSignificantBytes()));
     }
 
     public getHeaderType() {

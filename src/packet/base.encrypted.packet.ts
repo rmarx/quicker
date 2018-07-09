@@ -26,8 +26,9 @@ export abstract class BaseEncryptedPacket extends BasePacket {
      * Method to get buffer object from a Packet object
      */
     public toBuffer(connection: Connection) {
+        var unencryptedHeader = this.getHeader().toBuffer();
         var dataBuffer = this.getFramesBuffer(connection, this.getHeader());
-        var headerBuffer = this.getHeader().toPNEBuffer(connection, dataBuffer);
+        var headerBuffer = this.getHeader().toPNEBuffer(connection, Buffer.concat([unencryptedHeader,dataBuffer]));
 
         var buffer = Buffer.alloc(headerBuffer.byteLength + dataBuffer.byteLength);
         var offset = 0;

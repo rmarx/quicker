@@ -141,7 +141,7 @@ export class Client extends Endpoint {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
             headerOffsets.forEach((headerOffset: HeaderOffset) => {
-                headerOffset = this.headerHandler.handle(this.connection, headerOffset);
+                headerOffset = this.headerHandler.handle(this.connection, headerOffset, msg, EndpointType.Server);
                 var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
                 this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             });

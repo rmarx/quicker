@@ -3,22 +3,22 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff00000b'
+        'ff00000c'
     ];
 
     public static readonly LOG_TYPE = "stdout";
     public static readonly LOG_LEVEL = 'debug';
-    public static readonly LOG_LARGE_BUFFER_DATA = false;
+    public static readonly LOG_LARGE_BUFFER_DATA = true;
     public static readonly MAX_LOG_FILE_SIZE = 20971520;
 
     /**
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff00000b': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
-        'abcdef0b': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'ff00000c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'abcdef0c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
     }
-    public static readonly ALPN_LABEL = "hq-11";
+    public static readonly ALPN_LABEL = "hq-12";
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 

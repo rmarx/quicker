@@ -6,6 +6,7 @@ export class BaseProperty {
     private property: Bignum;
 
     public constructor(bn: Bignum);
+    public constructor(number: number, byteSize?: number);
     public constructor(buffer: Buffer, byteSize?: number);
     public constructor(obj: any, byteSize: number = 4) {
         if (obj instanceof Bignum) {
@@ -92,14 +93,14 @@ export class PacketNumber extends BaseProperty {
         this.setProperty(bignum);
     }
 
-    public getMostSignificantBits(size: number = 4): Buffer {
+    public getMostSignificantBytes(size: number = 4): Buffer {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
         this.getProperty().toBuffer().copy(buf, 0, 0, size);
         return buf;
     }
 
-    public getLeastSignificantBits(size: number = 4): Buffer {
+    public getLeastSignificantBytes(size: number = 4): Buffer {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
         this.getProperty().toBuffer().copy(buf, 0, 8 - size, 8);

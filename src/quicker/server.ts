@@ -93,7 +93,7 @@ export class Server extends Endpoint {
             try {
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
-                headerOffset = this.headerHandler.handle(connection, headerOffset);
+                headerOffset = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
                 var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
                 this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
                 connection.startIdleAlarm();

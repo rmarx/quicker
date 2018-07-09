@@ -1,6 +1,8 @@
 import { BaseHeader, HeaderType } from './base.header';
 import { ConnectionID, PacketNumber } from './header.properties';
 import { Connection } from '../../quicker/connection';
+import { Bignum } from '../../types/bignum';
+import { VLIE } from '../../crypto/vlie';
 
 
 /**             0                   [1- (1 - 18)]                       *                       *
@@ -48,7 +50,9 @@ export class ShortHeader extends BaseHeader {
         var connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
-        this.getPacketNumber().getLeastSignificantBits(this.getPacketNumberSize()).copy(buffer, offset);
+        this.getPacketNumber().getLeastSignificantBytes();
+        var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes(this.getPacketNumberSize()));
+        VLIE.encodePn(pn).copy(buffer, offset);
         return buffer;
     }
 
@@ -60,8 +64,10 @@ export class ShortHeader extends BaseHeader {
         var connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
-        connection.getAEAD().protected1RTTPnEncrypt(this, payload, connection.getEndpointType());
-        this.getPacketNumber().getLeastSignificantBits(this.getPacketNumberSize()).copy(buffer, offset);
+        var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes());
+        var encodedPn = VLIE.encodePn(pn);
+        var encryptedPnBuffer = connection.getAEAD().protected1RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
+        encryptedPnBuffer.copy(buffer, offset);
         return buffer;
     }
 
@@ -81,16 +87,6 @@ export class ShortHeader extends BaseHeader {
         }
 
         return type;
-    }
-
-    public getPacketNumberSize(): number {
-        switch (this.getPacketType()) {
-            case ShortHeaderType.OneOctet:
-                return 1;
-            case ShortHeaderType.TwoOctet:
-                return 2;
-        }
-        return 4;
     }
 
     public getSize(): number {

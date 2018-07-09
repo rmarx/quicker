@@ -162,7 +162,7 @@ export class HeaderParser {
     private parseShortHeader(buf: Buffer, offset: number): HeaderOffset {
         var startOffset = offset; // measured in bytes
 
-        var type = buf.readUIntBE(offset++, 1);
+        var type = buf.readUInt8(offset++);
 
         var keyPhaseBit: boolean = (type & 0x40) === 0x40;    // 2nd bit, 0x40 = 0b0100 0000 // K
         // NOTE: these bits are currently just placeholders 
@@ -171,14 +171,17 @@ export class HeaderParser {
         var fifthBitCheck: boolean = (type & 0x08) === 0x08;  // 5th bit, 0x08 = 0b0000 1000 // google QUIC demux bit, MUST be 0 for iQUIC
         var spinBit: boolean = (type & 0x04) === 0x04;        // 6th, 7th and 8th bit reserved for experimentation 
         
-        // REFACTOR TODO: we really should at least show a log message here
-        /*if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
-        }*/
-
-        // UPDATE-12 TODO: this has changed in draft-12, packet number size is determined in another way! 
-        // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.8 
-        type = this.correctShortHeaderType(type);
+        if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
+            console.log("bit check failed in the first octet");
+            if (thirdBitCheck)
+                console.log("third bit must be 1");
+            if (fourthBitCheck)
+                console.log("fourth bit must be 1");
+            if (!fifthBitCheck)
+                console.log("fifth bit must be 0");
+            //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+        }
+        
 
         // The destination connection ID is either length 0 or between 4 and 18 bytes long
         // There is no set way of encoding this, we are completely free to choose this ourselves.
@@ -194,44 +197,14 @@ export class HeaderParser {
         var destConnectionID = new ConnectionID(destConIDBuffer, destLen);
         offset += destLen;
 
-        var packetNumber = this.getShortHeaderPacketNumber(type, buf, offset)
-        offset = offset + (1 << type);
+        var packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
+        offset = offset + 4;
 
         var header = new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit, spinBit)
         var parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
 
         return { header: header, offset: offset }; 
-    }
-
-    /**
-     *  subtracts first five bits from the 7-bit type
-     *  value of returned type is needed to get the size of the packet number
-     * 
-     * @param type 
-     */
-    private correctShortHeaderType(type: number): number {
-        return type & 0x3; // 0x3 = 0b0011, keeps the 2 rightmost bits 
-    }
-
-    /**
-     * Get the packet number from the buffer by getting the size of the packet number field 
-     *   from the short header type field
-     * @param type type field of the header
-     * @param buffer packet buffer
-     * @param offset start offset of the buffer to get the packet number
-     */
-    private getShortHeaderPacketNumber(type: number, buffer: Buffer, offset: number): PacketNumber {
-        switch (type) {
-            case ShortHeaderType.OneOctet:
-                return new PacketNumber(buffer.slice(offset, offset + 1));
-            case ShortHeaderType.TwoOctet:
-                return new PacketNumber(buffer.slice(offset, offset + 2));
-            case ShortHeaderType.FourOctet:
-                return new PacketNumber(buffer.slice(offset, offset + 4)); 
-            default:
-                throw Error("Not a valid packet type");
-        }
     }
 }
 /**
