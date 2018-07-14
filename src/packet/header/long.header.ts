@@ -11,6 +11,7 @@ export class LongHeader extends BaseHeader {
     private destConnectionID: ConnectionID;
     private srcConnectionID: ConnectionID;
     private payloadLength: Bignum | undefined;
+    private payloadLengthBuffer: Buffer | undefined;
 
     /**
      * 
@@ -19,12 +20,13 @@ export class LongHeader extends BaseHeader {
      * @param packetNumber 
      * @param version 
      */
-    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), payloadLength: (Bignum | undefined) ,version: Version) {
+    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), payloadLength: (Bignum | undefined) ,version: Version, payloadLengthBuffer?: Buffer) {
         super(HeaderType.LongHeader, type, packetNumber);
         this.version = version;
         this.destConnectionID = destConnectionID;
         this.srcConnectionID = srcConnectionID;
         this.payloadLength = payloadLength;
+        this.payloadLengthBuffer = payloadLengthBuffer;
     }
 
     public getSrcConnectionID(): ConnectionID {
@@ -53,6 +55,10 @@ export class LongHeader extends BaseHeader {
 
     public getPayloadLength(): Bignum | undefined {
         return this.payloadLength;
+    }
+
+    public getPayloadLengthBuffer(): Buffer | undefined {
+        return this.payloadLengthBuffer;
     }
 
     public setPayloadLength(value: number): void;

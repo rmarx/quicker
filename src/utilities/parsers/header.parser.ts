@@ -58,7 +58,7 @@ export class HeaderParser {
         // The most significant bit (0x80) of octet 0 (the first octet) is set to 1 for long headers.
         // (0x80 = 0b10000000)
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.1
-        var type = buf.readUIntBE(offset, 1); // SIMPLE TODO: make this readUInt8 ? 
+        var type = buf.readUInt8(offset);
 
         if ((type & 0x80) === 0x80) {
             return this.parseLongHeader(buf, offset);
@@ -118,6 +118,7 @@ export class HeaderParser {
 
         var packetNumber;
         var payloadLength;
+        var payloadLengthBuffer;
 
         // a version negotation packet does NOT include packet number or payload
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3 
@@ -126,12 +127,14 @@ export class HeaderParser {
         if ( !VersionValidation.IsVersionNegotationFlag(version) ) {
             var vlieOffset = VLIE.decode(buf, offset);
             payloadLength = vlieOffset.value;
+            payloadLengthBuffer = Buffer.alloc(vlieOffset.offset - offset);
+            buf.copy(payloadLengthBuffer, 0, offset, vlieOffset.offset);
             offset = vlieOffset.offset;
             packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
             offset += 4; // offset is now ready, right before the actual payload, which is processed elsewhere 
         }
 
-        var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version);
+        var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version, payloadLengthBuffer);
 
         // needed for aead encryption later
         // REF TODO 

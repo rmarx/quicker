@@ -361,7 +361,11 @@ export class AEAD {
         var sampleOffset: number = 0;
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
-            sampleOffset = 6 + longHeader.getDestConnectionID().getLength() + longHeader.getSrcConnectionID().getLength() + VLIE.encode(new Bignum(payloadLength)).byteLength + 4;
+            var payloadLengthBuffer = longHeader.getPayloadLengthBuffer();
+            if (payloadLengthBuffer === undefined) {
+                payloadLengthBuffer = VLIE.encode(payloadLength);
+            }
+            sampleOffset = 6 + longHeader.getDestConnectionID().getLength() + longHeader.getSrcConnectionID().getLength() + payloadLengthBuffer.byteLength + 4;
         } else {
             var shortHeader = <ShortHeader>header;
             sampleOffset = 1 + shortHeader.getDestConnectionID().getLength() + 4;
@@ -387,8 +391,11 @@ export class AEAD {
     }
 
     public _pnDecrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
+        //console.log("used key: " + key.toString('hex'));
+        //console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
         var sampleOffset = this.getSampleOffset(sampleLength, header, encryptedPayload.byteLength);
         var sampleData = encryptedPayload.slice(sampleOffset, sampleOffset + sampleLength);
+        //console.log("sample data: " + sampleData.toString('hex'));
         var cipher = createDecipheriv(algorithm, key, sampleData);
         var update = cipher.update(packetNumberBuffer);
         var final = cipher.final();
