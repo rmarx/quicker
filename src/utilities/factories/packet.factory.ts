@@ -16,6 +16,7 @@ import { ShortHeader, ShortHeaderType } from '../../packet/header/short.header';
 import { TransportParameterType } from '../../crypto/transport.parameters';
 import { EndpointType } from '../../types/endpoint.type';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
+import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
 
 
 
@@ -34,7 +35,7 @@ export class PacketFactory {
         // for some reason, in our implementation, we get that client-generated value from getInitialDestConnectionID (which is correct, in theory, but quite difficult to reason about)
         // REFACTOR TODO: maybe rename the initialDestConnectionID to something that more clearly describes its goal at the server? or make a separate var for this? 
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3
-        var header = new LongHeader((Math.random() * 128), connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, undefined, version);
+        var header = new VersionNegotiationHeader((Math.random() * 128), connection.getDestConnectionID(), connection.getInitialDestConnectionID());
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
@@ -50,7 +51,7 @@ export class PacketFactory {
     public static createClientInitialPacket(connection: Connection, frames: BaseFrame[]): ClientInitialPacket {
         // TODO: explicitly set packet nr to 0
         // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1 "The first Initial packet that is sent by a client contains a packet number of 0."
-        var header = new LongHeader(LongHeaderType.Initial, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Initial, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), new PacketNumber(-1), new Bignum(-1), connection.getVersion());
         var clientInitial = new ClientInitialPacket(header, frames);
 
         // for security purposes, we want our initial packet to always be the exact same size (1280 bytes)
@@ -72,7 +73,7 @@ export class PacketFactory {
      */
     public static createRetryPacket(connection: Connection, frames: BaseFrame[]): RetryPacket {
         // UPDATE-12 TODO: packet number of a retry packet MUST be set to zero https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.2
-        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), undefined, undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), new PacketNumber(0), new Bignum(-1), connection.getVersion());
         return new RetryPacket(header, frames);
     }
 
@@ -84,7 +85,7 @@ export class PacketFactory {
      */
     public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
         var dstConnectionID = connection.getDestConnectionID() === undefined ? connection.getInitialDestConnectionID() : connection.getDestConnectionID();
-        var header = new LongHeader(LongHeaderType.Handshake, dstConnectionID, connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Handshake, dstConnectionID, connection.getSrcConnectionID(), new PacketNumber(-1), new Bignum(-1), connection.getVersion());
         var packet = new HandshakePacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
         return packet;
@@ -93,7 +94,7 @@ export class PacketFactory {
     public static createProtected0RTTPacket(connection: Connection, frames: BaseFrame[]): Protected0RTTPacket {
         // UPDATE-12 TODO: new packet number encryption setup is needed here + extra protection
         // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.5
-        var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), undefined, undefined, connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), new PacketNumber(-1), new Bignum(-1), connection.getVersion());
         var packet = new Protected0RTTPacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
         return packet;
@@ -106,7 +107,7 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getDestConnectionID(), undefined, false, connection.getSpinBit());
+        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getDestConnectionID(), new PacketNumber(-1), false, connection.getSpinBit());
         return new ShortHeaderPacket(header, frames);
     }
 }

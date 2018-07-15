@@ -27,6 +27,7 @@ import { Time, TimeFormat } from '../../types/time';
 import { QuickerError } from '../errors/quicker.error';
 import { QuickerErrorCodes } from '../errors/quicker.codes';
 import { RetryPacket } from '../../packet/packet/retry';
+import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
 
 export class PacketHandler {
 
@@ -71,11 +72,11 @@ export class PacketHandler {
     private handleVersionNegotiationPacket(connection: Connection, versionNegotiationPacket: VersionNegotiationPacket): void {
         // REFACTOR TODO: we should only react to the first VersionNegotationPacket, see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
         // not sure if this is checked anywhere yet, but I doubt it 
-        var longHeader = <LongHeader>versionNegotiationPacket.getHeader();
-        var connectionId = longHeader.getSrcConnectionID();
-        var connectionId = longHeader.getDestConnectionID();
-        if (connection.getInitialDestConnectionID().getValue().compare(longHeader.getSrcConnectionID().getValue()) !== 0 ||
-            connection.getSrcConnectionID().getValue().compare(longHeader.getDestConnectionID().getValue()) !== 0) {
+        var versionNegotiationHeader = <VersionNegotiationHeader>versionNegotiationPacket.getHeader();
+        var connectionId = versionNegotiationHeader.getSrcConnectionID();
+        var connectionId = versionNegotiationHeader.getDestConnectionID();
+        if (connection.getInitialDestConnectionID().getValue().compare(versionNegotiationHeader.getSrcConnectionID().getValue()) !== 0 ||
+            connection.getSrcConnectionID().getValue().compare(versionNegotiationHeader.getDestConnectionID().getValue()) !== 0) {
             // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, "Version negotation didn't include correct connectionID values");
         }

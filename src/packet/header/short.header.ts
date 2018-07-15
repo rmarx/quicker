@@ -15,7 +15,7 @@ export class ShortHeader extends BaseHeader {
     private spinBit: boolean;
     private destConnectionID: ConnectionID;
 
-    public constructor(type: number, destConnectionID: ConnectionID, packetNumber: (PacketNumber | undefined), keyPhaseBit: boolean, spinBit: boolean) {
+    public constructor(type: number, destConnectionID: ConnectionID, packetNumber: PacketNumber, keyPhaseBit: boolean, spinBit: boolean) {
         super(HeaderType.ShortHeader, type, packetNumber);
         this.keyPhaseBit = keyPhaseBit;
         this.spinBit = spinBit;

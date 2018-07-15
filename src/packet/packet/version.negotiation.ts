@@ -33,7 +33,7 @@ export class VersionNegotiationPacket extends BasePacket {
             payloadOffset += 4;
         });
 
-        var headerBuffer = this.getHeader().toPNEBuffer(connection, payloadBuffer);
+        var headerBuffer = this.getHeader().toBuffer();
         var outOffset = headerBuffer.length;
 
         var buf = Buffer.alloc(headerBuffer.length + payloadBuffer.length);

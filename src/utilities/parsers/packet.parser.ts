@@ -34,17 +34,14 @@ export class PacketParser {
         // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.1.1
         if (header.getHeaderType() === HeaderType.LongHeader) {
             return this.parseLongHeaderPacket(connection, headerOffset, msg, endpoint)
+        } else if (header.getHeaderType() === HeaderType.VersionNegotiationHeader) {
+            return this.parseVersionNegotiationPacket(headerOffset, msg);
         }
         return this.parseShortHeaderPacket(connection, headerOffset, msg, endpoint);
     }
 
     private parseLongHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var longheader = <LongHeader>(headerOffset.header);
-        
-        if( VersionValidation.IsVersionNegotationFlag(longheader.getVersion()) ){
-            return this.parseVersionNegotiationPacket(headerOffset, buffer);
-        }
-
         var packetOffset: PacketOffset;
         switch (longheader.getPacketType()) {
             case LongHeaderType.Initial:

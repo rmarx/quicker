@@ -5,7 +5,7 @@ import { LongHeader, LongHeaderType } from '../../packet/header/long.header';
 import { ShortHeader } from '../../packet/header/short.header';
 import { VersionValidation } from '../validation/version.validation';
 import { HeaderOffset } from '../parsers/header.parser';
-import { PacketNumber } from '../../packet/header/header.properties';
+import { PacketNumber, Version } from '../../packet/header/header.properties';
 import { EndpointType } from '../../types/endpoint.type';
 import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
@@ -27,24 +27,10 @@ export class HeaderHandler {
         // if not, we need to explicitly send a version negotation message
         if (header.getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
             var longHeader = <LongHeader>header;
-            var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
-            if (negotiatedVersion === undefined) {
-                if (header.getPacketType() === LongHeaderType.Initial) {
-                    connection.resetConnectionState();
-                    throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
-                } else if (header.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
-                    // Protected0RTT is if the client's early data is being sent along with the Initial
-                    // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"
-                    // VERIFY TODO: is this correct? and, if yes, do we need the Protected0RTT check, as it wil arrive during SERVER_HELLO? 
-                    // TODO: #section-6.1.2 allows us to buffer 0RTT packets in anticipation of a late ClientInitial 
-                    throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
-                } else {
-                    throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet");
-                }
-            }
+            var negotiatedVersion = this.handleClientVersion(connection, longHeader);
             connection.setVersion(negotiatedVersion);
         }
-        if (header.getPacketNumber() === undefined) {
+        if (header.getHeaderType() === HeaderType.VersionNegotiationHeader) {
             return {
                 header: header,
                 offset: headerOffset.offset
@@ -87,12 +73,9 @@ export class HeaderHandler {
         // custom handlers for long and short headers
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var lh = <LongHeader>header;
-            var payloadlength = lh.getPayloadLength();
-            if (payloadlength !== undefined) {
-                lh.setPayloadLength(payloadlength.subtract(decodedPnVlieOffset.offset));
-            }
+            lh.setPayloadLength(lh.getPayloadLength().subtract(decodedPnVlieOffset.offset));
             this.handleLongHeader(connection, lh, highestCurrentPacketNumber);
-        } else {
+        } else if(header.getHeaderType() === HeaderType.ShortHeader){
             var sh = <ShortHeader>header;
             this.handleShortHeader(connection, sh, highestCurrentPacketNumber);
         }
@@ -100,6 +83,25 @@ export class HeaderHandler {
             header: header,
             offset: headerOffset.offset
         };
+    }
+
+    private handleClientVersion(connection: Connection, longHeader: LongHeader): Version {
+        var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
+        if (negotiatedVersion === undefined) {
+            if (longHeader.getPacketType() === LongHeaderType.Initial) {
+                connection.resetConnectionState();
+                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
+            } else if (longHeader.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
+                // Protected0RTT is if the client's early data is being sent along with the Initial
+                // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"
+                // VERIFY TODO: is this correct? and, if yes, do we need the Protected0RTT check, as it wil arrive during SERVER_HELLO? 
+                // TODO: #section-6.1.2 allows us to buffer 0RTT packets in anticipation of a late ClientInitial 
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+            } else {
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet");
+            }
+        }
+        return negotiatedVersion;
     }
 
     private handleLongHeader(connection: Connection, longHeader: LongHeader, highestCurrentPacketNumber: boolean): void {

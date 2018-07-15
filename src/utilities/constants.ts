@@ -3,7 +3,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff00000c'
+        'ff00000c','abcdef0c'
     ];
 
     public static readonly LOG_TYPE = "stdout";

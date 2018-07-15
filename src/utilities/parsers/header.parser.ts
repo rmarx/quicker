@@ -9,6 +9,7 @@ import { ConnectionErrorCodes } from "../errors/quic.codes";
 import { VLIE } from "../../crypto/vlie";
 import { Bignum } from "../../types/bignum";
 import { VersionValidation } from "../validation/version.validation";
+import { VersionNegotiationHeader } from "../../packet/header/version.negotiation.header";
 
 
 export class HeaderParser {
@@ -34,9 +35,7 @@ export class HeaderParser {
 
             // REFACTOR TODO: this is a bit of an awkward way to calculate if we still have bytes to process... can't this be done more easily?
             var headerSize = new Bignum(headerOffset.offset).subtract(totalSize);
-            if (payloadLength !== undefined) {
-                totalSize = totalSize.add(payloadLength).add(headerSize);
-            }
+            totalSize = totalSize.add(payloadLength).add(headerSize);
             if (totalSize.lessThan(buf.byteLength)) {
                 headerOffset = this.parseHeader(buf, totalSize.toNumber());
                 headerOffsets.push(headerOffset);
@@ -67,28 +66,28 @@ export class HeaderParser {
         return this.parseShortHeader(buf, offset);
     }
 
-     /** 
-     * https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.1
-        0                   1                   2                   3
-        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-        +-+-+-+-+-+-+-+-+
-        |1|   Type (7)  |
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                         Version (32)                          |
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |DCIL(4)|SCIL(4)|
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |               Destination Connection ID (0/32..144)         ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                 Source Connection ID (0/32..144)            ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                       Payload Length (i)                    ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                       Packet Number (32)                      |
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                          Payload (*)                        ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-    */
+    /** 
+    * https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.1
+       0                   1                   2                   3
+       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+       +-+-+-+-+-+-+-+-+
+       |1|   Type (7)  |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                         Version (32)                          |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |DCIL(4)|SCIL(4)|
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |               Destination Connection ID (0/32..144)         ...
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                 Source Connection ID (0/32..144)            ...
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                       Payload Length (i)                    ...
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                       Packet Number (32)                      |
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+       |                          Payload (*)                        ...
+       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   */
     /**
      *  Method to parse the Long header of a packet
      * 
@@ -100,6 +99,10 @@ export class HeaderParser {
 
         var version = new Version(buf.slice(offset, offset + 4)); // version is 4 bytes
         offset += 4;
+
+        if (VersionValidation.IsVersionNegotationFlag(version)) {
+            return this.parseVersionNegotiationHeader(buf, offset, type);
+        }
 
         var conLengths = buf.readUInt8(offset++); // single byte containing both ConnectionID lengths DCIL and SCIL 
         // VERIFY TODO: connectionIDs can be empty if the other party can choose them freely
@@ -113,26 +116,20 @@ export class HeaderParser {
 
         var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
         offset += destLength;
-        var srcConnectionID  = new ConnectionID(buf.slice(offset, offset + srcLength),  srcLength);
+        var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
         offset += srcLength;
-
-        var packetNumber;
-        var payloadLength;
-        var payloadLengthBuffer;
 
         // a version negotation packet does NOT include packet number or payload
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3 
         // REFACTOR TODO: version neg is NOT a long header packet according to the spec, so we should switch earlier for cleanliness 
         // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3
-        if ( !VersionValidation.IsVersionNegotationFlag(version) ) {
-            var vlieOffset = VLIE.decode(buf, offset);
-            payloadLength = vlieOffset.value;
-            payloadLengthBuffer = Buffer.alloc(vlieOffset.offset - offset);
-            buf.copy(payloadLengthBuffer, 0, offset, vlieOffset.offset);
-            offset = vlieOffset.offset;
-            packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
-            offset += 4; // offset is now ready, right before the actual payload, which is processed elsewhere 
-        }
+        var vlieOffset = VLIE.decode(buf, offset);
+        var payloadLength = vlieOffset.value;
+        var payloadLengthBuffer = Buffer.alloc(vlieOffset.offset - offset);
+        buf.copy(payloadLengthBuffer, 0, offset, vlieOffset.offset);
+        offset = vlieOffset.offset;
+        var packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
+        offset += 4; // offset is now ready, right before the actual payload, which is processed elsewhere 
 
         var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version, payloadLengthBuffer);
 
@@ -141,6 +138,47 @@ export class HeaderParser {
         var parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
 
+        return { header: header, offset: offset };
+    }
+
+    /**
+     *  https://quicwg.org/base-drafts/draft-ietf-quic-transport.html#rfc.section.4.3
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+
+        |1|  Unused (7) |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                          Version (32)                         |
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |DCIL(4)|SCIL(4)|
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |               Destination Connection ID (0/32..144)         ...
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                 Source Connection ID (0/32..144)            ...
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                     Supported Versions (n*32)               ...
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     * @param buf 
+     * @param offset 
+     * @param type 
+     */
+    private parseVersionNegotiationHeader(buf: Buffer, offset: number, type: number): HeaderOffset {
+        var conLengths = buf.readUInt8(offset++); // single byte containing both ConnectionID lengths DCIL and SCIL 
+        // VERIFY TODO: connectionIDs can be empty if the other party can choose them freely
+        var destLength = conLengths >> 4; // the 4 leftmost bits are the DCIL 
+        destLength = destLength === 0 ? destLength : destLength + 3;
+        var srcLength = conLengths & 0xF; // 0xF = 0b1111, so we keep just the 4 rightmost bits 
+        srcLength = srcLength === 0 ? srcLength : srcLength + 3;
+
+        // NOTE for above: we want to encode variable lengths for the Connection IDs of 4 to 18 bytes
+        // to save space, we cram this info into 4 bits. Normally, they can only hold 0-15 as values, but because minimum length is 4, we can just do +3 to get the real value
+
+        var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
+        offset += destLength;
+        var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
+        offset += srcLength;
+
+        var header = new VersionNegotiationHeader(type, destConnectionID, srcConnectionID);
         return { header: header, offset: offset };
     }
 
@@ -173,7 +211,7 @@ export class HeaderParser {
         var fourthBitCheck: boolean = (type & 0x10) === 0x10; // 4th bit, 0x10 = 0b0001 0000
         var fifthBitCheck: boolean = (type & 0x08) === 0x08;  // 5th bit, 0x08 = 0b0000 1000 // google QUIC demux bit, MUST be 0 for iQUIC
         var spinBit: boolean = (type & 0x04) === 0x04;        // 6th, 7th and 8th bit reserved for experimentation 
-        
+
         if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
             console.log("bit check failed in the first octet");
             if (thirdBitCheck)
@@ -184,7 +222,7 @@ export class HeaderParser {
                 console.log("fifth bit must be 0");
             //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
-        
+
 
         // The destination connection ID is either length 0 or between 4 and 18 bytes long
         // There is no set way of encoding this, we are completely free to choose this ourselves.
@@ -207,13 +245,13 @@ export class HeaderParser {
         var parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
 
-        return { header: header, offset: offset }; 
+        return { header: header, offset: offset };
     }
 }
 /**
  * Interface so that the offset of the buffer is also returned because it is variable in a shortheader
  */
-export interface HeaderOffset { 
+export interface HeaderOffset {
     header: BaseHeader,
     offset: number
 }
