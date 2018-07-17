@@ -10,6 +10,7 @@ import { Cipher } from './cipher';
 import { EventEmitter } from 'events';
 import { QuicError } from '../utilities/errors/connection.error';
 import { TlsErrorCodes } from '../utilities/errors/quic.codes';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 enum NodeQTLSEvent {
     HANDSHAKE_DONE = "handshakedone",
@@ -54,6 +55,8 @@ export class QTLS extends EventEmitter{
     }
 
     private createQtlsHelper(): QuicTLS {
+	this.options.logLevel = VerboseLogging.getLogLevel();
+
         var qtlsHelper = new QuicTLS(this.isServer, this.options);
         qtlsHelper.on(NodeQTLSEvent.HANDSHAKE_DONE, () => {
             this.handleHandshakeDone();

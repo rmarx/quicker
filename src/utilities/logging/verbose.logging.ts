@@ -38,12 +38,16 @@ export class VerboseLogging{
         VerboseLogging.getInstance().output.fatal(message);
     }
 
+    public static getLogLevel():string {
+        return (VerboseLogging.getInstance().output.level as any).levelStr.toLowerCase();
+    }
+
     private constructor() {
         this.output = getLogger();
         this.output.level = Constants.LOG_LEVEL;
     }
     
-    public logMethod(message: string): void {
+    public logMethod(message: string): void { 
         this.output.debug(message);
     }
 }
