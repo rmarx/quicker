@@ -1,5 +1,5 @@
 import { BaseHeader, HeaderType } from "./base.header";
-import {ConnectionID, PacketNumber, Version} from './header.properties';
+import { ConnectionID, PacketNumber, Version } from './header.properties';
 import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
 import { VLIE } from "../../crypto/vlie";
@@ -11,7 +11,7 @@ export class LongHeader extends BaseHeader {
     private destConnectionID: ConnectionID;
     private srcConnectionID: ConnectionID;
     private payloadLength: Bignum;
-    private payloadLengthBuffer!: Buffer;
+    private payloadLengthBuffer: Buffer;
 
     /**
      * 
@@ -20,7 +20,7 @@ export class LongHeader extends BaseHeader {
      * @param packetNumber 
      * @param version 
      */
-    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: PacketNumber, payloadLength: Bignum ,version: Version, payloadLengthBuffer?: Buffer) {
+    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: PacketNumber, payloadLength: Bignum, version: Version, payloadLengthBuffer?: Buffer) {
         super(HeaderType.LongHeader, type, packetNumber);
         this.version = version;
         this.destConnectionID = destConnectionID;
@@ -28,6 +28,8 @@ export class LongHeader extends BaseHeader {
         this.payloadLength = payloadLength;
         if (payloadLengthBuffer !== undefined) {
             this.payloadLengthBuffer = payloadLengthBuffer;
+        } else {
+            this.payloadLengthBuffer = VLIE.encode(payloadLength);
         }
     }
 
@@ -71,6 +73,7 @@ export class LongHeader extends BaseHeader {
             return;
         }
         this.payloadLength = new Bignum(value);
+        this.payloadLengthBuffer = VLIE.encode(value);
     }
 
     // for the wire format and more in-depth info, see header.parser.ts:parseLongHeader
@@ -91,15 +94,9 @@ export class LongHeader extends BaseHeader {
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
-         
-        if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
-            if (this.payloadLength !== undefined) {
-                
-                var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
-                offset += payloadLengthBuffer.copy(buf, offset);
-            }
-            offset += this.getPacketNumber().getLeastSignificantBytes(1).copy(buf, offset);
-        }
+        var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
+        offset += payloadLengthBuffer.copy(buf, offset);
+        offset += this.getPacketNumber().getLeastSignificantBytes(1).copy(buf, offset);
         return buf;
     }
 
@@ -119,21 +116,18 @@ export class LongHeader extends BaseHeader {
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
-         
-        if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
-            if (this.payloadLength !== undefined) {
-                var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
-                offset += payloadLengthBuffer.copy(buf, offset);
-            }
-            var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes(1));
-            var encodedPn = VLIE.encodePn(pn);
-            if (this.getPacketType() === LongHeaderType.Protected0RTT) {
-                var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
-            } else {
-                var pne = connection.getAEAD().clearTextPnEncrypt(connection.getInitialDestConnectionID(),encodedPn, this, payload, connection.getEndpointType());                
-            }
-            offset += pne.copy(buf, offset);
+
+        var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
+        offset += payloadLengthBuffer.copy(buf, offset);
+
+        var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes(1));
+        var encodedPn = VLIE.encodePn(pn);
+        if (this.getPacketType() === LongHeaderType.Protected0RTT) {
+            var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
+        } else {
+            var pne = connection.getAEAD().clearTextPnEncrypt(connection.getInitialDestConnectionID(), encodedPn, this, payload, connection.getEndpointType());
         }
+        offset += pne.copy(buf, offset);
         return buf;
     }
 
@@ -142,7 +136,7 @@ export class LongHeader extends BaseHeader {
         var size = 6;
         size += this.destConnectionID.getLength();
         size += this.srcConnectionID.getLength();
-        if ( !VersionValidation.IsVersionNegotationFlag(this.getVersion()) ) {
+        if (!VersionValidation.IsVersionNegotationFlag(this.getVersion())) {
             if (this.getPacketNumber() === undefined) {
                 size += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
             } else {
@@ -158,7 +152,7 @@ export class LongHeader extends BaseHeader {
 
 // hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.4 and 4.5 
 export enum LongHeaderType {
-    Initial = 0x7F, 
+    Initial = 0x7F,
     Retry = 0x7E,
     Handshake = 0x7D,
     Protected0RTT = 0x7C
