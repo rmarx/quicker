@@ -51,6 +51,7 @@ export class QTLS extends EventEmitter{
             this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, this.options.transportparameters));
             this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
         }
+        // for the client, we create this in getClientInitial, see comments there 
         if (this.isServer) {
             this.qtlsHelper = this.createQtlsHelper();
         }
@@ -77,7 +78,9 @@ export class QTLS extends EventEmitter{
     }
 
     public getClientInitial(): Buffer {
-        // TODO: this currently never happens in the codebase: for which use-case is this?
+        
+        // in the case of Version Negotiation (server sends us allowed versions after our initial packet), we are forced to create a new TLS context
+        // since the old one cannot be re-used. getClientInitial() is called when starting the handshake, which is done in connection.start() which is re-called after connection.reset() in response to a Version Negotation. This is why we cannot simply do this in the init() method like for the server 
         this.qtlsHelper = this.createQtlsHelper();
         this.setLocalTransportParameters();
 
