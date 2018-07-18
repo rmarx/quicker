@@ -43,7 +43,7 @@ export class HandshakeHandler {
         // TEST TODO: what if handshakeEmitted is true here? 
         this.handshakeEmitted = false;
 
-        var clientInitial = this.connection.getQuicTLS().getClientInitial(true); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
+        var clientInitial = this.connection.getQuicTLS().getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
         this.stream.addData(clientInitial);
     }
 

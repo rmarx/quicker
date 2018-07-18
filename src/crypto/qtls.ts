@@ -50,7 +50,9 @@ export class QTLS extends EventEmitter{
             this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, this.options.transportparameters));
             this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
         }
-        this.qtlsHelper = this.createQtlsHelper();
+        if (this.isServer) {
+            this.qtlsHelper = this.createQtlsHelper();
+        }
     }
 
     private createQtlsHelper(): QuicTLS {
@@ -71,11 +73,9 @@ export class QTLS extends EventEmitter{
         return this.qtlsHelper.getTransportParameters();
     }
 
-    public getClientInitial(createNew = false): Buffer {
+    public getClientInitial(): Buffer {
         // TODO: this currently never happens in the codebase: for which use-case is this?
-        if (createNew) {
-            this.qtlsHelper = this.createQtlsHelper();
-        }
+        this.qtlsHelper = this.createQtlsHelper();
         this.setLocalTransportParameters();
 
         if (this.isEarlyDataAllowed()) {
