@@ -21,6 +21,7 @@ import { EndpointType } from '../types/endpoint.type';
 import { Time, TimeFormat } from '../types/time';
 import { ShortHeaderType, ShortHeader } from '../packet/header/short.header';
 import { AckHandler } from '../utilities/handlers/ack.handler';
+import { PacketNumber } from '../packet/header/header.properties';
 
 
 export class FlowControl {
@@ -73,7 +74,7 @@ export class FlowControl {
             var maxPayloadSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
         } else {
             if (this.shortHeaderSize === undefined) {
-                this.shortHeaderSize = new ShortHeader(ShortHeaderType.FourOctet, this.connection.getDestConnectionID(), undefined, false, this.connection.getSpinBit()).getSize();
+                this.shortHeaderSize = new ShortHeader(ShortHeaderType.FourOctet, this.connection.getDestConnectionID(), new PacketNumber(-1), false, this.connection.getSpinBit()).getSize();
             }
             var maxPayloadSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - this.shortHeaderSize);
         }

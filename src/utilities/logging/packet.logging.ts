@@ -24,11 +24,12 @@ import { AckFrame, AckBlock } from '../../frame/ack';
 import { StreamFrame } from '../../frame/stream';
 import { configure, getLogger, Logger } from 'log4js';
 import { TransportParameterType } from '../../crypto/transport.parameters';
-import { HeaderType } from '../../packet/header/base.header';
+import { HeaderType, BaseHeader } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 import { ShortHeader } from '../../packet/header/short.header';
+import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
 
 
 
@@ -95,21 +96,30 @@ export class PacketLogging {
         this.startOutput.info(log);
     }
 
-    private logPackets(connection: Connection, basePacket: BasePacket, direction: string, color: ConsoleColor): string {
-        var log = "";
-        var header = basePacket.getHeader();
-        log = this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset;
-        if (header.getHeaderType() === HeaderType.LongHeader) {
-            var longHeader = (<LongHeader>header);
-            log += ", Version: 0x" + longHeader.getVersion().getValue().toString();
-            var destConnectionID = longHeader.getDestConnectionID();
+    private logConnectionIds(log: string, header: BaseHeader): string {
+        if (header.getHeaderType() === HeaderType.LongHeader || header.getHeaderType() === HeaderType.VersionNegotiationHeader) {
+            var dheader = header.getHeaderType() === HeaderType.LongHeader ? <LongHeader>header : <VersionNegotiationHeader>header;
+            var destConnectionID = dheader.getDestConnectionID();
             log += ", Dest CID: 0x" + destConnectionID.toString();
-            var srcConnectionID = longHeader.getSrcConnectionID();
+            var srcConnectionID = dheader.getSrcConnectionID();
             log += ", Src CID: 0x" + srcConnectionID.toString();
         } else {
             var connectionID = (<ShortHeader>header).getDestConnectionID();
             log += ", Dest CID: 0x" + connectionID.toString();
         }
+        return log;
+    }
+
+    private logPackets(connection: Connection, basePacket: BasePacket, direction: string, color: ConsoleColor): string {
+        var log = "";
+        var header = basePacket.getHeader();
+
+        log += this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset;
+        
+        if (header.getHeaderType() === HeaderType.LongHeader) {
+            log += ", Version: 0x" + (<LongHeader>header).getVersion().getValue().toString();
+        }
+        log = this.logConnectionIds(log, header);
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
             log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber().getValue().toDecimalString() + ConsoleColor.Reset;
         }
@@ -117,12 +127,8 @@ export class PacketLogging {
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var payloadLength = (<LongHeader>header).getPayloadLength();
             log += ", payload length: ";
-            if (payloadLength !== undefined) {
-                log += payloadLength.toDecimalString();
-            } else {
-                log += "undefined";
-            }
-        } else {
+            log += payloadLength.toDecimalString();
+        } else if (header.getHeaderType() === HeaderType.ShortHeader){
             var spinbit = (<ShortHeader>header).getSpinBit();
             log += ", spinbit: " + (spinbit ? 1 : 0);
         }

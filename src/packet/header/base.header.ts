@@ -13,7 +13,8 @@ import { Constants } from "../../utilities/constants";
 // - Short: used afterwards (both client and server know the agreed upon settings, no need to keep sending them in each packet)
 export enum HeaderType {
     LongHeader,
-    ShortHeader
+    ShortHeader,
+    VersionNegotiationHeader
 }
 
 /** BaseHeader : defines the shared fields between Long and Short headers */
@@ -54,7 +55,7 @@ export abstract class BaseHeader {
 
 
     public getPacketNumberSize(): number {
-        if (this.packetNumber === undefined) {
+        if (this.packetNumber === undefined || this.packetNumber.getValue().equals(-1)) {
             return 4;
         }
         return 2**VLIE.getBytesNeededPn(new Bignum(this.getPacketNumber().getLeastSignificantBytes()));

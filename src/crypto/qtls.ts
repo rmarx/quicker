@@ -62,7 +62,7 @@ export class QTLS extends EventEmitter{
             this.handleHandshakeDone();
         });
         qtlsHelper.on(NodeQTLSEvent.ERROR, (error: Error) => {
-            throw new QuicError(TlsErrorCodes.TLS_HANDSHAKE_FAILED);
+            throw new QuicError(TlsErrorCodes.TLS_HANDSHAKE_FAILED, error.message);
         });
         qtlsHelper.on(NodeQTLSEvent.NEW_SESSION, () => {
             this.handleNewSession();

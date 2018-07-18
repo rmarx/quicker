@@ -361,11 +361,7 @@ export class AEAD {
         var sampleOffset: number = 0;
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
-            var payloadLengthBuffer = longHeader.getPayloadLengthBuffer();
-            if (payloadLengthBuffer === undefined) {
-                payloadLengthBuffer = VLIE.encode(payloadLength);
-            }
-            sampleOffset = 6 + longHeader.getDestConnectionID().getLength() + longHeader.getSrcConnectionID().getLength() + payloadLengthBuffer.byteLength + 4;
+            sampleOffset = 6 + longHeader.getDestConnectionID().getLength() + longHeader.getSrcConnectionID().getLength() + longHeader.getPayloadLengthBuffer().byteLength + 4;
         } else {
             var shortHeader = <ShortHeader>header;
             sampleOffset = 1 + shortHeader.getDestConnectionID().getLength() + 4;
