@@ -17,6 +17,7 @@ enum NodeQTLSEvent {
     HANDSHAKE_DONE = "handshakedone",
     ERROR = "error",
     NEW_SESSION = "newsession",
+    NEW_KEY = "onnewkey",
 }
 
 /**
@@ -70,6 +71,9 @@ export class QTLS extends EventEmitter{
         });
         qtlsHelper.on(NodeQTLSEvent.NEW_SESSION, () => {
             this.handleNewSession();
+        });
+        qtlsHelper.on(NodeQTLSEvent.NEW_KEY, (keytype: number, secret: Buffer, secretLength: number, key: Buffer, keyLength: number, iv: Buffer, ivLength: number, arg: number) => {
+            this.handleNewKey(keytype, secret, secretLength, key, keyLength, iv, ivLength, arg);
         });
         return qtlsHelper;
     }
@@ -185,6 +189,10 @@ export class QTLS extends EventEmitter{
 
     private handleNewSession(): void {
         this.handshakeState = HandshakeState.COMPLETED;
+    }
+
+    private handleNewKey(keytype: number, secret: Buffer, secretLength: number, key: Buffer, keyLength: number, iv: Buffer, ivLength: number, arg: number):void {
+	console.log("QTLS: TODO : implement handleNewKey:", keytype, secret, secretLength, key, keyLength, iv, ivLength, arg );
     }
 
     private setLocalTransportParameters() {
