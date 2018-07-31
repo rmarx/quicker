@@ -352,6 +352,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public setRemoteTransportParameters(transportParameters: TransportParameters): void {
+	console.log("Connection.ts: setting remote transport params : ", transportParameters );
         this.remoteTransportParameters = transportParameters;
         this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
         this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI) * 4);

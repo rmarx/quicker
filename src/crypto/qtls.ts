@@ -46,6 +46,8 @@ export class QTLS extends EventEmitter{
     }
 
     public init() {
+	this.options.logLevel = "debug";
+
         if (this.options.alpnProtocol === undefined) {
             this.options.alpnProtocols = [Constants.ALPN_LABEL];
         }
