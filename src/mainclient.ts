@@ -19,6 +19,7 @@ var httpHelper = new HttpHelper();
 for (var i = 0; i < 1; i++) {
     var client = Client.connect(host, Number(port));
     client.on(QuickerEvent.CLIENT_CONNECTED, () => {
+
         var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
         var bufferedData = Buffer.alloc(0);
 
@@ -31,7 +32,11 @@ for (var i = 0; i < 1; i++) {
             client.close();
         });
 
+
+	
         setTimeout(() => {
+            for( let i = 0; i < 10; ++i)
+            	console.log("///////////////////////////////////////////////////////////////////////////////");
             var client2 = Client.connect(host, Number(port), {
                 session: client.getSession(),
                 transportparameters: client.getTransportParameters()
@@ -40,6 +45,8 @@ for (var i = 0; i < 1; i++) {
                 //
             });
         }, 5000);
+	
+	
     });
 
     client.on(QuickerEvent.ERROR, (error: Error) => {
