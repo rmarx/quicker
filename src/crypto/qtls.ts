@@ -34,6 +34,8 @@ export class QTLS extends EventEmitter{
     private cipher!: Cipher;
     private connection: Connection;
 
+    private TLSMessageCallback!:any;
+
     public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         super();
         this.isServer = isServer;
@@ -238,7 +240,14 @@ export class QTLS extends EventEmitter{
 		//let type:MessageType = (MessageType) message[0];
 
 		console.log("QTLS: TODO: implement handleNewTLSMessage:", length, message[0], MessageType[message[0]], message);
+
+        if( this.TLSMessageCallback )
+			this.TLSMessageCallback(message);
 	}
+
+    public setTLSMessageCallback(cb:any){
+		this.TLSMessageCallback = cb;
+    }
 
     private setLocalTransportParameters() {
         this.transportParameters = TransportParameters.getDefaultTransportParameters(this.isServer,this.connection.getVersion());

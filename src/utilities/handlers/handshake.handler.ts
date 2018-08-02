@@ -49,11 +49,21 @@ export class HandshakeHandler extends EventEmitter{
         // TEST TODO: what if handshakeEmitted is true here? 
         this.handshakeEmitted = false;
 
-        var clientInitial = this.qtls.getClientInitial(); 
-        this.stream.addData(clientInitial);
+        this.connection.getQuicTLS().setTLSMessageCallback( (message:Buffer) => { this.OnNewTLSMessage(message); } );
+
+        var clientInitial = this.connection.getQuicTLS().getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
+        //this.stream.addData(clientInitial);
+    }
+
+    private OnNewTLSMessage(message: Buffer){
+		console.log("HandshakeHandler: OnNewTLSMessage");
+        this.stream.addData(message);
     }
 
     public handle(data: Buffer) {
+        
+        this.connection.getQuicTLS().setTLSMessageCallback( (message:Buffer) => { this.OnNewTLSMessage(message); } );
+
         // VERIFY TODO: called first at the server (in response to the client's ClientInitial packet), then on the client (in response to the server's Handshake packet)
         this.qtls.writeHandshake(data); // VERIFY TODO: put handshake data in a buffer for decoding by TLS?
         if (this.isServer) {
@@ -62,10 +72,10 @@ export class HandshakeHandler extends EventEmitter{
             // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
             // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
         }
-        var readData = this.qtls.readHandshake(); // VERIFY TODO: read the decoded handshake data from TLS 
-        if (readData !== undefined && readData.byteLength > 0) {
-            this.stream.addData(readData); // put it on the stream for further processing
-        }
+        var readData = this.connection.getQuicTLS().readHandshake(); // VERIFY TODO: read the decoded handshake data from TLS 
+        //if (readData !== undefined && readData.byteLength > 0) {
+        //    this.stream.addData(readData); // put it on the stream for further processing
+        //}
 
         if (this.qtls.getHandshakeState() === HandshakeState.CLIENT_COMPLETED && !this.isServer && !this.handshakeEmitted) {
             this.handshakeEmitted = true;
