@@ -17,6 +17,7 @@ enum NodeQTLSEvent {
     ERROR = "error",
     NEW_SESSION = "newsession",
     NEW_KEY = "onnewkey",
+	NEW_TLS_MESSAGE = "onnewtlsmessage"
 }
 
 /**
@@ -73,6 +74,9 @@ export class QTLS extends EventEmitter{
         });
         qtlsHelper.on(NodeQTLSEvent.NEW_KEY, (keytype: number, secret: Buffer, secretLength: number, key: Buffer, keyLength: number, iv: Buffer, ivLength: number, arg: number) => {
             this.handleNewKey(keytype, secret, secretLength, key, keyLength, iv, ivLength, arg);
+        });
+        qtlsHelper.on(NodeQTLSEvent.NEW_TLS_MESSAGE, (message: Buffer, length: number) => {
+            this.handleNewTLSMessage(message, length);
         });
         return qtlsHelper;
     }
@@ -247,8 +251,46 @@ export class QTLS extends EventEmitter{
     }
 
     private handleNewKey(keytype: number, secret: Buffer, secretLength: number, key: Buffer, keyLength: number, iv: Buffer, ivLength: number, arg: number):void {
-	console.log("QTLS: TODO : implement handleNewKey:", keytype, secret, secretLength, key, keyLength, iv, ivLength, arg );
+		let keyNames = [
+			"SSL_KEY_CLIENT_EARLY_TRAFFIC",
+			"SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC",
+			"SSL_KEY_CLIENT_APPLICATION_TRAFFIC",
+			"SSL_KEY_SERVER_HANDSHAKE_TRAFFIC",
+			"SSL_KEY_SERVER_APPLICATION_TRAFFIC" 
+		];
+
+		console.log("QTLS: TODO : implement handleNewKey:", keyNames[keytype], secret, secretLength, key, keyLength, iv, ivLength, arg )
     }
+
+    private handleNewTLSMessage(message: Buffer, length: number){
+
+		// see openssl/include/openssl/ssl3.h
+		enum MessageType {
+			SSL3_MT_HELLO_REQUEST = 0,
+			SSL3_MT_CLIENT_HELLO = 1,
+			SSL3_MT_SERVER_HELLO = 2,
+			SSL3_MT_NEWSESSION_TICKET = 4,
+			SSL3_MT_END_OF_EARLY_DATA = 5,
+			SSL3_MT_ENCRYPTED_EXTENSIONS = 8,
+			SSL3_MT_CERTIFICATE = 11,
+			SSL3_MT_SERVER_KEY_EXCHANGE = 12,
+			SSL3_MT_CERTIFICATE_REQUEST = 13,
+			SSL3_MT_SERVER_DONE = 14,
+			SSL3_MT_CERTIFICATE_VERIFY = 15,
+			SSL3_MT_CLIENT_KEY_EXCHANGE = 16,
+			SSL3_MT_FINISHED = 20,
+			SSL3_MT_CERTIFICATE_URL = 21,
+			SSL3_MT_CERTIFICATE_STATUS = 22,
+			SSL3_MT_SUPPLEMENTAL_DATA = 23,
+			SSL3_MT_KEY_UPDATE = 24,
+			SSL3_MT_NEXT_PROTO = 67,
+			SSL3_MT_MESSAGE_HASH = 254 
+		};
+
+		//let type:MessageType = (MessageType) message[0];
+
+		console.log("QTLS: TODO: implement handleNewTLSMessage:", length, message[0], MessageType[message[0]], message);
+	}
 
     private setLocalTransportParameters() {
         var transportParams = this.generateExtensionData();
