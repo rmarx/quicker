@@ -39,6 +39,9 @@ export class PacketLogging {
     private startOutput: Logger;
     private continuedOutput: Logger;
 
+    private receivedPacketTypes: Map<string, number>;
+    private sentPacketTypes: Map<string, number>;
+
     public static getInstance(): PacketLogging {
         if (this.logger === undefined) {
             this.logger = new PacketLogging();
@@ -84,16 +87,25 @@ export class PacketLogging {
         this.startOutput.level = Constants.LOG_LEVEL;
         this.continuedOutput = getLogger();
         this.continuedOutput.level = Constants.LOG_LEVEL;
+
+        this.receivedPacketTypes = new Map<string, number>();
+        this.sentPacketTypes = new Map<string, number>();
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
         var log = this.logPackets(connection, basePacket, "RX", ConsoleColor.FgCyan);
         this.startOutput.info(log);
+
+        let currentValue:number = this.receivedPacketTypes.get("" + basePacket.getPacketType()) || 0;
+        this.receivedPacketTypes.set("" + basePacket.getPacketType(),  currentValue + 1 );
     }
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
         var log = this.logPackets(connection, basePacket, "TX", ConsoleColor.FgRed);
         this.startOutput.info(log);
+        
+        let currentValue:number = this.sentPacketTypes.get("" + basePacket.getPacketType()) || 0;
+        this.sentPacketTypes.set("" + basePacket.getPacketType(),  currentValue + 1 );
     }
 
     private logConnectionIds(log: string, header: BaseHeader): string {
@@ -125,7 +137,7 @@ export class PacketLogging {
         }
 
         if (header.getHeaderType() === HeaderType.LongHeader) {
-            var payloadLength = (<LongHeader>header).getPayloadLength();
+            var payloadLength = (<LongHeader>header).getPayloadLength() as Bignum;
             log += ", payload length: ";
             log += payloadLength.toDecimalString();
         } else if (header.getHeaderType() === HeaderType.ShortHeader){
@@ -134,7 +146,7 @@ export class PacketLogging {
         }
 
 
-        switch (basePacket.getPacketType()) {
+        switch (basePacket.getPacketType()) { 
             case PacketType.VersionNegotiation:
                 var vnPacket: VersionNegotiationPacket = <VersionNegotiationPacket>basePacket;
                 log += this.logVersionNegotiationPacket(vnPacket);
@@ -386,5 +398,26 @@ export class PacketLogging {
 
     private getSpaces(amount: number): string {
         return Array(amount + 1).join(" ");
+    }
+
+    public logPacketStats(){
+        let log:string = "";
+        
+        let rxCount:number = 0;
+        for( let entry of this.receivedPacketTypes.entries() )
+            rxCount += entry[1];
+
+        log += "Total RX count: " + rxCount + "\n";
+        
+        let txCount:number = 0;
+        for( let entry of this.sentPacketTypes.entries() )
+            txCount += entry[1];
+
+        log += "Total TX count: " + txCount + "\n";
+
+        log += this.receivedPacketTypes.toString() + "\n";
+        log += this.sentPacketTypes.toString() + "\n";
+
+        this.startOutput.info(log);
     }
 }

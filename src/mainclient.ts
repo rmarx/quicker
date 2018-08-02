@@ -2,6 +2,7 @@ import { Client } from "./quicker/client";
 import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuicStream } from "./quicker/quic.stream";
 import { QuickerEvent } from "./quicker/quicker.event";
+import { PacketLogging } from "./utilities/logging/packet.logging";
 
 
 
@@ -44,7 +45,12 @@ for (var i = 0; i < 1; i++) {
             client2.on(QuickerEvent.CLIENT_CONNECTED, () => {
                 //
             });
-        }, 5000);
+            client2.on(QuickerEvent.CONNECTION_CLOSE, () => {
+                console.log("Connection2 allowed early data: " + client.getConnection().getQuicTLS().isEarlyDataAllowed() );
+                console.log("Connection2 was re-used:        " +  client.getConnection().getQuicTLS().isSessionReused() );
+                console.log("Connection2 handshake state:    " + client.getConnection().getQuicTLS().getHandshakeState() );
+            });
+        }, 3000);
 	
 	
     });
@@ -56,6 +62,14 @@ for (var i = 0; i < 1; i++) {
     });
 
     client.on(QuickerEvent.CONNECTION_CLOSE, () => {
+        
+        console.log("Packet stats for both connections:");
+        PacketLogging.getInstance().logPacketStats();
+
+        console.log("Connection1 allowed early data: " + client.getConnection().getQuicTLS().isEarlyDataAllowed() );
+        console.log("Connection1 was re-used:        " +  client.getConnection().getQuicTLS().isSessionReused() );
+        console.log("Connection1 handshake state:    " + client.getConnection().getQuicTLS().getHandshakeState() );
+
         process.exit(0);
     });
 }

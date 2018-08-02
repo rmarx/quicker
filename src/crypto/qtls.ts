@@ -45,8 +45,6 @@ export class QTLS extends EventEmitter{
     }
 
     public init() {
-	this.options.logLevel = "debug";
-
         if (this.options.alpnProtocol === undefined) {
             this.options.alpnProtocols = [Constants.ALPN_LABEL];
         }
@@ -61,7 +59,7 @@ export class QTLS extends EventEmitter{
     }
 
     private createQtlsHelper(): QuicTLS {
-	this.options.logLevel = VerboseLogging.getLogLevel();
+	    this.options.logLevel = VerboseLogging.getLogLevel();
 
         var qtlsHelper = new QuicTLS(this.isServer, this.options);
         qtlsHelper.on(NodeQTLSEvent.HANDSHAKE_DONE, () => {
@@ -228,6 +226,9 @@ export class QTLS extends EventEmitter{
     }
 
     private handleHandshakeDone(): void {
+        // this function is called multiple times, both on server and client:
+        // client: after ClientFinished is generated, after reception of each NewSessionTicket
+        // server: after reception of ClientFinished, after creation of each NewSessionTicket
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
         if (this.handshakeState >= HandshakeState.CLIENT_COMPLETED) {
