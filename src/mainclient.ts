@@ -3,6 +3,7 @@ import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuicStream } from "./quicker/quic.stream";
 import { QuickerEvent } from "./quicker/quicker.event";
 import { PacketLogging } from "./utilities/logging/packet.logging";
+import { HandshakeState } from "./crypto/qtls";
 
 
 
@@ -46,30 +47,41 @@ for (var i = 0; i < 1; i++) {
                 //
             });
             client2.on(QuickerEvent.CONNECTION_CLOSE, () => {
-                console.log("Connection2 allowed early data: " + client.getConnection().getQuicTLS().isEarlyDataAllowed() );
-                console.log("Connection2 was re-used:        " +  client.getConnection().getQuicTLS().isSessionReused() );
-                console.log("Connection2 handshake state:    " + client.getConnection().getQuicTLS().getHandshakeState() );
+        		console.log("--------------------------------------------------------------------------------------------------");
+				console.log("Server closed connection2 " + client2.getConnection().getSrcConnectionID().toString() );
+        		PacketLogging.getInstance().logPacketStats( client2.getConnection().getSrcConnectionID().toString() );
+
+				console.log("=> EXPECTED: TX 1 INITIAL, 1 0-RTT, 1 HANDSHAKE, 3-7 Protected1RTT, then RX 1 HANDSHAKE, 5-7 Protected1RTT\n");
+
+                console.log("Connection2 allowed early data: " + client2.getConnection().getQuicTLS().isEarlyDataAllowed() + " == true" );
+                console.log("Connection2 was re-used:        " + client2.getConnection().getQuicTLS().isSessionReused() + " == true");
+                console.log("Connection2 handshake state:    " + HandshakeState[client2.getConnection().getQuicTLS().getHandshakeState()] + " == COMPLETED" );
+
+				process.exit(0);
             });
         }, 3000);
 	
 	
     });
 
-    client.on(QuickerEvent.ERROR, (error: Error) => {
+    client.on(QuickerEvent.ERROR, (error: Error) => { 
         console.log("error");
         console.log(error.message);
         console.log(error.stack);
     });
 
     client.on(QuickerEvent.CONNECTION_CLOSE, () => {
-        
-        console.log("Packet stats for both connections:");
-        PacketLogging.getInstance().logPacketStats();
+        console.log("--------------------------------------------------------------------------------------------------");
+		console.log("Server closed connection " + client.getConnection().getSrcConnectionID().toString() );
+        PacketLogging.getInstance().logPacketStats( client.getConnection().getSrcConnectionID().toString() );
 
-        console.log("Connection1 allowed early data: " + client.getConnection().getQuicTLS().isEarlyDataAllowed() );
-        console.log("Connection1 was re-used:        " +  client.getConnection().getQuicTLS().isSessionReused() );
-        console.log("Connection1 handshake state:    " + client.getConnection().getQuicTLS().getHandshakeState() );
+		console.log("=> EXPECTED: TX 1 INITIAL, 1 HANDSHAKE, 3-7 Protected1RTT, then RX 2 HANDSHAKE, 5-7 Protected1RTT\n");
 
-        process.exit(0);
+        // note: isEarlyDataAllowed() always return true, even if the session wasn't resumed (at least if the server allows early data on resumed connections). This does NOT mean early data was used ont he connection
+        console.log("Connection1 allowed early data: " + client.getConnection().getQuicTLS().isEarlyDataAllowed() + " == true" );
+        console.log("Connection1 was re-used:        " + client.getConnection().getQuicTLS().isSessionReused() + " == false");
+        console.log("Connection1 handshake state:    " + HandshakeState[client.getConnection().getQuicTLS().getHandshakeState()] + " == COMPLETED" );
+
+        //process.exit(0);
     });
 }

@@ -39,8 +39,8 @@ export class PacketLogging {
     private startOutput: Logger;
     private continuedOutput: Logger;
 
-    private receivedPacketTypes: Map<string, number>;
-    private sentPacketTypes: Map<string, number>;
+    private receivedPacketTypes: Map<string, Map<string, number>>;
+    private sentPacketTypes: Map<string, Map<string, number>>; 
 
     public static getInstance(): PacketLogging {
         if (this.logger === undefined) {
@@ -88,24 +88,54 @@ export class PacketLogging {
         this.continuedOutput = getLogger();
         this.continuedOutput.level = Constants.LOG_LEVEL;
 
-        this.receivedPacketTypes = new Map<string, number>();
-        this.sentPacketTypes = new Map<string, number>();
+        this.receivedPacketTypes = new Map<string, Map<string, number>>();
+        this.sentPacketTypes = new Map<string, Map<string, number>>();
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
         var log = this.logPackets(connection, basePacket, "RX", ConsoleColor.FgCyan);
         this.startOutput.info(log);
 
-        let currentValue:number = this.receivedPacketTypes.get("" + basePacket.getPacketType()) || 0;
-        this.receivedPacketTypes.set("" + basePacket.getPacketType(),  currentValue + 1 );
+		// We want to log packets per connection so we can print that info later
+		// we always log from the perspective of the "sender", so for incoming, we need the DestinationConnID
+		// NOTE: for ClientHello, the client guesses a DCID, and the server will send the real one afterwards
+		// so, at server side, the client's INITIAL and 0-RTT packets will be in a separate DCID than the rest, take that into account when logging! 
+        let connectionID = "";
+        let header = basePacket.getHeader();
+		if (header.getHeaderType() === HeaderType.LongHeader || header.getHeaderType() === HeaderType.VersionNegotiationHeader) {
+            let dheader = header.getHeaderType() === HeaderType.LongHeader ? <LongHeader>header : <VersionNegotiationHeader>header;
+            connectionID = dheader.getDestConnectionID().toString();
+        } else {
+            connectionID = (<ShortHeader>header).getDestConnectionID().toString();
+        }
+
+		let connectionIDMap = this.receivedPacketTypes.get( connectionID.toString() );
+		if( connectionIDMap == undefined )
+			connectionIDMap = new Map<string,number>();
+
+        let currentValue:number = connectionIDMap.get("" + PacketType[basePacket.getPacketType()]) || 0;
+        connectionIDMap.set("" + PacketType[basePacket.getPacketType()],  currentValue + 1 );
+
+		this.receivedPacketTypes.set( connectionID.toString(), connectionIDMap );
     }
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
         var log = this.logPackets(connection, basePacket, "TX", ConsoleColor.FgRed);
         this.startOutput.info(log);
         
-        let currentValue:number = this.sentPacketTypes.get("" + basePacket.getPacketType()) || 0;
-        this.sentPacketTypes.set("" + basePacket.getPacketType(),  currentValue + 1 );
+
+		// We want to log packets per connection so we can print that info later
+		// we always log from the perspective of the "sender", so for sending, we need the SourceConnID
+        let connectionID = connection.getSrcConnectionID();
+
+		let connectionIDMap = this.sentPacketTypes.get( connectionID.toString() );
+		if( connectionIDMap == undefined )
+			connectionIDMap = new Map<string,number>();
+
+        let currentValue:number = connectionIDMap.get("" + PacketType[basePacket.getPacketType()]) || 0;
+        connectionIDMap.set("" + PacketType[basePacket.getPacketType()],  currentValue + 1 );
+
+		this.sentPacketTypes.set( connectionID.toString(), connectionIDMap );
     }
 
     private logConnectionIds(log: string, header: BaseHeader): string {
@@ -394,29 +424,44 @@ export class PacketLogging {
             log += this.getSpaces(6) + str;
         }
         return log;
-    }
+    } 
 
     private getSpaces(amount: number): string {
         return Array(amount + 1).join(" ");
     }
 
-    public logPacketStats(){
+    public logPacketStats( connectionId:string ){
         let log:string = "";
-        
-        let rxCount:number = 0;
-        for( let entry of this.receivedPacketTypes.entries() )
-            rxCount += entry[1];
 
-        log += "Total RX count: " + rxCount + "\n";
-        
-        let txCount:number = 0;
-        for( let entry of this.sentPacketTypes.entries() )
-            txCount += entry[1];
+		//console.log(" Fetching RX " + connectionId + " from", Array.from( this.receivedPacketTypes.keys() ) );
+		//console.log(" Fetching TX " + connectionId + " from", Array.from( this.sentPacketTypes.keys() ) );
 
-        log += "Total TX count: " + txCount + "\n";
 
-        log += this.receivedPacketTypes.toString() + "\n";
-        log += this.sentPacketTypes.toString() + "\n";
+		let tx = this.sentPacketTypes.get(connectionId) as Map<string,number>; 
+		if( tx != undefined ){      
+		    let txCount:number = 0;
+		    for( let entry of tx.entries() )
+		        txCount += entry[1];
+
+		    log += "Total TX count: " + txCount + "\n";
+		    log += [...tx].reduce((acc,v) => { return ((typeof acc == "string") ? acc + ", " : "\t") + v[0] + "=" + v[1];}, {} ) + "\n";
+		}
+		else
+			log += "No packets sent on this connectionID, can only be for the initial setup!\n";
+
+
+		let rx = this.receivedPacketTypes.get(connectionId) as Map<string,number>; 
+		if( rx != undefined ){       
+
+		    let rxCount:number = 0;
+		    for( let entry of rx.entries() )
+		        rxCount += entry[1];
+
+		    log += "Total RX count: " + rxCount + "\n";
+		    log += [...rx].reduce((acc,v) => { return ((typeof acc == "string") ? acc + ", " : "\t") + v[0] + "=" + v[1];}, {} ) + "\n";
+        }
+		else
+			log += "No packets received on this connectionID, THIS IS AN ERROR, SHOULD NEVER HAPPEN!\n";
 
         this.startOutput.info(log);
     }

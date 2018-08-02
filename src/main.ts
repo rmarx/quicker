@@ -4,6 +4,7 @@ import { QuicStream } from "./quicker/quic.stream";
 import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuickerEvent } from "./quicker/quicker.event";
 import { PacketLogging } from "./utilities/logging/packet.logging";
+import { HandshakeState } from "./crypto/qtls";
 
 let host = process.argv[2] || "127.0.0.1";
 let port = process.argv[3] || 4433;
@@ -41,18 +42,22 @@ server.on(QuickerEvent.ERROR, (error: Error) => {
     console.log(error.message);
 });
 
-server.on(QuickerEvent.CONNECTION_DRAINING, (connectionId: string) => {
-    console.log("connection with connectionID " + connectionId + " is draining");
+server.on(QuickerEvent.CONNECTION_DRAINING, (connectionSrcId: string) => {
     
-    console.log("Packet stats for all connections:");
-    PacketLogging.getInstance().logPacketStats();
+    console.log("--------------------------------------------------------------------------------------------------");
+    console.log("connection with connectionSrcID " + connectionSrcId + " is draining");
+    console.log("First printing packets for InitialDestConnectionID (server doesn't know our real SrcID yet), and then for the real SrcID):"); 
+    PacketLogging.getInstance().logPacketStats( server.getConnectionManager().getConnectionByStringID(connectionSrcId).getInitialDestConnectionID().toString() );
+    PacketLogging.getInstance().logPacketStats(connectionSrcId); 
 
-    console.log("Connection allowed early data: " + server.getConnectionManager().getConnectionByStringID(connectionId).getQuicTLS().isEarlyDataAllowed() );
-    console.log("Connection was re-used:        " + server.getConnectionManager().getConnectionByStringID(connectionId).getQuicTLS().isSessionReused() );
-    console.log("Connection handshake state:    " + server.getConnectionManager().getConnectionByStringID(connectionId).getQuicTLS().getHandshakeState() );
+	console.log("=> EXPECTED: RX 1 INITIAL (+ possibly 1 0-RTT first), then TX 1-2 HANDSHAKE, 5-7 Protected1RTT, then RX 1 HANDSHAKE, 5-7 Protected1RTT\n");
+
+    console.log("Connection allowed early data: " + server.getConnectionManager().getConnectionByStringID(connectionSrcId).getQuicTLS().isEarlyDataAllowed() + " == true" );
+    console.log("Connection was re-used:        " + server.getConnectionManager().getConnectionByStringID(connectionSrcId).getQuicTLS().isSessionReused() + " == 1st false, 2nd true" );
+    console.log("Connection handshake state:    " + HandshakeState[server.getConnectionManager().getConnectionByStringID(connectionSrcId).getQuicTLS().getHandshakeState()] + " == COMPLETED" );
 
 });
 
-server.on(QuickerEvent.CONNECTION_CLOSE, (connectionId: string) => {
-    console.log("connection with connectionID " + connectionId + " is closed");
+server.on(QuickerEvent.CONNECTION_CLOSE, (connectionSrcId: string) => {
+    console.log("connection with connectionID " + connectionSrcId + " is closed");
 });
