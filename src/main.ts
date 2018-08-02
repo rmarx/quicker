@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import { QuicStream } from "./quicker/quic.stream";
 import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuickerEvent } from "./quicker/quicker.event";
+import { PacketLogging } from "./utilities/logging/packet.logging";
 
 let host = process.argv[2] || "127.0.0.1";
 let port = process.argv[3] || 4433;
@@ -42,6 +43,14 @@ server.on(QuickerEvent.ERROR, (error: Error) => {
 
 server.on(QuickerEvent.CONNECTION_DRAINING, (connectionId: string) => {
     console.log("connection with connectionID " + connectionId + " is draining");
+    
+    console.log("Packet stats for all connections:");
+    PacketLogging.getInstance().logPacketStats();
+
+    console.log("Connection allowed early data: " + server.getConnectionManager().getConnectionByStringID(connectionId).getQuicTLS().isEarlyDataAllowed() );
+    console.log("Connection was re-used:        " + server.getConnectionManager().getConnectionByStringID(connectionId).getQuicTLS().isSessionReused() );
+    console.log("Connection handshake state:    " + server.getConnectionManager().getConnectionByStringID(connectionId).getQuicTLS().getHandshakeState() );
+
 });
 
 server.on(QuickerEvent.CONNECTION_CLOSE, (connectionId: string) => {

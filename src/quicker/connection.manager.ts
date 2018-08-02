@@ -61,6 +61,11 @@ export class ConnectionManager extends EventEmitter{
         throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
     }
 
+    // should only be use for debugging purposes!
+    public getConnectionByStringID(connectionID:string){
+        return this.connections[connectionID];
+    }
+
     private getConnectionByRemoteInformation(rinfo: RemoteInfo): Connection {
         var remoteInfo = {
             address: rinfo.address,

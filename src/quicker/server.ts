@@ -131,4 +131,9 @@ export class Server extends Endpoint {
             this.setupConnectionEvents(connection);
         });
     }
+
+    // TODO: FIXME: remove this, should only be used for debugging! 
+    public getConnectionManager(){
+        return this.connectionManager;
+    }
 }

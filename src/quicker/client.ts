@@ -127,6 +127,11 @@ export class Client extends Endpoint {
         // TODO: close connection with applicationcloseframe
     }
 
+    // TODO: FIXME: remove! this is for debugging only!
+    public getConnection(): Connection{
+        return this.connection;
+    }
+
     /**
      * 
      * @param msg The buffer containing one full UDP datagram (can consist of multiple compound QUIC-level packets)
