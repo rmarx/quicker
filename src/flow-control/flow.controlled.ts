@@ -99,7 +99,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 
     public isRemoteLimitExceeded(added: any = new Bignum(0)): boolean {
 		var temp = this.remoteOffset.add(added);
-		return this.remoteMaxData.greaterThanOrEqual(temp);
+		return this.remoteMaxData.lessThan(temp);
 	}
 
     public isLocalLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
