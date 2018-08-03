@@ -4,6 +4,7 @@ import {Bignum} from '../types/bignum';
 import { EventEmitter } from 'events';
 import { logMethod } from '../utilities/decorators/log.decorator';
 
+
 // REFACTOR TODO: use composition instead of inheritance for FlowControlledObject... 
 export abstract class FlowControlledObject extends EventEmitter {
 
@@ -13,9 +14,14 @@ export abstract class FlowControlledObject extends EventEmitter {
 	private remoteMaxData!: Bignum;
 	
 	private isRemoteBlocked: boolean;
+	
+	private readonly MAX_BUFFER_SIZE: number;
+	private currentBufferSize: number;
 
-    public constructor() {
+    public constructor(bufferSize: number) {
 		super();
+		this.MAX_BUFFER_SIZE = bufferSize;
+		this.currentBufferSize = 0;
         this.isRemoteBlocked = false;
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
@@ -27,6 +33,16 @@ export abstract class FlowControlledObject extends EventEmitter {
 
 	public getRemoteOffset(): Bignum {
 		return this.remoteOffset;
+	}
+
+	protected incrementBufferSizeUsed(dataLength: number): void {
+		this.currentBufferSize += dataLength;
+		this.emit(FlowControlledObjectEvents.INCREMENT_BUFFER_DATA_USED, dataLength);
+    }
+
+    protected decrementBufferSizeUsed(dataLength: number): void {
+		this.currentBufferSize -= dataLength;
+		this.emit(FlowControlledObjectEvents.DECREMENT_BUFFER_DATA_USED, dataLength);
 	}
 
 	public addLocalOffset(offset: number): void;
@@ -107,6 +123,26 @@ export abstract class FlowControlledObject extends EventEmitter {
 		return temp.greaterThanOrEqual(maxData);
 	}
 
+
+
+	public updateLocalMaxDataSpace(): Bignum {
+		var updatedLocalMaxData = this.getLocalMaxData().add(this.getBufferSpaceAvailable());
+		this.setLocalMaxData(updatedLocalMaxData);
+		return this.getLocalMaxData();
+	}
+
+	public getBufferSpaceAvailable(): number {
+		return this.MAX_BUFFER_SIZE - this.currentBufferSize;
+	}
+
+	public getBufferSpaceUsed(): number {
+		return this.currentBufferSize;
+	}
+
+	public getTotalBufferSpace(): number {
+		return this.MAX_BUFFER_SIZE;
+	}
+
 	/**
 	 * Used for version negotiation packet received
 	 */
@@ -114,5 +150,10 @@ export abstract class FlowControlledObject extends EventEmitter {
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
 	}
+}
 
+
+export enum FlowControlledObjectEvents {
+	INCREMENT_BUFFER_DATA_USED = "fco-increment-used",
+	DECREMENT_BUFFER_DATA_USED = "fco_decrement-used"
 }

@@ -328,17 +328,15 @@ export class FlowControl {
         }
         var frames = new Array<BaseFrame>();
         if (this.connection.isLocalLimitAlmostExceeded() || this.connection.getIsRemoteBlocked()) {
-            var newMaxData = this.connection.getLocalMaxData().multiply(2);
+            var newMaxData = this.connection.updateLocalMaxDataSpace();
             frames.push(FrameFactory.createMaxDataFrame(newMaxData));
-            this.connection.setLocalMaxData(newMaxData);
             this.connection.setIsRemoteBlocked(false);
         }
 
         this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             if (!stream.getStreamID().equals(0) && stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
-                var newMaxStreamData = stream.getLocalMaxData().multiply(2);
+                var newMaxStreamData = stream.updateLocalMaxDataSpace();
                 frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));
-                stream.setLocalMaxData(newMaxStreamData);
                 stream.setIsRemoteBlocked(false);
             }
         });
@@ -350,8 +348,6 @@ export class FlowControl {
 
     private checkLocalStreamId(): BaseFrame[] {
         var frames = new Array<BaseFrame>();
-        var uniAdded = false;
-        var bidiAdded = false;
         this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             var streamId = stream.getStreamID();
             if (stream.getStreamID().equals(0) || this.isRemoteStreamId(streamId)) {
@@ -398,12 +394,10 @@ export class FlowControl {
     }
 
     private addRemoteStreamIdBlocked(stream: Stream): BaseFrame {
-        var frames = new Array<BaseFrame>();
         var streamId = stream.getStreamID();
-        var newStreamId = undefined;
         if (Stream.isUniStreamId(streamId)) {
             return FrameFactory.createStreamIdBlockedFrame(this.connection.getRemoteMaxStreamUni());
-        } else {
+        } else { 
             return FrameFactory.createStreamIdBlockedFrame(this.connection.getRemoteMaxStreamBidi());
         }
     }

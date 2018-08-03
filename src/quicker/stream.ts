@@ -5,6 +5,7 @@ import { TransportParameterType } from '../crypto/transport.parameters';
 import { FlowControlledObject } from '../flow-control/flow.controlled';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
+import { Constants } from '../utilities/constants';
 
 interface BufferedData {
 	data: Buffer,
@@ -20,11 +21,11 @@ export class Stream extends FlowControlledObject {
 	private localFinalOffset!: Bignum;
 	private remoteFinalOffset!: Bignum;
 	private data: Buffer;
-    private bufferedData: { [key: string]: BufferedData };
+	private bufferedData: { [key: string]: BufferedData };
 
 	
-    public constructor(endpointType: EndpointType, streamID: Bignum) {
-		super();
+    public constructor(endpointType: EndpointType, streamID: Bignum, bufferSize: number = Constants.DEFAULT_MAX_STREAM_DATA) {
+		super(bufferSize);
 		this.endpointType = endpointType;
 		this.streamID = streamID;
 		this.streamState = StreamState.Open;
@@ -131,8 +132,10 @@ export class Stream extends FlowControlledObject {
 			this.checkBufferedData();
 		} else if (offset.greaterThan(this.getLocalOffset())) {
 			this.addBufferedData(data, offset, isFin);
+		} else {
+			// Offset is smaller than local offset
+			// --> data is already received by the application, thus ignore data.
 		}
-		// TODO: missing else? 
 	}
 
 	private _receiveData(data: Buffer, isFin: boolean): void {
@@ -151,18 +154,19 @@ export class Stream extends FlowControlledObject {
 
 
 	private checkBufferedData(): void {
-		var data = this.getBufferedData(this.getLocalOffset());
+		var data = this.popBufferedData(this.getLocalOffset());
 		while (data !== undefined) {
 			this._receiveData(data.data, data.isFin)
-			data = this.getBufferedData(this.getLocalOffset());
+			data = this.popBufferedData(this.getLocalOffset());
 		}
 	}
 
-    private getBufferedData(localOffset: Bignum): BufferedData | undefined {
+    private popBufferedData(localOffset: Bignum): BufferedData | undefined {
 		var offsetString: string = localOffset.toDecimalString();
         if (this.bufferedData[offsetString] !== undefined) {
 			var bufferedData = this.bufferedData[offsetString];
 			delete this.bufferedData[offsetString];
+			this.decrementBufferSizeUsed(bufferedData.data.byteLength);
             return bufferedData;
         }
         return undefined;
@@ -175,10 +179,9 @@ export class Stream extends FlowControlledObject {
 				data: data,
 				isFin: isFin
 			};
+			this.incrementBufferSizeUsed(data.byteLength);
         }
 	}
-	
-
 
     public static isSendOnly(endpointType: EndpointType, streamID: Bignum): boolean {
         if (endpointType === EndpointType.Server) {
@@ -223,5 +226,5 @@ export enum StreamType {
 
 export enum StreamEvent {
 	DATA = "stream-data",
-	END = "stream-end"
+	END = "stream-end",
 }

@@ -13,7 +13,7 @@ import { BasePacket, PacketType } from '../packet/base.packet';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { AckHandler } from '../utilities/handlers/ack.handler';
 import { PacketLogging } from '../utilities/logging/packet.logging';
-import { FlowControlledObject } from '../flow-control/flow.controlled';
+import { FlowControlledObject, FlowControlledObjectEvents } from '../flow-control/flow.controlled';
 import { FlowControl } from '../flow-control/flow.control';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { PacketFactory } from '../utilities/factories/packet.factory';
@@ -80,8 +80,8 @@ export class Connection extends FlowControlledObject {
     private ackHandler!: AckHandler;
     private handshakeHandler!: HandshakeHandler;
 
-    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, options?: any) {
-        super();
+    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, options?: any, bufferSize: number = Constants.DEFAULT_MAX_DATA) {
+        super(bufferSize);
         this.remoteInfo = remoteInfo;
         this.socket = socket;
         this.endpointType = endpointType;
@@ -154,6 +154,12 @@ export class Connection extends FlowControlledObject {
             } else {
                 this.handshakeHandler.setHandshakeStream(stream);
             }
+            stream.on(FlowControlledObjectEvents.INCREMENT_BUFFER_DATA_USED, (dataLength: number) => {
+                this.incrementBufferSizeUsed(dataLength);
+            });
+            stream.on(FlowControlledObjectEvents.DECREMENT_BUFFER_DATA_USED, (dataLength: number) => {
+                this.decrementBufferSizeUsed(dataLength);
+            });
         });
     }
 
@@ -343,11 +349,6 @@ export class Connection extends FlowControlledObject {
         return this.localPacketNumber;
     }
 
-    // REFACTOR TODO: make this private? don't want people randomly setting packet number, now do we? 
-    public setLocalPacketNumber(packetNumber: PacketNumber) {
-        this.localPacketNumber = packetNumber;
-    }
-
     public getNextPacketNumber(): PacketNumber {
         if (this.localPacketNumber === undefined) {
             this.localPacketNumber = new PacketNumber(0);
@@ -528,14 +529,6 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm.reset();
         var packets: BasePacket[] = this.flowControl.getPackets();
         this.congestionControl.queuePackets(packets);
-    }
-
-    private addPossibleAckFrame(baseFrames: BaseFrame[]) {
-        var ackFrame = this.ackHandler.getAckFrame(this);
-        if (ackFrame !== undefined) {
-            baseFrames.push(ackFrame);
-        }
-        return baseFrames;
     }
 
     private startTransmissionAlarm(): void {
