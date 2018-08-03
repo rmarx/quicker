@@ -42,8 +42,13 @@ export abstract class FlowControlledObject extends EventEmitter {
 
     protected decrementBufferSizeUsed(dataLength: number): void {
 		this.currentBufferSize -= dataLength;
-		this.localOffset = this.localOffset.add(dataLength);
 		this.emit(FlowControlledObjectEvents.DECREMENT_BUFFER_DATA_USED, dataLength);
+	}
+
+	public addLocalOffset(offset: number): void;
+	public addLocalOffset(offset: Bignum): void;
+	public addLocalOffset(offset: any) {
+		this.localOffset = this.localOffset.add(offset);
 	}
 
 	public addRemoteOffset(offset: number): void;
