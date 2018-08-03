@@ -42,13 +42,8 @@ export abstract class FlowControlledObject extends EventEmitter {
 
     protected decrementBufferSizeUsed(dataLength: number): void {
 		this.currentBufferSize -= dataLength;
+		this.localOffset = this.localOffset.add(dataLength);
 		this.emit(FlowControlledObjectEvents.DECREMENT_BUFFER_DATA_USED, dataLength);
-	}
-
-	public addLocalOffset(offset: number): void;
-	public addLocalOffset(offset: Bignum): void;
-	public addLocalOffset(offset: any): void {
-		this.localOffset = this.localOffset.add(offset);
 	}
 
 	public addRemoteOffset(offset: number): void;
@@ -94,36 +89,18 @@ export abstract class FlowControlledObject extends EventEmitter {
 	}
 
     public isLocalLimitExceeded(added: any = new Bignum(0)): boolean {
-		var temp = this.localOffset.add(added);
-		return this.isLimitExeeded(this.localMaxData, temp);
+		return this.currentBufferSize > this.MAX_BUFFER_SIZE;
 	}
 
     public isRemoteLimitExceeded(added: any = new Bignum(0)): boolean {
 		var temp = this.remoteOffset.add(added);
-		return this.isLimitExeeded(this.remoteMaxData, temp);
-	}
-
-	private isLimitExeeded(maxData: Bignum, offset: Bignum): boolean {
-		return offset.greaterThanOrEqual(maxData);
+		return this.remoteMaxData.greaterThanOrEqual(temp);
 	}
 
     public isLocalLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
-		var temp = this.localOffset.add(added);
-		return this.isLimitAlmostExceeded(this.localMaxData, temp);
+		var perc = this.MAX_BUFFER_SIZE / 10.0;
+		return ( this.currentBufferSize + perc) > this.MAX_BUFFER_SIZE;
 	}
-
-    public isRemoteLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
-		var temp = this.remoteOffset.add(added);
-		return this.isLimitAlmostExceeded(this.remoteMaxData, temp);
-	}
-
-	private isLimitAlmostExceeded(maxData: Bignum, offset: Bignum): boolean {
-		var perc = maxData.divide(5);
-		var temp = offset.add(perc);
-		return temp.greaterThanOrEqual(maxData);
-	}
-
-
 
 	public updateLocalMaxDataSpace(): Bignum {
 		var updatedLocalMaxData = this.getLocalMaxData().add(this.getBufferSpaceAvailable());
