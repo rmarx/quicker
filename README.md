@@ -31,4 +31,6 @@ tsc -p ./
 ./../node/out/Release/node ./out/main.js 127.0.0.1 4433 ./keys/selfsigned_default.key ./keys/selfsigned_default.crt
 # Run Client
 ./../node/out/Release/node ./out/mainclient.js 127.0.0.1 4433
+# Alternatively: Run Client with version negotation
+./../node/out/Release/node ./out/mainclient.js 127.0.0.1 4433 deadbeef
 ```

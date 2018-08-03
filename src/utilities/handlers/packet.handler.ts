@@ -93,22 +93,25 @@ export class PacketHandler {
             return;
         }
 
-        // make sure we select the highest possible version? versions in negpacket aren't necessarily ordered? 
-        var negotiatedVersion: Version | undefined = undefined;
-        versionNegotiationPacket.getVersions().forEach((version: Version) => {
-            var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
-            if (index > -1) {
-                if (negotiatedVersion === undefined) {
-                    negotiatedVersion = version;
-                } else {
-                    negotiatedVersion = version.toString() > negotiatedVersion.toString() ? version : negotiatedVersion;
-                }
-            }
-        });
+        // This will try to always select the ActiveVersion by going through all server-supported versions until it finds it
+		// if it doesn't find it, the chosen version will be the last in the list // TODO: maybe make sure not the last but "most recent" version is chosen?
+		for( let version of versionNegotiationPacket.getVersions() ){ 
+			if( version.toString() == Constants.getActiveVersion() ){
+				negotiatedVersion = version;
+				break;
+			}
+			else{
+		        var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
+		        if (index > -1) {
+		            negotiatedVersion = version;
+		        }
+			}
+        };
         if (negotiatedVersion === undefined) {
             // REFACTOR TODO: this isn't caught anywhere at client side yet (only on server)... needs to be caught and propagated to library user! 
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, "No supported version overlap found between Client and Server");
         }
+ 
         connection.resetConnection(negotiatedVersion);
     }
 

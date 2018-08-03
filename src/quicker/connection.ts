@@ -93,6 +93,12 @@ export class Connection extends FlowControlledObject {
         this.closeSentCount = 0;
         this.spinBit = false;
         this.retrySent = false;
+        if (this.endpointType === EndpointType.Client) {
+			if( options.version )
+				this.version = new Version(Buffer.from(options.version, "hex"));
+			else
+            	this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+        }
         this.localPacketNumber = new PacketNumber(0);
 
         // Create QuicTLS Object
