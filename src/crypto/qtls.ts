@@ -21,6 +21,40 @@ enum NodeQTLSEvent {
 	NEW_TLS_MESSAGE = "onnewtlsmessage"
 }
 
+export enum TLSMessageType {
+    // see openssl/include/openssl/ssl3.h
+    SSL3_MT_HELLO_REQUEST = 0,
+    SSL3_MT_CLIENT_HELLO = 1,
+    SSL3_MT_SERVER_HELLO = 2,
+    SSL3_MT_NEWSESSION_TICKET = 4,
+    SSL3_MT_END_OF_EARLY_DATA = 5,
+    SSL3_MT_ENCRYPTED_EXTENSIONS = 8,
+    SSL3_MT_CERTIFICATE = 11,
+    SSL3_MT_SERVER_KEY_EXCHANGE = 12,
+    SSL3_MT_CERTIFICATE_REQUEST = 13,
+    SSL3_MT_SERVER_DONE = 14,
+    SSL3_MT_CERTIFICATE_VERIFY = 15,
+    SSL3_MT_CLIENT_KEY_EXCHANGE = 16,
+    SSL3_MT_FINISHED = 20,
+    SSL3_MT_CERTIFICATE_URL = 21,
+    SSL3_MT_CERTIFICATE_STATUS = 22,
+    SSL3_MT_SUPPLEMENTAL_DATA = 23,
+    SSL3_MT_KEY_UPDATE = 24,
+    SSL3_MT_NEXT_PROTO = 67,
+    SSL3_MT_MESSAGE_HASH = 254 
+}
+
+export enum TLSKeyType{
+    // see openssl/include/openssl/ssl.h (draft-13 version by Tatsuhiro)
+    SSL_KEY_CLIENT_EARLY_TRAFFIC = 0,
+    SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC = 1,
+    SSL_KEY_CLIENT_APPLICATION_TRAFFIC = 2,
+    SSL_KEY_SERVER_HANDSHAKE_TRAFFIC = 3,
+    SSL_KEY_SERVER_APPLICATION_TRAFFIC = 4,
+    
+    NONE = 666
+}
+
 /**
  * QuicTLS Wrapper
  */
@@ -34,7 +68,8 @@ export class QTLS extends EventEmitter{
     private cipher!: Cipher;
     private connection: Connection;
 
-    private TLSMessageCallback!:any;
+    private TLSMessageCallback?:(type: TLSMessageType, message: Buffer) => void;
+    private TLSKeyCallback?:(keytype: TLSKeyType, secret: Buffer, key: Buffer, iv: Buffer) => void;
 
     public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         super();
@@ -201,51 +236,27 @@ export class QTLS extends EventEmitter{
     }
 
     private handleNewKey(keytype: number, secret: Buffer, secretLength: number, key: Buffer, keyLength: number, iv: Buffer, ivLength: number, arg: number):void {
-		let keyNames = [
-			"SSL_KEY_CLIENT_EARLY_TRAFFIC",
-			"SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC",
-			"SSL_KEY_CLIENT_APPLICATION_TRAFFIC",
-			"SSL_KEY_SERVER_HANDSHAKE_TRAFFIC",
-			"SSL_KEY_SERVER_APPLICATION_TRAFFIC" 
-		];
 
-		console.log("QTLS: TODO : implement handleNewKey:", keyNames[keytype], secret, secretLength, key, keyLength, iv, ivLength, arg )
+        //console.log( secret.length + " == " + secretLength + " // " + key.length + " == " + keyLength + " // " + iv.length + " == " + ivLength );
+        //console.log("QTLS: handleNewKey:", TLSMessageType[keytype], secret, secretLength, key, keyLength, iv, ivLength, arg );
+        if( this.TLSKeyCallback )
+            this.TLSKeyCallback( keytype, secret, key, iv);
+    }
+
+    public setTLSKeyCallback(cb:(keytype: TLSKeyType, secret: Buffer, key: Buffer, iv: Buffer) => void){
+		this.TLSKeyCallback = cb;
     }
 
     private handleNewTLSMessage(message: Buffer, length: number){
 
-		// see openssl/include/openssl/ssl3.h
-		enum MessageType {
-			SSL3_MT_HELLO_REQUEST = 0,
-			SSL3_MT_CLIENT_HELLO = 1,
-			SSL3_MT_SERVER_HELLO = 2,
-			SSL3_MT_NEWSESSION_TICKET = 4,
-			SSL3_MT_END_OF_EARLY_DATA = 5,
-			SSL3_MT_ENCRYPTED_EXTENSIONS = 8,
-			SSL3_MT_CERTIFICATE = 11,
-			SSL3_MT_SERVER_KEY_EXCHANGE = 12,
-			SSL3_MT_CERTIFICATE_REQUEST = 13,
-			SSL3_MT_SERVER_DONE = 14,
-			SSL3_MT_CERTIFICATE_VERIFY = 15,
-			SSL3_MT_CLIENT_KEY_EXCHANGE = 16,
-			SSL3_MT_FINISHED = 20,
-			SSL3_MT_CERTIFICATE_URL = 21,
-			SSL3_MT_CERTIFICATE_STATUS = 22,
-			SSL3_MT_SUPPLEMENTAL_DATA = 23,
-			SSL3_MT_KEY_UPDATE = 24,
-			SSL3_MT_NEXT_PROTO = 67,
-			SSL3_MT_MESSAGE_HASH = 254 
-		};
-
-		//let type:MessageType = (MessageType) message[0];
-
-		console.log("QTLS: TODO: implement handleNewTLSMessage:", length, message[0], MessageType[message[0]], message);
-
+        //console.log("QTLS: handleNewTLSMessage:", length, message[0], TLSMessageType[message[0]], message);
+        
+        // first byte of the TLS message indicates its type
         if( this.TLSMessageCallback )
-			this.TLSMessageCallback(message);
+			this.TLSMessageCallback(message[0], message);
 	}
 
-    public setTLSMessageCallback(cb:any){
+    public setTLSMessageCallback(cb:(type: TLSMessageType, message: Buffer) => void){
 		this.TLSMessageCallback = cb;
     }
 
