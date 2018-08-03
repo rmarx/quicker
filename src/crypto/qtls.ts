@@ -163,7 +163,7 @@ export class QTLS extends EventEmitter{
         return this.qtlsHelper.readEarlyData();
     }
 
-    public writeHandshake(buffer: Buffer): void {
+    public processReceivedCryptoData(receivedData: Buffer): void {
         if (this.handshakeState !== HandshakeState.COMPLETED) {
             if(this.handshakeState !== HandshakeState.CLIENT_COMPLETED){
                 this.handshakeState = HandshakeState.HANDSHAKE;
@@ -172,7 +172,20 @@ export class QTLS extends EventEmitter{
                 }
             }
         }
-        this.qtlsHelper.writeHandshakeData(buffer);
+        
+        // this writes and processes the data, leading to TLSMessageCallback and TLSKeyCallback to be called
+        this.qtlsHelper.writeHandshakeData(receivedData); 
+
+
+        if (this.isEarlyDataAllowed() && this.isSessionReused()) {
+            this.emit(QuicTLSEvents.EARLY_DATA_ALLOWED);
+        }
+
+        var extensionData = this.getExtensionData();
+        if (extensionData.byteLength > 0) {
+            var transportParameters: TransportParameters = HandshakeValidation.validateExtensionData(this.isServer, extensionData);
+            this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, transportParameters);
+        }
     }
 
     public getHandshakeState(): HandshakeState {

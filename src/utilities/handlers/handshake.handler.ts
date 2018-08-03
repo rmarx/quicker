@@ -64,25 +64,25 @@ export class HandshakeHandler extends EventEmitter{
 
         if( this.connection.getEndpointType() == EndpointType.Client ){
             if( this.currentClientKeyLevel == TLSKeyType.NONE )
-                console.log("Message would be in INITIAL packet (ClientHello)");
+                console.log("\tMessage would be in INITIAL packet (ClientHello)");
             else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC )
-                console.log("Message would be in Protected0RTT packet (early data)");
+                console.log("\tMessage would be in Protected0RTT packet (early data)");
             else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC )
-                console.log("Message would be in HANDSHAKE packet (Finished)");
+                console.log("\tMessage would be in HANDSHAKE packet (Finished)");
             else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC )
-                console.log("Message would be in Protected1RTT packet (normal data)");
+                console.log("\tMessage would be in Protected1RTT packet (normal data)");
             else
-                console.log("ERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
+                console.log("\tERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
         }
         else{
             if( this.currentServerKeyLevel == TLSKeyType.NONE )
-                console.log("Message would be in INITIAL packet (ServerHello)");
+                console.log("\tMessage would be in INITIAL packet (ServerHello)");
             else if( this.currentServerKeyLevel == TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC)
-                console.log("Message would be in HANDSHAKE packet (EE, CERT, CERTVER, Finished)");
+                console.log("\tMessage would be in HANDSHAKE packet (EE, CERT, CERTVER, Finished)");
             else if( this.currentServerKeyLevel == TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC)
-                console.log("Message would be in Protected1RTT packet (NewSessionTicket, normal data)");
+                console.log("\tMessage would be in Protected1RTT packet (NewSessionTicket, normal data)");
             else
-                console.log("ERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
+                console.log("\tERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
         }
     }
 
@@ -99,10 +99,8 @@ export class HandshakeHandler extends EventEmitter{
         // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
 
-        // VERIFY TODO: called first at the server (in response to the client's ClientInitial packet), then on the client (in response to the server's Handshake packet)
-        this.connection.getQuicTLS().writeHandshake(data); // puts data in the OpenSSL buffer
-        this.connection.getQuicTLS().readHandshake(); // processes OpenSSL buffer and executes TLS logic, will trigger calls to OnNewTLSMessage
-
+        this.connection.getQuicTLS().processReceivedCryptoData(data); 
+         
         if (    !this.handshakeEmitted &&
                 this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && 
                 this.connection.getEndpointType() === EndpointType.Client ) {
