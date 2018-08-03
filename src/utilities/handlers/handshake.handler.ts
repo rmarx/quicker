@@ -2,7 +2,7 @@ import { Connection, ConnectionEvent } from "../../quicker/connection";
 import { StreamEvent, Stream } from "../../quicker/stream";
 import { Bignum } from "../../types/bignum";
 import { EndpointType } from "../../types/endpoint.type";
-import { HandshakeState } from "../../crypto/qtls";
+import { HandshakeState, TLSMessageType, TLSKeyType } from "../../crypto/qtls";
 import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
 
@@ -16,9 +16,17 @@ export class HandshakeHandler {
     private stream!: Stream;
     private handshakeEmitted: boolean;
 
+    private currentClientKeyLevel: TLSKeyType;
+    private currentServerKeyLevel: TLSKeyType;
+
     public constructor(connection: Connection) {
         this.connection = connection;
         this.handshakeEmitted = false;
+        this.currentClientKeyLevel = TLSKeyType.NONE;
+        this.currentServerKeyLevel = TLSKeyType.NONE;
+
+        this.connection.getQuicTLS().setTLSMessageCallback( (messagetype:TLSMessageType, message:Buffer) => { this.OnNewTLSMessage(messagetype, message); } );
+        this.connection.getQuicTLS().setTLSKeyCallback( (keytype, secret, key, iv) => {this.OnNewTLSKey(keytype, secret, key, iv); } )
     }
 
     // this should be called first before startHandshake 
@@ -29,7 +37,7 @@ export class HandshakeHandler {
         // all other streams are handled through QuicStream
         // this is stream 0 though, only in use for these exact messages, and so we can intercept these directly and handle them ourselves
         this.stream.on(StreamEvent.DATA, (data: Buffer) => {
-            this.handle(data);
+            this.handle(data); 
         });
     }
 
@@ -40,44 +48,63 @@ export class HandshakeHandler {
         if ( !this.stream ) {
             throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: Handshake stream not set, has to be done externally!");
         }
-        // TEST TODO: what if handshakeEmitted is true here? 
+ 
         this.handshakeEmitted = false;
 
-        this.connection.getQuicTLS().setTLSMessageCallback( (message:Buffer) => { this.OnNewTLSMessage(message); } );
-
-        var clientInitial = this.connection.getQuicTLS().getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
-        //this.stream.addData(clientInitial);
+        this.connection.getQuicTLS().getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
     }
 
-    private OnNewTLSMessage(message: Buffer){
-		console.log("HandshakeHandler: OnNewTLSMessage");
+    private OnNewTLSMessage(type:TLSMessageType, message: Buffer){
+		console.log("HandshakeHandler: OnNewTLSMessage", TLSMessageType[type]);
         this.stream.addData(message);
+
+        if( this.connection.getEndpointType() == EndpointType.Client ){
+            if( this.currentClientKeyLevel == TLSKeyType.NONE )
+                console.log("Message would be in INITIAL packet (ClientHello)");
+            else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC )
+                console.log("Message would be in Protected0RTT packet (early data)");
+            else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC )
+                console.log("Message would be in HANDSHAKE packet (Finished)");
+            else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC )
+                console.log("Message would be in Protected1RTT packet (normal data)");
+            else
+                console.log("ERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
+        }
+        else{
+            if( this.currentServerKeyLevel == TLSKeyType.NONE )
+                console.log("Message would be in INITIAL packet (ServerHello)");
+            else if( this.currentServerKeyLevel == TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC)
+                console.log("Message would be in HANDSHAKE packet (EE, CERT, CERTVER, Finished)");
+            else if( this.currentServerKeyLevel == TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC)
+                console.log("Message would be in Protected1RTT packet (NewSessionTicket, normal data)");
+            else
+                console.log("ERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
+        }
+    }
+
+    private OnNewTLSKey(type:TLSKeyType, key:Buffer, secret:Buffer, iv:Buffer ){
+        console.log("HandshakeHandler: OnNewTLSKey", TLSKeyType[type]);
+        if( TLSKeyType[type].indexOf("CLIENT") >= 0 )
+            this.currentClientKeyLevel = type;
+        else
+            this.currentServerKeyLevel = type;
     }
 
     public handle(data: Buffer) {
-        
-        this.connection.getQuicTLS().setTLSMessageCallback( (message:Buffer) => { this.OnNewTLSMessage(message); } );
+
+        // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
 
         // VERIFY TODO: called first at the server (in response to the client's ClientInitial packet), then on the client (in response to the server's Handshake packet)
-        this.connection.getQuicTLS().writeHandshake(data); // VERIFY TODO: put handshake data in a buffer for decoding by TLS?
-        if (this.connection.getEndpointType() === EndpointType.Server) {
-            this.connection.getQuicTLS().readEarlyData();
-            
-            // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
-            // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
-        }
-        var readData = this.connection.getQuicTLS().readHandshake(); // VERIFY TODO: read the decoded handshake data from TLS 
-        //if (readData !== undefined && readData.byteLength > 0) {
-        //    this.stream.addData(readData); // put it on the stream for further processing
-        //}
+        this.connection.getQuicTLS().writeHandshake(data); // puts data in the OpenSSL buffer
+        this.connection.getQuicTLS().readHandshake(); // processes OpenSSL buffer and executes TLS logic, will trigger calls to OnNewTLSMessage
 
-        if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client && !this.handshakeEmitted) {
+        if (    !this.handshakeEmitted &&
+                this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && 
+                this.connection.getEndpointType() === EndpointType.Client ) {
+
             this.handshakeEmitted = true;
             this.connection.emit(ConnectionEvent.HANDSHAKE_DONE);
         }
-        //this.connection.sendPackets();
-        // To process NewSessionTicket
-        // VERIFY TODO: why is this needed? clear some leftover buffers? 
-        this.connection.getQuicTLS().readSSL();
     }
 }

@@ -109,11 +109,11 @@ export class Connection extends FlowControlledObject {
         // Initialize QuicTLS Object
         this.qtls.init();
         this.aead = new AEAD(this.qtls);
+        this.handshakeHandler = new HandshakeHandler(this); // important that this is created after QTLS
     }
 
     private initializeHandlers(socket: Socket) {
         this.ackHandler = new AckHandler(this);
-        this.handshakeHandler = new HandshakeHandler(this);
         this.streamManager = new StreamManager(this.endpointType);
         this.lossDetection = new LossDetection(this);
         this.flowControl = new FlowControl(this, this.ackHandler);
