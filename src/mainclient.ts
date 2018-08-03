@@ -4,14 +4,16 @@ import { QuicStream } from "./quicker/quic.stream";
 import { QuickerEvent } from "./quicker/quicker.event";
 import { PacketLogging } from "./utilities/logging/packet.logging";
 import { HandshakeState } from "./crypto/qtls";
+import { Constants } from "./utilities/constants";
 
 
 
 let host = process.argv[2] || "127.0.0.1";
 let port = process.argv[3] || 4433;
+let version = process.argv[4] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
 
 if (isNaN(Number(port))) {
-    console.log("port must be a number: node ./mainclient.js 127.0.0.1 4433");
+    console.log("port must be a number: node ./mainclient.js 127.0.0.1 4433 deadbeef");
     process.exit(-1);
 }
 
@@ -19,7 +21,7 @@ console.log("QUICker client connecting to " + host + ":" + port);
 
 var httpHelper = new HttpHelper();
 for (var i = 0; i < 1; i++) {
-    var client = Client.connect(host, Number(port));
+    var client = Client.connect(host, Number(port), { version: version });
     client.on(QuickerEvent.CLIENT_CONNECTED, () => {
 
         var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
@@ -40,6 +42,7 @@ for (var i = 0; i < 1; i++) {
             for( let i = 0; i < 10; ++i)
             	console.log("///////////////////////////////////////////////////////////////////////////////");
             var client2 = Client.connect(host, Number(port), {
+				version: version, // TODO: this shouldn't be necessary... can't/shouldn't we get this from the transport params?
                 session: client.getSession(),
                 transportparameters: client.getTransportParameters()
             }, httpHelper.createRequest("index.html"));

@@ -86,7 +86,12 @@ export class Constants {
     }
 
     public static getVersionSalt(version: string): string {
-        return Constants.VERSION_SALTS[version];
+        let salt = Constants.VERSION_SALTS[version];
+		if( !salt ){
+			console.log("Constants::getVersionSalt : ERROR: salt not found for this version. Should only happen if we're explicitly testing version negotation at the client!!!");
+			salt = "6666666666666666666666666666666666666666";     
+		}
+        return salt;
     }
 
 }

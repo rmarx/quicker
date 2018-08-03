@@ -84,24 +84,26 @@ export class PacketHandler {
 
         // REFACTOR TODO: we MUST ignore this packet if it contains our chosen version, see https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-6.2.2
 
-        // REFACTOR TODO: make sure we select the highest possible version? versions in negpacket aren't necessarily ordered? 
-        versionNegotiationPacket.getVersions().forEach((version: Version) => {
-            var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
-            if (index > -1) {
-                negotiatedVersion = version;
-                return;
-            }
-        });
+        // This will try to always select the ActiveVersion by going through all server-supported versions until it finds it
+		// if it doesn't find it, the chosen version will be the last in the list // TODO: maybe make sure not the last but "most recent" version is chosen?
+		for( let version of versionNegotiationPacket.getVersions() ){ 
+			if( version.toString() == Constants.getActiveVersion() ){
+				negotiatedVersion = version;
+				break;
+			}
+			else{
+		        var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
+		        if (index > -1) {
+		            negotiatedVersion = version;
+		        }
+			}
+        };
         if (negotiatedVersion === undefined) {
             // REFACTOR TODO: this isn't caught anywhere at client side yet (only on server)... needs to be caught and propagated to library user! 
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, "No supported version overlap found between Client and Server");
         }
-        // REFACTOR TODO: why does this work? shouldn't we set the version before resetting the connection OR calling startConnection() ourselves instead of in resetConnection?
-        // how does this even work? resetConnection() re-inits the handshake, so new version shouldn't be selected?
-        // unless, of course, this is because we call into C++/work with a callback, in which case this is still dirty
-        // REFACTOR TODO: pass new version into the resetConnection() method directly? 
-        connection.resetConnection();
-        connection.setVersion(negotiatedVersion);
+ 
+        connection.resetConnection(negotiatedVersion);
     }
 
     // only on SERVER (client sends ClientInitial packet)

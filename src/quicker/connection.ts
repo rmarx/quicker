@@ -93,11 +93,14 @@ export class Connection extends FlowControlledObject {
         this.spinBit = false;
         this.retrySent = false;
         if (this.endpointType === EndpointType.Client) {
-            this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+			if( options.version )
+				this.version = new Version(Buffer.from(options.version, "hex"));
+			else
+            	this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
         this.localPacketNumber = new PacketNumber(0);
 
-        this.initializeHandlers(socket);
+        this.initializeHandlers(socket); 
         
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
@@ -392,11 +395,14 @@ export class Connection extends FlowControlledObject {
         this.spinBit = spinbit;
     }
 
-    public resetConnection() {
+    public resetConnection(newVersion?:Version) {
         this.resetConnectionState();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.reset();
         });
+
+		if( newVersion !== undefined )
+			this.setVersion(newVersion);
         this.startConnection();
     }
 
