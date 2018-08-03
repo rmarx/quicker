@@ -143,11 +143,14 @@ export class FlowControl {
         var handshakeState = this.connection.getQuicTLS().getHandshakeState();
         var isServer = this.connection.getEndpointType() !== EndpointType.Client;
         var isHandshake = false;
+        var streamData = false;
         frames.forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM) {
                 var streamFrame = <StreamFrame> frame;
                 if (streamFrame.getStreamID().equals(0)) {
                     isHandshake = true;
+                } else {
+                    streamData = true;
                 }
             }
         });
@@ -160,7 +163,7 @@ export class FlowControl {
                 // 3.1 IF session is being reused : same as 1.
                 // 3.2 step "3" in the handshake process: client is fully setup but haven't heard final from server yet : normal data from client -> server
             // 4. server -> client: handhsake packet in response to clientInitial 
-            if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer) {
+            if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer && streamData) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);
             } else if (this.connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createClientInitialPacket(this.connection, frames);
