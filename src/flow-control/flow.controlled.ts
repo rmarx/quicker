@@ -103,8 +103,8 @@ export abstract class FlowControlledObject extends EventEmitter {
 	}
 
     public isLocalLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
-		var perc = this.MAX_BUFFER_SIZE / 10.0;
-		return ( this.currentBufferSize + perc) > this.MAX_BUFFER_SIZE;
+		var temp = this.localOffset.add(added).add(this.MAX_BUFFER_SIZE / 10);
+		return this.localMaxData.lessThan(temp);
 	}
 
 	public updateLocalMaxDataSpace(): Bignum {
