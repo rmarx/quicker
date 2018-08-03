@@ -53,6 +53,7 @@ export class Connection extends FlowControlledObject {
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
     private version!: Version;
+    private initialVersion!: Version;
     private state!: ConnectionState;
     private earlyData?: Buffer;
     private spinBit: boolean;
@@ -92,20 +93,29 @@ export class Connection extends FlowControlledObject {
         this.closeSentCount = 0;
         this.spinBit = false;
         this.retrySent = false;
-        if (this.endpointType === EndpointType.Client) {
-            this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
-        }
         this.localPacketNumber = new PacketNumber(0);
+
+        // Create QuicTLS Object
+        this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
 
         this.initializeHandlers(socket);
         
-        // Create QuicTLS Object
-        this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
         // Hook QuicTLS Events
         this.hookQuicTLSEvents();
         // Initialize QuicTLS Object
         this.qtls.init();
         this.aead = new AEAD(this.qtls);
+
+        if (this.endpointType === EndpointType.Client) {
+            // Check if remote transport parameters exists (only happens when session resumption is used) and contains a version which is still supported by the client
+            //   Else just take the default version supported by the client
+            if (this.remoteTransportParameters === undefined || (Constants.SUPPORTED_VERSIONS.indexOf(this.remoteTransportParameters.getVersion().toString()) === -1)) {
+                this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+            } else {
+                this.version = this.remoteTransportParameters.getVersion();
+            }
+            this.initialVersion = this.version;
+        }
     }
 
     private initializeHandlers(socket: Socket) {
@@ -379,8 +389,23 @@ export class Connection extends FlowControlledObject {
         return this.version;
     }
 
+    public getInitialVersion(): Version {
+        return this.initialVersion;
+    }
+
     public setVersion(version: Version): void {
         this.version = version;
+    }
+
+    public setInitialVersion(initialVersion: Version): void {
+        // Initial version for the client is already set in the constructor
+        //  thus it cannot be changed anymore by the client
+        // If the server changes the initial version, it can only be done ones
+        //  initial version can be used to test if VN was already sent to the client
+        if (this.initialVersion !== undefined) {
+            return;
+        }
+        this.initialVersion = initialVersion;
     }
 
     public getSocket(): Socket {

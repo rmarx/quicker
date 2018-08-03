@@ -2,6 +2,7 @@ import { Connection } from '../../quicker/connection';
 import { EndpointType } from '../../types/endpoint.type';
 import { HandshakeState } from '../../crypto/qtls';
 import { TransportParameters } from '../../crypto/transport.parameters';
+import { Version } from '../../packet/header/header.properties';
 
 export class HandshakeValidation {
 
@@ -28,7 +29,7 @@ export class HandshakeValidation {
         offset += 2;
         var transportParamBuffer = Buffer.alloc(length);
         extensionData.copy(transportParamBuffer, 0, offset);
-        var transportParameters: TransportParameters = TransportParameters.fromBuffer(isServer, transportParamBuffer);
+        var transportParameters: TransportParameters = TransportParameters.fromExtensionBuffer(isServer, transportParamBuffer, new Version(Buffer.from(version.toString(16), 'hex')));
         
         return transportParameters;
     }

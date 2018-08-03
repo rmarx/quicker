@@ -10,6 +10,7 @@ import { Cipher } from './cipher';
 import { EventEmitter } from 'events';
 import { QuicError } from '../utilities/errors/connection.error';
 import { TlsErrorCodes } from '../utilities/errors/quic.codes';
+import { EndpointType } from '../types/endpoint.type';
 
 enum NodeQTLSEvent {
     HANDSHAKE_DONE = "handshakedone",
@@ -48,7 +49,7 @@ export class QTLS extends EventEmitter{
         }
         if (this.options.transportparameters !== undefined) {
             this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, this.options.transportparameters));
-            this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
+            this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, TransportParameters.getDefaultTransportParameters(this.isServer, this.connection.getVersion()));
         }
         if (this.isServer) {
             this.qtlsHelper = this.createQtlsHelper();
@@ -162,59 +163,6 @@ export class QTLS extends EventEmitter{
         return this.qtlsHelper.isEarlyDataAllowed();
     }
 
-    private generateExtensionData(): Buffer {
-        var transportParamBuffer: Buffer = this.getTransportParameters().toBuffer();
-        // value of 6 is: 4 for version and 2 for length
-        var transportExt = Buffer.alloc(this.getExtensionDataSize(transportParamBuffer));
-        var offset = 0;
-        if (this.isServer) {
-            // version in the connection holds the negotiated version
-            transportExt.write(this.connection.getVersion().toString(), offset, 4, 'hex');
-            offset += 4;
-            transportExt.writeUInt8(Constants.SUPPORTED_VERSIONS.length * 4, offset++);
-            Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-                transportExt.write(version, offset, 4, 'hex');
-                offset += 4;
-            });
-        } else {
-            // Active version holds the first version that was 'tried' to negotiate
-            // so this is always the initial version
-            transportExt.write(Constants.getActiveVersion(), offset, 4, 'hex');
-            offset += 4;
-        }
-        transportExt.writeUInt16BE(transportParamBuffer.byteLength, offset);
-        offset += 2;
-        transportParamBuffer.copy(transportExt, offset);
-        return transportExt;
-    }
-
-    private getTransportParameters(): TransportParameters {
-        if (this.transportParameters === undefined) {
-            this.transportParameters = new TransportParameters(this.isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.DEFAULT_IDLE_TIMEOUT);
-            this.transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
-            if (this.isServer) {
-                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
-                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
-                // TODO: better to calculate this value
-                this.transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
-            } else {
-                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
-                this.transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
-            }
-        }
-        return this.transportParameters;
-    }
-
-    private getExtensionDataSize(transportParamBuffer: Buffer): number {
-        if (this.isServer) {
-            if (this.handshakeState === HandshakeState.HANDSHAKE) {
-                return transportParamBuffer.byteLength + 6 + Constants.SUPPORTED_VERSIONS.length * 4 + 1;
-            }
-            return transportParamBuffer.byteLength + 2;
-        }
-        return transportParamBuffer.byteLength + 6;
-    }
-
     private handleHandshakeDone(): void {
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
@@ -234,9 +182,14 @@ export class QTLS extends EventEmitter{
     }
 
     private setLocalTransportParameters() {
-        var transportParams = this.generateExtensionData();
+        this.transportParameters = TransportParameters.getDefaultTransportParameters(this.isServer,this.connection.getVersion());
+        var version = this.connection.getVersion();
+        if (this.connection.getEndpointType() === EndpointType.Client) {
+            version = this.connection.getInitialVersion();
+        }
+        var transportParams = this.transportParameters.toExtensionDataBuffer(this.handshakeState, version);
         this.qtlsHelper.setTransportParameters(transportParams);
-        this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.getTransportParameters());
+        this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.transportParameters);
     }
 }
 

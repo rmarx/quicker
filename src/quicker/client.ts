@@ -117,10 +117,6 @@ export class Client extends Endpoint {
         this.connection.getQuicTLS().setSession(buffer);
     }
 
-    public setTransportParameters(tp: Buffer): void {
-        return this.connection.setRemoteTransportParameters(TransportParameters.fromBuffer(false, tp));
-    }
-
     public isSessionReused(): boolean {
         return this.connection.getQuicTLS().isSessionReused();
     }
