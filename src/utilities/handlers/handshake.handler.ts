@@ -2,22 +2,28 @@ import { Connection, ConnectionEvent } from "../../quicker/connection";
 import { StreamEvent, Stream } from "../../quicker/stream";
 import { Bignum } from "../../types/bignum";
 import { EndpointType } from "../../types/endpoint.type";
-import { HandshakeState } from "../../crypto/qtls";
+import { HandshakeState, QTLS } from "../../crypto/qtls";
 import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
+import { EventEmitter } from "events";
 
 
-/**
- * TODO: deal better with handshake data in the correct packets
- */
-export class HandshakeHandler {
 
-    private connection: Connection;
+export enum HandshakeHandlerEvents {
+    ClientHandshakeDone = "client-handshake-done"
+}
+
+export class HandshakeHandler extends EventEmitter{
+
+    private qtls: QTLS;
+    private isServer: boolean
     private stream!: Stream;
     private handshakeEmitted: boolean;
 
-    public constructor(connection: Connection) {
-        this.connection = connection;
+    public constructor(qtls: QTLS, isServer: boolean) {
+        super();
+        this.qtls = qtls;
+        this.isServer = isServer;
         this.handshakeEmitted = false;
     }
 
@@ -34,7 +40,7 @@ export class HandshakeHandler {
     }
 
     public startHandshake(): void {
-        if (this.connection.getEndpointType() === EndpointType.Server) {
+        if (this.isServer) {
             throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: We are server, cannot start handshake");
         }
         if ( !this.stream ) {
@@ -43,31 +49,29 @@ export class HandshakeHandler {
         // TEST TODO: what if handshakeEmitted is true here? 
         this.handshakeEmitted = false;
 
-        var clientInitial = this.connection.getQuicTLS().getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
+        var clientInitial = this.qtls.getClientInitial(); 
         this.stream.addData(clientInitial);
     }
 
     public handle(data: Buffer) {
         // VERIFY TODO: called first at the server (in response to the client's ClientInitial packet), then on the client (in response to the server's Handshake packet)
-        this.connection.getQuicTLS().writeHandshake(data); // VERIFY TODO: put handshake data in a buffer for decoding by TLS?
-        if (this.connection.getEndpointType() === EndpointType.Server) {
-            this.connection.getQuicTLS().readEarlyData();
+        this.qtls.writeHandshake(data); // VERIFY TODO: put handshake data in a buffer for decoding by TLS?
+        if (this.isServer) {
+            this.qtls.readEarlyData();
             
             // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
             // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
         }
-        var readData = this.connection.getQuicTLS().readHandshake(); // VERIFY TODO: read the decoded handshake data from TLS 
+        var readData = this.qtls.readHandshake(); // VERIFY TODO: read the decoded handshake data from TLS 
         if (readData !== undefined && readData.byteLength > 0) {
             this.stream.addData(readData); // put it on the stream for further processing
         }
 
-        if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && this.connection.getEndpointType() === EndpointType.Client && !this.handshakeEmitted) {
+        if (this.qtls.getHandshakeState() === HandshakeState.CLIENT_COMPLETED && !this.isServer && !this.handshakeEmitted) {
             this.handshakeEmitted = true;
-            this.connection.emit(ConnectionEvent.HANDSHAKE_DONE);
+            this.emit(HandshakeHandlerEvents.ClientHandshakeDone);
         }
-        //this.connection.sendPackets();
         // To process NewSessionTicket
-        // VERIFY TODO: why is this needed? clear some leftover buffers? 
-        this.connection.getQuicTLS().readSSL();
+        this.qtls.readSSL();
     }
 }

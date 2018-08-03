@@ -19,7 +19,7 @@ import { BaseFrame, FrameType } from '../frame/base.frame';
 import { PacketFactory } from '../utilities/factories/packet.factory';
 import { QuicStream } from './quic.stream';
 import { FrameFactory } from '../utilities/factories/frame.factory';
-import { HandshakeHandler } from '../utilities/handlers/handshake.handler';
+import { HandshakeHandler, HandshakeHandlerEvents } from '../utilities/handlers/handshake.handler';
 import { LossDetection, LossDetectionEvents } from '../loss-detection/loss.detection';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
@@ -110,7 +110,7 @@ export class Connection extends FlowControlledObject {
 
     private initializeHandlers(socket: Socket) {
         this.ackHandler = new AckHandler(this);
-        this.handshakeHandler = new HandshakeHandler(this);
+        this.handshakeHandler = new HandshakeHandler(this.qtls, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
         this.lossDetection = new LossDetection(this);
         this.flowControl = new FlowControl(this, this.ackHandler);
@@ -119,6 +119,13 @@ export class Connection extends FlowControlledObject {
         this.hookStreamManagerEvents();
         this.hookLossDetectionEvents();
         this.hookCongestionControlEvents();
+        this.hookHandshakeHandlerEvents();
+    }
+
+    private hookHandshakeHandlerEvents() {
+        this.handshakeHandler.on(HandshakeHandlerEvents.ClientHandshakeDone, () => {
+            this.emit(ConnectionEvent.HANDSHAKE_DONE);
+        })
     }
 
     private hookCongestionControlEvents() {
