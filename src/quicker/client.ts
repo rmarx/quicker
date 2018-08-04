@@ -15,6 +15,8 @@ import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 import { isIPv6 } from 'net';
 import { Socket, createSocket, RemoteInfo } from 'dgram';
 import { Endpoint } from './endpoint';
+import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
+import { QuicError } from '../utilities/errors/connection.error';
 
 export class Client extends Endpoint {
 
@@ -144,6 +146,10 @@ export class Client extends Endpoint {
             this.connection.startIdleAlarm();
         } catch (err) {
             if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
+                return;
+            }
+            if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                this.emit(QuickerEvent.ERROR, err);
                 return;
             }
             this.handleError(this.connection, err);

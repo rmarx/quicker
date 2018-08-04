@@ -172,7 +172,6 @@ export class TransportParameters {
                 offset += 4;
             });
         } else {
-            console.log("version in the client initial: " + version.toString());
             transportExt.write(version.toString(), offset, 4, 'hex');
             offset += 4;
         }

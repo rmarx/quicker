@@ -424,11 +424,14 @@ export class Connection extends FlowControlledObject {
         this.spinBit = spinbit;
     }
 
-    public resetConnection() {
+    public resetConnection(negotiatedVersion?: Version) {
         this.resetConnectionState();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.reset();
         });
+        if (negotiatedVersion !== undefined) {
+            this.setVersion(negotiatedVersion);
+        }
         this.startConnection();
     }
 
