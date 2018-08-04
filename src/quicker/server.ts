@@ -82,12 +82,17 @@ export class Server extends Endpoint {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        
+        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE ////////////////////////////////");
         try {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
-        } catch (err) {
+        } catch(err) {
+            console.log("ERROR: server:onMessage : could not parse headers!", rinfo, msg);
+            // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
+        
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
             var connection: Connection | undefined = undefined;
             try {
@@ -102,6 +107,12 @@ export class Server extends Endpoint {
                 if (connection === undefined) {
                     // Ignore when connection is undefined
                     // Only possible when a non-initial packet was received with a connection ID that is unknown to quicker
+                if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                    VerboseLogging.info("server:onMessage : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
+                    connection.resetConnectionState();
+                    this.connectionManager.deleteConnection(connection);
+                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
+                    connection.sendPacket(versionNegotiationPacket);
                     return;
                 } else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                     return;

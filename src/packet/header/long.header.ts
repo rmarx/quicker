@@ -13,6 +13,10 @@ export class LongHeader extends BaseHeader {
     private payloadLength: Bignum;
     private payloadLengthBuffer: Buffer;
 
+    // the INITIAL packet can contain retry tokens from draft-13 onward
+    private initialTokenLength:Bignum;
+    private initialTokens?:Buffer;
+
     /**
      * 
      * @param type 
@@ -31,6 +35,9 @@ export class LongHeader extends BaseHeader {
         } else {
             this.payloadLengthBuffer = VLIE.encode(payloadLength);
         }
+
+        this.initialTokenLength = new Bignum(0);
+        this.initialTokens = undefined;
     }
 
     public getSrcConnectionID(): ConnectionID {
@@ -65,6 +72,23 @@ export class LongHeader extends BaseHeader {
         return this.payloadLengthBuffer;
     }
 
+    public hasInitialTokens():boolean{
+        return this.initialTokenLength.toNumber() > 0;
+    }
+
+    public getInitialTokenLength():Bignum{
+        return this.initialTokenLength;
+    }
+
+    public setInitialTokens(tokens: Buffer){
+        this.initialTokens = tokens;
+        this.initialTokenLength = new Bignum( tokens.byteLength );
+    }
+
+    public getInitialTokens():Buffer|undefined{
+        return this.initialTokens;
+    }
+
     public setPayloadLength(value: number): void;
     public setPayloadLength(value: Bignum): void;
     public setPayloadLength(value: any): void {
@@ -94,10 +118,25 @@ export class LongHeader extends BaseHeader {
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
+        // TODO: PROPERLY add tokens here (and in toPNEBuffer?)
+        if( this.getPacketType() == LongHeaderType.Initial ){
+            let tokenLengthBuffer = VLIE.encode(this.initialTokenLength);
+            offset += tokenLengthBuffer.copy(buf, offset);
+            console.log("LongHeader:toBuffer : added token length : ", tokenLengthBuffer);
+        }
+        /*
+        let tokenLengthBuffer = VLIE.encode(this.initialTokenLength || new Bignum(0));
+        offset += tokenLengthBuffer.copy(buf, offset);
+        offset += this.initialTokens.copy(buff, offset);
+        */
+
+
         var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
         offset += payloadLengthBuffer.copy(buf, offset);
+
         offset += this.getPacketNumber().getLeastSignificantBytes(1).copy(buf, offset);
-        return buf;
+
+        return buf; 
     }
 
     public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
@@ -115,6 +154,12 @@ export class LongHeader extends BaseHeader {
 
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
+
+        // TODO: PROPERLY add tokens here
+        if( this.getPacketType() == LongHeaderType.Initial ){
+            let tokenLengthBuffer = VLIE.encode(this.initialTokenLength);
+            offset += tokenLengthBuffer.copy(buf, offset);
+        }
 
 
         var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
@@ -143,9 +188,14 @@ export class LongHeader extends BaseHeader {
                 size += this.getPacketNumberSize();
             }
         }
+        // TODO: PROPERLY add tokens here
+        if( this.getPacketType() == LongHeaderType.Initial )
+            size += VLIE.encode(this.initialTokenLength).byteLength;
+
         if (this.payloadLength !== undefined) {
             size += VLIE.encode(this.payloadLength).byteLength;
         }
+        
         return size;
     }
 }

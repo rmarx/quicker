@@ -15,6 +15,7 @@ import {StreamIdBlockedFrame} from '../../frame/stream.id.blocked';
 import {NewConnectionIdFrame} from '../../frame/new.connection.id';
 import {StopSendingFrame} from '../../frame/stop.sending';
 import {AckFrame} from '../../frame/ack';
+import {CryptoFrame} from '../../frame/crypto';
 import {StreamFrame} from '../../frame/stream';
 import {PacketFactory} from '../factories/packet.factory';
 import {Bignum} from '../../types/bignum';
@@ -100,8 +101,12 @@ export class FrameHandler {
                 var pathResponseFrame = <PathResponseFrame>frame;
                 this.handlePathResponseFrame(connection, pathResponseFrame);
                 break;
+            case FrameType.CRYPTO:
+                let cryptoFrame:CryptoFrame = <CryptoFrame>frame;
+                this.handleCryptoFrame(connection, cryptoFrame);
+                break;
         }
-        if (frame.getType() >= FrameType.STREAM) {
+        if (frame.getType() >= FrameType.STREAM && frame.getType() != FrameType.CRYPTO) {
             var streamFrame = <StreamFrame>frame;
             this.handleStreamFrame(connection, streamFrame);
         }
@@ -221,6 +226,13 @@ export class FrameHandler {
 
     private handlePathResponseFrame(connection: Connection, pathResponseFrame: PathResponseFrame) {
         //TODO: check if we have send a path challenge frame; if true: check if data is same; else throw UNSOLICITED_PATH_RESPONSE
+    }
+
+    private handleCryptoFrame(connection: Connection, cryptoFrame: CryptoFrame){
+        console.log("TODO: we received a crypto frame! pass on to handshake handler!");
+        
+        var stream = connection.getStreamManager().getStream(new Bignum(0));
+        stream.receiveData(cryptoFrame.getData(), cryptoFrame.getOffset(), false);
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {

@@ -3,6 +3,7 @@ import { QTLS, QuicTLSEvents } from './qtls';
 import { Connection } from '../quicker/connection';
 import { Bignum } from '../types/bignum';
 import { BaseHeader, HeaderType } from '../packet/header/base.header';
+import { BasePacket, PacketType } from '../packet/base.packet';
 import { HKDF } from './hkdf';
 import { Constants } from '../utilities/constants';
 import { EndpointType } from '../types/endpoint.type';
@@ -10,7 +11,7 @@ import { createCipheriv, createDecipheriv, createCipher, createDecipher } from "
 import { logMethod } from '../utilities/decorators/log.decorator';
 import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
-import { LongHeader } from '../packet/header/long.header';
+import { LongHeader, LongHeaderType } from '../packet/header/long.header';
 import { ShortHeader } from '../packet/header/short.header';
 import { VLIE } from './vlie';
 import { QuicError } from '../utilities/errors/connection.error';
@@ -176,10 +177,12 @@ export class AEAD {
     }
 
     public clearTextPnDecrypt(connectionID: ConnectionID,packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
+        console.log("clearTextPnDecrypt START");
         var longHeader = <LongHeader>header;
         if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
             this.generateClearTextSecrets(connectionID, this.qtls, longHeader.getVersion());
         }
+        console.log("clearTextPnDecrypt secrets generated");
         if (encryptingEndpoint === EndpointType.Client) {
             var key = this.clearTextClientPn;
         } else {
@@ -232,21 +235,23 @@ export class AEAD {
         var hkdf = this.getHKDFObject(Constants.DEFAULT_HASH);
         // Generate client key, IV, PN
         var clearTextClientSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Client);
-        this.clearTextClientKey = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
-        this.clearTextClientIv = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
-        this.clearTextClientPn = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        this.clearTextClientKey   = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        this.clearTextClientIv    = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
+        this.clearTextClientPn    = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        console.log("clear text client Secret: " + clearTextClientSecret.toString('hex'));
         console.log("clear text client key: " + this.clearTextClientKey.toString('hex'));
-        console.log("clear text client key: " + this.clearTextClientIv.toString('hex'));
-        console.log("clear text client pn: " + this.clearTextClientPn.toString('hex'));
+        console.log("clear text client iv:  " + this.clearTextClientIv.toString('hex'));
+        console.log("clear text client pn:  " + this.clearTextClientPn.toString('hex'));
 
         // Generate server key, IV, PN
         var clearTextServerSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Server);
         this.clearTextServerKey = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         this.clearTextServerIv = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         this.clearTextServerPn = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_PN_LABEL, Constants.DEFAULT_AEAD_LENGTH);
+        console.log("clear text server Secret: " + clearTextServerSecret.toString('hex'));
         console.log("clear text server key: " + this.clearTextServerKey.toString('hex'));
-        console.log("clear text server iv: " + this.clearTextServerIv.toString('hex'));
-        console.log("clear text server pn: " + this.clearTextServerPn.toString('hex'));
+        console.log("clear text server iv:  " + this.clearTextServerIv.toString('hex'));
+        console.log("clear text server pn:  " + this.clearTextServerPn.toString('hex'));
 
         // Keep track of what version is used to generate these keys
         this.usedVersion = version;
@@ -303,11 +308,13 @@ export class AEAD {
      */
     private getClearTextSecret(hkdf: HKDF, connectionID: ConnectionID, version: Version, encryptingEndpoint: EndpointType): Buffer {
         var quicVersionSalt = Buffer.from(Constants.getVersionSalt(version.toString()), 'hex');
-        var clearTextSecret = hkdf.extract(quicVersionSalt, connectionID.toBuffer())
-        var label = Constants.CLIENT_HANDSHAKE_LABEL;
-        if (encryptingEndpoint === EndpointType.Server) {
-            label = Constants.SERVER_HANDSHAKE_LABEL;
+        var clearTextSecret = hkdf.extract(quicVersionSalt, connectionID.toBuffer());
+
+        var label = Constants.CLIENT_INITIAL_LABEL;
+        if (encryptingEndpoint === EndpointType.Server) { 
+            label = Constants.SERVER_INITIAL_LABEL;
         }
+        
         return hkdf.qhkdfExpandLabel(clearTextSecret, label, Constants.DEFAULT_HASH_SIZE);
     }
 
@@ -362,9 +369,17 @@ export class AEAD {
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
             sampleOffset = 6 + longHeader.getDestConnectionID().getLength() + longHeader.getSrcConnectionID().getLength() + longHeader.getPayloadLengthBuffer().byteLength + 4;
+            if( longHeader.getPacketType() == LongHeaderType.Initial ){
+                console.log("INITIAL : ", VLIE.encode(longHeader.getInitialTokenLength() ).byteLength);
+                sampleOffset += VLIE.encode(longHeader.getInitialTokenLength()).byteLength;
+                if( longHeader.hasInitialTokens() )
+                    sampleOffset += (longHeader.getInitialTokens() as Buffer).byteLength;
+            }
+            //console.log("///////////////////////////////getSampleOffset LONG : ", sampleOffset, header.getParsedBuffer().byteLength);
         } else {
             var shortHeader = <ShortHeader>header;
             sampleOffset = 1 + shortHeader.getDestConnectionID().getLength() + 4;
+            //console.log("///////////////////////////////getSampleOffset SHORT : ", sampleOffset, header.getParsedBuffer().byteLength);
         }
         // Check if sample does not exceed the payload
         if (sampleOffset + sampleLength > payloadLength) {
@@ -387,11 +402,12 @@ export class AEAD {
     }
 
     public _pnDecrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
-        //console.log("used key: " + key.toString('hex'));
-        //console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
+        console.log("used key: " + key.toString('hex'));
+        console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
         var sampleOffset = this.getSampleOffset(sampleLength, header, encryptedPayload.byteLength);
+        console.log("///////////////////////////////getSampleOffset Sample offset ", sampleOffset, header.getParsedBuffer().byteLength);
         var sampleData = encryptedPayload.slice(sampleOffset, sampleOffset + sampleLength);
-        //console.log("sample data: " + sampleData.toString('hex'));
+        console.log("sample data: " + sampleData.toString('hex'));
         var cipher = createDecipheriv(algorithm, key, sampleData);
         var update = cipher.update(packetNumberBuffer);
         var final = cipher.final();

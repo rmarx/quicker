@@ -37,9 +37,11 @@ export class HeaderHandler {
             };
         }
 
+        console.log("Pre - PNE");
         var payload = msg.slice(headerOffset.offset);
         var fullPayload = Buffer.concat([header.getParsedBuffer(), payload]);
         var pne = Buffer.alloc(4);
+        
         header.getParsedBuffer().copy(pne, 0, header.getParsedBuffer().byteLength - 4);
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
@@ -51,6 +53,9 @@ export class HeaderHandler {
         } else {
             var pn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
         }
+
+        console.log("Post - PNE : ", pn);
+
         var decodedPnVlieOffset = VLIE.decodePn(pn);
         header.getPacketNumber().setValue(decodedPnVlieOffset.value);
         headerOffset.offset = headerOffset.offset - 4 + decodedPnVlieOffset.offset;
@@ -89,16 +94,16 @@ export class HeaderHandler {
         var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
         if (negotiatedVersion === undefined) {
             if (longHeader.getPacketType() === LongHeaderType.Initial) {
-                connection.resetConnectionState();
-                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR);
+                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, connection.getVersion().getValue().toString('hex') );
             } else if (longHeader.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
                 // Protected0RTT is if the client's early data is being sent along with the Initial
                 // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"
                 // VERIFY TODO: is this correct? and, if yes, do we need the Protected0RTT check, as it wil arrive during SERVER_HELLO? 
-                // TODO: #section-6.1.2 allows us to buffer 0RTT packets in anticipation of a late ClientInitial 
+                // TODO: #section-6.1.2 allows us to buffer 0RTT packets in anticipation of a late ClientInitial (but... 0RTTs with invalid version will still be bad right?) 
+                //  -> probably primarily check that we don't trigger vneg twice or more (once in response to initial, once to 0RTT etc.) 
                 throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
             } else {
-                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet");
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet : " + connection.getVersion().getValue().toString('hex'));
             }
         }
         return negotiatedVersion;

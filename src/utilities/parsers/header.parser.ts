@@ -25,6 +25,9 @@ export class HeaderParser {
         var headerOffset: HeaderOffset = this.parseHeader(buf, 0);
         headerOffsets.push(headerOffset);
 
+        if( headerOffset.header.getHeaderType() == HeaderType.LongHeader )
+            console.log("Done parsing first long header : ", headerOffset.offset, (<LongHeader>(headerOffset.header)).getPayloadLength().toNumber(), buf.byteLength );
+
         // There can be multiple QUIC packets inside a single UDP datagram, called a "compound packet"
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.6
         var totalSize: Bignum = new Bignum(0); // REFACTOR TODO: why is this a Bignum? headers can't be that large if they fit inside a UDP packet? 
@@ -37,6 +40,7 @@ export class HeaderParser {
             var headerSize = new Bignum(headerOffset.offset).subtract(totalSize);
             totalSize = totalSize.add(payloadLength).add(headerSize);
             if (totalSize.lessThan(buf.byteLength)) {
+                console.log("We have something left, parsing next header", totalSize.toNumber(), buf.byteLength);
                 headerOffset = this.parseHeader(buf, totalSize.toNumber());
                 headerOffsets.push(headerOffset);
             } else {
@@ -114,10 +118,34 @@ export class HeaderParser {
         // NOTE for above: we want to encode variable lengths for the Connection IDs of 4 to 18 bytes
         // to save space, we cram this info into 4 bits. Normally, they can only hold 0-15 as values, but because minimum length is 4, we can just do +3 to get the real value
 
+        console.log("conlengths", conLengths);
         var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
+        console.log("destConnectionID", buf.slice(offset, offset + destLength), destLength );
         offset += destLength;
         var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
+        console.log("srcConnectionID", buf.slice(offset, offset + srcLength), srcLength );
         offset += srcLength;
+
+        let tokenLength:Bignum = new Bignum(0);
+        let tokens:Buffer|undefined = undefined;
+        if( type == LongHeaderType.Initial ){
+            // draft-13 added a token in the Initial packet, after the SCID
+            // https://tools.ietf.org/html/draft-ietf-quic-transport-13#section-4.4.1
+            // TODO: FIXME: actually add these to LongHeader packet, now just done for quick parsing fixing
+            let oldOffset = offset;
+            let tokenLengthV = VLIE.decode(buf, offset);
+            tokenLength = tokenLengthV.value;
+            offset = tokenLengthV.offset;
+            console.log("ROBIN : tokenLength is " + tokenLength.toNumber() + ", encoded in " +  (offset - oldOffset) + " bytes");
+            if( tokenLengthV.value.toNumber() > 0 ){
+                tokens = Buffer.alloc(tokenLength.toNumber());
+                buf.copy(tokens, 0, offset, offset + tokenLength.toNumber());
+                offset += tokenLengthV.value.toNumber();
+                console.log("---------------------------------------------");
+                console.log("WARNING: HeaderParser:Initial packet contained reset token, this code is not yet tested, can break! ", tokens.byteLength, tokens);
+                console.log("---------------------------------------------");
+            }
+        }
 
         // a version negotation packet does NOT include packet number or payload
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3 
@@ -132,6 +160,8 @@ export class HeaderParser {
         offset += 4; // offset is now ready, right before the actual payload, which is processed elsewhere 
 
         var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version, payloadLengthBuffer);
+        if( tokens )
+            header.setInitialTokens(tokens); // also sets initial length 
 
         // needed for aead encryption later
         // REF TODO 

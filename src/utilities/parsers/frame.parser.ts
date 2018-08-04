@@ -42,6 +42,7 @@ export class FrameParser {
             return undefined;
         }
         var type = buffer.readUInt8(offset++);
+        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ParseFrame ", type, FrameType.CRYPTO, buffer);
         switch (type) {
             case FrameType.PADDING:
                 return this.parsePadding(buffer, offset);
@@ -75,6 +76,8 @@ export class FrameParser {
                 return this.parsePathChallenge(buffer, offset);
             case FrameType.PATH_RESPONSE:
                 return this.parsePathResponse(buffer, offset);
+            case FrameType.CRYPTO:
+                return this.parseCrypto(buffer, offset);
         }
         if (type >= FrameType.STREAM) {
             return this.parseStream(type, buffer, offset);
@@ -246,6 +249,26 @@ export class FrameParser {
         offset += Constants.PATH_RESPONSE_PAYLOAD_SIZE;
         return {
             frame: FrameFactory.createPathResponseFrame(data),
+            offset: offset
+        };
+    }
+
+    private parseCrypto(buffer: Buffer, offset: number): FrameOffset {
+        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-7.21
+        // VLIE offset, VLIE length, Data
+        let cryptooffset = VLIE.decode(buffer, offset);
+        offset = cryptooffset.offset;
+
+        let lengthV = VLIE.decode(buffer, offset);
+        offset = lengthV.offset;
+        let length = lengthV.value;
+
+        let data = Buffer.alloc( length.toNumber() );
+        buffer.copy(data, 0, offset, length.toNumber() + offset);
+        offset += length.toNumber();
+
+        return {
+            frame: FrameFactory.createCryptoFrame(data, length, cryptooffset.value),
             offset: offset
         };
     }
