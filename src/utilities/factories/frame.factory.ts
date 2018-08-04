@@ -17,6 +17,7 @@ import { ConnectionID } from '../../packet/header/header.properties';
 import { NewConnectionIdFrame } from '../../frame/new.connection.id';
 import { StopSendingFrame } from '../../frame/stop.sending';
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
+import { CryptoFrame } from '../../frame/crypto';
 
 
 export class FrameFactory {
@@ -101,5 +102,9 @@ export class FrameFactory {
 
     public static createPathResponseFrame(data: Buffer): PathResponseFrame {
         return new PathResponseFrame(data);
+    }
+
+    public static createCryptoFrame(data:Buffer, length: Bignum, offset: Bignum): CryptoFrame {
+        return new CryptoFrame(data, length, offset);
     }
 }

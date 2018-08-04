@@ -58,6 +58,7 @@ export class HKDF {
      * @param hashValue 
      * @param lengthOutput 
      */
+    /*
     public expandLabel(prk: Buffer, label: string, hashValue: string, lengthOutput: number): Buffer {
         label = Constants.QHKDF_BASE_LABEL + label;
         var length = Buffer.from([lengthOutput / 256, lengthOutput % 256]);
@@ -66,12 +67,16 @@ export class HKDF {
         var hkdfLabel = Buffer.concat([length, Buffer.from([label.length]), bufLabel, hashLength]);
         return this.expand(prk, hkdfLabel, lengthOutput);
     }
+    */
+
 
     public qhkdfExpandLabel(prk: Buffer, label: string, lengthOutput: number): Buffer {
         label = Constants.QHKDF_BASE_LABEL + label;
         var length = Buffer.from([lengthOutput / 256, lengthOutput % 256]);
         var bufLabel = Buffer.from(label);
-        var hkdfLabel = Buffer.concat([length, Buffer.from([label.length]), bufLabel]);
+        // hkdf expects a Context, but here it's empty, so pass 0 as last parameter
+        // NOTE: this is unclear in the official draft-13, but has been updated in the editor's copy and should be in draft-14
+        var hkdfLabel = Buffer.concat([length, Buffer.from([label.length]), bufLabel, Buffer.from([0])]);
         return this.expand(prk, hkdfLabel, lengthOutput);
     }
 }

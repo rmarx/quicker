@@ -39,5 +39,6 @@ export enum FrameType {
     ACK = 0x0d,
     PATH_CHALLENGE = 0x0e,
     PATH_RESPONSE = 0x0f,
-    STREAM = 0x10 // streams are between 0x10 and 0x17, check for stream with:  type >= FrameType.STREAM
+    STREAM = 0x10, // streams are between 0x10 and 0x17, check for stream with:  type >= FrameType.STREAM
+    CRYPTO = 0x18
 }

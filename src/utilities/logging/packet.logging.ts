@@ -21,6 +21,7 @@ import { StreamIdBlockedFrame } from '../../frame/stream.id.blocked';
 import { NewConnectionIdFrame } from '../../frame/new.connection.id';
 import { StopSendingFrame } from '../../frame/stop.sending';
 import { AckFrame, AckBlock } from '../../frame/ack';
+import { CryptoFrame } from '../../frame/crypto';
 import { StreamFrame } from '../../frame/stream';
 import { configure, getLogger, Logger } from 'log4js';
 import { TransportParameterType } from '../../crypto/transport.parameters';
@@ -212,7 +213,7 @@ export class PacketLogging {
 
     public logFrame(connection: Connection, baseFrame: BaseFrame, color: ConsoleColor): string {
         var log = "";
-        if (baseFrame.getType() < FrameType.STREAM) {
+        if (baseFrame.getType() < FrameType.STREAM || baseFrame.getType() == FrameType.CRYPTO) {
             log += this.getSpaces(4) + color + FrameType[baseFrame.getType()] + " (0x" + baseFrame.getType().toString(16) + ")" + ConsoleColor.Reset + "\n";
         }
         switch (baseFrame.getType()) {
@@ -279,8 +280,12 @@ export class PacketLogging {
                 var pathResponseFrame: PathResponseFrame = <PathResponseFrame>baseFrame;
                 log += this.logPathResponseFrame(pathResponseFrame, color);
                 break;
+            case FrameType.CRYPTO:
+                let cryptoFrame: CryptoFrame = <CryptoFrame>baseFrame;
+                log += this.logCryptoFrame(cryptoFrame, color);
+                break;
         }
-        if (baseFrame.getType() >= FrameType.STREAM) {
+        if (baseFrame.getType() >= FrameType.STREAM && baseFrame.getType() != FrameType.CRYPTO) {
             var streamFrame: StreamFrame = <StreamFrame>baseFrame;
             log += this.logStreamFrame(streamFrame, color);
         }
@@ -390,6 +395,12 @@ export class PacketLogging {
     private logPathResponseFrame(pathResponseFrame: PathResponseFrame, color: ConsoleColor): string {
         var log = "";
         log += this.getSpaces(4) + "data=0x" + pathResponseFrame.getData().toString('hex');
+        return log;
+    }
+
+    private logCryptoFrame(cryptoFrame: CryptoFrame, color: ConsoleColor):string {
+        var log = "";
+        log += this.getSpaces(4) + "length=" + cryptoFrame.getLength().toDecimalString() + " offset=" + cryptoFrame.getOffset().toDecimalString() + " data=0x" + cryptoFrame.getData().toString('hex');
         return log;
     }
 

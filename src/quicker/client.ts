@@ -140,6 +140,9 @@ export class Client extends Endpoint {
      * @param rinfo 
      */
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+
+        console.log("---------------------------------------------------////////////////////////////// CLIENT ON MESSAGE ////////////////////////////////");
+        
         try {
             this.connection.checkConnectionState();
             this.connection.resetIdleAlarm();

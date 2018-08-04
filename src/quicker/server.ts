@@ -82,13 +82,19 @@ export class Server extends Endpoint {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        
+        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE ////////////////////////////////");
         try {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
         } catch(err) {
+            console.log("ERROR: server:onMessage : could not parse headers!", rinfo, msg);
+            // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
+        
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
+
             var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
             try {
                 connection.checkConnectionState();
@@ -99,8 +105,9 @@ export class Server extends Endpoint {
                 connection.startIdleAlarm();
             } catch (err) {
                 if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                    VerboseLogging.info("server:onMessage : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
                     connection.resetConnectionState();
-                    this.connectionManager.deleteConnection(connection)
+                    this.connectionManager.deleteConnection(connection);
                     var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
                     connection.sendPacket(versionNegotiationPacket);
                     return;
