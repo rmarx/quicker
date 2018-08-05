@@ -108,8 +108,10 @@ export abstract class FlowControlledObject extends EventEmitter {
 	}
 
 	public updateLocalMaxDataSpace(): Bignum {
-		var updatedLocalMaxData = this.getLocalMaxData().add(this.getBufferSpaceAvailable());
-		this.setLocalMaxData(updatedLocalMaxData);
+		var updatedLocalMaxData = this.getLocalOffset().add(this.getBufferSpaceAvailable());
+		if (updatedLocalMaxData.greaterThan(this.getLocalMaxData())) {
+			this.setLocalMaxData(updatedLocalMaxData);
+		}
 		return this.getLocalMaxData();
 	}
 
