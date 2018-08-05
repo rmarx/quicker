@@ -109,6 +109,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 
 	public updateLocalMaxDataSpace(): Bignum {
 		var updatedLocalMaxData = this.getLocalOffset().add(this.getBufferSpaceAvailable());
+		// If test should not be necessary, it is just a precaution to be sure that we do not make the max data smaller, which is not allowed by QUIC
 		if (updatedLocalMaxData.greaterThan(this.getLocalMaxData())) {
 			this.setLocalMaxData(updatedLocalMaxData);
 		}
