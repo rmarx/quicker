@@ -144,7 +144,7 @@ export class FlowControl {
         var isServer = this.connection.getEndpointType() !== EndpointType.Client;
         var isHandshake = false;
         frames.forEach((frame: BaseFrame) => {
-            if (frame.getType() >= FrameType.STREAM) {
+            if (frame.getType() >= FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
                 var streamFrame = <StreamFrame> frame;
                 if (streamFrame.getStreamID().equals(0)) {
                     isHandshake = true;
