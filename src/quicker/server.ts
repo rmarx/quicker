@@ -85,12 +85,13 @@ export class Server extends Endpoint {
         try {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
-        } catch(err) {
+        } catch (err) {
             return;
         }
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
-            var connection: Connection = this.connectionManager.getConnection(headerOffset, rinfo);
+            var connection: Connection | undefined = undefined;
             try {
+                connection = this.connectionManager.getConnection(headerOffset, rinfo);
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
                 headerOffset = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
@@ -98,11 +99,11 @@ export class Server extends Endpoint {
                 this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
                 connection.startIdleAlarm();
             } catch (err) {
-                if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
-                    connection.resetConnectionState();
-                    this.connectionManager.deleteConnection(connection)
-                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
-                    connection.sendPacket(versionNegotiationPacket);
+                if (connection === undefined) {
+                    // Ignore when connection is undefined
+                    // Only possible when a non-initial packet was received with a connection ID that is unknown to quicker
+                    return;
+                } else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                     return;
                 } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
                     VerboseLogging.info("server:onMessage : caught IGNORE_PACKET_ERROR : " + err);
