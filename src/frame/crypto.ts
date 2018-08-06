@@ -17,10 +17,12 @@ export class CryptoFrame extends BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        var lengthBuffer = undefined;
-        var offsetBuffer = undefined;
-        var size = 0;
+        let lengthBuffer = undefined;
+        let offsetBuffer = undefined;
+        let size = 0;
 
+        let type = this.getType();
+        size += 1;
 
         lengthBuffer = VLIE.encode(this.length);
         size += lengthBuffer.byteLength;
@@ -29,8 +31,12 @@ export class CryptoFrame extends BaseFrame {
         size += offsetBuffer.byteLength;
 
 
+        
         var buffer = Buffer.alloc(size + this.data.byteLength);
         var writeoffset = 0;
+
+        buffer.writeUInt8(type, writeoffset);
+        writeoffset += 1;
 
         offsetBuffer.copy(buffer, writeoffset);
         writeoffset += offsetBuffer.byteLength;

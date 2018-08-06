@@ -82,9 +82,13 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         var isValidPacket = true;
         this.frames.forEach((frame: BaseFrame) => {
             if (this.getValidFrameTypes().indexOf(frame.getType()) === -1) {
-                if (frame.getType() > FrameType.STREAM) {
+                if (frame.getType() > FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
                     if (this.getValidFrameTypes().indexOf(FrameType.STREAM) !== -1) {
-                        return;
+                        return true;
+                    }
+                    else{
+                        console.log("base.encrypted.packet:containsValidFrames: invalid frame found!", FrameType[frame.getType()], this.getValidFrameTypes());
+                        return false;
                     }
                 }
                 isValidPacket = false;

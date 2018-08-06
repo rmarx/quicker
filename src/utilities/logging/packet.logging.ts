@@ -289,6 +289,9 @@ export class PacketLogging {
             var streamFrame: StreamFrame = <StreamFrame>baseFrame;
             log += this.logStreamFrame(streamFrame, color);
         }
+        if( log == "" )
+            console.log("packet.logging:logFrame : ERROR nothing logged for frame, shouldn't happen!", baseFrame.getType(), baseFrame.toBuffer() );
+            
         return log;
     }
 

@@ -104,7 +104,7 @@ export class FrameFactory {
         return new PathResponseFrame(data);
     }
 
-    public static createCryptoFrame(data:Buffer, length: Bignum, offset: Bignum): CryptoFrame {
-        return new CryptoFrame(data, length, offset);
+    public static createCryptoFrame(data:Buffer, offset: Bignum): CryptoFrame {
+        return new CryptoFrame(data, new Bignum(data.byteLength), offset);
     }
 }

@@ -7,6 +7,7 @@ import {LongHeader, LongHeaderType} from '../../packet/header/long.header';
 import {Constants} from '../constants';
 import {ClientInitialPacket} from '../../packet/packet/client.initial';
 import {StreamFrame} from '../../frame/stream';
+import {CryptoFrame} from '../../frame/crypto';
 import {Bignum} from '../../types/bignum';
 import {RetryPacket} from '../../packet/packet/retry';
 import {BaseFrame} from '../../frame/base.frame';
@@ -58,8 +59,12 @@ export class PacketFactory {
         // so we add PADDING frames to reach that size if the encrypted initial packet isn't long enough. 
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
         var size = clientInitial.getSize();
+        let crypto = <CryptoFrame> clientInitial.getFrames()[0];
+        console.log("Creating Initial packet, Longheader + Crypto size was ", size, crypto.toBuffer().byteLength, crypto.getLength(), crypto.getData().byteLength);
         if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
-            var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size)
+            var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size);
+
+            console.log("Creating padding frame of size ", padding.getLength());
             clientInitial.getFrames().push(padding);
         }
         header.setPayloadLength(clientInitial.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
