@@ -82,6 +82,7 @@ export class FrameParser {
         if (type >= FrameType.STREAM && type <= FrameType.STREAM_MAX_NR) {
             return this.parseStream(type, buffer, offset);
         }
+        console.log("frame.parser.ts:parse : WARNING : UNIDENTIFIED FRAME : ", type, buffer);
         return undefined;
     }
 
@@ -268,7 +269,7 @@ export class FrameParser {
         offset += length.toNumber();
 
         return {
-            frame: FrameFactory.createCryptoFrame(data, length, cryptooffset.value),
+            frame: FrameFactory.createCryptoFrame(data, cryptooffset.value),
             offset: offset
         };
     }

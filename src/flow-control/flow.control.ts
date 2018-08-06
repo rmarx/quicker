@@ -5,6 +5,7 @@ import { Connection, ConnectionState } from '../quicker/connection';
 import { Stream } from '../quicker/stream';
 import { BasePacket, PacketType } from '../packet/base.packet';
 import { StreamFrame } from '../frame/stream';
+import { CryptoFrame } from '../frame/crypto';
 import { BaseEncryptedPacket } from '../packet/base.encrypted.packet';
 import { BaseFrame, FrameType } from '../frame/base.frame';
 import { StreamBlockedFrame } from '../frame/stream.blocked';
@@ -93,6 +94,7 @@ export class FlowControl {
 
         frames.handshakeFrames.forEach((frame: BaseFrame) => {
             // handshake frames are only more than one with server hello and they need to be in different packets
+            // TODO: draft-13 : this is no longer correct, same encryption level can be in same packet
             packets.push(this.createNewPacket([frame]));
         });
 
@@ -150,6 +152,8 @@ export class FlowControl {
                     isHandshake = true;
                 }
             }
+            if( frame.getType() == FrameType.CRYPTO ) // TODO: update logic: CRYPTO can be sent after handshake as well, obviously
+                isHandshake = true;
         });
         if (handshakeState !== HandshakeState.COMPLETED) {
             // REFACTOR TODO: make it A LOT clearer what the different states are right here...
@@ -179,7 +183,7 @@ export class FlowControl {
     public getFrames(maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
-        var handshakeFrames = new Array<StreamFrame>();
+        var handshakeFrames = new Array<CryptoFrame>();
         var uniAdded = false;
         var bidiAdded = false;
 
@@ -240,7 +244,7 @@ export class FlowControl {
     private getStreamFramesForRemote(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
-        var handshakeFrames = new Array<StreamFrame>();
+        var handshakeFrames = new Array<CryptoFrame>();
 
         if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded())) {
             if (stream.isRemoteLimitExceeded() && !stream.getBlockedSent()) {
@@ -283,7 +287,7 @@ export class FlowControl {
 
     private getStreamFrames(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
-        var handshakeFrames = new Array<StreamFrame>();
+        var handshakeFrames = new Array<CryptoFrame>();
 
         /**
          * If stream is receive only, reset stream data
@@ -301,12 +305,15 @@ export class FlowControl {
                 streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
             }
 
-            var streamData = stream.popData(streamDataSize.toNumber());
-            var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
-            var frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
             if (stream.getStreamID().equals(0)) {
+                let streamData = stream.popData(streamDataSize.toNumber());
+                let frame = (FrameFactory.createCryptoFrame(streamData.slice(0, streamDataSize.toNumber()), stream.getRemoteOffset()));
                 handshakeFrames.push(frame);
             } else {
+                var streamData = stream.popData(streamDataSize.toNumber());
+                var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
+                var frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
+            
                 streamFrames.push(frame);
             }
             stream.addRemoteOffset(streamDataSize);
@@ -412,5 +419,5 @@ export class FlowControl {
 export interface FlowControlFrames {
     streamFrames: StreamFrame[],
     flowControlFrames: BaseFrame[],
-    handshakeFrames: StreamFrame[]
+    handshakeFrames: CryptoFrame[]
 };
