@@ -39,6 +39,7 @@ export enum FrameType {
     ACK = 0x0d,
     PATH_CHALLENGE = 0x0e,
     PATH_RESPONSE = 0x0f,
-    STREAM = 0x10, // streams are between 0x10 and 0x17, check for stream with:  type >= FrameType.STREAM
-    CRYPTO = 0x18
+    STREAM = 0x10, // streams are between 0x10 and 0x17, check for stream with:  type >= FrameType.STREAM && type <= FrameType.STREAM_MAX
+    STREAM_MAX_NR = 0x17, // not a real frame type, just used for easier reasoning on stream numbers (see line above)
+    CRYPTO = 0x18 
 }

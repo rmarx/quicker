@@ -528,8 +528,11 @@ export class Connection extends FlowControlledObject {
                 break;
             case FrameType.STOP_SENDING:
                 break;
+            case FrameType.CRYPTO:
+                console.log("Connection:RetransmitFrame : TODO : retransmit logic for CRYPTO frames!");
+                break;
             default:
-                if (frame.getType() >= FrameType.STREAM) {
+                if (frame.getType() >= FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
                     var streamFrame = <StreamFrame>frame;
                     // Check if stream exists and if RST_STREAM has been sent
                     // TODO: first check if RST_STREAM has been acked

@@ -145,7 +145,7 @@ export class FlowControl {
         var isHandshake = false;
         var streamData = false;
         frames.forEach((frame: BaseFrame) => {
-            if (frame.getType() >= FrameType.STREAM) {
+            if (frame.getType() >= FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
                 var streamFrame = <StreamFrame> frame;
                 if (streamFrame.getStreamID().equals(0)) {
                     isHandshake = true;

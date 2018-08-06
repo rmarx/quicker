@@ -106,7 +106,7 @@ export class FrameHandler {
                 this.handleCryptoFrame(connection, cryptoFrame);
                 break;
         }
-        if (frame.getType() >= FrameType.STREAM && frame.getType() != FrameType.CRYPTO) {
+        if (frame.getType() >= FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
             var streamFrame = <StreamFrame>frame;
             this.handleStreamFrame(connection, streamFrame);
         }

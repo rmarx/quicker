@@ -79,7 +79,7 @@ export class FrameParser {
             case FrameType.CRYPTO:
                 return this.parseCrypto(buffer, offset);
         }
-        if (type >= FrameType.STREAM) {
+        if (type >= FrameType.STREAM && type <= FrameType.STREAM_MAX_NR) {
             return this.parseStream(type, buffer, offset);
         }
         return undefined;
