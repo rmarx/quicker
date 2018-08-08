@@ -66,6 +66,11 @@ export class ConnectionManager extends EventEmitter{
         return this.connections[connectionID];
     }
 
+    // should only be use for debugging purposes!
+    public getConnectionByStringID(connectionID:string){
+        return this.connections[connectionID];
+    }
+
     private getConnectionByRemoteInformation(rinfo: RemoteInfo): Connection {
         var remoteInfo = {
             address: rinfo.address,
