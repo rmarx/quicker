@@ -7,7 +7,9 @@ import {EndpointType} from '../types/endpoint.type';
 import { RemoteInfo, Socket } from 'dgram';
 import { SecureContext } from 'tls';
 import { EventEmitter } from 'events';
-import { LongHeader } from '../packet/header/long.header';
+import { LongHeader, LongHeaderType } from '../packet/header/long.header';
+import { QuickerError } from '../utilities/errors/quicker.error';
+import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 
 
 export class ConnectionManager extends EventEmitter{
@@ -40,6 +42,8 @@ export class ConnectionManager extends EventEmitter{
                 return this.connections[connectionID.toString()];
             } else if (this.mappedConnections[connectionID.toString()] !== undefined && this.connections[this.mappedConnections[connectionID.toString()]] !== undefined) {
                 return this.connections[this.mappedConnections[connectionID.toString()]];
+            } else if (header.getPacketType() === LongHeaderType.Initial) {
+                return this.createConnection(header, rinfo);
             }
         } else {
             var shortHeader = <ShortHeader>header;
@@ -54,8 +58,7 @@ export class ConnectionManager extends EventEmitter{
             }
             // TODO: in this case, it may be a stateless reset
         }
-        var connection = this.createConnection(header, rinfo);
-        return connection;
+        throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
     }
 
     private getConnectionByRemoteInformation(rinfo: RemoteInfo): Connection {
