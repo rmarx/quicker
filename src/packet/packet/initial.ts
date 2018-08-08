@@ -7,10 +7,10 @@ import {PaddingFrame} from '../../frame/padding';
 import {BaseEncryptedPacket} from "./../base.encrypted.packet";
 
 
-export class ClientInitialPacket extends BaseEncryptedPacket {
+export class InitialPacket extends BaseEncryptedPacket {
     
     public constructor(header: BaseHeader, frames: BaseFrame[]) {
-        super(PacketType.Initial,header, frames);
+        super(PacketType.Initial, header, frames);
     }
     
     protected getEncryptedData(connection: Connection, header: BaseHeader, dataBuffer: Buffer): Buffer {

@@ -1,6 +1,6 @@
 import { Version } from '../../packet/header/header.properties';
 import { Connection } from '../../quicker/connection';
-import { ClientInitialPacket } from '../../packet/packet/client.initial';
+import { InitialPacket } from '../../packet/packet/initial';
 import { BasePacket } from '../../packet/base.packet';
 import { HeaderType } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';

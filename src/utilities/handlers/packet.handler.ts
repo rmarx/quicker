@@ -12,7 +12,7 @@ import { StreamFrame } from '../../frame/stream';
 import { PacketFactory } from '../factories/packet.factory';
 import { Stream } from '../../quicker/stream';
 import { Bignum } from '../../types/bignum';
-import { ClientInitialPacket } from '../../packet/packet/client.initial';
+import { InitialPacket } from '../../packet/packet/initial';
 import { HandshakeState } from '../../crypto/qtls';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
@@ -47,7 +47,7 @@ export class PacketHandler {
                 this.handleVersionNegotiationPacket(connection, versionNegotiationPacket);
                 break;
             case PacketType.Initial:
-                var clientInitialPacket: ClientInitialPacket = <ClientInitialPacket>packet;
+                var clientInitialPacket: InitialPacket = <InitialPacket>packet;
                 this.handleInitialPacket(connection, clientInitialPacket);
                 break;
             case PacketType.Retry:
@@ -107,7 +107,7 @@ export class PacketHandler {
     }
 
     // only on SERVER (client sends ClientInitial packet)
-    private handleInitialPacket(connection: Connection, clientInitialPacket: ClientInitialPacket): void {
+    private handleInitialPacket(connection: Connection, clientInitialPacket: InitialPacket): void {
         this.handleFrames(connection, clientInitialPacket);
     }
 

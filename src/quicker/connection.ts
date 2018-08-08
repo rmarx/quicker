@@ -46,7 +46,6 @@ export class Connection extends FlowControlledObject {
     private srcConnectionID!: ConnectionID;
     private destConnectionID!: ConnectionID;
 
-    private initialPacketNumber!: PacketNumber;
     private localPacketNumber!: PacketNumber; // for sending
     private remotePacketNumber!: PacketNumber; // for receiving
 
@@ -98,7 +97,6 @@ export class Connection extends FlowControlledObject {
 			else
             	this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
-        this.localPacketNumber = new PacketNumber(0);
 
         this.initializeHandlers(socket); 
         
@@ -110,6 +108,8 @@ export class Connection extends FlowControlledObject {
         this.qtls.init();
         this.aead = new AEAD(this.qtls);
         this.handshakeHandler = new HandshakeHandler(this); // important that this is created after QTLS
+
+        this.localPacketNumber = new PacketNumber( -1 );
     }
 
     private initializeHandlers(socket: Socket) {
@@ -347,17 +347,12 @@ export class Connection extends FlowControlledObject {
         return this.localPacketNumber;
     }
 
-    // REFACTOR TODO: make this private? don't want people randomly setting packet number, now do we? 
-    public setLocalPacketNumber(packetNumber: PacketNumber) {
-        this.localPacketNumber = packetNumber;
-    }
-
     public getNextPacketNumber(): PacketNumber {
-        if (this.localPacketNumber === undefined) {
-            this.localPacketNumber = new PacketNumber(0);
-            this.initialPacketNumber = this.localPacketNumber;
-            return this.localPacketNumber;
-        }
+        //if (this.localPacketNumber === undefined) {
+        //    // each connection has to start at packet nr 0 according to the spec 
+        //    this.localPacketNumber = new PacketNumber(0);
+        //    return this.localPacketNumber;
+        //}
         var bn = this.localPacketNumber.getValue().add(1);
         this.localPacketNumber.setValue(bn);
         return this.localPacketNumber;
