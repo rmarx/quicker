@@ -3,7 +3,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff00000c','abcdef0c'
+        'ff00000c', 'abcdef0c'
     ];
 
     public static readonly LOG_TYPE = "stdout";
@@ -17,6 +17,7 @@ export class Constants {
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
         'ff00000c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
         'abcdef0c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'bababa0c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
     }
     public static readonly ALPN_LABEL = "hq-12";
     
@@ -82,7 +83,7 @@ export class Constants {
      * Method for testing purposes only
      */
     public static getActiveVersion(): string {
-        return this.SUPPORTED_VERSIONS[0];
+        return 'bababa0c';
     }
 
     public static getVersionSalt(version: string): string {

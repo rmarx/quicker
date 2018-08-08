@@ -89,7 +89,7 @@ export class Server extends Endpoint {
             return;
         }
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
-            var connection: Connection | undefined = undefined;
+            var connection: Connection | undefined;
             try {
                 connection = this.connectionManager.getConnection(headerOffset, rinfo);
                 connection.checkConnectionState();
@@ -104,6 +104,10 @@ export class Server extends Endpoint {
                     // Only possible when a non-initial packet was received with a connection ID that is unknown to quicker
                     return;
                 } else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                    connection.resetConnectionState();
+                    this.connectionManager.deleteConnection(connection)
+                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
+                    connection.sendPacket(versionNegotiationPacket);
                     return;
                 } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
                     VerboseLogging.info("server:onMessage : caught IGNORE_PACKET_ERROR : " + err);
