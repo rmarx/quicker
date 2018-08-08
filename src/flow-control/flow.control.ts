@@ -72,7 +72,7 @@ export class FlowControl {
         var packets = new Array<BasePacket>();
         // TODO: calculate maxpacketsize better
         if (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
-            var maxPayloadSize = new Bignum(Constants.CLIENT_INITIAL_MIN_SIZE);
+            var maxPayloadSize = new Bignum(Constants.INITIAL_MIN_SIZE);
         } else {
             if (this.shortHeaderSize === undefined) {
                 this.shortHeaderSize = new ShortHeader(ShortHeaderType.FourOctet, this.connection.getDestConnectionID(), new PacketNumber(-1), false, this.connection.getSpinBit()).getSize();
@@ -141,6 +141,8 @@ export class FlowControl {
         return packets;
     }
 
+    private serverHasSentInitial:boolean = false;
+
     private createNewPacket(frames: BaseFrame[]) {
         var handshakeState = this.connection.getQuicTLS().getHandshakeState();
         var isServer = this.connection.getEndpointType() !== EndpointType.Client;
@@ -158,7 +160,7 @@ export class FlowControl {
             if( frame.getType() == FrameType.CRYPTO ) // TODO: update logic: CRYPTO can be sent after handshake as well, obviously
                 isHandshake = true;
         });
-        if (handshakeState !== HandshakeState.COMPLETED) {
+        if (handshakeState !== HandshakeState.COMPLETED) { 
             // REFACTOR TODO: make it A LOT clearer what the different states are right here...
             // afaik:
             // 1. client -> server: sending early data
@@ -170,8 +172,13 @@ export class FlowControl {
             if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer && streamData) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);
             } else if (this.connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
-                return PacketFactory.createClientInitialPacket(this.connection, frames);
-            } else if (!isHandshake && ((this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused()) || (handshakeState >= HandshakeState.CLIENT_COMPLETED))) {
+                return PacketFactory.createInitialPacket(this.connection, frames);
+            } 
+            else if(isServer && isHandshake && !this.serverHasSentInitial){
+                this.serverHasSentInitial = true; // TODO: FIXME: this is dirty and should be corrected ASAP! 
+                return PacketFactory.createInitialPacket(this.connection, frames);
+                
+            }else if (!isHandshake && ((this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused()) || (handshakeState >= HandshakeState.CLIENT_COMPLETED))) {
                 return PacketFactory.createShortHeaderPacket(this.connection, frames); 
             } else {
                 // REFACTOR TODO: should only send 3 handshake packets without client address validation

@@ -59,9 +59,9 @@ export class Constants {
     public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;
 
     /**
-     * Client initial must be at least 1200 octets
+     * Initial packet must be at least 1200 octets
      */
-    public static readonly CLIENT_INITIAL_MIN_SIZE = 1200;
+    public static readonly INITIAL_MIN_SIZE = 1200;
 
     public static readonly QHKDF_BASE_LABEL = "quic ";
     public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";

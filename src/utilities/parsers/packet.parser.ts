@@ -9,7 +9,7 @@ import { HeaderType, BaseHeader } from '../../packet/header/base.header';
 import { LongHeader, LongHeaderType } from '../../packet/header/long.header';
 import { Version } from "../../packet/header/header.properties";
 import { Constants } from '../constants';
-import { ClientInitialPacket } from '../../packet/packet/client.initial';
+import { InitialPacket } from '../../packet/packet/initial';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
 import { HandshakePacket } from '../../packet/packet/handshake';
 import { BasePacket } from '../../packet/base.packet';
@@ -97,14 +97,14 @@ export class PacketParser {
     }
 
     private parseClientInitialPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        if (buffer.byteLength < Constants.CLIENT_INITIAL_MIN_SIZE) {
+        if (buffer.byteLength < Constants.INITIAL_MIN_SIZE) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
-            packet: new ClientInitialPacket(headerOffset.header, frames),
+            packet: new InitialPacket(headerOffset.header, frames),
             offset: headerOffset.offset
         };
     }

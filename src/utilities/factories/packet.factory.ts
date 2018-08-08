@@ -5,7 +5,7 @@ import {PacketNumber, Version} from '../../packet/header/header.properties';
 import {VersionNegotiationPacket} from '../../packet/packet/version.negotiation';
 import {LongHeader, LongHeaderType} from '../../packet/header/long.header';
 import {Constants} from '../constants';
-import {ClientInitialPacket} from '../../packet/packet/client.initial';
+import {InitialPacket} from '../../packet/packet/initial';
 import {StreamFrame} from '../../frame/stream';
 import {CryptoFrame} from '../../frame/crypto';
 import {Bignum} from '../../types/bignum';
@@ -49,26 +49,29 @@ export class PacketFactory {
      * 
      * @param connection
      */
-    public static createClientInitialPacket(connection: Connection, frames: BaseFrame[]): ClientInitialPacket {
-        // TODO: explicitly set packet nr to 0
-        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1 "The first Initial packet that is sent by a client contains a packet number of 0."
-        var header = new LongHeader(LongHeaderType.Initial, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), new PacketNumber(-1), new Bignum(-1), connection.getVersion());
-        var clientInitial = new ClientInitialPacket(header, frames);
+    public static createInitialPacket(connection: Connection, frames: BaseFrame[]): InitialPacket {
+        // clientInitial: no real destination conn id known
+        // serverInitial: we know our own src and the client's dest
+        let dstConnectionID = connection.getDestConnectionID() === undefined ? connection.getInitialDestConnectionID() : connection.getDestConnectionID();
+
+        var header = new LongHeader(LongHeaderType.Initial, dstConnectionID, connection.getSrcConnectionID(), new PacketNumber(0), new Bignum(0), connection.getVersion());
+        var initial = new InitialPacket(header, frames);
 
         // for security purposes, we want our initial packet to always be the exact same size (1280 bytes)
         // so we add PADDING frames to reach that size if the encrypted initial packet isn't long enough. 
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
-        var size = clientInitial.getSize();
-        let crypto = <CryptoFrame> clientInitial.getFrames()[0];
+        var size = initial.getSize();
+        let crypto = <CryptoFrame> initial.getFrames()[0];
         console.log("Creating Initial packet, Longheader + Crypto size was ", size, crypto.toBuffer().byteLength, crypto.getLength(), crypto.getData().byteLength);
-        if (size < Constants.CLIENT_INITIAL_MIN_SIZE) {
-            var padding = new PaddingFrame(Constants.CLIENT_INITIAL_MIN_SIZE - size);
+        // TODO: it's also allowed to fill this with 0-RTT request, which we currently don't support, but which would be much better!
+        if (size < Constants.INITIAL_MIN_SIZE) {
+            var padding = new PaddingFrame(Constants.INITIAL_MIN_SIZE - size);
 
             console.log("Creating padding frame of size ", padding.getLength());
-            clientInitial.getFrames().push(padding);
+            initial.getFrames().push(padding);
         }
-        header.setPayloadLength(clientInitial.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
-        return clientInitial;
+        header.setPayloadLength(initial.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
+        return initial;
     }
 
     /**

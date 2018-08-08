@@ -46,7 +46,6 @@ export class Connection extends FlowControlledObject {
     private srcConnectionID!: ConnectionID;
     private destConnectionID!: ConnectionID;
 
-    private initialPacketNumber!: PacketNumber;
     private localPacketNumber!: PacketNumber; // for sending
     private remotePacketNumber!: PacketNumber; // for receiving
 
@@ -99,7 +98,6 @@ export class Connection extends FlowControlledObject {
 			else
             	this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
-        this.localPacketNumber = new PacketNumber(0);
 
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
@@ -122,6 +120,7 @@ export class Connection extends FlowControlledObject {
             }
             this.initialVersion = this.version;
         }
+        this.localPacketNumber = new PacketNumber( -1 );
     }
 
     private initializeHandlers(socket: Socket) {
@@ -374,11 +373,11 @@ export class Connection extends FlowControlledObject {
     }
 
     public getNextPacketNumber(): PacketNumber {
-        if (this.localPacketNumber === undefined) {
-            this.localPacketNumber = new PacketNumber(0);
-            this.initialPacketNumber = this.localPacketNumber;
-            return this.localPacketNumber;
-        }
+        //if (this.localPacketNumber === undefined) {
+        //    // each connection has to start at packet nr 0 according to the spec 
+        //    this.localPacketNumber = new PacketNumber(0);
+        //    return this.localPacketNumber;
+        //}
         var bn = this.localPacketNumber.getValue().add(1);
         this.localPacketNumber.setValue(bn);
         return this.localPacketNumber;
