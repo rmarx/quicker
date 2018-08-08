@@ -107,6 +107,8 @@ export class PacketNumber extends BaseProperty {
         return buf;
     }
 
+    // due to packet number encoding (helps save some bits), we have to use previously received packet number values to reconstruct the real packet number at the edge cases
+    // see draft-13#4.8 and Appendix A "Sample Packet Number Decoding Algorithm"
     public adjustNumber(packetNumber: PacketNumber, size: number) {
         var mask = new Bignum(1);
         for (var i = 0; i < 63; i++) {
@@ -119,20 +121,6 @@ export class PacketNumber extends BaseProperty {
         var next = packetNumber.getValue().mask(size);
         next = next.add(maskedResult);
         return next;
-    }
-
-    public getAdjustedNumber(packetNumber: PacketNumber, size: number): PacketNumber {
-        var mask = new Bignum(1);
-        for (var i = 0; i < 63; i++) {
-            mask = mask.shiftLeft(1);
-            if (63 - i > (size * 8)) {
-                mask = mask.add(1);
-            }
-        }
-        var maskedResult = this.getValue().and(mask);
-        var next = packetNumber.getValue().mask(size);
-        next = next.add(maskedResult);
-        return new PacketNumber(next.toBuffer());
     }
 }
 

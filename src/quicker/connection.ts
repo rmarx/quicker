@@ -32,6 +32,7 @@ import { MaxDataFrame } from '../frame/max.data';
 import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
 import { StreamManager, StreamManagerEvents } from './stream.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
+import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 
 export class Connection extends FlowControlledObject {
 
@@ -47,7 +48,7 @@ export class Connection extends FlowControlledObject {
     private destConnectionID!: ConnectionID;
 
     private localPacketNumber!: PacketNumber; // for sending
-    private remotePacketNumber!: PacketNumber; // for receiving
+    private remotePacketNumber!: PacketNumber; // for receiving: due to packet number encoding, we need to keep track of the last received nr to decode newly received ones, see PacketNumber.adjustNumber
 
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
@@ -72,6 +73,11 @@ export class Connection extends FlowControlledObject {
 
     private qtls: QTLS;
     private aead: AEAD;
+
+    private contextInitial!: CryptoContext;
+    private context0RTT!: CryptoContext;
+    private contextHandshake!: CryptoContext;
+    private context1RTT!:CryptoContext;
 
     private lossDetection!: LossDetection;
     private congestionControl!: CongestionControl;
@@ -103,6 +109,7 @@ export class Connection extends FlowControlledObject {
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
 
+        this.initializeCryptoContexts();
         this.initializeHandlers(socket);
         
         // Hook QuicTLS Events
@@ -118,8 +125,18 @@ export class Connection extends FlowControlledObject {
             }
             this.initialVersion = this.version;
         }
-        
+
         this.localPacketNumber = new PacketNumber( -1 );
+    }
+
+    private initializeCryptoContexts(){
+        let pnsInitial   = new PacketNumberSpace();
+        let pnsHandshake = new PacketNumberSpace();
+        let pnsData      = new PacketNumberSpace(); // 0-RTT and 1-RTT have different encryption levels, but they share a PNS
+        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   pnsInitial );
+        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData );
+        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, pnsHandshake );
+        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData );
     }
 
     private initializeHandlers(socket: Socket) {
