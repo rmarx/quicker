@@ -89,6 +89,7 @@ export class FlowControl {
             var ackFrame = this.ackHandler.getAckFrame(this.connection);
             if (ackFrame !== undefined) {
                 packets.push(this.createNewPacket([ackFrame]));
+                packetFrames.push( ackFrame );
             }
         }
 

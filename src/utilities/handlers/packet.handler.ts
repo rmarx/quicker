@@ -28,6 +28,7 @@ import { QuickerError } from '../errors/quicker.error';
 import { QuickerErrorCodes } from '../errors/quicker.codes';
 import { RetryPacket } from '../../packet/packet/retry';
 import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
+import { VerboseLogging } from '../logging/verbose.logging';
 
 export class PacketHandler {
 
@@ -90,22 +91,24 @@ export class PacketHandler {
             containsChosenVersion = containsChosenVersion || (version.toString() === connection.getInitialVersion().toString());
         });
         if (containsChosenVersion) {
+            VerboseLogging.info("PacketHandler:handleVNegPacket: packet contained our initially chosen version, ignoring..." + connection.getInitialVersion().toString());
             return;
         }
 
         // This will try to always select the ActiveVersion by going through all server-supported versions until it finds it
-		// if it doesn't find it, the chosen version will be the last in the list // TODO: maybe make sure not the last but "most recent" version is chosen?
-		for( let version of versionNegotiationPacket.getVersions() ){ 
-			if( version.toString() == Constants.getActiveVersion() ){
-				negotiatedVersion = version;
-				break;
-			}
-			else{
-		        var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
-		        if (index > -1) {
-		            negotiatedVersion = version;
-		        }
-			}
+        // if it doesn't find it, the chosen version will be the last in the list // TODO: maybe make sure not the last but "most recent" version is chosen?
+        let negotiatedVersion:Version|undefined = undefined;
+        for (let version of versionNegotiationPacket.getVersions()) {
+            if (version.toString() == Constants.getActiveVersion()) {
+                negotiatedVersion = version;
+                break;
+            }
+            else {
+                var index = Constants.SUPPORTED_VERSIONS.indexOf(version.toString());
+                if (index > -1) {
+                    negotiatedVersion = version;
+                }
+            }
         };
         if (negotiatedVersion === undefined) {
             // REFACTOR TODO: this isn't caught anywhere at client side yet (only on server)... needs to be caught and propagated to library user! 

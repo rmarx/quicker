@@ -2,7 +2,7 @@ import { Connection, ConnectionEvent } from "../../quicker/connection";
 import { StreamEvent, Stream } from "../../quicker/stream";
 import { Bignum } from "../../types/bignum";
 import { EndpointType } from "../../types/endpoint.type";
-import { HandshakeState, TLSMessageType, TLSKeyType } from "../../crypto/qtls";
+import { QTLS, HandshakeState, TLSMessageType, TLSKeyType } from "../../crypto/qtls";
 import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
 import { EventEmitter } from "events";
@@ -23,14 +23,18 @@ export class HandshakeHandler extends EventEmitter{
     private currentClientKeyLevel: TLSKeyType;
     private currentServerKeyLevel: TLSKeyType;
 
-    public constructor(connection: Connection) {
-        this.connection = connection;
+    public constructor(qtls: QTLS, isServer: boolean) {
+        super();
+
+        this.qtls = qtls;
+        this.isServer = isServer;
+
         this.handshakeEmitted = false;
         this.currentClientKeyLevel = TLSKeyType.NONE;
         this.currentServerKeyLevel = TLSKeyType.NONE;
 
-        this.connection.getQuicTLS().setTLSMessageCallback( (messagetype:TLSMessageType, message:Buffer) => { this.OnNewTLSMessage(messagetype, message); } );
-        this.connection.getQuicTLS().setTLSKeyCallback( (keytype, secret, key, iv) => {this.OnNewTLSKey(keytype, secret, key, iv); } )
+        this.qtls.setTLSMessageCallback( (messagetype:TLSMessageType, message:Buffer) => { this.OnNewTLSMessage(messagetype, message); } );
+        this.qtls.setTLSKeyCallback( (keytype, secret, key, iv) => {this.OnNewTLSKey(keytype, secret, key, iv); } )
     }
 
     // this should be called first before startHandshake 
@@ -55,14 +59,14 @@ export class HandshakeHandler extends EventEmitter{
  
         this.handshakeEmitted = false;
 
-        this.connection.getQuicTLS().getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
+        this.qtls.getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
     }
 
     private OnNewTLSMessage(type:TLSMessageType, message: Buffer){
 		console.log("HandshakeHandler: OnNewTLSMessage", TLSMessageType[type]);
         this.stream.addData(message);
 
-        if( this.connection.getEndpointType() == EndpointType.Client ){
+        if( !this.isServer ){
             if( this.currentClientKeyLevel == TLSKeyType.NONE )
                 console.log("\tMessage would be in INITIAL packet (ClientHello)");
             else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC )
@@ -99,11 +103,11 @@ export class HandshakeHandler extends EventEmitter{
         // TODO: we should support address validation (server sends token, client echos, server accepts token etc.)
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.6
 
-        this.connection.getQuicTLS().processReceivedCryptoData(data); 
+        this.qtls.processReceivedCryptoData(data); 
          
         if (    !this.handshakeEmitted &&
-                this.connection.getQuicTLS().getHandshakeState() === HandshakeState.CLIENT_COMPLETED && 
-                this.connection.getEndpointType() === EndpointType.Client ) {
+                this.qtls.getHandshakeState() === HandshakeState.CLIENT_COMPLETED && 
+                !this.isServer ) {
 
             this.handshakeEmitted = true;
             this.emit(HandshakeHandlerEvents.ClientHandshakeDone);

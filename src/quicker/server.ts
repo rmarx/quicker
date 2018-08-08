@@ -107,14 +107,16 @@ export class Server extends Endpoint {
                 if (connection === undefined) {
                     // Ignore when connection is undefined
                     // Only possible when a non-initial packet was received with a connection ID that is unknown to quicker
-                if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
-                    VerboseLogging.info("server:onMessage : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
+                    VerboseLogging.debug("server:onMessage : message received but ignored because we only expect an INITIAL packet at this point");
+                    return;
+                }
+                else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
+                    VerboseLogging.debug("server:onMessage : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
+                    connection = connection as Connection; // get rid of possible undefined, we check for that above
                     connection.resetConnectionState();
                     this.connectionManager.deleteConnection(connection);
-                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection);
+                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection); 
                     connection.sendPacket(versionNegotiationPacket);
-                    return;
-                } else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                     return;
                 } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
                     VerboseLogging.info("server:onMessage : caught IGNORE_PACKET_ERROR : " + err);

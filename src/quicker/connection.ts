@@ -92,11 +92,12 @@ export class Connection extends FlowControlledObject {
         this.closeSentCount = 0;
         this.spinBit = false;
         this.retrySent = false;
+
         if (this.endpointType === EndpointType.Client) {
-			if( options.version )
-				this.version = new Version(Buffer.from(options.version, "hex"));
-			else
-            	this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
+            if (options.version)
+                this.version = new Version(Buffer.from(options.version, "hex"));
+            else
+                this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
 
         // Create QuicTLS Object
@@ -112,14 +113,12 @@ export class Connection extends FlowControlledObject {
 
         if (this.endpointType === EndpointType.Client) {
             // Check if remote transport parameters exists (only happens when session resumption is used) and contains a version which is still supported by the client
-            //   Else just take the default version supported by the client
-            if (this.remoteTransportParameters === undefined || (Constants.SUPPORTED_VERSIONS.indexOf(this.remoteTransportParameters.getVersion().toString()) === -1)) {
-                this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
-            } else {
+            if (this.remoteTransportParameters !== undefined && (Constants.SUPPORTED_VERSIONS.indexOf(this.remoteTransportParameters.getVersion().toString()) !== -1)) {
                 this.version = this.remoteTransportParameters.getVersion();
             }
             this.initialVersion = this.version;
         }
+        
         this.localPacketNumber = new PacketNumber( -1 );
     }
 

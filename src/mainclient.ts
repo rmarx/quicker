@@ -42,7 +42,6 @@ for (var i = 0; i < 1; i++) {
             for( let i = 0; i < 10; ++i)
             	console.log("///////////////////////////////////////////////////////////////////////////////");
             var client2 = Client.connect(host, Number(port), {
-				version: version, // TODO: this shouldn't be necessary... can't/shouldn't we get this from the transport params?
                 session: client.getSession(),
                 transportparameters: client.getTransportParameters()
             }, httpHelper.createRequest("index.html"));

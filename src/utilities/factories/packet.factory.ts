@@ -36,7 +36,7 @@ export class PacketFactory {
         // for some reason, in our implementation, we get that client-generated value from getInitialDestConnectionID (which is correct, in theory, but quite difficult to reason about)
         // REFACTOR TODO: maybe rename the initialDestConnectionID to something that more clearly describes its goal at the server? or make a separate var for this? 
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3
-        var header = new VersionNegotiationHeader((Math.random() * 128), connection.getDestConnectionID(), connection.getInitialDestConnectionID());
+        var header = new VersionNegotiationHeader(Math.floor((Math.random() * 128)), connection.getDestConnectionID(), connection.getInitialDestConnectionID());
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));

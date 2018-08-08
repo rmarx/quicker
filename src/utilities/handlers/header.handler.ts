@@ -94,7 +94,7 @@ export class HeaderHandler {
         var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
         if (negotiatedVersion === undefined) {
             if (longHeader.getPacketType() === LongHeaderType.Initial) {
-                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, connection.getVersion().getValue().toString('hex') );
+                throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, longHeader.getVersion().getValue().toString() );
             } else if (longHeader.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
                 // Protected0RTT is if the client's early data is being sent along with the Initial
                 // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"

@@ -61,12 +61,7 @@ export class ConnectionManager extends EventEmitter{
         throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
     }
 
-    // should only be use for debugging purposes!
-    public getConnectionByStringID(connectionID:string){
-        return this.connections[connectionID];
-    }
-
-    // should only be use for debugging purposes!
+    // should only be used for debugging purposes!
     public getConnectionByStringID(connectionID:string){
         return this.connections[connectionID];
     }
