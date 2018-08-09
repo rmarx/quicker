@@ -5,6 +5,8 @@ import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuickerEvent } from "./quicker/quicker.event";
 import { PacketLogging } from "./utilities/logging/packet.logging";
 import { HandshakeState } from "./crypto/qtls";
+import { PacketNumber } from "./packet/header/header.properties";
+import { Constants } from "./utilities/constants";
 
 let host = process.argv[2] || "127.0.0.1";
 let port = process.argv[3] || 4433;
@@ -15,6 +17,8 @@ if (isNaN(Number(port))) {
     console.log("port must be a number: node ./main.js 127.0.0.1 4433 ca.key ca.cert");
     process.exit(-1);
 }
+
+Constants.LOG_FILE_NAME = "server.log";
 
 console.log("Running QUICker server at " + host + ":" + port + ", with certs: " + key + ", " + cert);
 

@@ -7,7 +7,8 @@ export class Constants {
     ];
 
     public static readonly LOG_TYPE = "stdout";
-    public static readonly LOG_LEVEL = 'debug';
+    public static          LOG_LEVEL = 'debug';
+    public static          LOG_FILE_NAME  = 'server.log';
     public static readonly LOG_LARGE_BUFFER_DATA = true;
     public static readonly MAX_LOG_FILE_SIZE = 20971520;
 

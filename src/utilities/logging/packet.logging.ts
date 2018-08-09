@@ -31,6 +31,7 @@ import { VersionNegotiationPacket } from '../../packet/packet/version.negotiatio
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 import { ShortHeader } from '../../packet/header/short.header';
 import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
+import { VerboseLogging } from './verbose.logging';
 
 
 
@@ -38,7 +39,7 @@ export class PacketLogging {
 
     private static logger: PacketLogging;
     private startOutput: Logger;
-    private continuedOutput: Logger;
+    //private continuedOutput: Logger;
 
     private receivedPacketTypes: Map<string, Map<string, number>>;
     private sentPacketTypes: Map<string, Map<string, number>>; 
@@ -52,42 +53,11 @@ export class PacketLogging {
 
 
     private constructor() {
-        configure({
-            appenders: {
-                startOut: {
-                    type: Constants.LOG_TYPE,
-                    filename: './logs/debug.log',
-                    maxLogSize: Constants.MAX_LOG_FILE_SIZE,
-                    layout: {
-                        type: 'pattern',
-                        pattern: '%d %n%m'
-                    }
-                },
-                continuedOut: {
-                    type: Constants.LOG_TYPE,
-                    filename: './logs/debug.log',
-                    maxLogSize: Constants.MAX_LOG_FILE_SIZE,
-                    layout: {
-                        type: 'pattern',
-                        pattern: '%m'
-                    }
-                }
-            },
-            categories: {
-                start: {
-                    appenders: ['startOut'],
-                    level: Constants.LOG_LEVEL
-                },
-                default: {
-                    appenders: ['continuedOut'],
-                    level: Constants.LOG_LEVEL
-                }
-            }
-        });
-        this.startOutput = getLogger("start");
+        
+        VerboseLogging.getInstance(); // make sure VerboseLogging is created, since it initializes log4js properly 
+        
+        this.startOutput = getLogger();
         this.startOutput.level = Constants.LOG_LEVEL;
-        this.continuedOutput = getLogger();
-        this.continuedOutput.level = Constants.LOG_LEVEL;
 
         this.receivedPacketTypes = new Map<string, Map<string, number>>();
         this.sentPacketTypes = new Map<string, Map<string, number>>();
@@ -95,7 +65,7 @@ export class PacketLogging {
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
         var log = this.logPackets(connection, basePacket, "RX", ConsoleColor.FgCyan);
-        this.startOutput.info(log);
+        this.startOutput.info("\n" + log);
 
 		// We want to log packets per connection so we can print that info later
 		// we always log from the perspective of the "sender", so for incoming, we need the DestinationConnID
@@ -122,7 +92,7 @@ export class PacketLogging {
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
         var log = this.logPackets(connection, basePacket, "TX", ConsoleColor.FgRed);
-        this.startOutput.info(log);
+        this.startOutput.info("\n" + log);
         
 
 		// We want to log packets per connection so we can print that info later

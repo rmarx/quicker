@@ -43,6 +43,30 @@ export class VerboseLogging{
     }
 
     private constructor() {
+        configure({
+            appenders: {
+                consoleOut: {
+                    type: Constants.LOG_TYPE
+                },
+                fileOut: {
+                    type: "file",
+                    filename: './logs/' + Constants.LOG_FILE_NAME, // TODO: allow logging to a file per ConnectionID for easier online debugging 
+                    maxLogSize: Constants.MAX_LOG_FILE_SIZE,
+                    layout: { type: 'basic' } /*{
+                        type: 'pattern',
+                        pattern: '%d %m' // don't want colors in our files 
+                    }
+                    */
+                }
+            },
+            categories: {
+                default: {
+                    appenders: ['consoleOut', 'fileOut'],
+                    level: Constants.LOG_LEVEL
+                }
+            }
+        });
+
         this.output = getLogger();
         this.output.level = Constants.LOG_LEVEL;
     }
