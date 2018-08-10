@@ -1,11 +1,13 @@
 import { Connection, ConnectionEvent } from "../../quicker/connection";
-import { StreamEvent, Stream } from "../../quicker/stream";
 import { Bignum } from "../../types/bignum";
 import { EndpointType } from "../../types/endpoint.type";
 import { QTLS, HandshakeState, TLSMessageType, TLSKeyType } from "../../crypto/qtls";
+import { EncryptionLevel } from "../../crypto/crypto.context";
+import { CryptoStream, CryptoStreamEvent } from "../../crypto/crypto.stream";
 import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
 import { EventEmitter } from "events";
+import { VerboseLogging } from "../logging/verbose.logging";
 
 
 
@@ -17,85 +19,149 @@ export class HandshakeHandler extends EventEmitter{
 
     private qtls: QTLS;
     private isServer: boolean
-    private stream!: Stream;
-    private handshakeEmitted: boolean;
+    private streams: Map<string, CryptoStream>; // TypeSCript Map can't properly deal with Enum keys, so use strings...
+    private currentSendingCryptoStream!:CryptoStream; // latest active crypto stream for which we've received keys (so we know what to send new TLSMessages on)
 
-    private currentClientKeyLevel: TLSKeyType;
-    private currentServerKeyLevel: TLSKeyType;
+    private handshakeEmitted: boolean;
 
     public constructor(qtls: QTLS, isServer: boolean) {
         super();
 
         this.qtls = qtls;
         this.isServer = isServer;
+        this.streams = new Map<string, CryptoStream>();
 
         this.handshakeEmitted = false;
-        this.currentClientKeyLevel = TLSKeyType.NONE;
-        this.currentServerKeyLevel = TLSKeyType.NONE;
 
         this.qtls.setTLSMessageCallback( (messagetype:TLSMessageType, message:Buffer) => { this.OnNewTLSMessage(messagetype, message); } );
-        this.qtls.setTLSKeyCallback( (keytype, secret, key, iv) => {this.OnNewTLSKey(keytype, secret, key, iv); } )
+        this.qtls.setTLSKeyCallback( (keytype, secret, key, iv) => {this.OnNewTLSKey(keytype, secret, key, iv); } );
     }
 
-    // this should be called first before startHandshake 
-    // this should be done on stream 0 
-    // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
-    public setHandshakeStream(stream: Stream) {
-        this.stream = stream;
-        // all other streams are handled through QuicStream
-        // this is stream 0 though, only in use for these exact messages, and so we can intercept these directly and handle them ourselves
-        this.stream.on(StreamEvent.DATA, (data: Buffer) => {
+    // this should be called first before startHandshake!
+    // should be called with 4 different streams, 1 for each in EncryptionLevel
+    public registerCryptoStream(stream: CryptoStream) {
+
+        if( this.streams.has("" + stream.getCryptoLevel()) ){
+            VerboseLogging.error("HandshakeHandler:registerCryptoStream : attempting to register an already registered cryptoLevel! " + EncryptionLevel[stream.getCryptoLevel()] );
+            return; // TODO: bubble this up? 
+        }
+
+        this.streams.set( "" + stream.getCryptoLevel(), stream );
+        if( stream.getCryptoLevel() == EncryptionLevel.INITIAL )
+            this.currentSendingCryptoStream = stream;
+
+        // listen for received CRYPTO data 
+        stream.on(CryptoStreamEvent.DATA, (data: Buffer) => {
             this.handle(data); 
         });
     }
 
     public startHandshake(): void {
+
         if (this.isServer) {
             throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: We are server, cannot start handshake");
         }
-        if ( !this.stream ) {
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: Handshake stream not set, has to be done externally!");
+        if ( this.streams.size == 0 ) {
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:startHandshake: CryptoStreams not set, has to be done externally!");
         }
  
         this.handshakeEmitted = false;
 
-        this.qtls.getClientInitial(); // REFACTOR TODO: pass quicTLS in as parameter instead of full connection?
+        this.qtls.getClientInitial(); // this will trigger callback calls to OnNewTLSMessage and OnNewTLSKey
+    }
+
+    private debugLogMap:Map<string, EncryptionLevel> = new Map<string, EncryptionLevel>();
+    private debugLogTLSMessage(type:TLSMessageType, actualLevel:EncryptionLevel){
+        if( this.debugLogMap.size == 0 ){
+            // MessageType -> expected encryption level for that type 
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_CLIENT_HELLO,         EncryptionLevel.INITIAL );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_SERVER_HELLO,         EncryptionLevel.INITIAL );
+
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_END_OF_EARLY_DATA,    EncryptionLevel.ZERO_RTT );
+
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_ENCRYPTED_EXTENSIONS, EncryptionLevel.HANDSHAKE );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_CERTIFICATE,          EncryptionLevel.HANDSHAKE );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_CERTIFICATE_REQUEST,  EncryptionLevel.HANDSHAKE );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_CERTIFICATE_STATUS,   EncryptionLevel.HANDSHAKE );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_CERTIFICATE_URL,      EncryptionLevel.HANDSHAKE );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_CERTIFICATE_VERIFY,   EncryptionLevel.HANDSHAKE );
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_FINISHED,             EncryptionLevel.HANDSHAKE );
+            
+            this.debugLogMap.set( "" + TLSMessageType.SSL3_MT_NEWSESSION_TICKET,    EncryptionLevel.ONE_RTT );
+        }
+
+        let expectedLevel:EncryptionLevel|undefined = this.debugLogMap.get( "" + type );
+        if( expectedLevel === undefined ){
+            VerboseLogging.error("HandshakeHandler:debugLogTLSMessage : TLSMessageType was unknown! " + TLSMessageType[type] + " // " + type );
+        }
+        else{
+            if( expectedLevel != actualLevel ){
+                VerboseLogging.error("HandshakeHandler:debugLogTLSMessage : unexpected EncryptionLevel : " + TLSMessageType[type] + " expects " + EncryptionLevel[expectedLevel] + " but we have " + EncryptionLevel[actualLevel] );
+            }
+            else{
+                VerboseLogging.debug("HandshakeHandler:debugLogTLSMessage : TLS Message " + TLSMessageType[type] + " will be sent at correct encryption level " + EncryptionLevel[actualLevel] );
+            }
+        }
     }
 
     private OnNewTLSMessage(type:TLSMessageType, message: Buffer){
-		console.log("HandshakeHandler: OnNewTLSMessage", TLSMessageType[type]);
-        this.stream.addData(message);
+        this.currentSendingCryptoStream.addData(message);
 
-        if( !this.isServer ){
-            if( this.currentClientKeyLevel == TLSKeyType.NONE )
-                console.log("\tMessage would be in INITIAL packet (ClientHello)");
-            else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC )
-                console.log("\tMessage would be in Protected0RTT packet (early data)");
-            else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC )
-                console.log("\tMessage would be in HANDSHAKE packet (Finished)");
-            else if( this.currentClientKeyLevel == TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC )
-                console.log("\tMessage would be in Protected1RTT packet (normal data)");
-            else
-                console.log("\tERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
-        }
-        else{
-            if( this.currentServerKeyLevel == TLSKeyType.NONE )
-                console.log("\tMessage would be in INITIAL packet (ServerHello)");
-            else if( this.currentServerKeyLevel == TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC)
-                console.log("\tMessage would be in HANDSHAKE packet (EE, CERT, CERTVER, Finished)");
-            else if( this.currentServerKeyLevel == TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC)
-                console.log("\tMessage would be in Protected1RTT packet (NewSessionTicket, normal data)");
-            else
-                console.log("\tERROR: unknown TLSKeyType!", TLSKeyType[this.currentClientKeyLevel]);
-        }
+        this.debugLogTLSMessage( type, this.currentSendingCryptoStream.getCryptoLevel() );
     }
 
     private OnNewTLSKey(type:TLSKeyType, key:Buffer, secret:Buffer, iv:Buffer ){
-        console.log("HandshakeHandler: OnNewTLSKey", TLSKeyType[type]);
-        if( TLSKeyType[type].indexOf("CLIENT") >= 0 )
+
+        let previousLevel:EncryptionLevel = this.currentSendingCryptoStream.getCryptoLevel();
+
+        // note: EncryptionLevel.INITIAL is the original currentSendingCryptoStream, set in registerCryptoStream
+        // note: this is for sending. Receiving logic (e.g., actually passing keys, buffering packets for which we don't have keys) is TODO!!!
+        if( this.isServer ){
+            switch(type){
+                case TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
+                    this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.HANDSHAKE ) as CryptoStream;
+                    break;
+                case TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC:
+                    this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ONE_RTT ) as CryptoStream;
+                    break;
+            }
+        }
+        else{ // this.isClient
+            switch(type){
+                case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
+                    this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ZERO_RTT ) as CryptoStream;
+                    break;
+                case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
+                    this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.HANDSHAKE ) as CryptoStream;
+                    break;
+                case TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
+                    this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ONE_RTT ) as CryptoStream;
+                    break;
+            }
+        }
+
+        if( this.currentSendingCryptoStream === undefined ){
+            VerboseLogging.error("HandshakeHandler:OnNewTLSKey : no cryptoStream found for " + TLSKeyType[type] ); 
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "HandshakeHandler:OnNewTLSKey : no cryptoStream found for " + TLSKeyType[type]);
+        }
+        else{
+            if( (this.isServer  && ("" + TLSKeyType[type]).indexOf("SERVER") >= 0) ||
+                (!this.isServer && ("" + TLSKeyType[type]).indexOf("CLIENT") >= 0) ){
+                VerboseLogging.info("HandshakeHandler: OnNewTLSKey : " + TLSKeyType[type] + " changed sending/encryption level from " + EncryptionLevel[previousLevel] + " to " + EncryptionLevel[this.currentSendingCryptoStream.getCryptoLevel()] );
+            }
+            else
+                VerboseLogging.info("HandshakeHandler: OnNewTLSKey : got decryption key of the other side : " + TLSKeyType[type] );
+        }
+
+        VerboseLogging.error("HandshakeHandler: OnNewTLSKey : actually set these keys on the encryption handlers!!!");
+
+        /*
+        if( TLSKeyType[type].indexOf("CLIENT") >= 0 ){
             this.currentClientKeyLevel = type;
+        }
         else
             this.currentServerKeyLevel = type;
+        */
     }
 
     public handle(data: Buffer) {

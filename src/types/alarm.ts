@@ -6,10 +6,12 @@ export class Alarm extends EventEmitter {
 
     private timer!: NodeJS.Timer;
     private running: boolean;
+    private duration:number;
 
     public constructor() {
         super();
         this.running = false;
+        this.duration = 0;
     }
 
     public reset() {
@@ -20,14 +22,15 @@ export class Alarm extends EventEmitter {
 
     public start(timeInMs: number) {
         this.running = true;
+        this.duration = timeInMs;
         this.timer = global.setTimeout(() => {
-            this.onTimeout();
-        }, timeInMs);
+            this.onTimeout(this.duration);
+        }, this.duration);
     }
 
-    private onTimeout() {
+    private onTimeout(timePassed:number) {
         this.running = false;
-        this.emit(AlarmEvent.TIMEOUT);
+        this.emit(AlarmEvent.TIMEOUT, timePassed);
     }
 
     public isRunning(): boolean {

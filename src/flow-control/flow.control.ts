@@ -18,11 +18,14 @@ import { logMethod } from '../utilities/decorators/log.decorator';
 import { TransportParameterType } from '../crypto/transport.parameters';
 import { Constants } from '../utilities/constants';
 import { HandshakeState } from '../crypto/qtls';
+import { CryptoStream } from '../crypto/crypto.stream';
+import { EncryptionLevel } from '../crypto/crypto.context';
 import { EndpointType } from '../types/endpoint.type';
 import { Time, TimeFormat } from '../types/time';
 import { ShortHeaderType, ShortHeader } from '../packet/header/short.header';
 import { AckHandler } from '../utilities/handlers/ack.handler';
 import { PacketNumber } from '../packet/header/header.properties';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 
 export class FlowControl {
@@ -70,6 +73,7 @@ export class FlowControl {
 
     public getPackets(): BasePacket[] {
         var packets = new Array<BasePacket>();
+
         // TODO: calculate maxpacketsize better
         if (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED) {
             var maxPayloadSize = new Bignum(Constants.INITIAL_MIN_SIZE);
@@ -79,6 +83,7 @@ export class FlowControl {
             }
             var maxPayloadSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - this.shortHeaderSize);
         }
+        
         var frames = this.getFrames(maxPayloadSize);
         var packetFrames = new Array<BaseFrame>();
         var size = new Bignum(0);
@@ -93,11 +98,44 @@ export class FlowControl {
             }
         }
 
+        if( frames.handshakeFrames.length > 0 ){
+            VerboseLogging.error("FlowControl:getPackets : data shouldn't be in stream 0 anymore!!! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+        }
+        else{
+            let cryptoFrameCount:number = 0;
+            // getCryptoStreamFrames' output is already scaled to maxPayloadSize, so we create a single packet per frame
+            // TODO: this is sub-optimal if we can add things like flow control or 0-RTT requests in the same packet : enable that! 
+            // logic below uses an array they fill with frames, maybe move that up to above? 
+            let cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.INITIAL).getCryptoStream(), maxPayloadSize );
+            cryptoFrameCount += cfrs.length;
+            for( let frame of cfrs )
+                packets.push( PacketFactory.createInitialPacket(this.connection, [frame]) );
+
+            cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.ZERO_RTT).getCryptoStream(), maxPayloadSize );
+            cryptoFrameCount += cfrs.length;
+            for( let frame of cfrs )
+                packets.push( PacketFactory.createProtected0RTTPacket(this.connection, [frame]) );
+
+            cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE).getCryptoStream(), maxPayloadSize );
+            cryptoFrameCount += cfrs.length;
+            for( let frame of cfrs )
+                packets.push( PacketFactory.createHandshakePacket(this.connection, [frame]) );
+
+            cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.ONE_RTT).getCryptoStream(), maxPayloadSize );
+            cryptoFrameCount += cfrs.length;
+            for( let frame of cfrs )
+                packets.push( PacketFactory.createShortHeaderPacket(this.connection, [frame]) ); 
+
+            VerboseLogging.info("FlowControl:getPackets : created " + cryptoFrameCount + " CRYPTO frames");
+        }
+
+        /*
         frames.handshakeFrames.forEach((frame: BaseFrame) => {
             // handshake frames are only more than one with server hello and they need to be in different packets
             // TODO: draft-13 : this is no longer correct, same encryption level can be in same packet
             packets.push(this.createNewPacket([frame]));
         });
+        */
 
         if (this.connection.getQuicTLS().getHandshakeState() >= HandshakeState.CLIENT_COMPLETED) {
             frames.flowControlFrames.forEach((frame: BaseFrame) => {
@@ -146,6 +184,7 @@ export class FlowControl {
 
     private createNewPacket(frames: BaseFrame[]) {
         var handshakeState = this.connection.getQuicTLS().getHandshakeState();
+        
         var isServer = this.connection.getEndpointType() !== EndpointType.Client;
         var isHandshake = false;
         var streamData = false;
@@ -161,6 +200,12 @@ export class FlowControl {
             if( frame.getType() == FrameType.CRYPTO ) // TODO: update logic: CRYPTO can be sent after handshake as well, obviously
                 isHandshake = true;
         });
+        
+
+        // during handshake, it SHOULD be quite simple:
+        // - All handshake data is in Crypto frames
+        // - The only special thing is 0-RTT requests, which are in Stream frames, for which we need to check 
+
         if (handshakeState !== HandshakeState.COMPLETED) { 
             // REFACTOR TODO: make it A LOT clearer what the different states are right here...
             // afaik:
@@ -172,7 +217,7 @@ export class FlowControl {
             // 4. server -> client: handhsake packet in response to clientInitial 
             if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer && streamData) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);
-            } else if (this.connection.getStreamManager().getStream(0).getLocalOffset().equals(0) && !isServer && isHandshake) {
+            } else if (this.connection.getStreamManager().getStream(new Bignum(0)).getLocalOffset().equals(0) && !isServer && isHandshake) {
                 return PacketFactory.createInitialPacket(this.connection, frames);
             } 
             else if(isServer && isHandshake && !this.serverHasSentInitial){
@@ -296,13 +341,28 @@ export class FlowControl {
         };
     }
 
+    private getCryptoStreamFrames( stream: CryptoStream, maxPayloadSize: Bignum ): Array<CryptoFrame>{
+        let output:Array<CryptoFrame> = new Array<CryptoFrame>();
+
+        let streamDataSize = maxPayloadSize.lessThan(stream.getOutgoingDataSize()) ? maxPayloadSize : new Bignum(stream.getOutgoingDataSize());
+
+        while( stream.getOutgoingDataSize() > 0 ){
+            let streamData = stream.popData( streamDataSize.toNumber() );
+            let frame = (FrameFactory.createCryptoFrame(streamData.slice(0, streamDataSize.toNumber()), stream.getRemoteOffset()));
+            frame.setCryptoLevel( stream.getCryptoLevel() );
+            output.push(frame);
+
+            stream.addRemoteOffset(streamDataSize);
+        }
+        
+        return output;
+    }
+
     private getStreamFrames(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var handshakeFrames = new Array<CryptoFrame>();
 
-        /**
-         * If stream is receive only, reset stream data
-         */
+        // TODO: is this really needed every time? there shouldn't be anything in the data to begin with...
         if (stream.isReceiveOnly()) {
             stream.resetData();
         }

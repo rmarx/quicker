@@ -54,7 +54,7 @@ server.on(QuickerEvent.CONNECTION_DRAINING, (connectionSrcId: string) => {
     PacketLogging.getInstance().logPacketStats( server.getConnectionManager().getConnectionByStringID(connectionSrcId).getInitialDestConnectionID().toString() );
     PacketLogging.getInstance().logPacketStats(connectionSrcId); 
 
-	console.log("=> EXPECTED: RX 1 INITIAL (+ possibly 1 0-RTT first), then TX 1-2 HANDSHAKE, 5-7 Protected1RTT, then RX 1 HANDSHAKE, 5-7 Protected1RTT\n");
+	console.log("=> EXPECTED: RX 1 INITIAL (+ possibly 2 0-RTT first), then TX 1 INITIAL, 1-2 HANDSHAKE, 5-7 Protected1RTT, then RX 1 HANDSHAKE, 5-7 Protected1RTT\n");
 
     console.log("Connection allowed early data: " + server.getConnectionManager().getConnectionByStringID(connectionSrcId).getQuicTLS().isEarlyDataAllowed() + " == true" );
     console.log("Connection was re-used:        " + server.getConnectionManager().getConnectionByStringID(connectionSrcId).getQuicTLS().isSessionReused() + " == 1st false, 2nd true" );

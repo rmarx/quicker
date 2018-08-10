@@ -6,6 +6,7 @@ import {Constants} from '../utilities/constants';
 import {PaddingFrame} from '../frame/padding';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 
 export abstract class BaseEncryptedPacket extends BasePacket {
@@ -80,20 +81,27 @@ export abstract class BaseEncryptedPacket extends BasePacket {
 
     public containsValidFrames(): boolean {
         var isValidPacket = true;
-        this.frames.forEach((frame: BaseFrame) => {
-            if (this.getValidFrameTypes().indexOf(frame.getType()) === -1) {
-                if (frame.getType() > FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
-                    if (this.getValidFrameTypes().indexOf(FrameType.STREAM) !== -1) {
-                        return true;
-                    }
-                    else{
-                        console.log("base.encrypted.packet:containsValidFrames: invalid frame found!", FrameType[frame.getType()], this.getValidFrameTypes());
-                        return false;
+
+        for( let frame of this.frames ){
+            if( this.getValidFrameTypes().indexOf(frame.getType()) === -1 ){
+                let isValidFrame = true;
+                // stream frame are special in that they cover a full range instead of a single type, so check for that
+                // since our validFrameTypes array will only contain STREAM, not all the subtypes 
+                if( frame.getType() > FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR ){
+                    if( this.getValidFrameTypes().indexOf(FrameType.STREAM) === -1 ){
+                        isValidFrame = false; 
                     }
                 }
-                isValidPacket = false;
+                else
+                    isValidFrame = false;
+
+                if( !isValidFrame ){
+                    VerboseLogging.error("BaseEncryptedPacket:containsValidFrames : invalid frame " + frame.getType() + " for packet " + PacketType[this.getPacketType()] );
+                    isValidPacket = false; // don't eagerly return here, because we want to log all invalid frames (if more than one)
+                }
             }
-        });
+        }
+
         return isValidPacket;
     }
 

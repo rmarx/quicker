@@ -20,6 +20,7 @@ import {StreamFrame} from '../../frame/stream';
 import {PacketFactory} from '../factories/packet.factory';
 import {Bignum} from '../../types/bignum';
 import {HandshakeState} from '../../crypto/qtls';
+import {EncryptionLevel} from '../../crypto/crypto.context';
 import {EndpointType} from '../../types/endpoint.type';
 import {TransportParameters, TransportParameterType} from '../../crypto/transport.parameters';
 import {BasePacket} from '../../packet/base.packet';
@@ -29,6 +30,7 @@ import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
 import { PacketLogging } from '../logging/packet.logging';
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
+import { VerboseLogging } from '../logging/verbose.logging'
 
 
 export class FrameHandler {
@@ -229,10 +231,11 @@ export class FrameHandler {
     }
 
     private handleCryptoFrame(connection: Connection, cryptoFrame: CryptoFrame){
-        console.log("TODO: we received a crypto frame! pass on to handshake handler!");
-        
-        var stream = connection.getStreamManager().getStream(new Bignum(0));
-        stream.receiveData(cryptoFrame.getData(), cryptoFrame.getOffset(), false);
+        let encryptionLevel:EncryptionLevel|undefined = cryptoFrame.getCryptoLevel();
+        if( encryptionLevel === undefined )
+            VerboseLogging.error("FrameHandler:handleCryptoFrame : frame had no encryptionLevel set, need this to properly deliver the data!");
+        else
+            connection.getEncryptionContext( encryptionLevel ).getCryptoStream().receiveData( cryptoFrame.getData(), cryptoFrame.getOffset() );
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {

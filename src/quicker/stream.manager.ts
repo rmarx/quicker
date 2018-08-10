@@ -3,6 +3,7 @@ import { TransportParameters, TransportParameterType } from "../crypto/transport
 import { Bignum } from "../types/bignum";
 import { EndpointType } from "../types/endpoint.type";
 import { EventEmitter } from "events";
+import { VerboseLogging } from "../utilities/logging/verbose.logging";
 
 
 export class StreamManager extends EventEmitter {
@@ -37,12 +38,12 @@ export class StreamManager extends EventEmitter {
         return stream !== undefined;
     }
 
-    public getStream(streamId: number): Stream;
+    //public getStream(streamId: number): Stream;
     public getStream(streamId: Bignum): Stream;
     public getStream(streamId: any): Stream {
         var stream = this._getStream(streamId);
         if (stream === undefined) {
-            stream = this.initializeStream(streamId);
+            stream = this.initializeStream( streamId );
         }
         return stream;
     }
@@ -50,6 +51,9 @@ export class StreamManager extends EventEmitter {
     private initializeStream(streamId: Bignum): Stream {
         var stream = new Stream(this.endpointType, streamId);
         this.addStream(stream);
+
+        VerboseLogging.info("StreamManager:initializeStream : starting stream " + streamId.toNumber() + " @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ " );
+
         if (this.localMaxStreamData !== undefined) {
             stream.setLocalMaxData(this.localMaxStreamData);
         }

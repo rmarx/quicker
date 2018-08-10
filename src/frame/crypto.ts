@@ -1,8 +1,13 @@
 import {VLIE} from '../crypto/vlie';
 import {Bignum} from '../types/bignum';
 import {BaseFrame, FrameType} from './base.frame';
+import {EncryptionLevel} from '../crypto/crypto.context'
 
 export class CryptoFrame extends BaseFrame {
+
+    // mainly needed for easier statekeeping without having to pass this along everywhere we want to handle Crypto frames (e.g., send logic)
+    // TODO: refactor flowcontrol further so this isn't needed? 
+    private cryptoLevel?:EncryptionLevel; 
 
     private data: Buffer;
     private length: Bignum;
@@ -14,6 +19,14 @@ export class CryptoFrame extends BaseFrame {
 
         this.length = length;
         this.offset = offset;
+    }
+
+    public setCryptoLevel(level:EncryptionLevel){
+        this.cryptoLevel = level;
+    }
+
+    public getCryptoLevel(): EncryptionLevel|undefined {
+        return this.cryptoLevel;
     }
 
     public toBuffer(): Buffer {

@@ -4,6 +4,7 @@ import { Alarm, AlarmEvent } from '../types/alarm';
 import { AckFrame } from '../frame/ack';
 import { EventEmitter } from 'events';
 import { Connection, ConnectionEvent } from '../quicker/connection';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 // SentPackets type:
 // Key is the value of the packet number toString
@@ -101,9 +102,6 @@ export class LossDetection extends EventEmitter {
     public constructor(connection: Connection) {
         super();
         this.lossDetectionAlarm = new Alarm();
-        this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, () => {
-            this.onLossDetectionAlarm();
-        });
         this.tlpCount = 0;
         this.rtoCount = 0;
         if (LossDetection.USING_TIME_LOSS_DETECTION) {
@@ -239,8 +237,7 @@ export class LossDetection extends EventEmitter {
     }
 
     public setLossDetectionAlarm(): void {
-        // Don't arm the alarm if there are no packets with
-        // retransmittable data in flight.
+        // Don't arm the alarm if there are no packets with retransmittable data in flight.
         // TODO: replace retransmittablePacketsOutstanding by bytesInFlight
         if (this.retransmittablePacketsOutstanding === 0) {
             this.lossDetectionAlarm.reset();
@@ -276,7 +273,8 @@ export class LossDetection extends EventEmitter {
         }
 
         if (!this.lossDetectionAlarm.isRunning()) {
-            this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, () => {
+            this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, (timePassed:number) => {
+                VerboseLogging.info("LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
                 this.lossDetectionAlarm.reset();
                 this.onLossDetectionAlarm();
             });

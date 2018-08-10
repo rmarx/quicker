@@ -19,7 +19,7 @@ export class Protected0RTTPacket extends BaseEncryptedPacket {
 
     protected getValidFrameTypes(): FrameType[] {
         return [
-            FrameType.STREAM, FrameType.PADDING
+            FrameType.CRYPTO, FrameType.STREAM, FrameType.PADDING
         ];
     }
 }

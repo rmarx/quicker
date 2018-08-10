@@ -12,7 +12,7 @@ import { Constants } from '../constants';
 import { InitialPacket } from '../../packet/packet/initial';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
 import { HandshakePacket } from '../../packet/packet/handshake';
-import { BasePacket } from '../../packet/base.packet';
+import { BasePacket, PacketType } from '../../packet/base.packet';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
@@ -66,7 +66,7 @@ export class PacketParser {
         }
         var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>packetOffset.packet;
         if (!baseEncryptedPacket.containsValidFrames()) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet");
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet " + PacketType[baseEncryptedPacket.getPacketType()] );
         }
         return packetOffset;
     }

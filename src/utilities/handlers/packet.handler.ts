@@ -3,7 +3,7 @@ import { Version, ConnectionID } from '../../packet/header/header.properties';
 import { PacketLogging } from '../logging/packet.logging';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { TransportParameterType } from '../../crypto/transport.parameters';
-import { BaseFrame } from '../../frame/base.frame';
+import { BaseFrame, FrameType } from '../../frame/base.frame';
 import { Connection } from '../../quicker/connection';
 import { BasePacket, PacketType } from '../../packet/base.packet';
 import { HandshakePacket } from '../../packet/packet/handshake';
@@ -14,6 +14,8 @@ import { Stream } from '../../quicker/stream';
 import { Bignum } from '../../types/bignum';
 import { InitialPacket } from '../../packet/packet/initial';
 import { HandshakeState } from '../../crypto/qtls';
+import { CryptoFrame } from '../../frame/crypto';
+import { EncryptionLevel } from '../../crypto/crypto.context';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
 import { LongHeader } from '../../packet/header/long.header';
@@ -169,8 +171,37 @@ export class PacketHandler {
     }
 
     private handleFrames(connection: Connection, packet: BaseEncryptedPacket): void {
+        
         packet.getFrames().forEach((baseFrame: BaseFrame) => {
-            this.frameHandler.handle(connection, baseFrame);
+            // crypto frames explicitly belong to a certain encryption level, which is based on the type of packet they arrive in 
+            if( baseFrame.getType() == FrameType.CRYPTO ){
+                let cryptoFrame:CryptoFrame = baseFrame as CryptoFrame;
+                let cryptoLevel:EncryptionLevel = EncryptionLevel.INITIAL;
+
+                switch( packet.getPacketType() ){
+                    case PacketType.Initial:
+                        cryptoLevel = EncryptionLevel.INITIAL;
+                        break;
+                    case PacketType.Handshake:
+                        cryptoLevel = EncryptionLevel.HANDSHAKE;
+                        break;
+                    case PacketType.Protected0RTT:
+                        cryptoLevel = EncryptionLevel.ZERO_RTT;
+                        break;
+                    case PacketType.Protected1RTT:
+                        cryptoLevel = EncryptionLevel.ONE_RTT;
+                        break;
+                    default:
+                        VerboseLogging.error("PacketHandler:handleFrames : CRYPTO frame in unexpected packet type " + PacketType[packet.getPacketType()] );
+                        break;
+                };
+                cryptoFrame.setCryptoLevel( cryptoLevel );
+
+                this.frameHandler.handle(connection, cryptoFrame);
+            }
+            else{
+                this.frameHandler.handle(connection, baseFrame);
+            }
         });
     }
 

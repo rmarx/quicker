@@ -6,6 +6,7 @@ import { Connection, ConnectionEvent } from "../quicker/connection";
 import { LossDetection, LossDetectionEvents } from "../loss-detection/loss.detection";
 import { Socket } from "dgram";
 import { PacketLogging } from "../utilities/logging/packet.logging";
+import { VerboseLogging } from "../utilities/logging/verbose.logging"
 
 
 export class CongestionControl extends EventEmitter {
@@ -148,6 +149,7 @@ export class CongestionControl extends EventEmitter {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {
                 packet.getHeader().setPacketNumber(this.connection.getNextPacketNumber());
+                VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + packet.getHeader().getPacketNumber().getValue().toNumber() );
                 this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
                 this.emit(CongestionControlEvents.PACKET_SENT, packet);
             }

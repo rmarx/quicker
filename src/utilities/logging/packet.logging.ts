@@ -415,7 +415,7 @@ export class PacketLogging {
     }
 
     public logPacketStats( connectionId:string ){
-        let log:string = "";
+        let log:string = "\n";
 
 		//console.log(" Fetching RX " + connectionId + " from", Array.from( this.receivedPacketTypes.keys() ) );
 		//console.log(" Fetching TX " + connectionId + " from", Array.from( this.sentPacketTypes.keys() ) );

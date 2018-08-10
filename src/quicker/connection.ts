@@ -151,6 +151,11 @@ export class Connection extends FlowControlledObject {
         this.hookLossDetectionEvents();
         this.hookCongestionControlEvents();
         this.hookHandshakeHandlerEvents();
+
+        this.handshakeHandler.registerCryptoStream( this.contextInitial.getCryptoStream() );
+        this.handshakeHandler.registerCryptoStream( this.context0RTT.getCryptoStream() );
+        this.handshakeHandler.registerCryptoStream( this.contextHandshake.getCryptoStream() );
+        this.handshakeHandler.registerCryptoStream( this.context1RTT.getCryptoStream() );
     }
 
     private hookHandshakeHandlerEvents() {
@@ -186,14 +191,14 @@ export class Connection extends FlowControlledObject {
 
     private hookStreamManagerEvents() {
         this.streamManager.on(StreamManagerEvents.INITIALIZED_STREAM, (stream: Stream) => {
-            // Stream 0 is used for handshake processing and is special in how we handle it
-            if (stream.getStreamID().compare(new Bignum(0)) !== 0) {
-                this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
-            } else {
-                this.handshakeHandler.setHandshakeStream(stream);
-            }
+            // for external users of the quicker library
+            this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream)); 
+            
+            // purely for internal usage 
             stream.on(FlowControlledObjectEvents.INCREMENT_BUFFER_DATA_USED, (dataLength: number) => {
-                this.incrementBufferSizeUsed(dataLength);
+                // connection has a maximum amount of data allowed for all streams combined + individual numbers for streams
+                // whenever a stream changes its allowances, the total connection's allowances should change along 
+                this.incrementBufferSizeUsed(dataLength); 
             });
             stream.on(FlowControlledObjectEvents.DECREMENT_BUFFER_DATA_USED, (dataLength: number) => {
                 this.decrementBufferSizeUsed(dataLength);
@@ -446,6 +451,21 @@ export class Connection extends FlowControlledObject {
         this.spinBit = spinbit;
     }
 
+    public getEncryptionContext(level:EncryptionLevel): CryptoContext{
+        if( level == EncryptionLevel.INITIAL )
+            return this.contextInitial;
+        else if( level == EncryptionLevel.HANDSHAKE )
+            return this.contextHandshake;
+        else if( level == EncryptionLevel.ZERO_RTT )
+            return this.context0RTT;
+        else if( level == EncryptionLevel.ONE_RTT )
+            return this.context1RTT;
+        else {
+            VerboseLogging.error("Connection:getEncryptionContext : unsupported EncryptionLevel : " + EncryptionLevel[level] );
+            return this.context1RTT;
+        }
+    }
+
     public resetConnection(negotiatedVersion?: Version) {
         this.resetConnectionState();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
@@ -483,9 +503,12 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitPacket(packet: BasePacket) {
+        VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber().getValue().toNumber() );
+        console.trace("Connection:retransmitPacket : trace");
+
         switch (packet.getPacketType()) {
             case PacketType.Initial:
-                if (this.getStreamManager().getStream(0).getLocalOffset().greaterThan(0)) {
+                if (this.getStreamManager().getStream(new Bignum(0)).getLocalOffset().greaterThan(0)) {
                     // Server hello is already received, packet does not need to be retransmitted
                     return;
                 }
@@ -503,6 +526,7 @@ export class Connection extends FlowControlledObject {
 
         var framePacket = <BaseEncryptedPacket>packet;
         framePacket.getFrames().forEach((frame: BaseFrame) => {
+            VerboseLogging.info("Connection:retransmitPacket : retransmitting frame " + FrameType[frame.getType()] );
             if (frame.isRetransmittable()) {
                 this.retransmitFrame(frame);
             }
@@ -544,7 +568,9 @@ export class Connection extends FlowControlledObject {
             case FrameType.STOP_SENDING:
                 break;
             case FrameType.CRYPTO:
-                console.log("Connection:RetransmitFrame : TODO : retransmit logic for CRYPTO frames!");
+                VerboseLogging.error("Connection:RetransmitFrame : TODO : retransmit logic for CRYPTO frames!");
+                if( 1 == 1)
+                    return;
                 break;
             default:
                 if (frame.getType() >= FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
@@ -586,8 +612,10 @@ export class Connection extends FlowControlledObject {
             return;
         }
 
+
         this.transmissionAlarm.reset();
         var packets: BasePacket[] = this.flowControl.getPackets();
+        VerboseLogging.info("Connection:sendPackets : queueing " + packets.length + " packets on congestionControl");
         this.congestionControl.queuePackets(packets);
     }
 
@@ -600,7 +628,7 @@ export class Connection extends FlowControlledObject {
 
     public attemptEarlyData(earlyData?: Buffer): boolean {
         if (earlyData !== undefined) {
-            this.earlyData = earlyData;
+            this.earlyData = earlyData; 
         }
         if (this.earlyData !== undefined && this.getQuicTLS().isEarlyDataAllowed()) {
             var stream = this.getStreamManager().getNextStream(StreamType.ClientBidi);

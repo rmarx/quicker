@@ -34,7 +34,10 @@ export class CryptoStream extends EventEmitter {
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
 	}
-    
+	
+	public getCryptoLevel():EncryptionLevel{
+		return this.cryptoLevel;
+	}
 
     // --------------------------------------------
     // SEND logic
@@ -142,4 +145,4 @@ export class CryptoStream extends EventEmitter {
 
 export enum CryptoStreamEvent {
 	DATA = "crypto-stream-data"
-}
+} 

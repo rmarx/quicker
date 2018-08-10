@@ -11,14 +11,16 @@ export enum EncryptionLevel{
 
 // CryptoContext helps keep track of the different encryption levels and packet number spaces introduced in draft-13
 // In short, all encryption levels act as separate contexts with their own packet numbers starting from 0 and CRYPTO stream offsets starting from 0 as well
+// only 0-RTT and 1-RTT share packet numbers, since we reply to 0-RTT requests with 1-RTT data etc. 
 /*
-    | Packet Type     | Encryption Level | PN Space  |
-    |:----------------|:-----------------|:----------|
-    | Initial         | Initial secrets  | Initial   |
-    | Retry           | N/A              | N/A       |
-    | 0-RTT Protected | 0-RTT            | 0+1-RTT   |
-    | Handshake       | Handshake        | Handshake |
-    | Short Header    | 1-RTT            | 0+1-RTT   |
+    | Packet Type     | Encryption Level | PN Space  | TLS messages
+    |:----------------|:-----------------|:----------| --------------
+    | Initial         | Initial secrets  | Initial   | ClientHello, ServerHello
+    | Retry           | N/A              | N/A       | 
+    | 0-RTT Protected | 0-RTT            | 0+1-RTT   | 0-RTT data, END-OF-EARLY-DATA
+    | Handshake       | Handshake        | Handshake | Encrypted Extensions, Certificate, Certificate Verify, Finished
+    | Short Header    | 1-RTT            | 0+1-RTT   | NewSessionTicket
+
 */
 export class CryptoContext {
 

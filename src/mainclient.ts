@@ -55,7 +55,7 @@ for (var i = 0; i < 1; i++) {
 				console.log("Server closed connection2 " + client2.getConnection().getSrcConnectionID().toString() );
         		PacketLogging.getInstance().logPacketStats( client2.getConnection().getSrcConnectionID().toString() );
 
-				console.log("=> EXPECTED: TX 1 INITIAL, 1 0-RTT, 1 HANDSHAKE, 3-7 Protected1RTT, then RX 1 HANDSHAKE, 5-7 Protected1RTT\n");
+				console.log("=> EXPECTED: TX 1 INITIAL, 2 0-RTT, 1 HANDSHAKE, 3-7 Protected1RTT, then RX 1 INITIAL, 1 HANDSHAKE, 5-7 Protected1RTT\n");
 
                 console.log("Connection2 allowed early data: " + client2.getConnection().getQuicTLS().isEarlyDataAllowed() + " == true" );
                 console.log("Connection2 was re-used:        " + client2.getConnection().getQuicTLS().isSessionReused() + " == true");
@@ -79,7 +79,7 @@ for (var i = 0; i < 1; i++) {
 		console.log("Server closed connection " + client.getConnection().getSrcConnectionID().toString() );
         PacketLogging.getInstance().logPacketStats( client.getConnection().getSrcConnectionID().toString() );
 
-		console.log("=> EXPECTED: TX 1 INITIAL, 1 HANDSHAKE, 3-7 Protected1RTT, then RX 2 HANDSHAKE, 5-7 Protected1RTT\n");
+		console.log("=> EXPECTED: TX 1 INITIAL, 1 HANDSHAKE, 3-7 Protected1RTT, then RX 1 INITIAL, 2 HANDSHAKE, 5-7 Protected1RTT\n");
 
         // note: isEarlyDataAllowed() always return true, even if the session wasn't resumed (at least if the server allows early data on resumed connections). This does NOT mean early data was used ont he connection
         console.log("Connection1 allowed early data: " + client.getConnection().getQuicTLS().isEarlyDataAllowed() + " == true" );
