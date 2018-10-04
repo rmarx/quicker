@@ -47,7 +47,11 @@ export class HeaderHandler {
             var longHeader = <LongHeader>header;
             if (longHeader.getPacketType() === LongHeaderType.Protected0RTT) {
                 var pn = connection.getAEAD().protected0RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
-            } else {
+            }
+            else if( longHeader.getPacketType() === LongHeaderType.Handshake ){
+                var pn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+            } 
+            else {
                 var pn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
             }
         } else {

@@ -169,7 +169,11 @@ export class LongHeader extends BaseHeader {
         var encodedPn = VLIE.encodePn(pn);
         if (this.getPacketType() === LongHeaderType.Protected0RTT) {
             var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
-        } else {
+        }
+        else if( this.getPacketType() === LongHeaderType.Handshake ){
+            var pne = connection.getAEAD().protectedHandshakePnEncrypt(encodedPn, this, payload, connection.getEndpointType()); 
+        } 
+        else {
             var pne = connection.getAEAD().clearTextPnEncrypt(connection.getInitialDestConnectionID(), encodedPn, this, payload, connection.getEndpointType());
         }
         offset += pne.copy(buf, offset);

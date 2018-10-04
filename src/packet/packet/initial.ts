@@ -19,7 +19,7 @@ export class InitialPacket extends BaseEncryptedPacket {
 
     protected getValidFrameTypes(): FrameType[] {
         return [
-            FrameType.CRYPTO, FrameType.PADDING
+            FrameType.CRYPTO, FrameType.ACK, FrameType.PADDING
         ];
     }
 }

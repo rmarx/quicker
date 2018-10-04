@@ -19,6 +19,7 @@ import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { Bignum } from '../../types/bignum';
 import { RetryPacket } from '../../packet/packet/retry';
 import { VersionValidation } from '../validation/version.validation';
+import { VerboseLogging } from '../logging/verbose.logging';
 
 
 export class PacketParser {
@@ -98,8 +99,11 @@ export class PacketParser {
 
     private parseClientInitialPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         if (buffer.byteLength < Constants.INITIAL_MIN_SIZE) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
+            //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Packet was smaller than the minimum size " + buffer.byteLength + " < " + Constants.INITIAL_MIN_SIZE);
+            VerboseLogging.error("PacketParser:parseClientInitialPacket : packet was smaller than the minimum size " + buffer.byteLength + " < " + Constants.INITIAL_MIN_SIZE + " and should be padded!");
         }
+        // fIXME: re-enable above check: disabled because ngtcp2 was sending too small ACK frames in Initial: NOTE check if draft-13 requires 1200 size for ack initials! 
+
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
@@ -131,7 +135,8 @@ export class PacketParser {
 
     private parseHandshakePacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
-        dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
+        //dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);
+        dataBuffer = connection.getAEAD().protectedHandshakeDecrypt(headerOffset.header, dataBuffer, endpoint);
         var frames = this.frameParser.parse(dataBuffer, 0);
         return {
             packet: new HandshakePacket(headerOffset.header, frames),

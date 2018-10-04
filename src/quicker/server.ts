@@ -83,7 +83,7 @@ export class Server extends Endpoint {
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         
-        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE ////////////////////////////////");
+        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE //////////////////////////////// " + msg.length);
         try {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
@@ -92,6 +92,8 @@ export class Server extends Endpoint {
             // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
+
+        console.log("Message contains " + headerOffsets.length + " independent packets (we think)");
         
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
             var connection: Connection | undefined = undefined;

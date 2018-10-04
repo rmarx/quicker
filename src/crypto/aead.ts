@@ -16,6 +16,7 @@ import { ShortHeader } from '../packet/header/short.header';
 import { VLIE } from './vlie';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 export class AEAD {
 
@@ -36,6 +37,10 @@ export class AEAD {
 
     // Client earlyData secret
     private protected0RTTClientSecret!: Buffer;
+    // Client handshake secret
+    private protectedHandshakeClientSecret!:Buffer;
+    // Server handshake secret
+    private protectedHandshakeServerSecret!:Buffer;
     // Client secret
     private protected1RTTClientSecret!: Buffer;
     // Server secret
@@ -45,6 +50,16 @@ export class AEAD {
     private protected0RTTKey!: Buffer;
     private protected0RTTIv!: Buffer;
     private protected0RTTPn!: Buffer;
+
+    // Client handshake key and iv
+    private protectedHandshakeClientKey!: Buffer;
+    private protectedHandshakeClientIv!: Buffer;
+    private protectedHandshakeClientPn!: Buffer;
+
+    // Server handshake key and iv
+    private protectedHandshakeServerKey!: Buffer;
+    private protectedHandshakeServerIv!: Buffer;
+    private protectedHandshakeServerPn!: Buffer;
 
     // Client key and iv
     private protected1RTTClientKey!: Buffer;
@@ -112,34 +127,96 @@ export class AEAD {
         return this._decrypt(Constants.DEFAULT_AEAD_GCM, key, nonce, header.getParsedBuffer(), encryptedPayload);
     }
 
-    public protected1RTTEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
-        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
-            this.generateProtected1RTTSecrets();
-        }
-        if (encryptingEndpoint === EndpointType.Client) {
-            var key = this.protected1RTTClientKey;
-            var iv = this.protected1RTTClientIv;
+    public protectedHandshakeEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        let key = undefined;
+        let iv = undefined;
+
+        if( encryptingEndpoint == EndpointType.Client){
+            if( this.protectedHandshakeClientSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakeEncrypt : client encryption secret not set!");
+            else{
+                key = this.protectedHandshakeClientKey;
+                iv  = this.protectedHandshakeClientIv;
+            }
         } else {
-            var key = this.protected1RTTServerKey;
-            var iv = this.protected1RTTServerIv;
+            if( this.protectedHandshakeServerSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakeEncrypt : server encryption secret not set!");
+            else{
+                key = this.protectedHandshakeServerKey;
+                iv  = this.protectedHandshakeServerIv;
+            }
         }
-        var nonce = this.calculateNonce(header, iv).toBuffer();
-        return this._encrypt(this.qtls.getCipher().getAeadGcm(), key, nonce, header.toBuffer(), payload);
+        var nonce = this.calculateNonce(header, iv as Buffer).toBuffer();
+        return this._encrypt(this.qtls.getCipher().getAeadGcm(), key as Buffer, nonce, header.toBuffer(), payload);
+    }
+
+    public protectedHandshakeDecrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        let key = undefined;
+        let iv = undefined;
+
+        if (encryptingEndpoint === EndpointType.Client) {
+            if( this.protectedHandshakeClientSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakeEncrypt : client decryption secret not set!");
+            else{
+                key = this.protectedHandshakeClientKey;
+                iv  = this.protectedHandshakeClientIv;
+            }
+        } else {
+            if( this.protectedHandshakeServerSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakeEncrypt : server decryption secret not set!");
+            else{
+                key = this.protectedHandshakeServerKey;
+                iv  = this.protectedHandshakeServerIv;
+            }
+        }
+        var nonce = this.calculateNonce(header, iv as Buffer).toBuffer();
+        return this._decrypt(this.qtls.getCipher().getAeadGcm(), key as Buffer, nonce, header.getParsedBuffer(), payload);
+    }
+
+    public protected1RTTEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
+        let key = undefined;
+        let iv = undefined;
+
+        if (encryptingEndpoint === EndpointType.Client) {
+            if( this.protected1RTTClientSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTEncrypt : client encryption secret not set!");
+            else{
+                key = this.protected1RTTClientKey;
+                iv = this.protected1RTTClientIv;
+            }
+        } else {
+            if( this.protected1RTTServerSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTEncrypt : server encryption secret not set!");
+            else{
+                key = this.protected1RTTServerKey;
+                iv = this.protected1RTTServerIv;
+            }
+        }
+        var nonce = this.calculateNonce(header, iv as Buffer).toBuffer();
+        return this._encrypt(this.qtls.getCipher().getAeadGcm(), key as Buffer, nonce, header.toBuffer(), payload);
     }
 
     public protected1RTTDecrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
-        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
-            this.generateProtected1RTTSecrets();
-        }
+        let key = undefined;
+        let iv = undefined;
+
         if (encryptingEndpoint === EndpointType.Client) {
-            var key = this.protected1RTTClientKey;
-            var iv = this.protected1RTTClientIv;
+            if( this.protected1RTTClientSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTDecrypt : client decryption secret not set!");
+            else{
+                key = this.protected1RTTClientKey;
+                iv = this.protected1RTTClientIv;
+            }
         } else {
-            var key = this.protected1RTTServerKey;
-            var iv = this.protected1RTTServerIv;
+            if( this.protected1RTTServerSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTDecrypt : server decryption secret not set!");
+            else{
+                key = this.protected1RTTServerKey;
+                iv = this.protected1RTTServerIv;
+            }
         }
-        var nonce = this.calculateNonce(header, iv).toBuffer();
-        return this._decrypt(this.qtls.getCipher().getAeadGcm(), key, nonce, header.getParsedBuffer(), payload);
+        var nonce = this.calculateNonce(header, iv as Buffer).toBuffer();
+        return this._decrypt(this.qtls.getCipher().getAeadGcm(), key as Buffer, nonce, header.getParsedBuffer(), payload);
     }
 
     public protected0RTTEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
@@ -207,28 +284,80 @@ export class AEAD {
         return this._pnDecrypt(this.qtls.getCipher().getAeadCtr(), this.protected0RTTPn, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
     }
 
-    public protected1RTTPnEncrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
-        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
-            this.generateProtected1RTTSecrets();
-        }
+    public protectedHandshakePnEncrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
+        let key = undefined;
+
         if (encryptingEndpoint === EndpointType.Client) {
-            var key = this.protected1RTTClientPn;
+            if( this.protectedHandshakeClientSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakePnEncrypt : client encryption secret not set!");
+            else{
+                key = this.protectedHandshakeClientPn;
+            }
         } else {
-            var key = this.protected1RTTServerPn;
+            if( this.protectedHandshakeServerSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakePnEncrypt : server encryption secret not set!");
+            else{
+                key = this.protectedHandshakeServerPn;
+            }
         }
-        return this._pnEncrypt(this.qtls.getCipher().getAeadCtr(), key, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
+        return this._pnEncrypt(this.qtls.getCipher().getAeadCtr(), key as Buffer, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
+    }
+
+    public protectedHandshakePnDecrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
+        let key = undefined;
+
+        if (encryptingEndpoint === EndpointType.Client) {
+            if( this.protectedHandshakeClientSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakePnDecrypt : client decryption secret not set!");
+            else{
+                key = this.protectedHandshakeClientPn;
+            }
+        } else {
+            if( this.protectedHandshakeServerSecret == undefined )
+                VerboseLogging.error("aead:protectedHandshakePnEncrypt : server decryption secret not set!");
+            else{
+                key = this.protectedHandshakeServerPn;
+            }
+        }
+        return this._pnDecrypt(this.qtls.getCipher().getAeadCtr(), key as Buffer, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
+    }
+
+    public protected1RTTPnEncrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
+        let key = undefined;
+
+        if (encryptingEndpoint === EndpointType.Client) {
+            if( this.protected1RTTClientSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTPnEncrypt : client encryption secret not set!");
+            else{
+                key = this.protected1RTTClientPn;
+            }
+        } else {
+            if( this.protectedHandshakeServerSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTPnEncrypt : server encryption secret not set!");
+            else{
+                key = this.protected1RTTServerPn;
+            }
+        }
+        return this._pnEncrypt(this.qtls.getCipher().getAeadCtr(), key as Buffer, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
     }
 
     public protected1RTTPnDecrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
-        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
-            this.generateProtected1RTTSecrets();
+        let key = undefined;
+
+        if (encryptingEndpoint === EndpointType.Client) { 
+            if( this.protected1RTTClientSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTPnDecrypt : client decryption secret not set!");
+            else{
+                key = this.protected1RTTClientPn;
+            }
+        } else { 
+            if( this.protectedHandshakeServerSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTPnDecrypt : server decryption secret not set!");
+            else{
+                key = this.protected1RTTServerPn;
+            }
         }
-        if (encryptingEndpoint === EndpointType.Client) {
-            var key = this.protected1RTTClientPn;
-        } else {
-            var key = this.protected1RTTServerPn;
-        }
-        return this._pnDecrypt(this.qtls.getCipher().getAeadCtr(), key, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
+        return this._pnDecrypt(this.qtls.getCipher().getAeadCtr(), key as Buffer, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
     }
 
     private generateClearTextSecrets(connectionID: ConnectionID, qtls: QTLS, version: Version): void {
@@ -257,12 +386,14 @@ export class AEAD {
         this.usedVersion = version;
     }
 
+    /*
     private generateProtected1RTTSecrets(): void {
         var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash());
         this.protected1RTTClientSecret = this.qtls.exportKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.CLIENT_1RTT_LABEL);
         this.protected1RTTServerSecret = this.qtls.exportKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.SERVER_1RTT_LABEL);
         this.generateKeyAndIv(hkdf, this.qtls);
     }
+    */
 
     private generateProtected0RTTSecrets(): void {
         var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash());
@@ -275,18 +406,22 @@ export class AEAD {
         console.log("protected0RTT client pn: " + this.protected0RTTPn.toString('hex'));
     }
 
+    /*
     public updateProtected1RTTSecret(): void {
         var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash());
         this.protected1RTTClientSecret = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.CLIENT_1RTT_LABEL, this.qtls.getCipher().getHashLength());
         this.protected1RTTServerSecret = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.SERVER_1RTT_LABEL, this.qtls.getCipher().getHashLength());
         this.generateKeyAndIv(hkdf, this.qtls);
     }
+    */
 
+    /*
     private generateKeyAndIv(hkdf: HKDF, qtls: QTLS) {
         // Generate Client key, IV, PN
         this.protected1RTTClientKey = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, qtls.getCipher().getAeadKeyLength());
         this.protected1RTTClientIv = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         this.protected1RTTClientPn = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, qtls.getCipher().getAeadKeyLength());
+        console.log("protected1RTT client Secret: " + this.protected1RTTClientSecret.toString('hex'));
         console.log("protected1RTT client key: " + this.protected1RTTClientKey.toString('hex'));
         console.log("protected1RTT client iv: " + this.protected1RTTClientIv.toString('hex'));
         console.log("protected1RTT client pn: " + this.protected1RTTClientPn.toString('hex'));
@@ -295,9 +430,125 @@ export class AEAD {
         this.protected1RTTServerKey = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, qtls.getCipher().getAeadKeyLength());
         this.protected1RTTServerIv = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         this.protected1RTTServerPn = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_PN_LABEL, qtls.getCipher().getAeadKeyLength());
+        console.log("protected1RTT server Secret: " + this.protected1RTTServerSecret.toString('hex'));
         console.log("protected1RTT server key: " + this.protected1RTTServerKey.toString('hex'));
         console.log("protected1RTT server iv: " + this.protected1RTTServerIv.toString('hex'));
         console.log("protected1RTT server pn: " + this.protected1RTTServerPn.toString('hex'));
+    }
+    */
+
+    public setProtectedHandshakeSecrets(endpoint:EndpointType, secret:Buffer, key:Buffer, iv:Buffer){
+        VerboseLogging.warn("generate HANDSHAKE secrets for " + EndpointType[endpoint] );
+
+        var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
+    
+        if( endpoint == EndpointType.Client ){
+            this.protectedHandshakeClientSecret = secret;
+            this.protectedHandshakeClientKey = key;
+            this.protectedHandshakeClientIv = iv; 
+            this.protectedHandshakeClientPn = hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
+        
+            console.log( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeClientSecret.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeClientKey.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeClientIv.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS calc pn:     " + this.protectedHandshakeClientPn.toString('hex') );
+        }
+        else if( endpoint == EndpointType.Server ){
+            this.protectedHandshakeServerSecret = secret;
+            this.protectedHandshakeServerKey = key;
+            this.protectedHandshakeServerIv = iv; 
+            this.protectedHandshakeServerPn = hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
+        
+            console.log( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeServerSecret.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeServerKey.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeServerIv.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS calc pn:     " + this.protectedHandshakeServerPn.toString('hex') );
+        }
+        else
+            VerboseLogging.error("aead:setProtectedHandshakeSecrets : unknown endpoint type : " + endpoint);
+
+
+
+
+        /*
+       ROBIN: Snelste ding om te doen:
+	- zorgen dat handshake packets ook effectief ge-encrypt worden met de handshake keys ipv cleartext
+	- kijken wat ngtcp2 daarop zegt -> if decode succesful, dan gewoon laten as-is en verder gaan naar packet number spaces etc.
+		-> refactoren naar CryptoContext kan later nog altijd 
+    */
+
+        // NOTE: before we had to manually calculate the key and iv as well, based on the secret
+        // we also had to fetch the secret ourselves using this.qtls.exportEarlyKeyingMaterial(...)
+        // now, with the callbacks from openSSL, we just get this from the stack, and only need to calculate the PNE key
+        //console.log("OLD key: " + hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_KEY_LABEL, this.qtls.getCipher().getAeadKeyLength()).toString('hex') );
+        //console.log("OLD iv:  " + hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH).toString('hex') );
+        //console.log("OLD pn:  " + hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength()).toString('hex') );
+        
+        VerboseLogging.warn("generate HANDSHAKE secrets DONE");
+    }
+
+    public setProtected1RTTSecrets(endpoint:EndpointType, secret:Buffer, key:Buffer, iv:Buffer){
+
+        VerboseLogging.warn("set 1RTT secrets for " + EndpointType[endpoint] );
+
+        var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
+    
+        if( endpoint == EndpointType.Client ){
+            this.protected1RTTClientSecret = secret;
+            this.protected1RTTClientKey = key;
+            this.protected1RTTClientIv = iv; 
+            this.protected1RTTClientPn = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
+
+            console.log("protected1RTT client Secret: " + this.protected1RTTClientSecret.toString('hex'));
+            console.log("protected1RTT client key: " + this.protected1RTTClientKey.toString('hex'));
+            console.log("protected1RTT client iv: " + this.protected1RTTClientIv.toString('hex'));
+            console.log("protected1RTT client pn: " + this.protected1RTTClientPn.toString('hex'));
+        }
+        else if( endpoint == EndpointType.Server ){
+            this.protected1RTTServerSecret = secret;
+            this.protected1RTTServerKey = key;
+            this.protected1RTTServerIv = iv; 
+            this.protected1RTTServerPn = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
+        
+            console.log("protected1RTT server Secret: " + this.protected1RTTServerSecret.toString('hex'));
+            console.log("protected1RTT server key: " + this.protected1RTTServerKey.toString('hex'));
+            console.log("protected1RTT server iv: " + this.protected1RTTServerIv.toString('hex'));
+            console.log("protected1RTT server pn: " + this.protected1RTTServerPn.toString('hex'));
+        }
+        else
+            VerboseLogging.error("aead:setProtected1RTTSecretsNew : unknown endpoint type : " + endpoint);
+
+
+
+        /*
+        VerboseLogging.warn("generate 1RTT secrets");
+        console.log("TLS in secret: " + secret.toString('hex') );
+        console.log("TLS in key:    " + key.toString('hex') );
+        console.log("TLS in iv:     " + iv.toString('hex') );
+
+        if (this.protected1RTTClientSecret === undefined || this.protected1RTTServerSecret === undefined) {
+            
+            var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash());
+            this.protected1RTTClientSecret = secret;
+            this.protected1RTTServerSecret = secret;
+            this.generateKeyAndIv(hkdf, this.qtls); 
+        }
+
+        else{
+
+            console.log("protected1RTT client Secret: " + this.protected1RTTClientSecret.toString('hex'));
+            console.log("protected1RTT client key: " + this.protected1RTTClientKey.toString('hex'));
+            console.log("protected1RTT client iv: " + this.protected1RTTClientIv.toString('hex'));
+            console.log("protected1RTT client pn: " + this.protected1RTTClientPn.toString('hex'));
+
+            console.log("protected1RTT server Secret: " + this.protected1RTTServerSecret.toString('hex'));
+            console.log("protected1RTT server key: " + this.protected1RTTServerKey.toString('hex'));
+            console.log("protected1RTT server iv: " + this.protected1RTTServerIv.toString('hex'));
+            console.log("protected1RTT server pn: " + this.protected1RTTServerPn.toString('hex'));
+        }
+
+        VerboseLogging.warn("generate 1RTT secrets DONE");
+        */
     }
 
     /**
@@ -393,15 +644,20 @@ export class AEAD {
     }
 
     private _pnEncrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
+        console.log("PN ENCRYPT START xxxxxxxxxxxxxxxxxxx");
+        console.log("used key: " + key.toString('hex'));
+        console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
         var sampleOffset = this.getSampleOffset(sampleLength, header, encryptedPayload.byteLength);
         var sampleData = encryptedPayload.slice(sampleOffset, sampleOffset + sampleLength);
         var cipher = createCipheriv(algorithm, key, sampleData);
         var update = cipher.update(packetNumberBuffer);
         var final = cipher.final();
+        console.log("PN ENCRYPT END xxxxxxxxxxxxxxxxxxx");
         return Buffer.concat([update, final]);
     }
 
-    public _pnDecrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
+    private _pnDecrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
+        console.log("PN DECRYPT START xxxxxxxxxxxxxxxxxxx");
         console.log("used key: " + key.toString('hex'));
         console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
         var sampleOffset = this.getSampleOffset(sampleLength, header, encryptedPayload.byteLength);
@@ -411,6 +667,7 @@ export class AEAD {
         var cipher = createDecipheriv(algorithm, key, sampleData);
         var update = cipher.update(packetNumberBuffer);
         var final = cipher.final();
+        console.log("PN DECRYPT END xxxxxxxxxxxxxxxxxxx");
         return Buffer.concat([update, final]);
     }
 

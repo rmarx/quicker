@@ -12,6 +12,7 @@ import { PacketFactory } from '../factories/packet.factory';
 import { BaseFrame, FrameType } from '../../frame/base.frame';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { HandshakeState } from '../../crypto/qtls';
+import { VerboseLogging } from '../logging/verbose.logging';
 
 
 interface ReceivedPacket {
@@ -97,20 +98,38 @@ export class AckHandler {
         var gaps = [];
         blocks.push(0);
 
+        
+        let numberString:string = "";
+        for( let n = 0; n < packetnumbers.length; ++n )
+            numberString += "" + packetnumbers[n].toNumber() + ",";
+
+        VerboseLogging.info("AckHandler:getAckFrame : This ACK frame will contain " + packetnumbers.length + " acked packets, with numbers : " + numberString);
+        
+
         for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
+            //VerboseLogging.warn("ACK_BLOCK calc: " + packetnumbers[i - 1].toNumber() + " - " + packetnumbers[i].toNumber() + " = " + bn.toNumber() );
             if (bn.compare(new Bignum(1)) !== 0) {
-                gaps.push(bn.subtract(1).toNumber());
+                // spec says "The number of packets in the gap is one higher than the encoded value of the Gap Field."
+                // our previous code here was: gaps.push(bn.subtract(1).toNumber());
+                // BUT: this is erroneous! because bn is NOT the gap size, but 1 more than the gap size
+                // for example: if first packet has nr 3, second nr 1, then bn == 2, while the gap is just size 1 (only packet nr. 2 is missing)
+                // for example, if first packet has nr 5, second has nr 2, then bn == 3, while the gap is only size 2 (packets 4 and 3 are missing)
+                // so we subtract 2 instead of 1 here
+                gaps.push(bn.subtract(2).toNumber());
                 ackBlockCount++;
                 blocks[ackBlockCount] = 1;
+                //VerboseLogging.warn("sub was != 1, so 1 block more: " + ackBlockCount + " -> " + blocks[ackBlockCount] + ", with gap = " + bn.subtract(1).toNumber() );
             } else {
                 blocks[ackBlockCount] = blocks[ackBlockCount] + 1;
+                //VerboseLogging.warn("sub was == 1, so expand block: " + ackBlockCount + " -> " + blocks[ackBlockCount] );
             }
         }
 
         var firstAckBlock = new Bignum(blocks[0]);
         var ackBlocks: AckBlock[] = [];
         for (var i = 1; i < blocks.length; i++) {
+            //VerboseLogging.warn("FULL ACK BLOCK: gap = " + (new Bignum(gaps[i - 1])).toNumber() + ", ack_block= " + (new Bignum(blocks[i])).toNumber() );
             var ackBlock = new AckBlock(new Bignum(gaps[i - 1]), new Bignum(blocks[i]));
             ackBlocks.push(ackBlock);
         }

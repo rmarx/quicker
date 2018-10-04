@@ -108,15 +108,16 @@ export class Connection extends FlowControlledObject {
 
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
+        this.aead = new AEAD(this.qtls); // TODO: refactor this a bit... everything is now way to dependent on initialization order
 
         this.initializeCryptoContexts();
         this.initializeHandlers(socket);
-        
+
         // Hook QuicTLS Events
         this.hookQuicTLSEvents();
         // Initialize QuicTLS Object
         this.qtls.init();
-        this.aead = new AEAD(this.qtls);
+        
 
         if (this.endpointType === EndpointType.Client) {
             // Check if remote transport parameters exists (only happens when session resumption is used) and contains a version which is still supported by the client
@@ -141,7 +142,7 @@ export class Connection extends FlowControlledObject {
 
     private initializeHandlers(socket: Socket) {
         this.ackHandler = new AckHandler(this);
-        this.handshakeHandler = new HandshakeHandler(this.qtls, this.endpointType === EndpointType.Server);
+        this.handshakeHandler = new HandshakeHandler(this.qtls, this.aead, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
         this.lossDetection = new LossDetection(this);
         this.flowControl = new FlowControl(this, this.ackHandler);
@@ -504,7 +505,6 @@ export class Connection extends FlowControlledObject {
 
     private retransmitPacket(packet: BasePacket) {
         VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber().getValue().toNumber() );
-        console.trace("Connection:retransmitPacket : trace");
 
         switch (packet.getPacketType()) {
             case PacketType.Initial:
