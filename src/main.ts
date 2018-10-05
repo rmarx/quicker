@@ -39,6 +39,7 @@ server.on(QuickerEvent.NEW_STREAM, (quicStream: QuicStream) => {
     quicStream.on(QuickerEvent.STREAM_END, () => {
         var output = httpHelper.handleRequest(bufferedData);
         quicStream.end(output);
+        quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
     });
 });
 

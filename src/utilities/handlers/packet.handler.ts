@@ -69,6 +69,8 @@ export class PacketHandler {
                 var shortHeaderPacket: ShortHeaderPacket = <ShortHeaderPacket>packet;
                 this.handleProtected1RTTPacket(connection, shortHeaderPacket);
         }
+        // incoming packet has been processed, this has probably led to new packets being created which we want to send ASAP
+        // TODO: possibly best to do some pacing somewhere? not do this for each incoming packet etc.? so we can have higher coalescing/compounding/less duplicate ACKs?
         connection.sendPackets();
     }
 

@@ -41,7 +41,13 @@ export class QuicStream extends EventEmitter{
         } else {
             this.stream.setRemoteFinalOffset(this.stream.getRemoteOffset());
         }
-        this.connection.sendPackets();
+    }
+
+    // TODO: refactor this. Is needed now so we can access the connection from a stream handler (see main.ts) but that's dirty
+    // normally, even the stream shouldn't even know which connection it belongs to? 
+    // TODO: see how Node's HTTP/2 stack handles this (i.e., having 1 event handler for stream handling)
+    public getConnection():Connection {
+        return this.connection;
     }
 
     public setEncoding(encoding: string): void {

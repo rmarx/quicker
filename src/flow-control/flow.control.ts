@@ -106,6 +106,9 @@ export class FlowControl {
             // getCryptoStreamFrames' output is already scaled to maxPayloadSize, so we create a single packet per frame
             // TODO: this is sub-optimal if we can add things like flow control or 0-RTT requests in the same packet : enable that! 
             // logic below uses an array they fill with frames, maybe move that up to above? 
+
+            // REFACTOR TODO: should only send 3 handshake packets without client address validation
+            // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.3
             let cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.INITIAL).getCryptoStream(), maxPayloadSize );
             cryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
@@ -186,19 +189,14 @@ export class FlowControl {
         var handshakeState = this.connection.getQuicTLS().getHandshakeState();
         
         var isServer = this.connection.getEndpointType() !== EndpointType.Client;
-        var isHandshake = false;
+        var isCryptoFrame = false;
         var streamData = false;
         frames.forEach((frame: BaseFrame) => {
             if (frame.getType() >= FrameType.STREAM && frame.getType() <= FrameType.STREAM_MAX_NR) {
-                var streamFrame = <StreamFrame> frame;
-                if (streamFrame.getStreamID().equals(0)) {
-                    isHandshake = true;
-                } else {
-                    streamData = true;
-                }
+                streamData = true;
             }
             if( frame.getType() == FrameType.CRYPTO ) // TODO: update logic: CRYPTO can be sent after handshake as well, obviously
-                isHandshake = true;
+                isCryptoFrame = true;
         });
         
 
@@ -215,20 +213,18 @@ export class FlowControl {
                 // 3.1 IF session is being reused : same as 1.
                 // 3.2 step "3" in the handshake process: client is fully setup but haven't heard final from server yet : normal data from client -> server
             // 4. server -> client: handhsake packet in response to clientInitial 
-            if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isHandshake && !isServer && streamData) {
+            if (this.connection.getQuicTLS().isEarlyDataAllowed() && !isCryptoFrame && !isServer && streamData) {
                 return PacketFactory.createProtected0RTTPacket(this.connection, frames);
-            } else if (this.connection.getStreamManager().getStream(new Bignum(0)).getLocalOffset().equals(0) && !isServer && isHandshake) {
-                return PacketFactory.createInitialPacket(this.connection, frames);
-            } 
-            else if(isServer && isHandshake && !this.serverHasSentInitial){
+            } //else if (this.connection.getStreamManager().getStream(new Bignum(0)).getLocalOffset().equals(0) && !isServer && isHandshake) {
+              //  return PacketFactory.createInitialPacket(this.connection, frames);
+            //} 
+            else if(isServer && isCryptoFrame && !this.serverHasSentInitial){
                 this.serverHasSentInitial = true; // TODO: FIXME: this is dirty and should be corrected ASAP! 
                 return PacketFactory.createInitialPacket(this.connection, frames);
                 
-            }else if (!isHandshake && ((this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused()) || (handshakeState >= HandshakeState.CLIENT_COMPLETED))) {
+            }else if (!isCryptoFrame && ((this.connection.getQuicTLS().isEarlyDataAllowed() && this.connection.getQuicTLS().isSessionReused()) || (handshakeState >= HandshakeState.CLIENT_COMPLETED))) {
                 return PacketFactory.createShortHeaderPacket(this.connection, frames); 
             } else {
-                // REFACTOR TODO: should only send 3 handshake packets without client address validation
-                // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.3
                 return PacketFactory.createHandshakePacket(this.connection, frames);
             }
         } else {
@@ -236,104 +232,72 @@ export class FlowControl {
         }
     }
 
+    // get frames that need to be SENT to our peer 
+    // primarily: STREAM frames with data and flow control frames
+    // ACK and CRYPTO etc. frames are done elsewhere 
     public getFrames(maxPayloadSize: Bignum): FlowControlFrames {
         var streamFrames = new Array<StreamFrame>();
         var flowControlFrames = new Array<BaseFrame>();
-        var handshakeFrames = new Array<CryptoFrame>();
+        var handshakeFrames = new Array<CryptoFrame>(); // TODO: this cannot be returned from here, so don't indicate that it could 
         var uniAdded = false;
         var bidiAdded = false;
 
-        if (this.connection.getRemoteTransportParameters() === undefined) {
-            var stream = this.connection.getStreamManager().getStream(new Bignum(0));
-            handshakeFrames = handshakeFrames.concat(this.getStreamFrames(stream, maxPayloadSize).handshakeFrames);
-        } else if (this.connection.isRemoteLimitExceeded()) {
+        // 3 types of flow control:
+        //   1. connection level DATA
+        //   2. stream level DATA
+        //   3. stream level ID (can only open so many individual streams)
+        // These can block data transmission, but should generate feedback to the other peer (BLOCKED, STREAM_BLOCKED or STREAM_ID_BLOCKED frames)
+        // These feedback frames request additional allowances from the peer
+        // 1.
+        let connectionLevelBlocked = this.connection.isRemoteLimitExceeded();
+        if( connectionLevelBlocked ){
             flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
-            this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
-                if (stream.isRemoteLimitExceeded()) {
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
-                } 
-                if (this.isRemoteStreamIdBlocked(stream)) {
-                    if (Stream.isUniStreamId(stream.getStreamID()) && !uniAdded) {
-                        var frame = this.addRemoteStreamIdBlocked(stream);
-                        flowControlFrames.push(frame);
-                        uniAdded = true;
-                    } else if (Stream.isBidiStreamId(stream.getStreamID()) && !bidiAdded) {
-                        var frame = this.addRemoteStreamIdBlocked(stream);
-                        flowControlFrames.push(frame);
-                        bidiAdded = true;
-                    }
-                }
-            });
-        } else {
-            this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
-                if (stream.isRemoteLimitExceeded()) {
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
-                    return;
-                } 
-                if (this.isRemoteStreamIdBlocked(stream)) {
-                    if (Stream.isUniStreamId(stream.getStreamID()) && !uniAdded) {
-                        var frame = this.addRemoteStreamIdBlocked(stream);
-                        flowControlFrames.push(frame);
-                        uniAdded = true;
-                    } else if (Stream.isBidiStreamId(stream.getStreamID()) && !bidiAdded) {
-                        var frame = this.addRemoteStreamIdBlocked(stream);
-                        flowControlFrames.push(frame);
-                        bidiAdded = true;
-                    }
-                    return;
-                }
-                var flowControlFrameObject: FlowControlFrames = this.getStreamFramesForRemote(stream, maxPayloadSize);
-                streamFrames = streamFrames.concat(flowControlFrameObject.streamFrames);
-                flowControlFrames = flowControlFrames.concat(flowControlFrameObject.flowControlFrames);
-                handshakeFrames = handshakeFrames.concat(flowControlFrameObject.handshakeFrames);
-            });
         }
+
+        // per-stream
+        this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+            let dataBlocked = connectionLevelBlocked;
+
+            // 2. 
+            // TODO: check if we're allowed to send these messages if the conn-level flow control maximum is exceeded
+            if (stream.isRemoteLimitExceeded()) {
+                if( !stream.getBlockedSent() ){ // keep track of if we've already sent a STREAM_BLOCKED frame for this stream
+                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
+                    stream.setBlockedSent(true); // is un-set when we receive MAX_STREAM_DATA frame from peer 
+                }
+                dataBlocked = true;
+            } 
+
+            // 3.
+            // TODO: check if we're allowed to send these messages if the conn-level flow control maximum is exceeded
+            if (this.isRemoteStreamIdBlocked(stream)) {
+                if (!uniAdded && Stream.isUniStreamId(stream.getStreamID())) {
+                    // TODO: shouldn't we set a state boolean somewhere that we've requested an update? see stream.setBlockedSent above for something similar
+                    var frame = this.addRemoteStreamIdBlocked(stream); 
+                    flowControlFrames.push(frame);
+                    uniAdded = true;
+                } 
+                else if (!bidiAdded && Stream.isBidiStreamId(stream.getStreamID())) {
+                    var frame = this.addRemoteStreamIdBlocked(stream);
+                    flowControlFrames.push(frame);
+                    bidiAdded = true;
+                }
+
+                dataBlocked = true;
+            }
+
+            if( !dataBlocked ){
+                // no type of flow control is stopping us from sending, so let's get the data frames! 
+                if (stream.getOutgoingDataSize() !== 0) {
+                    streamFrames = streamFrames.concat(this.getStreamFrames(stream, maxPayloadSize));
+                }
+            }
+        });
+
+        // We also impose our own flow control limits on the peer (peer cannot send more than we allow)
+        // This checks if our own allowances are almost up and, if yes, generates MAX_DATA, MAX_STREAM_DATA and MAX_STREAM_ID frames
         flowControlFrames = flowControlFrames.concat(this.getLocalFlowControlFrames());
 
-        return {
-            streamFrames: streamFrames,
-            flowControlFrames: flowControlFrames,
-            handshakeFrames: handshakeFrames
-        };
-    }
-
-    private getStreamFramesForRemote(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
-        var streamFrames = new Array<StreamFrame>();
-        var flowControlFrames = new Array<BaseFrame>();
-        var handshakeFrames = new Array<CryptoFrame>();
-
-        if (!stream.getStreamID().equals(0) && (stream.isRemoteLimitExceeded())) {
-            if (stream.isRemoteLimitExceeded() && !stream.getBlockedSent()) {
-                flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
-                stream.setBlockedSent(true);
-            }
-        } else if (!this.connection.isRemoteLimitExceeded() && stream.getData().length !== 0) {
-            var createdStreamFrames = this.getStreamFrames(stream, maxPayloadSize);
-            streamFrames = createdStreamFrames.streamFrames;
-            handshakeFrames = createdStreamFrames.handshakeFrames;
-
-            if ((stream.isRemoteLimitExceeded() && !stream.getStreamID().equals(0)) || 
-                    this.connection.isRemoteLimitExceeded()) {
-                var conDataLeft = this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset());
-                var streamDataLeft = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
-                streamDataSize = conDataLeft.lessThan(streamDataLeft) ? conDataLeft : streamDataLeft;
-                if (conDataLeft.equals(streamDataLeft)) {
-                    flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
-                } else if (conDataLeft.lessThan(streamDataLeft)) {
-                    flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
-                } else if (!stream.getBlockedSent()) {
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
-                    stream.setBlockedSent(true);
-                }
-            } else if (stream.isRemoteLimitExceeded() && stream.getStreamID().equals(0) && this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-                var streamDataSize = stream.getRemoteMaxData().subtract(stream.getRemoteOffset());
-                if (!stream.getBlockedSent()) {
-                    flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
-                    stream.setBlockedSent(true);
-                }
-            }
-        }
         return {
             streamFrames: streamFrames,
             flowControlFrames: flowControlFrames,
@@ -358,46 +322,34 @@ export class FlowControl {
         return output;
     }
 
-    private getStreamFrames(stream: Stream, maxPayloadSize: Bignum): FlowControlFrames {
-        var streamFrames = new Array<StreamFrame>();
-        var handshakeFrames = new Array<CryptoFrame>();
+    private getStreamFrames(stream: Stream, maxPayloadSize: Bignum): Array<StreamFrame> {
+        let streamFrames = new Array<StreamFrame>();
 
         // TODO: is this really needed every time? there shouldn't be anything in the data to begin with...
         if (stream.isReceiveOnly()) {
             stream.resetData();
         }
-        var isHandshake = (this.connection.getQuicTLS().getHandshakeState() !== HandshakeState.COMPLETED && stream.getStreamID().equals(0));
 
-        while (stream.getOutgoingDataSize() > 0 && (isHandshake || (!stream.isRemoteLimitExceeded() && !this.connection.isRemoteLimitExceeded()))) {
-            var streamDataSize = maxPayloadSize.lessThan(stream.getOutgoingDataSize()) ? maxPayloadSize : new Bignum(stream.getOutgoingDataSize());
+        while (stream.getOutgoingDataSize() > 0 && !stream.isRemoteLimitExceeded() && !this.connection.isRemoteLimitExceeded()) {
+            let streamDataSize = maxPayloadSize.lessThan(stream.getOutgoingDataSize()) ? maxPayloadSize : new Bignum(stream.getOutgoingDataSize());
 
-            if(!isHandshake) {
-                streamDataSize = streamDataSize.greaterThan(this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset())) ? this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset()) : streamDataSize;
-                streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
-            }
+            // adhere to current connection-level and then stream-level flow control max-data limits
+            streamDataSize = streamDataSize.greaterThan(this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset())) ? this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset()) : streamDataSize;
+            streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
 
-            if (stream.getStreamID().equals(0)) {
-                let streamData = stream.popData(streamDataSize.toNumber());
-                let frame = (FrameFactory.createCryptoFrame(streamData.slice(0, streamDataSize.toNumber()), stream.getRemoteOffset()));
-                handshakeFrames.push(frame);
-            } else {
-                var streamData = stream.popData(streamDataSize.toNumber());
-                var isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
-                var frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
-            
-                streamFrames.push(frame);
-            }
+
+            let streamData = stream.popData(streamDataSize.toNumber());
+            let isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
+            let frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
+        
+            streamFrames.push(frame);
+
+            // update flow control limits 
             stream.addRemoteOffset(streamDataSize);
-            if (!stream.getStreamID().equals(0)) {
-                this.connection.addRemoteOffset(streamDataSize);
-            }
+            this.connection.addRemoteOffset(streamDataSize);
         }
 
-        return {
-            streamFrames: streamFrames,
-            flowControlFrames: [],
-            handshakeFrames: handshakeFrames
-        };
+        return streamFrames;
     }
 
     private getLocalFlowControlFrames(): BaseFrame[] {
@@ -412,7 +364,7 @@ export class FlowControl {
         }
 
         this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
-            if (!stream.getStreamID().equals(0) && stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
+            if (stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
                 var newMaxStreamData = stream.updateLocalMaxDataSpace();
                 frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));
                 stream.setIsRemoteBlocked(false);
@@ -428,7 +380,7 @@ export class FlowControl {
         var frames = new Array<BaseFrame>();
         this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
             var streamId = stream.getStreamID();
-            if (stream.getStreamID().equals(0) || this.isRemoteStreamId(streamId)) {
+            if (this.isRemoteStreamId(streamId)) {
                 return;
             }
             var newStreamId = undefined;
