@@ -16,6 +16,7 @@ import { PacketType } from '../../packet/base.packet';
 import { VLIE } from '../../crypto/vlie';
 import { VerboseLogging } from '../logging/verbose.logging';
 import { PacketLogging } from '../logging/packet.logging';
+import { PacketNumberSpace } from '../../crypto/crypto.context';
 
 export class HeaderHandler {
 
@@ -42,20 +43,26 @@ export class HeaderHandler {
         var fullPayload = Buffer.concat([header.getParsedBuffer(), payload]);
         var pne = Buffer.alloc(4);
         
+        let actualPacketType:PacketType = PacketType.Initial;
+
         header.getParsedBuffer().copy(pne, 0, header.getParsedBuffer().byteLength - 4);
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
             if (longHeader.getPacketType() === LongHeaderType.Protected0RTT) {
                 var pn = connection.getAEAD().protected0RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+                actualPacketType = PacketType.Protected0RTT;
             }
             else if( longHeader.getPacketType() === LongHeaderType.Handshake ){
                 var pn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+                actualPacketType = PacketType.Handshake;
             } 
             else {
                 var pn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
+                actualPacketType = PacketType.Initial; // TODO: FIXME: handle retry and vneg packets! (though they are also in the Initial atmosphere when it comes to pnSpace, no?)
             }
         } else {
             var pn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+            actualPacketType = PacketType.Protected1RTT;
         }
 
         console.log("Post - PNE : ", pn);
@@ -65,19 +72,30 @@ export class HeaderHandler {
         headerOffset.offset = headerOffset.offset - 4 + decodedPnVlieOffset.offset;
         header.setParsedBuffer(Buffer.concat([header.getParsedBuffer().slice(0, header.getParsedBuffer().byteLength - 4), decodedPnVlieOffset.value.toBuffer(decodedPnVlieOffset.offset)]));
 
+        let pnSpace:PacketNumberSpace = connection.getEncryptionContextByPacketType( actualPacketType ).getPacketNumberSpace();
+        let DEBUGpreviousHighest:number = -1;
+
         // adjust remote packet number
-        if (connection.getRemotePacketNumber() === undefined) {
-            connection.setRemotePacketNumber(header.getPacketNumber());
+        if (pnSpace.getHighestReceivedNumber() === undefined) {
+            pnSpace.setHighestReceivedNumber(header.getPacketNumber());
             highestCurrentPacketNumber = true;
-        } else {
-            var adjustedNumber = connection.getRemotePacketNumber().adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
-            if (connection.getRemotePacketNumber().getValue().lessThan(adjustedNumber)) {
-                connection.getRemotePacketNumber().setValue(adjustedNumber);
+        } 
+        else {
+            let highestReceivedNumber = pnSpace.getHighestReceivedNumber() as PacketNumber;
+            DEBUGpreviousHighest = highestReceivedNumber.getValue().toNumber();
+
+            var adjustedNumber = highestReceivedNumber.adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+            if (highestReceivedNumber.getValue().lessThan(adjustedNumber)) {
+                pnSpace.setHighestReceivedNumber( new PacketNumber(adjustedNumber) );
                 highestCurrentPacketNumber = true;
             }
             // adjust the packet number in the header
             header.getPacketNumber().setValue(adjustedNumber);
         }
+
+        VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
+        VerboseLogging.warn("HeaderHandler:handle : PN space \"" + PacketType[ actualPacketType ] + "\" RX went from " + DEBUGpreviousHighest + " -> " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + " (TX = " + pnSpace.DEBUGgetCurrent() + ")" );
+        VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
 
         // custom handlers for long and short headers
         if (header.getHeaderType() === HeaderType.LongHeader) {

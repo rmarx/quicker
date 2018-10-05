@@ -78,6 +78,7 @@ export class ConnectionID extends BaseProperty {
 
 export class PacketNumber extends BaseProperty {
 
+    public constructor(bn: Bignum);
     public constructor(number: number);
     public constructor(buffer: Buffer);
     public constructor(buffer: any) {

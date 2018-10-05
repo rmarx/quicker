@@ -59,6 +59,11 @@ export class PacketNumberSpace{
         this.sendingNumber = new PacketNumber(-1);
     }
 
+    // it should never be needed to get the current PacketNumber outside of debugging
+    public DEBUGgetCurrent() : number{
+        return this.sendingNumber.getValue().toNumber();
+    }
+
     public getNext() : PacketNumber{
         // TODO: take into account the theoretical maximum of 2^62-1 for packet numbers 
         var bn = this.sendingNumber.getValue().add(1);
@@ -70,6 +75,8 @@ export class PacketNumberSpace{
         this.highestReceivedNumber = nr;
     }
 
+    // TODO: decide if we want this to be a reference or copy and adjust calling code accordingly
+    // now we have a reference but are treating it as a copy
     public getHighestReceivedNumber():PacketNumber|undefined{
         return this.highestReceivedNumber;
     }

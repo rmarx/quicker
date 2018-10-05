@@ -24,6 +24,8 @@ export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
     private connectionManager!: ConnectionManager;
 
+    private DEBUGmessageCounter:number = 0;
+
     private constructor() {
         super();
     }
@@ -82,8 +84,10 @@ export class Server extends Endpoint {
     }
 
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+        this.DEBUGmessageCounter++;
+        let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
+        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
         
-        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE //////////////////////////////// " + msg.length);
         try {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
@@ -129,6 +133,8 @@ export class Server extends Endpoint {
                 }
             }
         });
+        
+        console.log("---------------------------------------------------////////////////////////////// Server: DONE WITH MESSAGE " + DEBUGmessageNumber + " //////////////////////////////// " + msg.length);
     }
 
 

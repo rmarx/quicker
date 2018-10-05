@@ -5,8 +5,10 @@ import { BasePacket } from "../packet/base.packet";
 import { Connection, ConnectionEvent } from "../quicker/connection";
 import { LossDetection, LossDetectionEvents } from "../loss-detection/loss.detection";
 import { Socket } from "dgram";
+import {PacketType} from '../packet/base.packet';
 import { PacketLogging } from "../utilities/logging/packet.logging";
 import { VerboseLogging } from "../utilities/logging/verbose.logging"
+import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 
 
 export class CongestionControl extends EventEmitter {
@@ -148,7 +150,15 @@ export class CongestionControl extends EventEmitter {
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {
-                packet.getHeader().setPacketNumber(this.connection.getNextPacketNumber());
+                let pnSpace:PacketNumberSpace = this.connection.getEncryptionContextByPacketType( packet.getPacketType() ).getPacketNumberSpace();
+
+                packet.getHeader().setPacketNumber( pnSpace.getNext() ); //this.connection.getNextPacketNumber());
+
+
+                VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
+                VerboseLogging.warn("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + ")" );
+                VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
+
                 VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + packet.getHeader().getPacketNumber().getValue().toNumber() );
                 this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
                 this.emit(CongestionControlEvents.PACKET_SENT, packet);

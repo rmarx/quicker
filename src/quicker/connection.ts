@@ -47,8 +47,8 @@ export class Connection extends FlowControlledObject {
     private srcConnectionID!: ConnectionID;
     private destConnectionID!: ConnectionID;
 
-    private localPacketNumber!: PacketNumber; // for sending
-    private remotePacketNumber!: PacketNumber; // for receiving: due to packet number encoding, we need to keep track of the last received nr to decode newly received ones, see PacketNumber.adjustNumber
+    //private localPacketNumber!: PacketNumber; // for sending
+    //private remotePacketNumber!: PacketNumber; // for receiving: due to packet number encoding, we need to keep track of the last received nr to decode newly received ones, see PacketNumber.adjustNumber
 
     private localTransportParameters!: TransportParameters;
     private remoteTransportParameters!: TransportParameters;
@@ -126,8 +126,6 @@ export class Connection extends FlowControlledObject {
             }
             this.initialVersion = this.version;
         }
-
-        this.localPacketNumber = new PacketNumber( -1 );
     }
 
     private initializeCryptoContexts(){
@@ -390,29 +388,6 @@ export class Connection extends FlowControlledObject {
         this.getStreamManager().setRemoteMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
-    public getLocalPacketNumber(): PacketNumber {
-        return this.localPacketNumber;
-    }
-
-    public getNextPacketNumber(): PacketNumber {
-        //if (this.localPacketNumber === undefined) {
-        //    // each connection has to start at packet nr 0 according to the spec 
-        //    this.localPacketNumber = new PacketNumber(0);
-        //    return this.localPacketNumber;
-        //}
-        var bn = this.localPacketNumber.getValue().add(1);
-        this.localPacketNumber.setValue(bn);
-        return this.localPacketNumber;
-    }
-
-    public getRemotePacketNumber(): PacketNumber {
-        return this.remotePacketNumber;
-    }
-
-    public setRemotePacketNumber(packetNumber: PacketNumber) {
-        this.remotePacketNumber = packetNumber;
-    }
-
     public getVersion(): Version {
         return this.version;
     }
@@ -452,6 +427,21 @@ export class Connection extends FlowControlledObject {
         this.spinBit = spinbit;
     }
 
+    public getEncryptionContextByPacketType(packetType:PacketType): CryptoContext{
+        if( packetType == PacketType.Initial )
+            return this.contextInitial;
+        else if( packetType == PacketType.Handshake )
+            return this.contextHandshake;
+        else if( packetType == PacketType.Protected0RTT )
+            return this.context0RTT;
+        else if( packetType == PacketType.Protected1RTT )
+            return this.context1RTT;
+        else {
+            VerboseLogging.error("Connection:getEncryptionContextByPacketType : unsupported PacketType : " + PacketType[packetType] );
+            return this.context1RTT;
+        }
+    }
+
     public getEncryptionContext(level:EncryptionLevel): CryptoContext{
         if( level == EncryptionLevel.INITIAL )
             return this.contextInitial;
@@ -479,9 +469,9 @@ export class Connection extends FlowControlledObject {
     }
 
     public resetConnectionState() {
-        // REFACTOR TODO: when resetting due to version mismatch, we MUST NOT reset the packet number
-        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
-        this.remotePacketNumber = new PacketNumber(new Bignum(0).toBuffer());
+        // NOTE: we do not reset packet numbers, as this is explicitly forbidden by the QUIC transport spec 
+        // FIXME: we have to reset the offsets of the crypto packets!
+        VerboseLogging.error("Connection:resetConnectionState : TODO: implement CRYPTO stream offset reset, currently does not do this!");
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.resetOffsets();
@@ -681,7 +671,7 @@ export class Connection extends FlowControlledObject {
             if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND && this.getState() !== ConnectionState.Draining) {
                 this.closeSentCount++;
                 var closePacket = this.getClosePacket();
-                closePacket.getHeader().setPacketNumber(this.getNextPacketNumber());
+                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext());
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
                 this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);
             }
