@@ -91,7 +91,7 @@ export class AEAD {
      */
     public clearTextEncrypt(connectionID: ConnectionID, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var longHeader = <LongHeader>header;
-        if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
+        if (!longHeader.getVersion().equals( this.usedVersion)) {
             this.generateClearTextSecrets(connectionID, this.qtls, longHeader.getVersion());
         }
         if (encryptingEndpoint === EndpointType.Client) {
@@ -113,7 +113,7 @@ export class AEAD {
      */
     public clearTextDecrypt(connectionID: ConnectionID, header: BaseHeader, encryptedPayload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         var longHeader = <LongHeader>header;
-        if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
+        if (!longHeader.getVersion().equals( this.usedVersion )) {
             this.generateClearTextSecrets(connectionID, this.qtls, longHeader.getVersion());
         }
         if (encryptingEndpoint === EndpointType.Client) {
@@ -242,7 +242,7 @@ export class AEAD {
 
     public clearTextPnEncrypt(connectionID: ConnectionID,packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
         var longHeader = <LongHeader>header;
-        if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
+        if (!longHeader.getVersion().equals( this.usedVersion )) {
             this.generateClearTextSecrets(connectionID, this.qtls, longHeader.getVersion());
         }
         if (encryptingEndpoint === EndpointType.Client) {
@@ -254,12 +254,10 @@ export class AEAD {
     }
 
     public clearTextPnDecrypt(connectionID: ConnectionID,packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
-        console.log("clearTextPnDecrypt START");
         var longHeader = <LongHeader>header;
-        if (this.usedVersion === undefined || this.usedVersion !== longHeader.getVersion()) {
+        if (!longHeader.getVersion().equals( this.usedVersion )) {
             this.generateClearTextSecrets(connectionID, this.qtls, longHeader.getVersion());
         }
-        console.log("clearTextPnDecrypt secrets generated");
         if (encryptingEndpoint === EndpointType.Client) {
             var key = this.clearTextClientPn;
         } else {
@@ -382,6 +380,8 @@ export class AEAD {
         console.log("clear text server iv:  " + this.clearTextServerIv.toString('hex'));
         console.log("clear text server pn:  " + this.clearTextServerPn.toString('hex'));
 
+        console.log("Clear text generated for version " + version + ", previous was for version " + this.usedVersion);
+
         // Keep track of what version is used to generate these keys
         this.usedVersion = version;
     }
@@ -438,7 +438,7 @@ export class AEAD {
     */
 
     public setProtectedHandshakeSecrets(endpoint:EndpointType, secret:Buffer, key:Buffer, iv:Buffer){
-        VerboseLogging.warn("generate HANDSHAKE secrets for " + EndpointType[endpoint] );
+        VerboseLogging.debug("aead:setProtectedHandshakeSecrets : set HANDSHAKE secrets for " + EndpointType[endpoint] );
 
         var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
     
@@ -483,13 +483,11 @@ export class AEAD {
         //console.log("OLD key: " + hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_KEY_LABEL, this.qtls.getCipher().getAeadKeyLength()).toString('hex') );
         //console.log("OLD iv:  " + hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH).toString('hex') );
         //console.log("OLD pn:  " + hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength()).toString('hex') );
-        
-        VerboseLogging.warn("generate HANDSHAKE secrets DONE");
     }
 
     public setProtected1RTTSecrets(endpoint:EndpointType, secret:Buffer, key:Buffer, iv:Buffer){
 
-        VerboseLogging.warn("set 1RTT secrets for " + EndpointType[endpoint] );
+        VerboseLogging.debug("aead:setProtected1RTTSecrets : set 1RTT secrets for " + EndpointType[endpoint] );
 
         var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
     
@@ -644,30 +642,29 @@ export class AEAD {
     }
 
     private _pnEncrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
-        console.log("PN ENCRYPT START xxxxxxxxxxxxxxxxxxx");
-        console.log("used key: " + key.toString('hex'));
-        console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
+        //VerboseLogging.debug("aead:_PnEncrypt : used key: " + key.toString('hex'));
+        //console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
         var sampleOffset = this.getSampleOffset(sampleLength, header, encryptedPayload.byteLength);
         var sampleData = encryptedPayload.slice(sampleOffset, sampleOffset + sampleLength);
         var cipher = createCipheriv(algorithm, key, sampleData);
         var update = cipher.update(packetNumberBuffer);
         var final = cipher.final();
-        console.log("PN ENCRYPT END xxxxxxxxxxxxxxxxxxx");
+        //console.log("PN ENCRYPT END xxxxxxxxxxxxxxxxxxx");
         return Buffer.concat([update, final]);
     }
 
     private _pnDecrypt(algorithm: string, key: Buffer, sampleLength: number, packetNumberBuffer: Buffer, header: BaseHeader, encryptedPayload: Buffer): Buffer {
-        console.log("PN DECRYPT START xxxxxxxxxxxxxxxxxxx");
-        console.log("used key: " + key.toString('hex'));
-        console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
+        //console.log("PN DECRYPT START xxxxxxxxxxxxxxxxxxx");
+        //console.log("used key: " + key.toString('hex'));
+        //console.log("pnbuffer: " + packetNumberBuffer.toString('hex'));
         var sampleOffset = this.getSampleOffset(sampleLength, header, encryptedPayload.byteLength);
-        console.log("///////////////////////////////getSampleOffset Sample offset ", sampleOffset, header.getParsedBuffer().byteLength);
+        //console.log("///////////////////////////////getSampleOffset Sample offset ", sampleOffset, header.getParsedBuffer().byteLength);
         var sampleData = encryptedPayload.slice(sampleOffset, sampleOffset + sampleLength);
-        console.log("sample data: " + sampleData.toString('hex'));
+        //console.log("sample data: " + sampleData.toString('hex'));
         var cipher = createDecipheriv(algorithm, key, sampleData);
         var update = cipher.update(packetNumberBuffer);
         var final = cipher.final();
-        console.log("PN DECRYPT END xxxxxxxxxxxxxxxxxxx");
+        //console.log("PN DECRYPT END xxxxxxxxxxxxxxxxxxx");
         return Buffer.concat([update, final]);
     }
 

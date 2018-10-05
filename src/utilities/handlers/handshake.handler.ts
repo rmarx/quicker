@@ -174,18 +174,13 @@ export class HandshakeHandler extends EventEmitter{
                 VerboseLogging.info("HandshakeHandler: OnNewTLSKey : got decryption key of the other side : " + TLSKeyType[type] );
         }
 
-        VerboseLogging.error("HandshakeHandler: OnNewTLSKey : actually set these keys on the encryption handlers!!!");
-        VerboseLogging.info("NewTLSKey: secret : " + secret.toString('hex'));
-        VerboseLogging.info("NewTLSKey: key    : " + key.toString('hex'));
-        VerboseLogging.info("NewTLSKey: iv     : " + iv.toString('hex'));
+        // FIXME: TODO: need to process buffered packets from encryption levels that are just unlocked (re-ordering could have prevented their decryption ahead of time)
 
-        /*
-        if( TLSKeyType[type].indexOf("CLIENT") >= 0 ){
-            this.currentClientKeyLevel = type;
-        }
-        else
-            this.currentServerKeyLevel = type;
-        */
+        
+        //VerboseLogging.error("HandshakeHandler: OnNewTLSKey : actually set these keys on the encryption handlers!!!");
+        //VerboseLogging.info("NewTLSKey: secret : " + secret.toString('hex'));
+        //VerboseLogging.info("NewTLSKey: key    : " + key.toString('hex'));
+        //VerboseLogging.info("NewTLSKey: iv     : " + iv.toString('hex'));
     }
 
     public handle(data: Buffer) {

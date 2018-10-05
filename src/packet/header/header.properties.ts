@@ -138,4 +138,8 @@ export class Version extends BaseProperty {
     public setValue(bignum: Bignum) {
         this.setProperty(bignum);
     }
+
+    public equals(version:Version) {
+        return version !== undefined && version.getValue() != undefined && version.getValue().equals( this.getProperty() );
+    }
 }

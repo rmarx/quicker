@@ -1,6 +1,6 @@
 import { EndpointType } from '../../types/endpoint.type';
 import { Constants } from '../constants';
-import { HandshakeState } from '../../crypto/qtls';
+import { HandshakeState, TLSMessageType } from '../../crypto/qtls';
 import { PacketNumber, Version } from '../../packet/header/header.properties';
 import { Bignum } from '../../types/bignum';
 import { Connection } from '../../quicker/connection';
@@ -373,7 +373,8 @@ export class PacketLogging {
 
     private logCryptoFrame(cryptoFrame: CryptoFrame, color: ConsoleColor):string {
         var log = "";
-        log += this.getSpaces(4) + "length=" + cryptoFrame.getLength().toDecimalString() + " offset=" + cryptoFrame.getOffset().toDecimalString() + " data=0x" + cryptoFrame.getData().toString('hex');
+        log += this.getSpaces(4) + "length=" + cryptoFrame.getLength().toDecimalString() + " offset=" + cryptoFrame.getOffset().toDecimalString() /*+ " data=0x" + cryptoFrame.getData().toString('hex')*/ + "\n";
+        log += this.getSpaces(4) + "data=" + TLSMessageType[ cryptoFrame.getData()[0] ] + " (PROBABLY, but could be different or more if split or coalesced packet)";
         return log;
     }
 
@@ -381,14 +382,26 @@ export class PacketLogging {
         var log = "";
         log += this.getSpaces(4) + color + "STREAM (0x" + streamFrame.getType().toString(16) + ") " + ConsoleColor.Reset + " FIN=" + +streamFrame.getFin() + " LEN=" + +streamFrame.getLen() + " OFF=" + +streamFrame.getOff() + "\n";
         log += this.getSpaces(4) + "StreamID (0x" + streamFrame.getStreamID().toString() + ") length=" + streamFrame.getLength().toDecimalString() + " offset=" + streamFrame.getOffset().toDecimalString();
-        if (streamFrame.getStreamID().greaterThan(0)) {
-            log += "\n";
-            log += this.logData(streamFrame.getData());
-        }
+        log += "\n";
+        log += this.logData(streamFrame.getData());
         return log;
     }
 
     public logData(buffer: Buffer): string {
+        /* Example output:
+            3c21646f63747970652068746d6c3e0a          '<!doctype html>\n'
+            3c68746d6c3e0a202020203c68656164          '<html>\n    <head'
+            3e0a20202020202020203c7469746c65          '>\n        <title'
+            3e517569636b65723c2f7469746c653e          '>Quicker</title>'
+            0a202020203c2f686561643e0a202020          '\n    </head>\n   '
+            203c626f64793e0a2020202020202020          ' <body>\n        '
+            3c703e48656c6c6f20576f726c642066          '<p>Hello World f'
+            726f6d20517569636b6572213c2f703e          'rom Quicker!</p>'
+            0a20202020202020203c62722f3e0a20          '\n        <br/>\n '
+            202020202020203c703e476f6f646279          '       <p>Goodby'
+            65213c2f703e0a202020203c2f626f64          'e!</p>\n    </bod'
+            793e0a3c2f68746d6c3e                      'y>\n</html>'
+        */
         var log = "";
         for (var i = 0; i < buffer.byteLength; i += 16) {
             if (i > 0)
@@ -404,6 +417,7 @@ export class PacketLogging {
                     size--;
                 }
             }
+            // inspect will nicely format the string for us (otherwhise the \n etc. would lead to newlines instead of showing up in the output)
             str += require('util').inspect(t.toString('utf8'), { showHidden: true, depth: null });
             log += this.getSpaces(6) + str;
         }
