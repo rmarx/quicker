@@ -143,6 +143,7 @@ export class LossDetection extends EventEmitter {
         var currentTime = (new Date()).getTime();
         var packetNumber = basePacket.getHeader().getPacketNumber().getValue();
         this.largestSentPacket = packetNumber;
+
         var sentPacket: SentPacket = {
             packet: basePacket,
             time: currentTime,
@@ -158,24 +159,18 @@ export class LossDetection extends EventEmitter {
             // this.congestionControl.onPacketSent(basePacket.toBuffer().byteLength);
             this.setLossDetectionAlarm();
         }
-        this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
-    }
 
-    /**
-     * When an ack is received, it may acknowledge 0 or more packets.
-     * @param ackFrame The ack frame that is received by the endpoint
-     */
-    public onAckReceived(ackFrame: AckFrame): void {
-        this.largestAckedPacket = ackFrame.getLargestAcknowledged();
-        if (this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex', 8)] !== undefined) {
-            this.latestRtt = new Bignum(new Date().getTime()).subtract(this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex', 8)].time);
-            this.updateRtt(ackFrame);
+        let packet = this.sentPackets[packetNumber.toString('hex', 8)];
+        if( packet !== undefined ){
+            VerboseLogging.error("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            VerboseLogging.error("Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
+            VerboseLogging.error("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
         }
-        this.determineNewlyAckedPackets(ackFrame).forEach((packet: BasePacket) => {
-            this.onPacketAcked(packet.getHeader().getPacketNumber().getValue(), packet);
-        });
-        this.detectLostPackets(ackFrame.getLargestAcknowledged());
-        this.setLossDetectionAlarm();
+        else{
+            VerboseLogging.error("loss:onPacketSent : adding packet with key " + packetNumber.toString('hex', 8) + "?=" +  packetNumber.toNumber() + " for packet with pn " + sentPacket.packet.getHeader().getPacketNumber().getValue().toNumber() );
+
+            this.sentPackets[packetNumber.toString('hex', 8)] = sentPacket;
+        }
     }
 
     private updateRtt(ackFrame: AckFrame) {
@@ -198,13 +193,37 @@ export class LossDetection extends EventEmitter {
 
 
 
-    private determineNewlyAckedPackets(ackFrame: AckFrame): BasePacket[] {
+    /**
+     * When an ack is received, it may acknowledge 0 or more packets.
+     * @param ackFrame The ack frame that is received by this endpoint
+     */
+    public onAckReceived(ackFrame: AckFrame): void {
+        VerboseLogging.error("Loss:onAckReceived called");
+        VerboseLogging.error("AckFrame is acking " + ackFrame.determineAckedPacketNumbers().map((val, idx, arr) => "," + val.toNumber()));
+        this.largestAckedPacket = ackFrame.getLargestAcknowledged();
+        if (this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex', 8)] !== undefined) {
+            this.latestRtt = new Bignum(new Date().getTime()).subtract(this.sentPackets[ackFrame.getLargestAcknowledged().toString('hex', 8)].time);
+            this.updateRtt(ackFrame);
+        }
+        this.determineNewlyAckedPackets(ackFrame).forEach((sentPacket: BasePacket) => {
+            this.onSentPacketAcked(sentPacket);
+        });
+        this.detectLostPackets(ackFrame.getLargestAcknowledged());
+        this.setLossDetectionAlarm();
+        VerboseLogging.error("Loss:onAckReceived ended");
+    }
+
+    // reads the packet numbers from a received ack frame
+    // those packet numbers correspond to packets we have sent, that are (probably) in this.sentPackets (could have been removed by receiving a previous ACK)
+    // this method transforms the packet numbers to actual packet object references of sent packets so they can be removed from the list
+    private determineNewlyAckedPackets(receivedAckFrame: AckFrame): BasePacket[] {
         var ackedPackets: BasePacket[] = [];
-        var ackedPacketnumbers = ackFrame.determineAckedPacketNumbers();
+        var ackedPacketnumbers = receivedAckFrame.determineAckedPacketNumbers();
 
         ackedPacketnumbers.forEach((packetnumber: Bignum) => {
-            if (this.sentPackets[packetnumber.toString('hex', 8)] !== undefined) {
-                this.onPacketAcked(packetnumber, this.sentPackets[packetnumber.toString('hex', 8)].packet);
+            let foundPacket = this.sentPackets[packetnumber.toString('hex', 8)];
+            if (foundPacket !== undefined) {
+                ackedPackets.push( foundPacket.packet );
             }
         });
 
@@ -212,15 +231,24 @@ export class LossDetection extends EventEmitter {
     }
 
     /**
-     * When a packet is acked for the first time, the following OnPacketAcked function is called. Note that a single ACK frame may newly acknowledge several packets. 
-     * OnPacketAcked must be called once for each of these newly acked packets. OnPacketAcked takes one parameter, acked_packet_number, 
-     * which is the packet number of the newly acked packet, and returns a list of packet numbers that are detected as lost.
+     * When a sent packet is ACKed by the receiver for the first time, onSentPacketAcked is called. 
+     * Note that a single received ACK frame may newly acknowledge several sent packets. 
+     * onSentPacketAcked must be called once for each of these newly acked packets. 
+     * OnPacketAcked takes one parameter, acked_packet_number returns a list of packet numbers that are detected as lost.
      * If this is the first acknowledgement following RTO, check if the smallest newly acknowledged packet is one sent by the RTO,
      * and if so, inform congestion control of a verified RTO, similar to F-RTO [RFC5682]
-     * @param ackedPacketNumber The packetnumber of the packet that is being acked.
+     * @param sentPacket A reference to one of the sentPackets that is being acked in a received ACK frame
      */
-    public onPacketAcked(ackedPacketNumber: Bignum, packet: BasePacket): void {
-        this.emit(LossDetectionEvents.PACKET_ACKED, packet);
+    private onSentPacketAcked(sentPacket: BasePacket): void {
+
+        let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber().getValue();
+        VerboseLogging.error("loss:onPacketAcked called " + ackedPacketNumber.toNumber() + " in packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber());
+
+        // TODO: move this to the end of this function? 
+        // inform ack handler so it can update internal state, congestion control so it can update bytes-in-flight etc.
+        // TODO: call ackhandler and congestion control directly instead of using events? makes code flow clearer 
+        this.emit(LossDetectionEvents.PACKET_ACKED, sentPacket);
+
         if (this.rtoCount > 0 && ackedPacketNumber.greaterThan(this.largestSentBeforeRto)) {
             this.emit(LossDetectionEvents.RETRANSMISSION_TIMEOUT_VERIFIED);
         }

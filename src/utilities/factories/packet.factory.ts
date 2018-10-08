@@ -6,6 +6,7 @@ import {VersionNegotiationPacket} from '../../packet/packet/version.negotiation'
 import {LongHeader, LongHeaderType} from '../../packet/header/long.header';
 import {Constants} from '../constants';
 import {InitialPacket} from '../../packet/packet/initial';
+import {FrameType} from '../../frame/base.frame';
 import {StreamFrame} from '../../frame/stream';
 import {CryptoFrame} from '../../frame/crypto';
 import {Bignum} from '../../types/bignum';
@@ -61,8 +62,10 @@ export class PacketFactory {
         // so we add PADDING frames to reach that size if the encrypted initial packet isn't long enough. 
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
         var size = initial.getSize();
-        let crypto = <CryptoFrame> initial.getFrames()[0];
-        console.log("Creating Initial packet, Longheader + Crypto size was ", size, crypto.toBuffer().byteLength, crypto.getLength(), crypto.getData().byteLength);
+        if( initial.getFrames()[0].getType() == FrameType.CRYPTO ){
+            let crypto = <CryptoFrame> initial.getFrames()[0];
+            console.log("Creating Initial packet, Longheader + Crypto size was ", size, crypto.toBuffer().byteLength, crypto.getLength(), crypto.getData().byteLength);
+        }
         // TODO: it's also allowed to fill this with 0-RTT request, which we currently don't support, but which would be much better!
         if (size < Constants.INITIAL_MIN_SIZE) {
             var padding = new PaddingFrame(Constants.INITIAL_MIN_SIZE - size);

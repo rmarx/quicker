@@ -24,9 +24,11 @@ export abstract class BasePacket {
         return this.header;
     }
 
+    /*
     public setHeader(header: BaseHeader) {
         this.header = header;
     }
+    */
 
     public getPacketType(): PacketType {
         return this.packetType;

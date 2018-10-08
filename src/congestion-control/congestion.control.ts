@@ -154,9 +154,12 @@ export class CongestionControl extends EventEmitter {
 
                 packet.getHeader().setPacketNumber( pnSpace.getNext() ); //this.connection.getNextPacketNumber());
 
-
+                let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
+                let DEBUGrxNumber = -1;
+                if( DEBUGhighestReceivedNumber !== undefined )
+                    DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
                 VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
-                VerboseLogging.warn("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + ")" );
+                VerboseLogging.warn("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
                 VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
 
                 VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + packet.getHeader().getPacketNumber().getValue().toNumber() );

@@ -81,7 +81,10 @@ export class PacketNumber extends BaseProperty {
     public constructor(bn: Bignum);
     public constructor(number: number);
     public constructor(buffer: Buffer);
-    public constructor(buffer: any) {
+    public constructor(buffer: any) { 
+        if( buffer instanceof Bignum ) // super() only enforces bytelength 8 if it's NOT a bignum... go figure
+            buffer.setByteLength(8);
+        
         super(buffer, 8);
     }
 

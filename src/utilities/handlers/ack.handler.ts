@@ -21,6 +21,9 @@ interface ReceivedPacket {
 }
 
 export class AckHandler {
+
+    public DEBUGname = "";
+
     private receivedPackets: { [key: string]: ReceivedPacket };
     private largestPacketNumber!: Bignum;
     private alarm: Alarm;
@@ -32,24 +35,70 @@ export class AckHandler {
         this.alarm = new Alarm();
     }
 
-    public onPacketAcked(packet: BasePacket) {
-        if (packet.getPacketType() === PacketType.VersionNegotiation) {
+    // transformation from ACK frame contents to actual sent packets for our endpoint is done by the caller of this function
+    // (currently, that's LossDetection:determineNewlyAckedPackets)
+    // The packet we get in here is already one of the packets we have sent that is ACKed, so NOT the packet containing the other endpoint's ACK frame
+    public onPacketAcked(sentPacketIn: BasePacket) {
+        // TODO VERIFY: revise logic here maybe? why only vneg? aren't there other types as well? 
+        if (sentPacketIn.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
-        var framePacket = <BaseEncryptedPacket>packet;
-        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.toString('hex', 8)];
-        framePacket.getFrames().forEach((frame: BaseFrame) => {
+
+        VerboseLogging.warn(this.DEBUGname + " ACK ON PACKET ACKED ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
+
+        // conceptually:
+        // - We ourselves send acknowledgements for packets we receive from the other endpoint
+        // - Because of packet loss, we cannot just send these ACKs once and be done with it... we have to keep sending ACKs 
+        //      for received packets until we are sure the other endpoint has seen those ACKs (or they will retransmit the packets)
+        // - How do we know the other endpoint has received our ACKs for their packets? if they in turn ACK our packets containing ACK frames
+        //      (yes, this is a bit of a mindf*ck)
+        // - Let's use an example to makes things clear:
+        //      - Peer sends packet 5 
+        //      - We receive packet 5 and add it to "list of things to be ACKed" (see :onPacketReceived)
+        //      - We generate ACK frame for packet 5, send it in our packet nr. 20 (we keep 5 in "list of things to be ACKed")
+        //      - We keep a copy of packet 20 in loss detection (see LossDetection:onPacketSent)
+        //          - we don't keep another copy of our sent packets here, only in loss detection
+        //          - here, we only have a list of "things we have received that have yet to be ACKed"
+        //      - Peer sends ACK in their packet nr. 6 to us for our packet 20 
+        //      - We receive packet 6 and unwrap the ACK frame to find that our packet 20 was acked (see LossDetection:onSentPacketAcked)
+        //          - packet 20 is now also removed from our local sent packet list because it was acked (should not be retransmitted, so we have no reason to keep copy)
+        //      - We now need to remove packet 5 from our "list of things to be ACKed": that's exactly what this here method does!
+        //          - sentPacket is our own packet 20
+        //          - We look up which packets our packet 20 was ACKing (see "determineAckedPacketNumbers") and find it's nr. 5 
+        //          - this.receivedPackets is the "list of things to be ACKed" and still contains this nr. 5
+        //          - since our ACK for received packet 5 was successfully received by the peer (as they have ACKed our packet nr. 20 in turn), we can safely remove it
+
+        // TODO: here, we keep ACKing older packets indefinitely
+        // in the spec, it says that upon reception of ACK-of-an-ACK (packet nr. 6 above), we can stop sending everything below the highest ACKed number
+        //  -> e.g., if our packet 20 had also acked packet 7 next to 5, we could drop everything below and 7 including 
+        //  see draft-15#4.4.3
+
+        let sentPacket = <BaseEncryptedPacket>sentPacketIn;
+        VerboseLogging.warn(this.DEBUGname + " Sent Packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber() + " was acked by peer");
+
+        sentPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() === FrameType.ACK) {
-                var ackFrame = <AckFrame>frame;
-                var packetNumbers = ackFrame.determineAckedPacketNumbers();
+                let ackFrame = <AckFrame>frame;
+                let packetNumbers = ackFrame.determineAckedPacketNumbers();
+                VerboseLogging.warn(this.DEBUGname + " and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => "," + val.toNumber())) + " " );
+
                 packetNumbers.forEach((packetNumber: Bignum) => {
-                    this.removePacket(packetNumber);
+                    if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
+                        delete this.receivedPackets[packetNumber.toString('hex', 8)];
+                        VerboseLogging.warn(this.DEBUGname + " Received packet " + packetNumber.toNumber() + " is now removed from 'list of things to ack'" );
+                    }
+                    else{
+                        VerboseLogging.warn(this.DEBUGname + " Packet " + packetNumber.toNumber() + " was no longer in this.receivedPackets, previously acked?");
+                    }
                 });
             }
         });
+
+        VerboseLogging.warn("ACK END PACKET ACKED ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 
     public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
+        // TODO VERIFY: revise logic here maybe? why only vneg? aren't there other types as well? 
         if (packet.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
@@ -157,11 +206,13 @@ export class AckHandler {
         return ackOnly;
     }
 
+    /*
     private removePacket(packetNumber: Bignum): void {
         if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
             delete this.receivedPackets[packetNumber.toString('hex', 8)];
         }
     }
+    */
 
     public reset(): void {
         this.receivedPackets = {};

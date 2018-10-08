@@ -1,6 +1,9 @@
 
 import { CryptoStream } from './crypto.stream'
 import { PacketNumber } from '../packet/header/header.properties';
+import { AckHandler } from '../utilities/handlers/ack.handler';
+import { Bignum } from '../types/bignum';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 export enum EncryptionLevel{
     INITIAL,
@@ -27,12 +30,13 @@ export class CryptoContext {
     private cryptoLevel!:EncryptionLevel;
     private cryptoStream!:CryptoStream;
     private packetNumberSpace!:PacketNumberSpace; // we have to abstract this because 0-RTT and 1-RTT share a PNS, but have separate crypto levels
- 
+    private ackHandler!:AckHandler;
 
-    public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace) {
+    public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace, ackHandler:AckHandler) {
         this.cryptoLevel = cryptoLevel;
         this.packetNumberSpace = packetNumberSpace;
         this.cryptoStream = new CryptoStream(this.cryptoLevel);
+        this.ackHandler = ackHandler;
     }
 
     public getLevel() : EncryptionLevel {
@@ -45,6 +49,10 @@ export class CryptoContext {
 
     public getPacketNumberSpace(): PacketNumberSpace{
         return this.packetNumberSpace;
+    }
+
+    public getAckHandler(): AckHandler{
+        return this.ackHandler;
     }
 }
 
@@ -65,14 +73,28 @@ export class PacketNumberSpace{
     }
 
     public getNext() : PacketNumber{
+
+        // HERE BE DRAGONS
+        // original code:
+        //      let bn = this.sendingNumber.getValue().add(1);
+        //      this.sendingNumber.setValue( bn )
+        //      return this.sendingNumber
+        // Internally, Bignum.add() creates a new instance and adds 1
+        // However, setValue() on this.sendingNumber of course does NOT create a new object, and we were passing back the same PacketNumber reference everytime
+        // since we keep stores of Packets (and thus also headers with PacketNumbers) for loss detection and ack handling etc., these packets were internally being updated with the latest packet number
+        // this wreaks havoc when we lookup things in a hash table based on the packet number (i.e., AckHandler did hashMap[packet.header.packetnr], where the packetnr would be erroneous for later packets)
+
+        // New code prevents this by explicitly creating a new PacketNumber every time 
+        // TODO: optimize this further... I shouldn't need 2 fully new objects just to update the packet number? 
+    
         // TODO: take into account the theoretical maximum of 2^62-1 for packet numbers 
-        var bn = this.sendingNumber.getValue().add(1);
-        this.sendingNumber.setValue(bn);
+        var bn = this.sendingNumber.getValue().add(1); 
+        this.sendingNumber = new PacketNumber( bn );
         return this.sendingNumber;
     }
 
     public setHighestReceivedNumber(nr:PacketNumber){
-        this.highestReceivedNumber = nr;
+        this.highestReceivedNumber = new PacketNumber( nr.getValue() );
     }
 
     // TODO: decide if we want this to be a reference or copy and adjust calling code accordingly

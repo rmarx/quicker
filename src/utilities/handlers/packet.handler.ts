@@ -208,6 +208,8 @@ export class PacketHandler {
     }
 
     private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: Time): void {
-        connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
+        let ctx = connection.getEncryptionContextByPacketType( packet.getPacketType() );
+        ctx.getAckHandler().onPacketReceived( connection, packet, receivedTime );
+        //connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
     }
 }

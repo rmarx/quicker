@@ -83,7 +83,6 @@ export class Connection extends FlowControlledObject {
     private congestionControl!: CongestionControl;
     private flowControl!: FlowControl;
     private streamManager!: StreamManager;
-    private ackHandler!: AckHandler;
     private handshakeHandler!: HandshakeHandler;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, options?: any, bufferSize: number = Constants.DEFAULT_MAX_DATA) {
@@ -129,21 +128,19 @@ export class Connection extends FlowControlledObject {
     }
 
     private initializeCryptoContexts(){
-        let pnsInitial   = new PacketNumberSpace();
-        let pnsHandshake = new PacketNumberSpace();
         let pnsData      = new PacketNumberSpace(); // 0-RTT and 1-RTT have different encryption levels, but they share a PNS
-        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   pnsInitial );
-        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData );
-        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, pnsHandshake );
-        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData );
+        let ackData      = new AckHandler(this); // TODO: AckHandler should be coupled to PNSpace directly? make this more clear by adding it to that class instead maybe?
+        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   new PacketNumberSpace(), new AckHandler(this) );
+        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData,                 ackData );
+        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, new PacketNumberSpace(), new AckHandler(this) );
+        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData,                 ackData );
     }
 
     private initializeHandlers(socket: Socket) {
-        this.ackHandler = new AckHandler(this);
         this.handshakeHandler = new HandshakeHandler(this.qtls, this.aead, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
         this.lossDetection = new LossDetection(this);
-        this.flowControl = new FlowControl(this, this.ackHandler);
+        this.flowControl = new FlowControl(this);
         this.congestionControl = new CongestionControl(this, this.lossDetection);
 
         this.hookStreamManagerEvents();
@@ -175,7 +172,9 @@ export class Connection extends FlowControlledObject {
             this.retransmitPacket(basePacket);
         });
         this.lossDetection.on(LossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
-            this.ackHandler.onPacketAcked(basePacket);
+            let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
+            ctx.getAckHandler().onPacketAcked(basePacket);
+            //this.ackHandler.onPacketAcked(basePacket);
         });
     }
 
@@ -255,10 +254,6 @@ export class Connection extends FlowControlledObject {
 
     public getAEAD(): AEAD {
         return this.aead;
-    }
-
-    public getAckHandler(): AckHandler {
-        return this.ackHandler;
     }
 
     public getLossDetection(): LossDetection {
@@ -472,11 +467,11 @@ export class Connection extends FlowControlledObject {
         // NOTE: we do not reset packet numbers, as this is explicitly forbidden by the QUIC transport spec 
         // FIXME: we have to reset the offsets of the crypto packets!
         VerboseLogging.error("Connection:resetConnectionState : TODO: implement CRYPTO stream offset reset, currently does not do this!");
+        VerboseLogging.error("Connection:resetConnectionState : TODO: implement Ack Handler resets, currently does not do this!");
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.resetOffsets();
         });
-        this.ackHandler.reset();
         this.lossDetection.reset();
     }
 
@@ -597,7 +592,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public sendPackets(): void {
-        if (this.connectionIsClosing()) {
+        if (this.connectionIsClosingOrClosed()) {
             VerboseLogging.warn("Connection:sendPackets : trying to send data while connection closing");
             return;
         }
@@ -664,11 +659,11 @@ export class Connection extends FlowControlledObject {
     }
 
     public checkConnectionState(): void {
-        if (this.connectionIsClosing()) {
+        if (this.getState() === ConnectionState.Closing) {
             /**
              * Check to limit the amount of packets with closeframe inside
              */
-            if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND && this.getState() !== ConnectionState.Draining) {
+            if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND) {
                 this.closeSentCount++;
                 var closePacket = this.getClosePacket();
                 closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext());
@@ -679,11 +674,14 @@ export class Connection extends FlowControlledObject {
         }
     }
 
-    private connectionIsClosing(): boolean {
+    public connectionIsClosingOrClosed(): boolean {
         if (this.getState() === ConnectionState.Closing) {
             return true;
         }
         if (this.getState() === ConnectionState.Draining) {
+            return true;
+        }
+        if (this.getState() === ConnectionState.Closed) {
             return true;
         }
         return false;

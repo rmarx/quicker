@@ -48,12 +48,10 @@ export class FlowControl {
 
     private shortHeaderSize!: number;
     private connection: Connection;
-    private ackHandler: AckHandler;
     private bufferedFrames: BaseFrame[];
 
-    public constructor(connection: Connection, ackHandler: AckHandler) {
+    public constructor(connection: Connection) {
         this.connection = connection;
-        this.ackHandler = ackHandler;
         this.bufferedFrames = [];
     }
 
@@ -90,46 +88,80 @@ export class FlowControl {
 
 
         var ackBuffered: boolean = this.isAckBuffered();
-        if (!ackBuffered && (this.connection.getState() === ConnectionState.Handshake || this.connection.getState() === ConnectionState.Open)) {
+        if( ackBuffered )
+            VerboseLogging.error("FlowControl:getPackets: we had buffered ack packets! SHOULD NOT HAPPEN!");
+
+        /*
+        if ( !this.connection.connectionIsClosingOrClosed() ) {
             var ackFrame = this.ackHandler.getAckFrame(this.connection);
             if (ackFrame !== undefined) {
                 packets.push(this.createNewPacket([ackFrame]));
                 packetFrames.push( ackFrame );
             }
         }
+        */
 
         if( frames.handshakeFrames.length > 0 ){
             VerboseLogging.error("FlowControl:getPackets : data shouldn't be in stream 0 anymore!!! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
         }
         else{
-            let cryptoFrameCount:number = 0;
+            let DEBUGcryptoFrameCount:number = 0;
+            let DEBUGackFrameCount:number = 0;
             // getCryptoStreamFrames' output is already scaled to maxPayloadSize, so we create a single packet per frame
             // TODO: this is sub-optimal if we can add things like flow control or 0-RTT requests in the same packet : enable that! 
             // logic below uses an array they fill with frames, maybe move that up to above? 
 
             // REFACTOR TODO: should only send 3 handshake packets without client address validation
             // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.3
-            let cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.INITIAL).getCryptoStream(), maxPayloadSize );
-            cryptoFrameCount += cfrs.length;
+            // REFACTOR TODO: allow coalescing of ACKS together with other packets of the same encryption level
+            let initCTX = this.connection.getEncryptionContext(EncryptionLevel.INITIAL);
+            let cfrs = this.getCryptoStreamFrames( initCTX.getCryptoStream(), maxPayloadSize );
+            DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createInitialPacket(this.connection, [frame]) );
+            let ackframe = initCTX.getAckHandler().getAckFrame(this.connection);
+            if( ackframe !== undefined ){
+                DEBUGackFrameCount++;
+                packets.push(PacketFactory.createInitialPacket(this.connection, [ackframe]));
+            }
 
-            cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.ZERO_RTT).getCryptoStream(), maxPayloadSize );
-            cryptoFrameCount += cfrs.length;
+
+            let zeroCTX = this.connection.getEncryptionContext(EncryptionLevel.ZERO_RTT);
+            cfrs = this.getCryptoStreamFrames( zeroCTX.getCryptoStream(), maxPayloadSize );
+            DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createProtected0RTTPacket(this.connection, [frame]) );
+            ackframe = zeroCTX.getAckHandler().getAckFrame(this.connection);
+            if( ackframe !== undefined ){
+                DEBUGackFrameCount++;
+                packets.push(PacketFactory.createProtected0RTTPacket(this.connection, [ackframe]));
+            }
 
-            cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE).getCryptoStream(), maxPayloadSize );
-            cryptoFrameCount += cfrs.length;
+            
+            let handshakeCTX = this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE);
+            cfrs = this.getCryptoStreamFrames( handshakeCTX.getCryptoStream(), maxPayloadSize );
+            DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createHandshakePacket(this.connection, [frame]) );
+            ackframe = handshakeCTX.getAckHandler().getAckFrame(this.connection);
+            if( ackframe !== undefined ){
+                DEBUGackFrameCount++;
+                packets.push(PacketFactory.createHandshakePacket(this.connection, [ackframe]));
+            }
 
-            cfrs = this.getCryptoStreamFrames( this.connection.getEncryptionContext(EncryptionLevel.ONE_RTT).getCryptoStream(), maxPayloadSize );
-            cryptoFrameCount += cfrs.length;
+
+            let oneCTX = this.connection.getEncryptionContext(EncryptionLevel.ONE_RTT);
+            cfrs = this.getCryptoStreamFrames( oneCTX.getCryptoStream(), maxPayloadSize );
+            DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
-                packets.push( PacketFactory.createShortHeaderPacket(this.connection, [frame]) ); 
+                packets.push( PacketFactory.createShortHeaderPacket(this.connection, [frame]) );
+            ackframe = oneCTX.getAckHandler().getAckFrame(this.connection);
+            if( ackframe !== undefined ){
+                DEBUGackFrameCount++;
+                packets.push(PacketFactory.createShortHeaderPacket(this.connection, [ackframe])); 
+            }
 
-            VerboseLogging.info("FlowControl:getPackets : created " + cryptoFrameCount + " CRYPTO frames");
+            VerboseLogging.info("FlowControl:getPackets : created " + DEBUGcryptoFrameCount + " CRYPTO frames");
         }
 
         /*
