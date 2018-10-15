@@ -122,7 +122,6 @@ export class LongHeader extends BaseHeader {
         if( this.getPacketType() == LongHeaderType.Initial ){
             let tokenLengthBuffer = VLIE.encode(this.initialTokenLength);
             offset += tokenLengthBuffer.copy(buf, offset);
-            console.log("LongHeader:toBuffer : added token length : ", tokenLengthBuffer);
         }
         /*
         let tokenLengthBuffer = VLIE.encode(this.initialTokenLength || new Bignum(0));

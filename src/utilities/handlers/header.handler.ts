@@ -38,7 +38,6 @@ export class HeaderHandler {
             };
         }
 
-        console.log("Pre - PNE");
         var payload = msg.slice(headerOffset.offset);
         var fullPayload = Buffer.concat([header.getParsedBuffer(), payload]);
         var pne = Buffer.alloc(4);
@@ -64,8 +63,6 @@ export class HeaderHandler {
             var pn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
             actualPacketType = PacketType.Protected1RTT;
         }
-
-        console.log("Post - PNE : ", pn);
 
         var decodedPnVlieOffset = VLIE.decodePn(pn);
         header.getPacketNumber().setValue(decodedPnVlieOffset.value);
@@ -93,10 +90,8 @@ export class HeaderHandler {
             header.getPacketNumber().setValue(adjustedNumber);
         }
 
-        VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
-        VerboseLogging.warn("HeaderHandler:handle : PN space \"" + PacketType[ actualPacketType ] + "\" RX went from " + DEBUGpreviousHighest + " -> " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + " (TX = " + pnSpace.DEBUGgetCurrent() + ")" );
-        VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
-
+        VerboseLogging.info("HeaderHandler:handle : PN space \"" + PacketType[ actualPacketType ] + "\" RX went from " + DEBUGpreviousHighest + " -> " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + " (TX = " + pnSpace.DEBUGgetCurrent() + ")" );
+       
         // custom handlers for long and short headers
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var lh = <LongHeader>header;

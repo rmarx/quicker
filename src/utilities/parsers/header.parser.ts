@@ -25,8 +25,8 @@ export class HeaderParser {
         var headerOffset: HeaderOffset = this.parseHeader(buf, 0);
         headerOffsets.push(headerOffset);
 
-        if( headerOffset.header.getHeaderType() == HeaderType.LongHeader )
-            console.log("Done parsing first long header : ", headerOffset.offset, (<LongHeader>(headerOffset.header)).getPayloadLength().toNumber(), buf.byteLength );
+        //if( headerOffset.header.getHeaderType() == HeaderType.LongHeader )
+        //    console.log("Done parsing first long header : ", headerOffset.offset, (<LongHeader>(headerOffset.header)).getPayloadLength().toNumber(), buf.byteLength );
 
         // There can be multiple QUIC packets inside a single UDP datagram, called a "compound packet"
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.6
@@ -118,12 +118,9 @@ export class HeaderParser {
         // NOTE for above: we want to encode variable lengths for the Connection IDs of 4 to 18 bytes
         // to save space, we cram this info into 4 bits. Normally, they can only hold 0-15 as values, but because minimum length is 4, we can just do +3 to get the real value
 
-        console.log("conlengths", conLengths);
         var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
-        console.log("destConnectionID", buf.slice(offset, offset + destLength), destLength );
         offset += destLength;
         var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
-        console.log("srcConnectionID", buf.slice(offset, offset + srcLength), srcLength );
         offset += srcLength;
 
         let tokenLength:Bignum = new Bignum(0);
@@ -136,7 +133,7 @@ export class HeaderParser {
             let tokenLengthV = VLIE.decode(buf, offset);
             tokenLength = tokenLengthV.value;
             offset = tokenLengthV.offset;
-            console.log("ROBIN : tokenLength is " + tokenLength.toNumber() + ", encoded in " +  (offset - oldOffset) + " bytes");
+            
             if( tokenLengthV.value.toNumber() > 0 ){
                 tokens = Buffer.alloc(tokenLength.toNumber());
                 buf.copy(tokens, 0, offset, offset + tokenLength.toNumber());

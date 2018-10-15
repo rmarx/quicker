@@ -451,7 +451,7 @@ export class AEAD {
             console.log( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeClientSecret.toString('hex') );
             console.log( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeClientKey.toString('hex') );
             console.log( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeClientIv.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS calc pn:     " + this.protectedHandshakeClientPn.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS calc pn:   " + this.protectedHandshakeClientPn.toString('hex') );
         }
         else if( endpoint == EndpointType.Server ){
             this.protectedHandshakeServerSecret = secret;
@@ -462,7 +462,7 @@ export class AEAD {
             console.log( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeServerSecret.toString('hex') );
             console.log( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeServerKey.toString('hex') );
             console.log( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeServerIv.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS calc pn:     " + this.protectedHandshakeServerPn.toString('hex') );
+            console.log( EndpointType[endpoint] + " TLS calc pn:   " + this.protectedHandshakeServerPn.toString('hex') );
         }
         else
             VerboseLogging.error("aead:setProtectedHandshakeSecrets : unknown endpoint type : " + endpoint);
@@ -619,7 +619,6 @@ export class AEAD {
             var longHeader = <LongHeader>header;
             sampleOffset = 6 + longHeader.getDestConnectionID().getLength() + longHeader.getSrcConnectionID().getLength() + longHeader.getPayloadLengthBuffer().byteLength + 4;
             if( longHeader.getPacketType() == LongHeaderType.Initial ){
-                console.log("INITIAL : ", VLIE.encode(longHeader.getInitialTokenLength() ).byteLength);
                 sampleOffset += VLIE.encode(longHeader.getInitialTokenLength()).byteLength;
                 if( longHeader.hasInitialTokens() )
                     sampleOffset += (longHeader.getInitialTokens() as Buffer).byteLength;

@@ -56,6 +56,9 @@ export class FlowControl {
     }
 
     public queueFrame(baseFrame: BaseFrame): void {
+        VerboseLogging.info("FlowControl:queueFrame : buffering frame for transmission " + FrameType[baseFrame.getType()] );
+        VerboseLogging.error("FlowControl:queueFrame : We do not yet know to which EncryptionContext this frame belongs, so we cannot retransmit! TODO IMPLEMENT" );
+        console.trace("flowcontrol:queueFrame");
         this.bufferedFrames.push(baseFrame);
     }
 
@@ -131,11 +134,14 @@ export class FlowControl {
             DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createProtected0RTTPacket(this.connection, [frame]) );
+            /*
+            // ACKS for 0RTT are always sent in 1RTT packets (and they share the same Packet Number Space, so also the same ACK handler etc.)
             ackframe = zeroCTX.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
                 DEBUGackFrameCount++;
                 packets.push(PacketFactory.createProtected0RTTPacket(this.connection, [ackframe]));
             }
+            */
 
             
             let handshakeCTX = this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE);

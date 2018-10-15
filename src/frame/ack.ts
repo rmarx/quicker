@@ -1,10 +1,16 @@
 import { VLIE } from '../crypto/vlie';
 import { Bignum } from '../types/bignum';
 import { BaseFrame, FrameType } from './base.frame';
+import { EncryptionLevel } from '../crypto/crypto.context';
 
 
 
 export class AckFrame extends BaseFrame {
+    
+    // mainly needed for easier statekeeping without having to pass this along everywhere we want to handle Crypto frames (e.g., send logic)
+    // TODO: refactor flowcontrol further so this isn't needed? 
+    private cryptoLevel?:EncryptionLevel; 
+
     private largestAcknowledged: Bignum;
     private ackDelay: Bignum;
     private ackBlockCount: Bignum;
@@ -21,6 +27,15 @@ export class AckFrame extends BaseFrame {
         this.ackBlocks = ackBlocks;
     }
 
+
+    public setCryptoLevel(level:EncryptionLevel){
+        this.cryptoLevel = level;
+    }
+
+    public getCryptoLevel(): EncryptionLevel|undefined {
+        return this.cryptoLevel;
+    }
+
     public getAckBlocks(): AckBlock[] {
         return this.ackBlocks;
     }
@@ -29,6 +44,15 @@ export class AckFrame extends BaseFrame {
         return this.largestAcknowledged;
     }
 
+    // !IMPORTANT: this is an encoded value, does not directly represent the amount of microseconds!
+    // You need to use the ack_delay_exponent to calculate the real value, for example:
+    // if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
+    //    ackDelayExponent: number = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+    // } else {
+    //    ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
+    // }
+    // ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackDelayExponent);
+    // we don't do this transformation here to limit passing around the delayExponent
     public getAckDelay(): Bignum {
         return this.ackDelay;
     }

@@ -349,7 +349,7 @@ export class PacketLogging {
         var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackDelayExponent);
 
         log += this.getSpaces(4) + "largest acknowledged=" + ackFrame.getLargestAcknowledged().toDecimalString() + "\n";
-        log += this.getSpaces(4) + "ack delay=" + ackDelay + "\n";
+        log += this.getSpaces(4) + "ack delay=" + ackDelay + " (microseconds)\n";
         log += this.getSpaces(4) + "ack block count=" + ackFrame.getAckBlockCount().toDecimalString() + "\n";
         log += this.getSpaces(4) + "first ackblock=" + ackFrame.getFirstAckBlock().toDecimalString();
         ackFrame.getAckBlocks().forEach((ackBlock: AckBlock) => {

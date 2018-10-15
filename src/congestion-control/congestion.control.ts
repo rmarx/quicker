@@ -50,7 +50,7 @@ export class CongestionControl extends EventEmitter {
     // the number of bytes acknowledged.
     private sshtresh: Bignum;
 
-    public constructor(connection: Connection, lossDetection: LossDetection) {
+    public constructor(connection: Connection, lossDetectionInstances: Array<LossDetection>) {
         super();
         this.connection = connection;
         this.congestionWindow = new Bignum(CongestionControl.INITIAL_WINDOW);
@@ -58,22 +58,22 @@ export class CongestionControl extends EventEmitter {
         this.endOfRecovery = new Bignum(0);
         this.sshtresh = Bignum.infinity();
         this.packetsQueue = [];
-        this.hookCongestionControlEvents(lossDetection);
+        this.hookCongestionControlEvents(lossDetectionInstances);
     }
 
-    private hookCongestionControlEvents(lossDetection: LossDetection) {
-        lossDetection.on(LossDetectionEvents.PACKET_ACKED, (ackedPacket: BasePacket) => {
-            this.onPacketAcked(ackedPacket);
-        });
-        lossDetection.on(LossDetectionEvents.PACKETS_LOST, (lostPackets: BasePacket[]) => {
-            this.onPacketsLost(lostPackets);
-        });
-        lossDetection.on(LossDetectionEvents.RETRANSMISSION_TIMEOUT_VERIFIED, () => {
-            this.onRetransmissionTimeoutVerified();
-        });
-        this.connection.on(ConnectionEvent.PACKET_SENT, (sentPacket: BasePacket) => {
-            this.onPacketSent(sentPacket);
-        });
+    private hookCongestionControlEvents(lossDetectionInstances: Array<LossDetection>) {
+
+        for( let lossDetection of lossDetectionInstances){
+            lossDetection.on(LossDetectionEvents.PACKET_ACKED, (ackedPacket: BasePacket) => {
+                this.onPacketAcked(ackedPacket);
+            });
+            lossDetection.on(LossDetectionEvents.PACKETS_LOST, (lostPackets: BasePacket[]) => {
+                this.onPacketsLost(lostPackets);
+            });
+            lossDetection.on(LossDetectionEvents.RETRANSMISSION_TIMEOUT_VERIFIED, () => {
+                this.onRetransmissionTimeoutVerified();
+            });
+        }
     }
 
 
@@ -111,6 +111,7 @@ export class CongestionControl extends EventEmitter {
         this.sendPackets();
     }
 
+    // TODO: REFACTOR: largestLost shouldn't be done on packet number basis since we have separate pn-spaces now! 
     private onPacketsLost(lostPackets: BasePacket[]) {
         var largestLost = new Bignum(0);
         lostPackets.forEach((lostPacket: BasePacket) => {
@@ -158,12 +159,13 @@ export class CongestionControl extends EventEmitter {
                 let DEBUGrxNumber = -1;
                 if( DEBUGhighestReceivedNumber !== undefined )
                     DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
-                VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
-                VerboseLogging.warn("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
-                VerboseLogging.warn("IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII");
+                    
+                VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
 
                 VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + packet.getHeader().getPacketNumber().getValue().toNumber() );
                 this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                this.onPacketSent(packet);
+                
                 this.emit(CongestionControlEvents.PACKET_SENT, packet);
             }
         }

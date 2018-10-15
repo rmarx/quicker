@@ -52,7 +52,7 @@ export class StreamManager extends EventEmitter {
         var stream = new Stream(this.endpointType, streamId);
         this.addStream(stream);
 
-        VerboseLogging.info("StreamManager:initializeStream : starting stream " + streamId.toNumber() + " @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ " );
+        VerboseLogging.info("StreamManager:initializeStream : starting stream " + streamId.toNumber() );
 
         if (this.localMaxStreamData !== undefined) {
             stream.setLocalMaxData(this.localMaxStreamData);

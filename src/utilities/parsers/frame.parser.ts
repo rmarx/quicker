@@ -20,6 +20,7 @@ import { ConnectionErrorCodes } from '../errors/quic.codes';
 import { QuicError } from '../errors/connection.error';
 import { FrameFactory } from '../factories/frame.factory';
 import { Constants } from '../constants';
+import { VerboseLogging } from '../logging/verbose.logging';
 
 
 export class FrameParser {
@@ -42,7 +43,7 @@ export class FrameParser {
             return undefined;
         }
         var type = buffer.readUInt8(offset++);
-        console.log("@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ ParseFrame ", type, FrameType.CRYPTO, buffer);
+        VerboseLogging.trace("FrameParser:ParseFrame " + FrameType[type] + " = " + buffer);
         switch (type) {
             case FrameType.PADDING:
                 return this.parsePadding(buffer, offset);

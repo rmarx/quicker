@@ -69,8 +69,6 @@ export class PacketFactory {
         // TODO: it's also allowed to fill this with 0-RTT request, which we currently don't support, but which would be much better!
         if (size < Constants.INITIAL_MIN_SIZE) {
             var padding = new PaddingFrame(Constants.INITIAL_MIN_SIZE - size);
-
-            console.log("Creating padding frame of size ", padding.getLength());
             initial.getFrames().push(padding);
         }
         header.setPayloadLength(initial.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);

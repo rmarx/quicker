@@ -31,6 +31,7 @@ import { QuickerErrorCodes } from '../errors/quicker.codes';
 import { RetryPacket } from '../../packet/packet/retry';
 import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
 import { VerboseLogging } from '../logging/verbose.logging';
+import { AckFrame } from '../../frame/ack';
 
 export class PacketHandler {
 
@@ -176,8 +177,7 @@ export class PacketHandler {
         
         packet.getFrames().forEach((baseFrame: BaseFrame) => {
             // crypto frames explicitly belong to a certain encryption level, which is based on the type of packet they arrive in 
-            if( baseFrame.getType() == FrameType.CRYPTO ){
-                let cryptoFrame:CryptoFrame = baseFrame as CryptoFrame;
+            if( baseFrame.getType() == FrameType.CRYPTO || baseFrame.getType() == FrameType.ACK ){
                 let cryptoLevel:EncryptionLevel = EncryptionLevel.INITIAL;
 
                 switch( packet.getPacketType() ){
@@ -197,9 +197,17 @@ export class PacketHandler {
                         VerboseLogging.error("PacketHandler:handleFrames : CRYPTO frame in unexpected packet type " + PacketType[packet.getPacketType()] );
                         break;
                 };
-                cryptoFrame.setCryptoLevel( cryptoLevel );
 
-                this.frameHandler.handle(connection, cryptoFrame);
+                if( baseFrame.getType() == FrameType.CRYPTO ){
+                    let cryptoFrame:CryptoFrame = baseFrame as CryptoFrame;
+                    cryptoFrame.setCryptoLevel( cryptoLevel );
+                }
+                else{
+                    let ackFrame:AckFrame = baseFrame as AckFrame;
+                    ackFrame.setCryptoLevel( cryptoLevel );
+                }
+
+                this.frameHandler.handle(connection, baseFrame);
             }
             else{
                 this.frameHandler.handle(connection, baseFrame);

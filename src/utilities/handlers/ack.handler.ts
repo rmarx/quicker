@@ -16,8 +16,8 @@ import { VerboseLogging } from '../logging/verbose.logging';
 
 
 interface ReceivedPacket {
-    time: Time,
-    ackOnly: boolean
+    time: Time, // TODO: REFACTOR: replace with timestamp instead of Time Object to reduce memory? 
+    ackOnly: boolean // TODO: potentially even use MSB of timestamp to encode ack or not? (highly unlikely server will run for years on end)
 }
 
 export class AckHandler {
@@ -27,6 +27,7 @@ export class AckHandler {
     private receivedPackets: { [key: string]: ReceivedPacket };
     private largestPacketNumber!: Bignum;
     private alarm: Alarm;
+    private packetsSinceLastAckFrameSent: number = 0; // count of packets we have received since the last time we've sent an ACK frame
     // ack wait in ms
     private static readonly ACK_WAIT = 15;
 
@@ -43,8 +44,6 @@ export class AckHandler {
         if (sentPacketIn.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
-
-        VerboseLogging.warn(this.DEBUGname + " ACK ON PACKET ACKED ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
 
         // conceptually:
         // - We ourselves send acknowledgements for packets we receive from the other endpoint
@@ -74,27 +73,24 @@ export class AckHandler {
         //  see draft-15#4.4.3
 
         let sentPacket = <BaseEncryptedPacket>sentPacketIn;
-        VerboseLogging.warn(this.DEBUGname + " Sent Packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber() + " was acked by peer");
 
         sentPacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.getType() === FrameType.ACK) {
                 let ackFrame = <AckFrame>frame;
                 let packetNumbers = ackFrame.determineAckedPacketNumbers();
-                VerboseLogging.warn(this.DEBUGname + " and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => "," + val.toNumber())) + " " );
+                VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Sent Packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber() + " was acked by peer and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => val.toNumber())).join(",") );
 
                 packetNumbers.forEach((packetNumber: Bignum) => {
                     if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
                         delete this.receivedPackets[packetNumber.toString('hex', 8)];
-                        VerboseLogging.warn(this.DEBUGname + " Received packet " + packetNumber.toNumber() + " is now removed from 'list of things to ack'" );
+                        VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Received packet " + packetNumber.toNumber() + " is now removed from 'list of things to ack'" );
                     }
                     else{
-                        VerboseLogging.warn(this.DEBUGname + " Packet " + packetNumber.toNumber() + " was no longer in this.receivedPackets, previously acked?");
+                        VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Packet " + packetNumber.toNumber() + " was no longer in this.receivedPackets, previously acked?");
                     }
                 });
             }
         });
-
-        VerboseLogging.warn("ACK END PACKET ACKED ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++");
     }
 
     public onPacketReceived(connection: Connection, packet: BasePacket, time: Time): void {
@@ -114,11 +110,20 @@ export class AckHandler {
         } else if (!this.alarm.isRunning()) {
             this.setAlarm(connection);
         }
+
+        ++this.packetsSinceLastAckFrameSent;
     }
 
 
 
     public getAckFrame(connection: Connection): AckFrame | undefined {
+        if( this.packetsSinceLastAckFrameSent == 0 ){
+            VerboseLogging.trace("AckHandler:getAckFrame: no new packets received since last ACK frame, not generating new one");
+            return;
+        }
+
+        this.packetsSinceLastAckFrameSent = 0; // we always ACK all newly received packets
+
         this.alarm.reset();
         if (Object.keys(this.receivedPackets).length === 0 || this.onlyAckPackets()) {
             return undefined;
@@ -130,6 +135,8 @@ export class AckHandler {
             var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
         }
 
+        // TODO: optimize: store largestPacketNumber timing separately so we don't need to do hashmap lookup
+        // in that case, we can simply remove the timing from the hashmap alltogether? 
         var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString('hex', 8)].time).format(TimeFormat.MicroSeconds);
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
@@ -152,7 +159,7 @@ export class AckHandler {
         for( let n = 0; n < packetnumbers.length; ++n )
             numberString += "" + packetnumbers[n].toNumber() + ",";
 
-        VerboseLogging.info("AckHandler:getAckFrame : This ACK frame will contain " + packetnumbers.length + " acked packets, with numbers : " + numberString);
+        VerboseLogging.info(this.DEBUGname + " AckHandler:getAckFrame : This ACK frame will contain " + packetnumbers.length + " acked packets, with numbers : " + numberString);
         
 
         for (var i = 1; i < packetnumbers.length; i++) {

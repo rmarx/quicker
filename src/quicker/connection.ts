@@ -33,6 +33,7 @@ import { CongestionControl, CongestionControlEvents } from '../congestion-contro
 import { StreamManager, StreamManagerEvents } from './stream.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
+import { RTTMeasurement } from '../loss-detection/rtt.measurement';
 
 export class Connection extends FlowControlledObject {
 
@@ -79,7 +80,6 @@ export class Connection extends FlowControlledObject {
     private contextHandshake!: CryptoContext;
     private context1RTT!:CryptoContext;
 
-    private lossDetection!: LossDetection;
     private congestionControl!: CongestionControl;
     private flowControl!: FlowControl;
     private streamManager!: StreamManager;
@@ -128,20 +128,32 @@ export class Connection extends FlowControlledObject {
     }
 
     private initializeCryptoContexts(){
+
+        let rttMeasurer = new RTTMeasurement(this);
+        let lossInit = new LossDetection(rttMeasurer, this);
+        lossInit.DEBUGname = "Initial";
+        let lossHandshake = new LossDetection(rttMeasurer, this);
+        lossHandshake.DEBUGname = "Handshake";
+        let lossData = new LossDetection(rttMeasurer, this);
+        lossData.DEBUGname = "0/1RTT";
+
         let pnsData      = new PacketNumberSpace(); // 0-RTT and 1-RTT have different encryption levels, but they share a PNS
         let ackData      = new AckHandler(this); // TODO: AckHandler should be coupled to PNSpace directly? make this more clear by adding it to that class instead maybe?
-        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   new PacketNumberSpace(), new AckHandler(this) );
-        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData,                 ackData );
-        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, new PacketNumberSpace(), new AckHandler(this) );
-        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData,                 ackData );
+        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   new PacketNumberSpace(), new AckHandler(this), lossInit );
+        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData,                 ackData,              lossData );
+        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, new PacketNumberSpace(), new AckHandler(this), lossHandshake );
+        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData,                 ackData,              lossData );
+
+        ackData.DEBUGname = "0/1RTT";
+        this.contextInitial.getAckHandler().DEBUGname = "Initial";
+        this.contextHandshake.getAckHandler().DEBUGname = "Handshake";
     }
 
     private initializeHandlers(socket: Socket) {
         this.handshakeHandler = new HandshakeHandler(this.qtls, this.aead, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
-        this.lossDetection = new LossDetection(this);
         this.flowControl = new FlowControl(this);
-        this.congestionControl = new CongestionControl(this, this.lossDetection);
+        this.congestionControl = new CongestionControl(this, [this.contextInitial.getLossDetection(), this.contextHandshake.getLossDetection(), this.context1RTT.getLossDetection()] ); // 1RTT and 0RTT share loss detection, don't add twice!
 
         this.hookStreamManagerEvents();
         this.hookLossDetectionEvents();
@@ -163,19 +175,32 @@ export class Connection extends FlowControlledObject {
     private hookCongestionControlEvents() {
         this.congestionControl.on(CongestionControlEvents.PACKET_SENT, (basePacket: BasePacket) => {
             PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
+
+            // can't simply let loss detection listing to the PACKET_SENT event, 
+            // because we need to marshall the event to the correct Packet Number Space loss detector
+            // we COULD let loss detection check the proper PNS itself, but this feels cleaner, 
+            // especially if we want to refactor all the events out of the internal codebase anyway
+            let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
+            ctx.getLossDetection().onPacketSent( basePacket );
+
             this.emit(ConnectionEvent.PACKET_SENT, basePacket);
         });
     }
 
     private hookLossDetectionEvents() {
-        this.lossDetection.on(LossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
-            this.retransmitPacket(basePacket);
-        });
-        this.lossDetection.on(LossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
-            let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
-            ctx.getAckHandler().onPacketAcked(basePacket);
-            //this.ackHandler.onPacketAcked(basePacket);
-        });
+        let contexts = [this.contextInitial, this.contextHandshake, this.context1RTT]; // 0/1RTT share a packet number space and loss detector/ack handler
+
+        for( let context of contexts ){
+            context.getLossDetection().on(LossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
+                this.retransmitPacket(basePacket);
+            });
+            context.getLossDetection().on(LossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
+                //let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
+                //ctx.getAckHandler().onPacketAcked(basePacket);
+                
+                context.getAckHandler().onPacketAcked(basePacket);
+            });
+        }
     }
 
     private hookQuicTLSEvents() {
@@ -254,10 +279,6 @@ export class Connection extends FlowControlledObject {
 
     public getAEAD(): AEAD {
         return this.aead;
-    }
-
-    public getLossDetection(): LossDetection {
-        return this.lossDetection;
     }
 
     public getStreamManager(): StreamManager {
@@ -467,12 +488,11 @@ export class Connection extends FlowControlledObject {
         // NOTE: we do not reset packet numbers, as this is explicitly forbidden by the QUIC transport spec 
         // FIXME: we have to reset the offsets of the crypto packets!
         VerboseLogging.error("Connection:resetConnectionState : TODO: implement CRYPTO stream offset reset, currently does not do this!");
-        VerboseLogging.error("Connection:resetConnectionState : TODO: implement Ack Handler resets, currently does not do this!");
+        VerboseLogging.error("Connection:resetConnectionState : TODO: implement Ack Handler resets, loss detection resets, currently does not do this!");
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.resetOffsets();
         });
-        this.lossDetection.reset();
     }
 
     public queueFrame(baseFrame: BaseFrame) {
@@ -511,10 +531,12 @@ export class Connection extends FlowControlledObject {
 
         var framePacket = <BaseEncryptedPacket>packet;
         framePacket.getFrames().forEach((frame: BaseFrame) => {
-            VerboseLogging.info("Connection:retransmitPacket : retransmitting frame " + FrameType[frame.getType()] );
             if (frame.isRetransmittable()) {
+                VerboseLogging.info("Connection:retransmitPacket : retransmitting frame " + FrameType[frame.getType()] );
                 this.retransmitFrame(frame);
             }
+            else
+                VerboseLogging.warn("Connection:retransmitPacket : attempting to retransmit frame but unable to " + FrameType[frame.getType()]);
         });
         // Send packets
         this.sendPackets();

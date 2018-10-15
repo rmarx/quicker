@@ -218,7 +218,14 @@ export class FrameHandler {
     }
 
     private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
-        connection.getLossDetection().onAckReceived(ackFrame);
+        //connection.getLossDetection().onAckReceived(ackFrame);
+
+        let encryptionLevel:EncryptionLevel|undefined = ackFrame.getCryptoLevel();
+        if( encryptionLevel === undefined )
+            VerboseLogging.error("FrameHandler:handleAckFrame : frame had no encryptionLevel set, need this to properly deliver the data!");
+        else
+            connection.getEncryptionContext( encryptionLevel ).getLossDetection().onAckReceived( ackFrame );
+    
     }
 
     private handlePathChallengeFrame(connection: Connection, pathChallengeFrame: PathChallengeFrame) {

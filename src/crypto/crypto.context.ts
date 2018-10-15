@@ -4,6 +4,7 @@ import { PacketNumber } from '../packet/header/header.properties';
 import { AckHandler } from '../utilities/handlers/ack.handler';
 import { Bignum } from '../types/bignum';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
+import { LossDetection } from '../loss-detection/loss.detection';
 
 export enum EncryptionLevel{
     INITIAL,
@@ -31,12 +32,14 @@ export class CryptoContext {
     private cryptoStream!:CryptoStream;
     private packetNumberSpace!:PacketNumberSpace; // we have to abstract this because 0-RTT and 1-RTT share a PNS, but have separate crypto levels
     private ackHandler!:AckHandler;
+    private lossDetection!:LossDetection;
 
-    public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace, ackHandler:AckHandler) {
+    public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace, ackHandler:AckHandler, lossDetection:LossDetection) {
         this.cryptoLevel = cryptoLevel;
         this.packetNumberSpace = packetNumberSpace;
         this.cryptoStream = new CryptoStream(this.cryptoLevel);
         this.ackHandler = ackHandler;
+        this.lossDetection = lossDetection;
     }
 
     public getLevel() : EncryptionLevel {
@@ -53,6 +56,10 @@ export class CryptoContext {
 
     public getAckHandler(): AckHandler{
         return this.ackHandler;
+    }
+
+    public getLossDetection():LossDetection{
+        return this.lossDetection;
     }
 }
 
