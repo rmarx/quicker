@@ -36,6 +36,10 @@ export class Alarm extends EventEmitter {
     public isRunning(): boolean {
         return this.running;
     }
+
+    public getDuration(): number{
+        return this.duration;
+    }
 }
 
 export enum AlarmEvent {

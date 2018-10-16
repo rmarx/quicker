@@ -124,8 +124,12 @@ export class FlowControl {
                 packets.push( PacketFactory.createInitialPacket(this.connection, [frame]) );
             let ackframe = initCTX.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
-                DEBUGackFrameCount++;
-                packets.push(PacketFactory.createInitialPacket(this.connection, [ackframe]));
+                if( this.connection.getAEAD().canClearTextEncrypt(this.connection.getEndpointType()) ){
+                    DEBUGackFrameCount++;
+                    packets.push(PacketFactory.createInitialPacket(this.connection, [ackframe]));
+                }
+                else
+                    VerboseLogging.error("FlowControl:getPackets : cannot encrypt initial packets yet! TODO: buffer, dropping for now");
             }
 
 
@@ -151,8 +155,12 @@ export class FlowControl {
                 packets.push( PacketFactory.createHandshakePacket(this.connection, [frame]) );
             ackframe = handshakeCTX.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
-                DEBUGackFrameCount++;
-                packets.push(PacketFactory.createHandshakePacket(this.connection, [ackframe]));
+                if( this.connection.getAEAD().canHandshakeEncrypt(this.connection.getEndpointType()) ){
+                    DEBUGackFrameCount++;
+                    packets.push(PacketFactory.createHandshakePacket(this.connection, [ackframe]));
+                }
+                else
+                    VerboseLogging.error("FlowControl:getPackets : cannot encrypt Handshake packets yet! TODO: buffer, dropping for now");
             }
 
 
@@ -163,8 +171,12 @@ export class FlowControl {
                 packets.push( PacketFactory.createShortHeaderPacket(this.connection, [frame]) );
             ackframe = oneCTX.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
-                DEBUGackFrameCount++;
-                packets.push(PacketFactory.createShortHeaderPacket(this.connection, [ackframe])); 
+                if( this.connection.getAEAD().can1RTTEncrypt(this.connection.getEndpointType()) ){
+                    DEBUGackFrameCount++;
+                    packets.push(PacketFactory.createShortHeaderPacket(this.connection, [ackframe])); 
+                }
+                else
+                    VerboseLogging.error("FlowControl:getPackets : cannot encrypt 1RTT packets yet! TODO: buffer, dropping for now");
             }
 
             VerboseLogging.info("FlowControl:getPackets : created " + DEBUGcryptoFrameCount + " CRYPTO frames");
@@ -298,7 +310,7 @@ export class FlowControl {
 
             // 2. 
             // TODO: check if we're allowed to send these messages if the conn-level flow control maximum is exceeded
-            if (stream.isRemoteLimitExceeded()) {
+            if (stream.isRemoteLimitExceeded()) { 
                 if( !stream.getBlockedSent() ){ // keep track of if we've already sent a STREAM_BLOCKED frame for this stream
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true); // is un-set when we receive MAX_STREAM_DATA frame from peer 

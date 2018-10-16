@@ -22,9 +22,13 @@ export abstract class FlowControlledObject extends EventEmitter {
 		super();
 		this.MAX_BUFFER_SIZE = bufferSize;
 		this.currentBufferSize = 0;
-        this.isRemoteBlocked = false;
+		this.isRemoteBlocked = false;
+		
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
+
+		this.remoteMaxData = new Bignum(0);
+		this.localMaxData = new Bignum(0);
 	}
 	
     public getLocalOffset(): Bignum {

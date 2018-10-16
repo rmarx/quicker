@@ -53,6 +53,7 @@ export class StreamManager extends EventEmitter {
         this.addStream(stream);
 
         VerboseLogging.info("StreamManager:initializeStream : starting stream " + streamId.toNumber() );
+        console.trace("StreamManager:initializeStream");
 
         if (this.localMaxStreamData !== undefined) {
             stream.setLocalMaxData(this.localMaxStreamData);

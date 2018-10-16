@@ -177,7 +177,7 @@ export class LossDetection extends EventEmitter {
             this.rttMeasurer.updateRTT(ackFrame, largestAcknowledgedPacket);
         }
         else
-            VerboseLogging.info(this.DEBUGname + " LossDetection:updateRtt : not actually updating RTT because largestAcknowledgedPacket was previously acknowledged in a different ACK frame");
+            VerboseLogging.info(this.DEBUGname + " LossDetection:updateRtt : not actually updating RTT because largestAcknowledgedPacket was previously acknowledged in a different ACK frame or it was an ACK-only frame");
 
     }
 
@@ -205,7 +205,6 @@ export class LossDetection extends EventEmitter {
         });
         this.detectLostPackets(ackFrame.getLargestAcknowledged());
         this.setLossDetectionAlarm();
-        VerboseLogging.error(this.DEBUGname + " Loss:onAckReceived ended");
     }
 
     // reads the packet numbers from a received ack frame
@@ -336,13 +335,6 @@ export class LossDetection extends EventEmitter {
             this.lossDetectionAlarm.start(alarmDuration);
         }
     }
-
-    //ROBIN : start morgen hier:
-    // ga nog es door voorbeeld om te zien of alles goed lijkt te werken qua loss en alarms etc.
-    // verwijder teveel aan logging / update errors naar info/debug waar nodig
-    // commit want is veel veranderd
-    // ook nog eerst es andere wijzigingen van ngtcp2 bezien of we iets groot gemist hebben
-    // dan beginnen kijken naar 0-RTT? test mss ook eerst es met quicker client en dan quicker client -> ngtcp2 server (wss nog vanalles mis ;)
 
     /**
      * QUIC uses one loss recovery alarm, which when set, can be in one of several modes. 

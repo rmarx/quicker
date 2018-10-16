@@ -40,7 +40,6 @@ export class Client extends Endpoint {
         client.options = options;
         client.init();
 
-        var stream = client.connection.getStreamManager().getStream(new Bignum(0)); // REFACTOR TODO: this is needed so the connection knows the handshake stream, but would make much more sense to set this up in the connection itself. See also Stream 0 DT discussion? 
         client.connection.startConnection();
         client.connection.attemptEarlyData(earlyDataRequest);
         return client;

@@ -513,10 +513,8 @@ export class Connection extends FlowControlledObject {
 
         switch (packet.getPacketType()) {
             case PacketType.Initial:
-                if (this.getStreamManager().getStream(new Bignum(0)).getLocalOffset().greaterThan(0)) {
-                    // Server hello is already received, packet does not need to be retransmitted
-                    return;
-                }
+                VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit INITIAL packet, no logic defined for this yet, doing nothing");
+                if( 1 == 1 ) return;
                 break;
             case PacketType.Handshake:
                 if (this.qtls.getHandshakeState() === HandshakeState.COMPLETED) {

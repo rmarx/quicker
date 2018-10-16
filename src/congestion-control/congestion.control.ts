@@ -159,8 +159,17 @@ export class CongestionControl extends EventEmitter {
                 let DEBUGrxNumber = -1;
                 if( DEBUGhighestReceivedNumber !== undefined )
                     DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
-                    
+
                 VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
+
+                /*
+                if( pnSpace == this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE).getPacketNumberSpace() ){
+                    if( pnSpace.DEBUGgetCurrent() == 1 ){ 
+                        VerboseLogging.error("CongestionControl:sendPackets : dropping second handshake packet to see what ngtcp2 does in response, since it can't send ACK for the first without handshake keys");
+                        return; 
+                    }
+                }
+                */
 
                 VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + packet.getHeader().getPacketNumber().getValue().toNumber() );
                 this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);

@@ -105,9 +105,14 @@ export class AckHandler {
         }
         
         this.receivedPackets[pn.toString('hex', 8)] = {time: time, ackOnly: packet.isAckOnly()};
+
+        VerboseLogging.info("AckHandler:onPacketReceived : added packet " + pn.toNumber() + ", ackOnly=" + packet.isAckOnly() );
+
         if (this.onlyAckPackets()) {
+            VerboseLogging.info("AckHandler:onPacketReceived : list is full of ACK-only packets, stopping ACK alarm");
             this.alarm.reset();
         } else if (!this.alarm.isRunning()) {
+            VerboseLogging.info("AckHandler:onPacketReceived : starting ACK alarm to trigger new ACK frame in " + this.alarm.getDuration() + "ms");
             this.setAlarm(connection);
         }
 
@@ -117,15 +122,19 @@ export class AckHandler {
 
 
     public getAckFrame(connection: Connection): AckFrame | undefined {
+
+        VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: START");
+
         if( this.packetsSinceLastAckFrameSent == 0 ){
-            VerboseLogging.trace("AckHandler:getAckFrame: no new packets received since last ACK frame, not generating new one");
-            return;
+            VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: no new packets received since last ACK frame, not generating new one");
+            return undefined;
         }
 
         this.packetsSinceLastAckFrameSent = 0; // we always ACK all newly received packets
 
         this.alarm.reset();
         if (Object.keys(this.receivedPackets).length === 0 || this.onlyAckPackets()) {
+            VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: no ack frame to generate : " + Object.keys(this.receivedPackets).length + " || " + this.onlyAckPackets());
             return undefined;
         }
 
@@ -194,10 +203,12 @@ export class AckHandler {
 
     private setAlarm(connection: Connection) {
         this.alarm.on(AlarmEvent.TIMEOUT, () => {
+            console.log("---------------------------------------------------////////////////////////////// AckHandler: ON ALARM "+ this.DEBUGname +" //////////////////////////////// ");
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 connection.queueFrame(ackFrame);
             }
+            console.log("---------------------------------------------------////////////////////////////// AckHandler: END ALARM "+ this.DEBUGname +" //////////////////////////////// " + ackFrame);
 
         });
         this.alarm.start(AckHandler.ACK_WAIT);

@@ -83,6 +83,19 @@ export class AEAD {
         });
     }
 
+    public canClearTextEncrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.clearTextClientKey != undefined : this.clearTextServerKey != undefined; }
+    public canClearTextDecrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.clearTextClientKey != undefined : this.clearTextServerKey != undefined; }
+
+    public canHandshakeEncrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.protectedHandshakeClientKey != undefined : this.protectedHandshakeServerKey != undefined; }
+    public canHandshakeDecrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.protectedHandshakeClientKey != undefined : this.protectedHandshakeServerKey != undefined; }
+    
+    public can1RTTEncrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.protected1RTTClientKey != undefined : this.protected1RTTServerKey != undefined; }
+    public can1RTTDecrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.protected1RTTClientKey != undefined : this.protected1RTTServerKey != undefined; }
+
+    public can0RTTEncrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.protected0RTTClientSecret != undefined : false; }
+    public can0RTTDecrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.protected0RTTClientSecret != undefined : false; }
+    
+
     /**
      * Method to encrypt the payload (cleartext)
      * @param connectionID ConnectionID from the connection
