@@ -55,6 +55,7 @@ export class Constants {
     public static readonly DEFAULT_ACK_EXPONENT = 3;
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;
     public static readonly MAX_PACKET_SIZE = 1252;
+    public static readonly DISABLE_MIGRATION = false;
 
     public static readonly MAX_STREAM_ID_INCREMENT = 100;
     public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;

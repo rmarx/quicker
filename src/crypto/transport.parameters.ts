@@ -22,7 +22,8 @@ export enum TransportParameterType {
     MAX_PACKET_SIZE = 0x05,             // maximum total packet size (at UDP level)
     STATELESS_RESET_TOKEN = 0x06,       // token to be used in the case of a stateless reset 
     ACK_DELAY_EXPONENT = 0x07,          // congestion control tweaking parameter, see congestion/ack handling logic 
-    INITIAL_MAX_STREAMS_UNI = 0x08     // maximum amount of uni-directional streams that can be opened// UPDATE-12 TODO: rename to initial_max_uni_streams
+    INITIAL_MAX_STREAMS_UNI = 0x08,     // maximum amount of uni-directional streams that can be opened// UPDATE-12 TODO: rename to initial_max_uni_streams
+    DISABLE_MIGRATION = 0x09
 }
 
 /**
@@ -41,6 +42,8 @@ export class TransportParameters {
     private maxPacketSize!: number;
     private statelessResetToken!: Buffer;
     private ackDelayExponent!: number;
+
+    private disableMigration!: boolean;
 
     private version!: Version;
 
@@ -81,6 +84,9 @@ export class TransportParameters {
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 this.ackDelayExponent = value;
                 break;
+            case TransportParameterType.DISABLE_MIGRATION:
+                this.disableMigration = value;
+                break;
         }
     }
 
@@ -102,6 +108,8 @@ export class TransportParameters {
                 return this.maxPacketSize === undefined ? Constants.MAX_PACKET_SIZE : this.maxPacketSize;
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 return this.ackDelayExponent === undefined ? Constants.DEFAULT_ACK_EXPONENT : this.ackDelayExponent;
+            case TransportParameterType.DISABLE_MIGRATION:
+                return this.disableMigration;
         }
         return undefined;
     }
@@ -135,11 +143,14 @@ export class TransportParameters {
         if (this.ackDelayExponent !== undefined) {
             bufferOffset = this.writeTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, bufferOffset, this.ackDelayExponent);
         }
+        if( this.disableMigration ){
+            bufferOffset = this.writeZeroLengthTransportParameter(TransportParameterType.DISABLE_MIGRATION, bufferOffset);
+        }
         return bufferOffset.buffer;
     }
 
     /**
-     * Builts a buffer from the transport parameters AND the negotiated version
+     * Builds a buffer from the transport parameters AND the negotiated version
      *  --> Is the same buffer as the extensionDataBuffer, except that the first four bytes also contain the version
      *  this buffer is used to perform session resumption by the client
      *  function is thus used for application side
@@ -153,7 +164,7 @@ export class TransportParameters {
     }
 
     /**
-     * Builts a buffer from the transport parameters and the necessary version parts which are mandatory 
+     * Builds a buffer from the transport parameters and the necessary version parts which are mandatory 
      *      (initial version for the client| negotiated version + supported version for the server)
      *  this buffer is used to pass to C++ side to send it to the other endpoint
      *  function is thus used for internal use only.
@@ -205,6 +216,12 @@ export class TransportParameters {
         return bufferOffset;
     }
 
+    private writeZeroLengthTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset){
+        // zero-length = boolean : if the parameter is present, value is automatically 1, so length is 0
+        bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 0);
+        return bufferOffset;
+    }
+
     private getBufferSize(): number {
         var size = 0;
         // max stream data: 2 byte for type, 2 byte for length and 4 byte for value
@@ -233,6 +250,11 @@ export class TransportParameters {
             // stateless reset token: 2 byte for type, 2 byte for length and 16 byte for value
             size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.STATELESS_RESET_TOKEN);
         }
+        if( this.disableMigration ){
+            // disable migration: is a zero-length value, so: 2 byte for type, 2 byte for length (which is always 0) and that's it
+            // means: if present, it's set, if left out, it's not set 
+            size += 2 + 2; // this.getTransportParameterTypeByteSize(TransportParameterType.DISABLE_MIGRATION);
+        }
         return size;
     }
 
@@ -253,8 +275,11 @@ export class TransportParameters {
             if (len > 4) {
                 value = Buffer.alloc(len);
                 buffer.copy(value, 0, offset, offset + len);
-            } else {
+            } else if( len > 0 ) {
                 value = buffer.readUIntBE(offset, len);
+            }
+            else{
+                value = true; // 0-length transport parameters are booleans: if they're present, their value is true
             }
             offset += len;
             if (type in values) {
@@ -303,6 +328,8 @@ export class TransportParameters {
                 return 1;
             case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
                 return 2;
+            case TransportParameterType.DISABLE_MIGRATION:
+                return 0;
         }
         return 0;
     }
@@ -315,6 +342,7 @@ export class TransportParameters {
     public static getDefaultTransportParameters(isServer: boolean, version: Version): TransportParameters {
         var transportParameters = new TransportParameters(isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.DEFAULT_IDLE_TIMEOUT, version);
             transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
+            transportParameters.setTransportParameter(TransportParameterType.DISABLE_MIGRATION, Constants.DISABLE_MIGRATION);
             if (isServer) {
                 transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
                 transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);

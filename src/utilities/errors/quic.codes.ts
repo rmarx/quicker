@@ -12,6 +12,7 @@ export enum ConnectionErrorCodes {
     VERSION_NEGOTIATION_ERROR = 0x9,
     PROTOCOL_VIOLATION = 0xa,
     UNSOLICITED_PATH_RESPONSE = 0xb,
+    INVALID_MIGRATION = 0xc,
     FRAME_ERROR = 0x100
 }
 
