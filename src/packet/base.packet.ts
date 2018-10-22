@@ -11,12 +11,14 @@ export abstract class BasePacket {
 
     protected retransmittable: boolean;
     protected ackOnly: boolean;
+    protected paddingOnly: boolean;
 
     public constructor(packetType: PacketType, header: BaseHeader) {
         this.packetType = packetType;
         this.header = header;
         this.retransmittable = false;
         this.ackOnly = true;
+        this.paddingOnly = true;
     }
 
 
@@ -44,6 +46,10 @@ export abstract class BasePacket {
 
     public isAckOnly(): boolean {
         return this.ackOnly;
+    }
+
+    public isPaddingOnly():boolean {
+        return this.paddingOnly;
     }
 
     abstract getSize(): number;

@@ -27,7 +27,7 @@ export class AckHandler {
     private receivedPackets: { [key: string]: ReceivedPacket };
     private largestPacketNumber!: Bignum;
     private alarm: Alarm;
-    private packetsSinceLastAckFrameSent: number = 0; // count of packets we have received since the last time we've sent an ACK frame
+    private ackablePacketsSinceLastAckFrameSent: number = 0; // count of ACK-able packets we have received since the last time we've sent an ACK frame
     // ack wait in ms
     private static readonly ACK_WAIT = 15;
 
@@ -108,15 +108,19 @@ export class AckHandler {
 
         VerboseLogging.info("AckHandler:onPacketReceived : added packet " + pn.toNumber() + ", ackOnly=" + packet.isAckOnly() );
 
-        if (this.onlyAckPackets()) {
-            VerboseLogging.info("AckHandler:onPacketReceived : list is full of ACK-only packets, stopping ACK alarm");
-            this.alarm.reset();
-        } else if (!this.alarm.isRunning()) {
-            VerboseLogging.info("AckHandler:onPacketReceived : starting ACK alarm to trigger new ACK frame in " + this.alarm.getDuration() + "ms");
-            this.setAlarm(connection);
+        // we should only separately ACK packets containing other stuff than other ACKs and padding
+        // the other packets should be acked (so are in this.receivedPackets) but only together with "real" packets
+        if( !packet.isAckOnly() && !packet.isPaddingOnly() ){
+            ++this.ackablePacketsSinceLastAckFrameSent;
+            if( !this.alarm.isRunning() ){
+                this.setAlarm(connection); 
+                VerboseLogging.info("AckHandler:onPacketReceived : starting ACK alarm to trigger new ACK frame in " + this.alarm.getDuration() + "ms. " + this.ackablePacketsSinceLastAckFrameSent + " ACK-able packets outstanding.");
+            }
         }
-
-        ++this.packetsSinceLastAckFrameSent;
+        else if( this.ackablePacketsSinceLastAckFrameSent == 0 ){
+            this.alarm.reset(); // this SHOULDN'T be running, but just to make sure, let's reset it, ok?
+            VerboseLogging.info("AckHandler:onPacketReceived : no ACK-able packets outstanding, stopping ACK alarm");
+        }
     }
 
 
@@ -125,18 +129,22 @@ export class AckHandler {
 
         VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: START");
 
-        if( this.packetsSinceLastAckFrameSent == 0 ){
-            VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: no new packets received since last ACK frame, not generating new one");
+        // we only want to generate ACK frames if we have actual ACK-able packets
+        // e.g., for ACK-only or PADDING-only packets, we don't want to generate ACK frames
+        if( this.ackablePacketsSinceLastAckFrameSent == 0 ){
+            VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: no new ACK-able packets received since last ACK frame, not generating new one");
             return undefined;
         }
 
-        this.packetsSinceLastAckFrameSent = 0; // we always ACK all newly received packets
+        this.ackablePacketsSinceLastAckFrameSent = 0; // we always ACK all newly received packets
 
         this.alarm.reset();
+        /*
         if (Object.keys(this.receivedPackets).length === 0 || this.onlyAckPackets()) {
             VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: no ack frame to generate : " + Object.keys(this.receivedPackets).length + " || " + this.onlyAckPackets());
             return undefined;
         }
+        */
 
         if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
             var ackDelayExponent: number = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
@@ -214,6 +222,7 @@ export class AckHandler {
         this.alarm.start(AckHandler.ACK_WAIT);
     }
 
+    /*
     private onlyAckPackets(): boolean {
         var ackOnly = true;
         Object.keys(this.receivedPackets).forEach((key: string) => {
@@ -223,6 +232,7 @@ export class AckHandler {
         });
         return ackOnly;
     }
+    */
 
     /*
     private removePacket(packetNumber: Bignum): void {

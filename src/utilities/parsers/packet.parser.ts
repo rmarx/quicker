@@ -98,11 +98,11 @@ export class PacketParser {
     }
 
     private parseClientInitialPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        if (buffer.byteLength < Constants.INITIAL_MIN_SIZE) {
+        //if (buffer.byteLength < Constants.INITIAL_MIN_SIZE && endpoint == EndpointType.Client) {
             //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Packet was smaller than the minimum size " + buffer.byteLength + " < " + Constants.INITIAL_MIN_SIZE);
-            VerboseLogging.error("PacketParser:parseClientInitialPacket : packet was smaller than the minimum size " + buffer.byteLength + " < " + Constants.INITIAL_MIN_SIZE + " and should be padded!");
-        }
-        // fIXME: re-enable above check: disabled because ngtcp2 was sending too small ACK frames in Initial: NOTE check if draft-13 requires 1200 size for ack initials! 
+        //    VerboseLogging.error("PacketParser:parseClientInitialPacket : packet was smaller than the minimum size " + buffer.byteLength + " < " + Constants.INITIAL_MIN_SIZE + " and should be padded!");
+        //}
+        // TODO: re-enable above check for the first packet coming from the client (others can be smaller than 1200 but we need to check that the first is 1200 to prevent amplification attacks)
 
         var dataBuffer = this.getDataBuffer(headerOffset, buffer);
         dataBuffer = connection.getAEAD().clearTextDecrypt(connection.getInitialDestConnectionID(), headerOffset.header, dataBuffer, endpoint);

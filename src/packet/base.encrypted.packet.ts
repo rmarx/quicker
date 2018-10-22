@@ -65,18 +65,24 @@ export abstract class BaseEncryptedPacket extends BasePacket {
     }
 
     private retransmittableCheck(frames: BaseFrame[]): void {
-        var retransmittable = false;
-        var ackOnly = true;
+        let retransmittable = false;
+        let ackOnly = true;
+        let paddingOnly = true;
         frames.forEach((baseFrame: BaseFrame) => {
             if (baseFrame.isRetransmittable()) {
                 retransmittable = true;
                 ackOnly = false;
+                paddingOnly = false;
             } else if (baseFrame.getType() === FrameType.PADDING) {
                 ackOnly = false;
+            }
+            else if( baseFrame.getType() == FrameType.ACK ){
+                paddingOnly = false;
             }
         });
         this.retransmittable = retransmittable;
         this.ackOnly = ackOnly;
+        this.paddingOnly = paddingOnly;
     }
 
     public containsValidFrames(): boolean {

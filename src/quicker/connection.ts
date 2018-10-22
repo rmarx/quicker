@@ -511,6 +511,10 @@ export class Connection extends FlowControlledObject {
     private retransmitPacket(packet: BasePacket) {
         VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber().getValue().toNumber() );
 
+        VerboseLogging.error("Connection:retransmitPacket : cannot retransmit because no proper logic to know which PN space to select yet! Doing nothing!");
+        if(1 == 1) return;
+
+        
         switch (packet.getPacketType()) {
             case PacketType.Initial:
                 VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit INITIAL packet, no logic defined for this yet, doing nothing");
@@ -531,6 +535,8 @@ export class Connection extends FlowControlledObject {
         framePacket.getFrames().forEach((frame: BaseFrame) => {
             if (frame.isRetransmittable()) {
                 VerboseLogging.info("Connection:retransmitPacket : retransmitting frame " + FrameType[frame.getType()] );
+                //VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit STREAM frame, no logic defined for this yet, doing nothing");
+                //if( 1 == 1 ) return;
                 this.retransmitFrame(frame);
             }
             else
