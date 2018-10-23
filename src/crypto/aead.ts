@@ -76,11 +76,13 @@ export class AEAD {
     public constructor(qtls: QTLS) {
         this.qtls = qtls;
         this.hkdfObjects = {};
+        /*
         this.qtls.on(QuicTLSEvents.EARLY_DATA_ALLOWED, () => {
             if (this.protected0RTTClientSecret === undefined) {
                 this.generateProtected0RTTSecrets();
             }
         });
+        */
     }
 
     public canClearTextEncrypt(encryptingEndpoint: EndpointType):boolean { return ( encryptingEndpoint == EndpointType.Client ) ? this.clearTextClientKey != undefined : this.clearTextServerKey != undefined; }
@@ -234,8 +236,8 @@ export class AEAD {
 
     public protected0RTTEncrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         if (this.protected0RTTClientSecret === undefined) {
-            // TODO: replace with error, when in this if test, 0-RTT is probably not available
-            this.generateProtected0RTTSecrets();
+            VerboseLogging.error("aead:protected0RTTEncrypt : protected0RTTClientSecret not set, ignoring packet!");
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
         var key = this.protected0RTTKey;
         var iv = this.protected0RTTIv;
@@ -245,6 +247,7 @@ export class AEAD {
 
     public protected0RTTDecrypt(header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType): Buffer {
         if (this.protected0RTTClientSecret === undefined) {
+            VerboseLogging.error("Aead:protected0RTTDecrypt : protected0RTTClientSecret not set, ignoring packet!");
             throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
         var key = this.protected0RTTKey;
@@ -281,16 +284,16 @@ export class AEAD {
 
     public protected0RTTPnEncrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
         if (this.protected0RTTClientSecret === undefined) {
-            // TODO: replace with error, when in this if test, 0-RTT is probably not available
-            this.generateProtected0RTTSecrets();
+            VerboseLogging.error("Aead:protected0RTTPnEncrypt : protected0RTTClientSecret not set, ignoring packet!");
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
         return this._pnEncrypt(this.qtls.getCipher().getAeadCtr(), this.protected0RTTPn, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
     }
 
     public protected0RTTPnDecrypt(packetNumberBuffer: Buffer, header: BaseHeader, payload: Buffer, encryptingEndpoint: EndpointType) {
         if (this.protected0RTTClientSecret === undefined) {
-            // TODO: replace with error, when in this if test, 0-RTT is probably not available
-            this.generateProtected0RTTSecrets();
+            VerboseLogging.error("Aead:protected0RTTPnDecrypt : protected0RTTClientSecret not set, ignoring packet!");
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
         return this._pnDecrypt(this.qtls.getCipher().getAeadCtr(), this.protected0RTTPn, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
     }
@@ -408,6 +411,7 @@ export class AEAD {
     }
     */
 
+    /*
     private generateProtected0RTTSecrets(): void {
         var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash());
         this.protected0RTTClientSecret = this.qtls.exportEarlyKeyingMaterial(Constants.EXPORTER_BASE_LABEL + Constants.CLIENT_0RTT_LABEL);
@@ -418,6 +422,7 @@ export class AEAD {
         console.log("protected0RTT client iv: " + this.protected0RTTIv.toString('hex'));
         console.log("protected0RTT client pn: " + this.protected0RTTPn.toString('hex'));
     }
+    */
 
     /*
     public updateProtected1RTTSecret(): void {
@@ -560,6 +565,28 @@ export class AEAD {
 
         VerboseLogging.warn("generate 1RTT secrets DONE");
         */
+    }
+
+    public setProtected0TTSecrets(endpoint:EndpointType, secret:Buffer, key:Buffer, iv:Buffer){
+
+        VerboseLogging.debug("aead:setProtected0TTSecrets : set 0RTT secrets for " + EndpointType[endpoint] );
+
+        var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
+    
+        if( endpoint == EndpointType.Client ){
+            this.protected0RTTClientSecret = secret;
+            this.protected0RTTKey = key;
+            this.protected0RTTIv = iv; 
+            this.protected0RTTPn = hkdf.qhkdfExpandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
+
+            console.log("protected0RTT client Secret: " + this.protected0RTTClientSecret.toString('hex'));
+            console.log("protected0RTT client key: " + this.protected0RTTKey.toString('hex'));
+            console.log("protected0RTT client iv: " + this.protected0RTTIv.toString('hex'));
+            console.log("protected0RTT client pn: " + this.protected0RTTPn.toString('hex'));
+        }
+        else if( endpoint == EndpointType.Server ){
+            VerboseLogging.error("aead:setProtected0TTSecrets : cannot set 0RTT secrets for the server, because they shouldn't exist!");
+        }
     }
 
     /**

@@ -71,11 +71,13 @@ export class PacketFactory {
         // so we add PADDING frames to reach that size if the encrypted initial packet isn't long enough. 
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.1
         var size = initial.getSize();
-        if( initial.getFrames()[0].getType() == FrameType.CRYPTO ){
-            let crypto = <CryptoFrame> initial.getFrames()[0];
-            console.log("Creating Initial packet, Longheader + Crypto size was ", size, crypto.toBuffer().byteLength, crypto.getLength(), crypto.getData().byteLength);
-        }
-        // TODO: it's also allowed to fill this with 0-RTT request, which we currently don't support, but which would be much better!
+        //if( initial.getFrames()[0].getType() == FrameType.CRYPTO ){
+        //    let crypto = <CryptoFrame> initial.getFrames()[0];
+        //    console.log("Creating Initial packet, Longheader + Crypto size was ", size, crypto.toBuffer().byteLength, crypto.getLength(), crypto.getData().byteLength);
+        //}
+
+        // TODO: it's also allowed to fill this with 0-RTT request (not as frame in the initial packet, but as a coalesced 0-RTT quic packet in the same QUIC datagram)
+        // , which we currently don't support, but which would be much better!
         // the first Initial packet sent by the client has to be padded to 1200 bytes (to prevent amplification attacks)
         if (size < Constants.INITIAL_MIN_SIZE && connection.getEndpointType() == EndpointType.Client && !ackOnly ) {
             var padding = new PaddingFrame(Constants.INITIAL_MIN_SIZE - size);

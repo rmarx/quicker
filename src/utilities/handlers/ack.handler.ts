@@ -106,7 +106,7 @@ export class AckHandler {
         
         this.receivedPackets[pn.toString('hex', 8)] = {time: time, ackOnly: packet.isAckOnly()};
 
-        VerboseLogging.info("AckHandler:onPacketReceived : added packet " + pn.toNumber() + ", ackOnly=" + packet.isAckOnly() );
+        VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : added packet " + pn.toNumber() + ", ackOnly=" + packet.isAckOnly() );
 
         // we should only separately ACK packets containing other stuff than other ACKs and padding
         // the other packets should be acked (so are in this.receivedPackets) but only together with "real" packets
@@ -114,12 +114,12 @@ export class AckHandler {
             ++this.ackablePacketsSinceLastAckFrameSent;
             if( !this.alarm.isRunning() ){
                 this.setAlarm(connection); 
-                VerboseLogging.info("AckHandler:onPacketReceived : starting ACK alarm to trigger new ACK frame in " + this.alarm.getDuration() + "ms. " + this.ackablePacketsSinceLastAckFrameSent + " ACK-able packets outstanding.");
+                VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : starting ACK alarm to trigger new ACK frame in " + this.alarm.getDuration() + "ms. " + this.ackablePacketsSinceLastAckFrameSent + " ACK-able packets outstanding.");
             }
         }
         else if( this.ackablePacketsSinceLastAckFrameSent == 0 ){
             this.alarm.reset(); // this SHOULDN'T be running, but just to make sure, let's reset it, ok?
-            VerboseLogging.info("AckHandler:onPacketReceived : no ACK-able packets outstanding, stopping ACK alarm");
+            VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : no ACK-able packets outstanding, stopping ACK alarm");
         }
     }
 
@@ -211,12 +211,12 @@ export class AckHandler {
 
     private setAlarm(connection: Connection) {
         this.alarm.on(AlarmEvent.TIMEOUT, () => {
-            console.log("---------------------------------------------------////////////////////////////// AckHandler: ON ALARM "+ this.DEBUGname +" //////////////////////////////// ");
+            console.log(this.DEBUGname + " ---------------------------------------------------////////////////////////////// AckHandler: ON ALARM "+ this.DEBUGname +" //////////////////////////////// ");
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 connection.queueFrame(ackFrame);
             }
-            console.log("---------------------------------------------------////////////////////////////// AckHandler: END ALARM "+ this.DEBUGname +" //////////////////////////////// " + ackFrame);
+            console.log(this.DEBUGname + " ---------------------------------------------------////////////////////////////// AckHandler: END ALARM "+ this.DEBUGname +" //////////////////////////////// " + ackFrame);
 
         });
         this.alarm.start(AckHandler.ACK_WAIT);

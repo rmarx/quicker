@@ -40,8 +40,14 @@ export class HeaderParser {
             var headerSize = new Bignum(headerOffset.offset).subtract(totalSize);
             totalSize = totalSize.add(payloadLength).add(headerSize);
             if (totalSize.lessThan(buf.byteLength)) {
-                console.log("We have something left, parsing next header", totalSize.toNumber(), buf.byteLength);
-                headerOffset = this.parseHeader(buf, totalSize.toNumber());
+                // headerOffset.offset is INCLUDING 4 bytes of the packet number
+                // headerOffset.header.getPayloadLength() is the length INCLUDING the packet number
+                // so, we're actually 4 bytes too far 
+                // (put another way: we do 4 bytes of PN + payloadlength, with the payloadLength already including those 4 bytes)
+                // see packet number logic in :parseLongHeader below
+                // TODO: REFACTOR: this is because the PN isn't always the same size. We deal with this later
+                // however, it would make more sense to do decryption in-tandem with parsing probably, and make this loop more robust! 
+                headerOffset = this.parseHeader(buf, totalSize.toNumber() - 4);
                 headerOffsets.push(headerOffset);
             } else {
                 break;
@@ -100,6 +106,8 @@ export class HeaderParser {
     private parseLongHeader(buf: Buffer, offset: number): HeaderOffset {
         var startOffset = offset; // measured in bytes
         var type = (buf.readUInt8(offset++) - 0x80); // 0x80 to negate header type, see :parseHeader
+
+        console.log("longheader type " + type + " // " + LongHeaderType[type] );
 
         var version = new Version(buf.slice(offset, offset + 4)); // version is 4 bytes
         offset += 4;

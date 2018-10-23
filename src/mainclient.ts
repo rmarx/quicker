@@ -42,7 +42,8 @@ for (var i = 0; i < 1; i++) {
 	
         setTimeout(() => {
             for( let i = 0; i < 10; ++i)
-            	console.log("///////////////////////////////////////////////////////////////////////////////");
+                console.log("///////////////////////////////////////////////////////////////////////////////");
+                
             var client2 = Client.connect(host, Number(port), {
                 session: client.getSession(),
                 transportparameters: client.getTransportParameters()

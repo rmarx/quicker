@@ -130,6 +130,9 @@ export class HandshakeHandler extends EventEmitter{
                     this.aead.setProtected1RTTSecrets( EndpointType.Server, secret, key, iv );
                     break;
 
+                case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
+                    this.aead.setProtected0TTSecrets( EndpointType.Client, secret, key, iv );
+                    break;
                 case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
                     this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret, key, iv );
                     break;
@@ -142,6 +145,7 @@ export class HandshakeHandler extends EventEmitter{
             switch(type){
                 case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ZERO_RTT ) as CryptoStream;
+                    this.aead.setProtected0TTSecrets( EndpointType.Client, secret, key, iv );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.HANDSHAKE ) as CryptoStream;
