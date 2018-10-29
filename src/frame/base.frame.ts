@@ -36,10 +36,19 @@ export enum FrameType {
     STREAM_ID_BLOCKED = 0x0a,
     NEW_CONNECTION_ID = 0x0b,
     STOP_SENDING = 0x0c,
-    ACK = 0x0d,
+    RETIRE_CONNECTION_ID = 0x0d,
     PATH_CHALLENGE = 0x0e,
     PATH_RESPONSE = 0x0f,
     STREAM = 0x10, // streams are between 0x10 and 0x17, check for stream with:  type >= FrameType.STREAM && type <= FrameType.STREAM_MAX
     STREAM_MAX_NR = 0x17, // not a real frame type, just used for easier reasoning on stream numbers (see line above)
-    CRYPTO = 0x18 
+    CRYPTO = 0x18,
+    NEW_TOKEN = 0x19,
+    ACK = 0x1a,
+    ACK_ECN = 0x1b 
 }
+
+// ROBIN: start hier 
+// bezig met ACK rework
+// zorg dat ACK-only checks ook kijken naar de ACK_ECN dinges... want die zijn ook gewoon ACKS volgens de spec 
+// misschien dat we die intern gewoon kunnen behandelen als allemaal 0x1a en extra flag zetten gewoon? 
+// eerst eens kijken wat juist de ECN-specific stuff doet 

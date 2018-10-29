@@ -13,6 +13,7 @@ import { BaseFrame, FrameType } from '../../frame/base.frame';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
 import { HandshakeState } from '../../crypto/qtls';
 import { VerboseLogging } from '../logging/verbose.logging';
+import { FrameFactory } from '../factories/frame.factory';
 
 
 interface ReceivedPacket {
@@ -206,7 +207,17 @@ export class AckHandler {
             var ackBlock = new AckBlock(new Bignum(gaps[i - 1]), new Bignum(blocks[i]));
             ackBlocks.push(ackBlock);
         }
-        return new AckFrame(latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
+
+        let ackFrame = FrameFactory.createAckFrame(false, latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
+
+        if( Constants.DEBUG_fakeECN ){
+            ackFrame = FrameFactory.createAckFrame(true, latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
+            ackFrame.setECT0count( new Bignum( Math.round((Math.random() * 200)) ) );
+            ackFrame.setECT1count( new Bignum( Math.round((Math.random() * 200)) ) );
+            ackFrame.setCEcount( new Bignum( Math.round((Math.random() * 200)) ) );
+        }
+
+        return ackFrame;
     }
 
     private setAlarm(connection: Connection) {

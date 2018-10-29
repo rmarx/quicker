@@ -71,14 +71,16 @@ export class FrameParser {
                 return this.parseNewConnectionId(buffer, offset);
             case FrameType.STOP_SENDING:
                 return this.parseStopSending(buffer, offset);
-            case FrameType.ACK:
-                return this.parseAck(buffer, offset);
             case FrameType.PATH_CHALLENGE:
                 return this.parsePathChallenge(buffer, offset);
             case FrameType.PATH_RESPONSE:
                 return this.parsePathResponse(buffer, offset);
             case FrameType.CRYPTO:
                 return this.parseCrypto(buffer, offset);
+            case FrameType.ACK:
+                return this.parseAck(false, buffer, offset);
+            case FrameType.ACK_ECN:
+                return this.parseAck(true, buffer, offset);
         }
         if (type >= FrameType.STREAM && type <= FrameType.STREAM_MAX_NR) {
             return this.parseStream(type, buffer, offset);
@@ -216,7 +218,7 @@ export class FrameParser {
         };
     }
 
-    private parseAck(buffer: Buffer, offset: number): FrameOffset {
+    private parseAck(containsECNinfo: boolean, buffer: Buffer, offset: number): FrameOffset {
         var largestAcknowledged: VLIEOffset = VLIE.decode(buffer, offset);
         var ackDelay: VLIEOffset = VLIE.decode(buffer, largestAcknowledged.offset);
         var ackBlockCount: VLIEOffset = VLIE.decode(buffer, ackDelay.offset);
@@ -229,8 +231,29 @@ export class FrameParser {
             offset = block.offset;
             ackBlocks.push(new AckBlock(gap.value, block.value));
         }
+
+        let frame = FrameFactory.createAckFrame(containsECNinfo, largestAcknowledged.value, ackDelay.value, ackBlockCount.value, firstAckBlock.value, ackBlocks);
+
+        if( containsECNinfo ){
+            if( offset == buffer.length ){
+                VerboseLogging.error("FrameParser:parseACK : got ACK_ECN packet but no ECN data found in buffer... ignoring");
+            }
+            else{
+                //TODO: implement
+                VerboseLogging.warn("FrameParser:parseACK : got a packet with ECN info, haven't tested this code yet!");
+                let ECT0count: VLIEOffset = VLIE.decode(buffer, offset);
+                let ECT1count: VLIEOffset = VLIE.decode(buffer, ECT0count.offset);
+                let CEcount:   VLIEOffset = VLIE.decode(buffer, ECT1count.offset);
+                offset = CEcount.offset; 
+
+                frame.setECT0count( ECT0count.value );
+                frame.setECT1count( ECT1count.value );
+                frame.setCEcount(   CEcount.value   ); 
+            }
+        }
+
         return {
-            frame: FrameFactory.createAckFrame(largestAcknowledged.value, ackDelay.value, ackBlockCount.value, firstAckBlock.value, ackBlocks),
+            frame: frame,
             offset: offset
         };
     }

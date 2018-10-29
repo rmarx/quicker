@@ -1,4 +1,7 @@
 export class Constants {
+
+    public static DEBUG_fakeECN = false;
+
     /**
      * Supported versions
      */

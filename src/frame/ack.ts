@@ -4,12 +4,19 @@ import { BaseFrame, FrameType } from './base.frame';
 import { EncryptionLevel } from '../crypto/crypto.context';
 
 
-
+/*
+Since draft-15, there are 2 types of ACK frames: 0x1a and 0x1b, with the second one containing ECN counters
+Instead of having a separate Frame class for the ECN ACKs, we keep everything in one class and always set the internal type to 0x1a
+We use the containsECN boolean to indicate the frame was really/should really be of type 0x1b on the wire 
+This makes some code much easier (checking if a packet is ACK-only for example), since the semantics of both types remain the same (e.g., for recovery)
+*/
 export class AckFrame extends BaseFrame {
     
     // mainly needed for easier statekeeping without having to pass this along everywhere we want to handle Crypto frames (e.g., send logic)
     // TODO: refactor flowcontrol further so this isn't needed? 
     private cryptoLevel?:EncryptionLevel; 
+
+    private containsECN: boolean;
 
     private largestAcknowledged: Bignum;
     private ackDelay: Bignum;
@@ -18,13 +25,22 @@ export class AckFrame extends BaseFrame {
     private firstAckBlock: Bignum;
     private ackBlocks: AckBlock[];
 
-    public constructor(largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]) {
+    private ECT0count:Bignum;
+    private ECT1count:Bignum;
+    private CEcount:Bignum;
+
+    public constructor(containsECNinfo: boolean, largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]) {
         super(FrameType.ACK, false);
+        this.containsECN = containsECNinfo;
         this.largestAcknowledged = largestAck;
         this.ackDelay = ackDelay;
         this.ackBlockCount = ackBlockCount;
         this.firstAckBlock = firstAckBlock;
         this.ackBlocks = ackBlocks;
+
+        this.ECT0count = new Bignum(0);
+        this.ECT1count = new Bignum(0);
+        this.CEcount = new Bignum(0);
     }
 
 
@@ -79,15 +95,28 @@ export class AckFrame extends BaseFrame {
             ackBlockBuffers.push(ackBlockBuffer);
         });
 
+        let ECT0countBuffer: Buffer = VLIE.encode( this.ECT0count );
+        let ECT1countBuffer: Buffer = VLIE.encode( this.ECT1count );
+        let CEcountBuffer: Buffer   = VLIE.encode( this.CEcount );
+
         var size = 1;
         size += VLIE.getEncodedByteLength(this.largestAcknowledged);
         size += VLIE.getEncodedByteLength(this.ackDelay);
         size += VLIE.getEncodedByteLength(this.ackBlockCount);
         size += VLIE.getEncodedByteLength(this.firstAckBlock);
         size += ackBlockByteSize;
+        if( this.containsECN ){
+            size += VLIE.getEncodedByteLength(this.ECT0count);
+            size += VLIE.getEncodedByteLength(this.ECT1count);
+            size += VLIE.getEncodedByteLength(this.CEcount);
+        }
 
         var returnBuffer: Buffer = Buffer.alloc(size);
-        returnBuffer.writeUInt8(this.getType(), 0);
+        if( this.containsECN )
+            returnBuffer.writeUInt8(FrameType.ACK_ECN, 0);
+        else
+            returnBuffer.writeUInt8(FrameType.ACK, 0);
+
         laBuffer.copy(returnBuffer, offset);
         offset += laBuffer.byteLength;
         ackDelayBuffer.copy(returnBuffer, offset);
@@ -100,6 +129,15 @@ export class AckFrame extends BaseFrame {
             ackBlockBuffer.copy(returnBuffer, offset);
             offset += ackBlockBuffer.byteLength;
         });
+
+        if( this.containsECN ){
+            ECT0countBuffer.copy( returnBuffer, offset );
+            offset += ECT0countBuffer.byteLength;
+            ECT1countBuffer.copy( returnBuffer, offset );
+            offset += ECT1countBuffer.byteLength;
+            CEcountBuffer.copy( returnBuffer, offset );
+            offset += CEcountBuffer.byteLength;
+        }
 
         return returnBuffer;
     }
@@ -129,6 +167,16 @@ export class AckFrame extends BaseFrame {
         }
         return packetnumbers;
     }
+
+    public containsECNinfo(){ return this.containsECN; }
+
+    public setECT0count(count:Bignum){  return this.ECT0count = count; }
+    public setECT1count(count:Bignum){  return this.ECT1count = count; }
+    public setCEcount(count:Bignum){    return this.CEcount   = count; }
+
+    public getECT0count(){  return this.ECT0count;  }
+    public getECT1count(){  return this.ECT1count;  }
+    public getCEcount(){    return this.CEcount;    }
 }
 
 export class AckBlock {

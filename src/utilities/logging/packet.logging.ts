@@ -183,9 +183,19 @@ export class PacketLogging {
 
     public logFrame(connection: Connection, baseFrame: BaseFrame, color: ConsoleColor): string {
         var log = "";
-        if (baseFrame.getType() < FrameType.STREAM || baseFrame.getType() == FrameType.CRYPTO) {
-            log += this.getSpaces(4) + color + FrameType[baseFrame.getType()] + " (0x" + baseFrame.getType().toString(16) + ")" + ConsoleColor.Reset + "\n";
+
+        // STREAM frames are dealt with separately below 
+        if ( !(baseFrame.getType() >= FrameType.STREAM && baseFrame.getType() <= FrameType.STREAM_MAX_NR)) {
+            // ACK_ECN frames look like normal ACK frames for us, but we of course want them to be displayed properly
+            let frameType = baseFrame.getType();
+            if( frameType == FrameType.ACK ){
+                let ackFrame = <AckFrame> baseFrame;
+                if( ackFrame.containsECNinfo() )
+                    frameType = FrameType.ACK_ECN;
+            }
+            log += this.getSpaces(4) + color + FrameType[frameType] + " (0x" + frameType.toString(16) + ")" + ConsoleColor.Reset + "\n";
         }
+
         switch (baseFrame.getType()) {
             case FrameType.PADDING:
                 var paddingFrame: PaddingFrame = <PaddingFrame>baseFrame;
@@ -356,6 +366,14 @@ export class PacketLogging {
             log += "\n";
             log += this.getSpaces(6) + "gap=" + ackBlock.getGap().toDecimalString() + ", ackblock=" + ackBlock.getBlock().toDecimalString();
         });
+
+        if( ackFrame.containsECNinfo() ){
+            log += "\n";
+            log += this.getSpaces(4) + "ECT(0) count=" + ackFrame.getECT0count().toDecimalString() + "\n";
+            log += this.getSpaces(4) + "ECT(1) count=" + ackFrame.getECT1count().toDecimalString() + "\n";
+            log += this.getSpaces(4) + "CE count="     + ackFrame.getCEcount().toDecimalString() + "\n";
+        }
+
         return log;
     }
 

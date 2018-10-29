@@ -84,8 +84,8 @@ export class FrameFactory {
         return new ApplicationCloseFrame(errorCode, phrase);
     }
 
-    public static createAckFrame(largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]): AckFrame {
-        return new AckFrame(largestAck, ackDelay, ackBlockCount, firstAckBlock, ackBlocks);
+    public static createAckFrame(containsECNinfo: boolean, largestAck: Bignum, ackDelay: Bignum, ackBlockCount: Bignum, firstAckBlock: Bignum, ackBlocks: AckBlock[]): AckFrame {
+        return new AckFrame(containsECNinfo, largestAck, ackDelay, ackBlockCount, firstAckBlock, ackBlocks);
     }
 
     public static createStopSendingFrame(streamID: Bignum, applicationErrorCode: number): StopSendingFrame {
