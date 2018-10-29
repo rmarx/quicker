@@ -299,7 +299,7 @@ export class FlowControl {
         // These can block data transmission, but should generate feedback to the other peer (BLOCKED, STREAM_BLOCKED or STREAM_ID_BLOCKED frames)
         // These feedback frames request additional allowances from the peer
         // 1.
-        let connectionLevelBlocked = this.connection.isRemoteLimitExceeded();
+        let connectionLevelBlocked = this.connection.ableToSend();
         if( connectionLevelBlocked ){
             flowControlFrames.push(FrameFactory.createBlockedFrame(this.connection.getRemoteOffset()));
         }
@@ -310,7 +310,7 @@ export class FlowControl {
 
             // 2. 
             // TODO: check if we're allowed to send these messages if the conn-level flow control maximum is exceeded
-            if (stream.isRemoteLimitExceeded()) { 
+            if (stream.ableToSend()) { 
                 if( !stream.getBlockedSent() ){ // keep track of if we've already sent a STREAM_BLOCKED frame for this stream
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true); // is un-set when we receive MAX_STREAM_DATA frame from peer 
@@ -380,12 +380,12 @@ export class FlowControl {
             stream.resetData();
         }
 
-        while (stream.getOutgoingDataSize() > 0 && !stream.isRemoteLimitExceeded() && !this.connection.isRemoteLimitExceeded()) {
+        while (stream.getOutgoingDataSize() > 0 && !stream.ableToSend() && !this.connection.ableToSend()) {
             let streamDataSize = maxPayloadSize.lessThan(stream.getOutgoingDataSize()) ? maxPayloadSize : new Bignum(stream.getOutgoingDataSize());
 
             // adhere to current connection-level and then stream-level flow control max-data limits
-            streamDataSize = streamDataSize.greaterThan(this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset())) ? this.connection.getRemoteMaxData().subtract(this.connection.getRemoteOffset()) : streamDataSize;
-            streamDataSize = streamDataSize.greaterThan(stream.getRemoteMaxData().subtract(stream.getRemoteOffset())) ? stream.getRemoteMaxData().subtract(stream.getRemoteOffset()) : streamDataSize;
+            streamDataSize = streamDataSize.greaterThan(this.connection.getSendAllowance().subtract(this.connection.getRemoteOffset())) ? this.connection.getSendAllowance().subtract(this.connection.getRemoteOffset()) : streamDataSize;
+            streamDataSize = streamDataSize.greaterThan(stream.getSendAllowance().subtract(stream.getRemoteOffset())) ? stream.getSendAllowance().subtract(stream.getRemoteOffset()) : streamDataSize;
 
 
             let streamData = stream.popData(streamDataSize.toNumber());
@@ -397,7 +397,7 @@ export class FlowControl {
             // update flow control limits 
             stream.addRemoteOffset(streamDataSize);
             this.connection.addRemoteOffset(streamDataSize);
-        }
+        } 
 
         return streamFrames;
     }
@@ -407,17 +407,17 @@ export class FlowControl {
             return [];
         }
         var frames = new Array<BaseFrame>();
-        if (this.connection.isLocalLimitAlmostExceeded() || this.connection.getIsRemoteBlocked()) {
-            var newMaxData = this.connection.updateLocalMaxDataSpace();
+        if (this.connection.isPeerAlmostBlocked() || this.connection.isPeerBlocked()) {
+            var newMaxData = this.connection.increaseReceiveAllowance();
             frames.push(FrameFactory.createMaxDataFrame(newMaxData));
-            this.connection.setIsRemoteBlocked(false);
+            this.connection.setPeerBlocked(false);
         }
 
         this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
-            if (stream.isLocalLimitAlmostExceeded() || stream.getIsRemoteBlocked()) {
-                var newMaxStreamData = stream.updateLocalMaxDataSpace();
+            if (stream.isPeerAlmostBlocked() || stream.isPeerBlocked()) {
+                var newMaxStreamData = stream.increaseReceiveAllowance();
                 frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));
-                stream.setIsRemoteBlocked(false);
+                stream.setPeerBlocked(false);
             }
         });
 

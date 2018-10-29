@@ -30,7 +30,7 @@ import { MaxStreamIdFrame } from '../frame/max.stream.id';
 import { MaxStreamFrame } from '../frame/max.stream';
 import { MaxDataFrame } from '../frame/max.data';
 import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
-import { StreamManager, StreamManagerEvents } from './stream.manager';
+import { StreamManager, StreamManagerEvents, StreamFlowControlParameters } from './stream.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 import { RTTMeasurement } from '../loss-detection/rtt.measurement';
@@ -198,7 +198,7 @@ export class Connection extends FlowControlledObject {
                 //let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
                 //ctx.getAckHandler().onPacketAcked(basePacket);
                 
-                context.getAckHandler().onPacketAcked(basePacket);
+                context.getAckHandler().onPacketAcked(basePacket); 
             });
         }
     }
@@ -370,14 +370,22 @@ export class Connection extends FlowControlledObject {
     }
 
     public setLocalTransportParameters(transportParameters: TransportParameters): void {
+        VerboseLogging.info("Connection:setLocalTransportParameters : " + JSON.stringify( transportParameters, null, 4 ) );
+
         this.localTransportParameters = transportParameters;
-        this.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI) * 4);
-        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI) * 4);
-        this.getStreamManager().getStreams().forEach((stream: Stream) => {
-            stream.setLocalMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        this.setReceiveAllowance(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_DATA));
+        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS) * 4);
+        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS) * 4);
+        
+        let streamManager:StreamManager = this.getStreamManager();
+        let flowControl:StreamFlowControlParameters = streamManager.getFlowControlParameters();
+        flowControl.receive_our_bidi   = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL );
+        flowControl.receive_their_bidi = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE );
+        flowControl.receive_their_uni  = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI );
+
+        streamManager.getStreams().forEach((stream: Stream) => {
+            streamManager.applyDefaultFlowControlLimits( stream );
         });
-        this.getStreamManager().setLocalMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     public getRemoteTransportParameter(type: TransportParameterType): any {
@@ -393,15 +401,22 @@ export class Connection extends FlowControlledObject {
     }
 
     public setRemoteTransportParameters(transportParameters: TransportParameters): void {
-	console.log("Connection.ts: setting remote transport params : ", transportParameters );
+        VerboseLogging.info("Connection:setRemoteTransportParameters : " + JSON.stringify( transportParameters, null, 4 ) );
+        
         this.remoteTransportParameters = transportParameters;
-        this.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_DATA));
-        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI) * 4);
-        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI) * 4);
-        this.getStreamManager().getStreams().forEach((stream: Stream) => {
-            stream.setRemoteMaxData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
+        this.setSendAllowance(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_DATA));
+        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS) * 4);
+        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS) * 4);
+        
+        let streamManager:StreamManager = this.getStreamManager();
+        let flowControl:StreamFlowControlParameters = streamManager.getFlowControlParameters();
+        flowControl.send_their_bidi = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL );
+        flowControl.send_our_bidi   = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE );
+        flowControl.send_our_uni    = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI );
+
+        streamManager.getStreams().forEach((stream: Stream) => {
+            streamManager.applyDefaultFlowControlLimits( stream );
         });
-        this.getStreamManager().setRemoteMaxStreamData(transportParameters.getTransportParameter(TransportParameterType.MAX_STREAM_DATA));
     }
 
     public getVersion(): Version {
@@ -565,14 +580,14 @@ export class Connection extends FlowControlledObject {
                     return;
                 }
                 var stream = this.getStreamManager().getStream(maxStreamDataFrame.getStreamId());
-                if (stream.getLocalMaxData().greaterThan(maxStreamDataFrame.getMaxData())) {
+                if (stream.getReceiveAllowance().greaterThan(maxStreamDataFrame.getMaxData())) {
                     return;
                 }
                 break;
             case FrameType.MAX_DATA:
                 // Check if not a bigger MaxData frame has been sent
                 var maxDataFrame = <MaxDataFrame>frame;
-                if (this.getLocalMaxData().greaterThan(maxDataFrame.getMaxData())) {
+                if (this.getReceiveAllowance().greaterThan(maxDataFrame.getMaxData())) {
                     return;
                 }
                 break;

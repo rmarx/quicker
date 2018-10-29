@@ -14,16 +14,20 @@ import { Bignum } from '../types/bignum';
 // for more inspiration: https://github.com/NTAP/quant/blob/master/lib/src/tls.c#L400
 // apparently, the whole <4..2^8-4> syntax is not well defined (asked Lars Eggert on slack) and subject to interpretation... *head desk*
 export enum TransportParameterType {
-    MAX_STREAM_DATA = 0x00,             // max data in-flight for one individual stream
-    MAX_DATA = 0x01,                    // max data in-flight for the full connection
-    INITIAL_MAX_STREAMS_BIDI = 0x02,    // maximum amount of bi-directional streams that can be opened // UPDATE-12 TODO: rename to initial_max_bidi_streams
+    INITIAL_MAX_STREAM_DATA_BIDI_LOCAL = 0x00,  // max data we are willing to receive from our peer on streams that we ourselves opened
+    INITIAL_MAX_DATA = 0x01,                    // max data in-flight for the full connection
+    INITIAL_MAX_BIDI_STREAMS = 0x02,    // maximum amount of bi-directional streams that can be opened
     IDLE_TIMEOUT = 0x03,                // amount of seconds to wait before closing the connection if nothing is received
     PREFERRED_ADDRESS = 0x04,           // server address to switch to after completing handshake // UPDATE-12 TODO: actually use this in the implementation somewhere 
     MAX_PACKET_SIZE = 0x05,             // maximum total packet size (at UDP level)
     STATELESS_RESET_TOKEN = 0x06,       // token to be used in the case of a stateless reset 
     ACK_DELAY_EXPONENT = 0x07,          // congestion control tweaking parameter, see congestion/ack handling logic 
-    INITIAL_MAX_STREAMS_UNI = 0x08,     // maximum amount of uni-directional streams that can be opened// UPDATE-12 TODO: rename to initial_max_uni_streams
-    DISABLE_MIGRATION = 0x09
+    INITIAL_MAX_UNI_STREAMS = 0x08,     // maximum amount of uni-directional streams that can be opened
+    DISABLE_MIGRATION = 0x09,           // boolean to disable migration-related features
+    INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0a, // max data we are willing to receive from our peer on streams that they opened 
+    INITIAL_MAX_STREAM_DATA_UNI = 0x0b, // max data we are willing to receive from our peer on streams that they opened 
+    MAX_ACK_DELAY = 0x0c,               // maximum amount of MILLIseconds this endpoint will delay sending acks  
+    ORIGINAL_CONNECTION_ID = 0x0d       // The original connection id from the INITIAL packet, only used when sending RETRY packet 
 }
 
 /**
@@ -34,7 +38,9 @@ export class TransportParameters {
 
     private isServer: boolean;
 
-    private maxStreamData: number;
+    private maxStreamDataBidiLocal: number;
+    private maxStreamDataBidiRemote: number;
+    private maxStreamDataUni: number;
     private maxData: number;
     private maxStreamIdBidi!: number;
     private maxStreamIdUni!: number;
@@ -47,10 +53,11 @@ export class TransportParameters {
 
     private version!: Version;
 
-    // these three parameters MUST be set for each connection, so we require them in the constructor 
     public constructor(isServer: boolean, maxStreamData: number, maxData: number, idleTimeout: number, version: Version) {
         this.isServer = isServer;
-        this.maxStreamData = maxStreamData;
+        this.maxStreamDataBidiLocal = maxStreamData; // TODO: allow individual setting of these parameters if we do this via the ctor
+        this.maxStreamDataBidiRemote = maxStreamData;
+        this.maxStreamDataUni = maxStreamData;
         this.maxData = maxData;
         this.idleTimeout = idleTimeout;
         this.version = version;
@@ -60,10 +67,16 @@ export class TransportParameters {
     // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.1
     public setTransportParameter(type: TransportParameterType, value: any): void {
         switch (type) {
-            case TransportParameterType.MAX_STREAM_DATA:
-                this.maxStreamData = value;
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
+                this.maxStreamDataBidiLocal = value;
                 break;
-            case TransportParameterType.MAX_DATA:
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE:
+                this.maxStreamDataBidiRemote = value;
+                break;
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI:
+                this.maxStreamDataUni = value;
+                break;
+            case TransportParameterType.INITIAL_MAX_DATA:
                 this.maxData = value;
                 break;
             case TransportParameterType.STATELESS_RESET_TOKEN:
@@ -72,10 +85,10 @@ export class TransportParameters {
             case TransportParameterType.IDLE_TIMEOUT:
                 this.idleTimeout = value;
                 break;
-            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
+            case TransportParameterType.INITIAL_MAX_BIDI_STREAMS:
                 this.maxStreamIdBidi = value;
                 break;
-            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
+            case TransportParameterType.INITIAL_MAX_UNI_STREAMS:
                 this.maxStreamIdUni = value;
                 break;
             case TransportParameterType.MAX_PACKET_SIZE:
@@ -92,17 +105,21 @@ export class TransportParameters {
 
     public getTransportParameter(type: TransportParameterType): any {
         switch (type) {
-            case TransportParameterType.MAX_STREAM_DATA:
-                return this.maxStreamData;
-            case TransportParameterType.MAX_DATA:
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
+                return this.maxStreamDataBidiLocal;
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE:
+                return this.maxStreamDataBidiRemote;
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI:
+                return this.maxStreamDataUni;
+            case TransportParameterType.INITIAL_MAX_DATA:
                 return this.maxData;
             case TransportParameterType.STATELESS_RESET_TOKEN:
                 return this.statelessResetToken;
             case TransportParameterType.IDLE_TIMEOUT:
                 return this.idleTimeout;
-            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
+            case TransportParameterType.INITIAL_MAX_BIDI_STREAMS:
                 return this.maxStreamIdBidi;
-            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
+            case TransportParameterType.INITIAL_MAX_UNI_STREAMS:
                 return this.maxStreamIdUni;
             case TransportParameterType.MAX_PACKET_SIZE:
                 return this.maxPacketSize === undefined ? Constants.MAX_PACKET_SIZE : this.maxPacketSize;
@@ -125,17 +142,19 @@ export class TransportParameters {
             buffer: buffer,
             offset: offset
         };
-        bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_STREAM_DATA, bufferOffset, this.maxStreamData);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_DATA, bufferOffset, this.maxData);
+        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL, bufferOffset, this.maxStreamDataBidiLocal);
+        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE, bufferOffset, this.maxStreamDataBidiRemote);
+        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI, bufferOffset, this.maxStreamDataUni);
+        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_DATA, bufferOffset, this.maxData);
         bufferOffset = this.writeTransportParameter(TransportParameterType.IDLE_TIMEOUT, bufferOffset, this.idleTimeout);
         if (this.isServer) {
             bufferOffset = this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset, this.statelessResetToken);
         }
         if (this.maxStreamIdBidi !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, bufferOffset, this.maxStreamIdBidi);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, bufferOffset, this.maxStreamIdBidi);
         }
         if (this.maxStreamIdUni !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, bufferOffset, this.maxStreamIdUni);
+            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, bufferOffset, this.maxStreamIdUni);
         }
         if (this.maxPacketSize !== undefined) {
             bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_PACKET_SIZE, bufferOffset, this.maxPacketSize);
@@ -224,19 +243,21 @@ export class TransportParameters {
 
     private getBufferSize(): number {
         var size = 0;
-        // max stream data: 2 byte for type, 2 byte for length and 4 byte for value
-        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.MAX_STREAM_DATA);
+        // max stream data parameters: 2 byte for type, 2 byte for length and 4 byte for value
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL);
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE);
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI);
         // max data: 2 byte for type, 2 byte for length and 4 byte for value
-        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.MAX_DATA);
+        size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_DATA);
         // idle timeout: 2 byte for type, 2 byte for length and 2 byte for value
         size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.IDLE_TIMEOUT);
         if (this.maxStreamIdBidi !== undefined) {
             // max stream id for bidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAMS_BIDI);
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_BIDI_STREAMS);
         }
         if (this.maxStreamIdUni !== undefined) {
             // max stream id for unidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAMS_UNI);
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_UNI_STREAMS);
         }
         if (this.maxPacketSize !== undefined) {
             // max size for a packet: 2 byte for type, 2 byte for length and 2 byte for value
@@ -310,11 +331,13 @@ export class TransportParameters {
 
     private getTransportParameterTypeByteSize(type: TransportParameterType): number {
         switch (type) {
-            case TransportParameterType.MAX_STREAM_DATA:
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE:
+            case TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI:
                 return 4;
-            case TransportParameterType.MAX_DATA:
+            case TransportParameterType.INITIAL_MAX_DATA:
                 return 4;
-            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
+            case TransportParameterType.INITIAL_MAX_BIDI_STREAMS:
                 return 2;
             case TransportParameterType.IDLE_TIMEOUT:
                 return 2;
@@ -326,7 +349,7 @@ export class TransportParameters {
                 return 16;
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 return 1;
-            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
+            case TransportParameterType.INITIAL_MAX_UNI_STREAMS:
                 return 2;
             case TransportParameterType.DISABLE_MIGRATION:
                 return 0;
@@ -344,13 +367,13 @@ export class TransportParameters {
             transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
             transportParameters.setTransportParameter(TransportParameterType.DISABLE_MIGRATION, Constants.DISABLE_MIGRATION);
             if (isServer) {
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
+                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
+                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
                 // TODO: better to calculate this value
                 transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
             } else {
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_BIDI, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_STREAMS_UNI, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
+                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
+                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
             }
         return transportParameters;
     }

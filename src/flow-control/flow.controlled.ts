@@ -10,10 +10,10 @@ export abstract class FlowControlledObject extends EventEmitter {
 
 	private localOffset!: Bignum;
 	private remoteOffset!: Bignum;
-	private localMaxData!: Bignum;
-	private remoteMaxData!: Bignum;
+	private receiveAllowance!: Bignum;	// how much we are willing to RECEIVE from our peer
+	private sendAllowance!: Bignum; // how much we are able to SEND to our peer 
 	
-	private isRemoteBlocked: boolean;
+	private isRemoteBlocked: boolean; // our peer is blocked on this stream, expects a MAX_STREAM_DATA update from us (i.e., their sendAllowance is reached)
 	
 	private readonly MAX_BUFFER_SIZE: number;
 	private currentBufferSize: number;
@@ -27,8 +27,8 @@ export abstract class FlowControlledObject extends EventEmitter {
 		this.localOffset = new Bignum(0);
 		this.remoteOffset = new Bignum(0);
 
-		this.remoteMaxData = new Bignum(0);
-		this.localMaxData = new Bignum(0);
+		this.sendAllowance = new Bignum(0);
+		this.receiveAllowance = new Bignum(0);
 	}
 	
     public getLocalOffset(): Bignum {
@@ -36,7 +36,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	}
 
 	public getRemoteOffset(): Bignum {
-		return this.remoteOffset;
+		return this.remoteOffset; 
 	}
 
 	protected incrementBufferSizeUsed(dataLength: number): void {
@@ -61,63 +61,66 @@ export abstract class FlowControlledObject extends EventEmitter {
 		this.remoteOffset = this.remoteOffset.add(offset);
 	}
 
-	public setRemoteMaxData(maxData: number): void;
-	public setRemoteMaxData(maxData: Bignum): void;
-	public setRemoteMaxData(maxData: any): void {
+	// "RemoteMaxData"
+	public setSendAllowance(maxData: number): void;
+	public setSendAllowance(maxData: Bignum): void;
+	public setSendAllowance(maxData: any): void {
 		if (maxData instanceof Bignum) {
-			this.remoteMaxData = maxData;
+			this.sendAllowance = maxData;
 			return;
 		}
-		this.remoteMaxData = new Bignum(maxData);
+		this.sendAllowance = new Bignum(maxData);
 	}
 
-	public getRemoteMaxData(): Bignum {
-		return this.remoteMaxData;
+	public getSendAllowance(): Bignum {
+		return this.sendAllowance;
 	}
 
-	public setLocalMaxData(maxData: number): void;
-	public setLocalMaxData(maxData: Bignum): void;
-	public setLocalMaxData(maxData: any): void {
+	// "LocalMaxData"
+	public setReceiveAllowance(maxData: number): void;
+	public setReceiveAllowance(maxData: Bignum): void;
+	public setReceiveAllowance(maxData: any): void {
 		if (maxData instanceof Bignum) {
-			this.localMaxData = maxData;
+			this.receiveAllowance = maxData;
 			return;
 		}
-		this.localMaxData = new Bignum(maxData);
+		this.receiveAllowance = new Bignum(maxData);
 	}
 
-	public getIsRemoteBlocked(): boolean {
-		return this.isRemoteBlocked;
+	public getReceiveAllowance(): Bignum {
+		return this.receiveAllowance;
 	}
 
-	public setIsRemoteBlocked(blocked: boolean): void {
+
+    public isPeerAlmostBlocked(added: any = new Bignum(0)): boolean {
+		var temp = this.localOffset.add(added).add(this.MAX_BUFFER_SIZE / 10);
+		return this.receiveAllowance.lessThan(temp);
+	}
+
+	// when we receive a STREAM_BLOCKED frame from the peer
+	// is supposed to stay true until we send a MAX_STREAM_DATA update
+	public setPeerBlocked(blocked: boolean): void {
 		this.isRemoteBlocked = blocked;
 	}
 
-	public getLocalMaxData(): Bignum {
-		return this.localMaxData;
+	public isPeerBlocked(): boolean {
+		return this.isRemoteBlocked;
 	}
 
-    public isLocalLimitExceeded(added: any = new Bignum(0)): boolean {
-		return this.currentBufferSize > this.MAX_BUFFER_SIZE;
-	}
-
-    public isRemoteLimitExceeded(added: any = new Bignum(0)): boolean {
+	// if not, we need to send a STREAM_BLOCKED frame to our peer 
+    public ableToSend(added: any = new Bignum(0)): boolean {
 		var temp = this.remoteOffset.add(added);
-		return this.remoteMaxData.lessThan(temp);
+		return this.sendAllowance.lessThan(temp);
 	}
 
-    public isLocalLimitAlmostExceeded(added: any = new Bignum(0)): boolean {
-		var temp = this.localOffset.add(added).add(this.MAX_BUFFER_SIZE / 10);
-		return this.localMaxData.lessThan(temp);
-	}
 
-	public updateLocalMaxDataSpace(): Bignum {
+	public increaseReceiveAllowance(): Bignum {
 		var updatedLocalMaxData = this.getLocalOffset().add(this.getBufferSpaceAvailable());
 		// If test should not be necessary, it is just a precaution to be sure that we do not make the max data smaller, which is not allowed by QUIC
-		if (updatedLocalMaxData.greaterThan(this.getLocalMaxData())) {
-			this.setLocalMaxData(updatedLocalMaxData);
+		if (updatedLocalMaxData.greaterThan(this.getReceiveAllowance())) {
+			this.setReceiveAllowance(updatedLocalMaxData);
 		}
-		return this.getLocalMaxData();
+		return this.getReceiveAllowance();
 	}
 
 	public getBufferSpaceAvailable(): number {
@@ -144,5 +147,5 @@ export abstract class FlowControlledObject extends EventEmitter {
 
 export enum FlowControlledObjectEvents {
 	INCREMENT_BUFFER_DATA_USED = "fco-increment-used",
-	DECREMENT_BUFFER_DATA_USED = "fco_decrement-used"
+	DECREMENT_BUFFER_DATA_USED = "fco-decrement-used"
 }

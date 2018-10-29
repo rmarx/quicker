@@ -183,6 +183,17 @@ export class Stream extends FlowControlledObject {
         }
 	}
 
+	public static isLocalStream(endpointType: EndpointType, streamID: Bignum): boolean {
+		// server streams: 0x1 and 0x3 -> 01 and 11 -> id & 1 should give 1 for server-streams
+		let serverOpened = streamID.and( new Bignum(1) ).equals( new Bignum(1) );
+
+		return (endpointType == EndpointType.Server) ? serverOpened : !serverOpened;
+	}
+
+	public static isRemoteStream(endpointType: EndpointType, streamID: Bignum): boolean {
+		return !Stream.isLocalStream(endpointType, streamID);
+	}
+
     public static isSendOnly(endpointType: EndpointType, streamID: Bignum): boolean {
         if (endpointType === EndpointType.Server) {
             return streamID.xor(StreamType.ServerUni).modulo(4).equals(0);

@@ -142,8 +142,8 @@ export class FrameHandler {
     }
 
     private handleMaxDataFrame(connection: Connection, maxDataFrame: MaxDataFrame) {
-        if (connection.getRemoteMaxData().lessThan(maxDataFrame.getMaxData())) {
-            connection.setRemoteMaxData(maxDataFrame.getMaxData());
+        if (connection.getSendAllowance().lessThan(maxDataFrame.getMaxData())) {
+            connection.setSendAllowance(maxDataFrame.getMaxData());
         }
     }
 
@@ -157,8 +157,8 @@ export class FrameHandler {
         }
 
         var stream = connection.getStreamManager().getStream(maxDataStreamFrame.getStreamId());
-        if (stream.getRemoteMaxData().lessThan(maxDataStreamFrame.getMaxData())) {
-            stream.setRemoteMaxData(maxDataStreamFrame.getMaxData());
+        if (stream.getSendAllowance().lessThan(maxDataStreamFrame.getMaxData())) {
+            stream.setSendAllowance(maxDataStreamFrame.getMaxData());
             stream.setBlockedSent(false);
         }
     }
@@ -176,7 +176,7 @@ export class FrameHandler {
     }
 
     private handleBlockedFrame(connection: Connection, blockedFrame: BlockedFrame) {
-        connection.setIsRemoteBlocked(true);
+        connection.setPeerBlocked(true);
     }
 
     private handleStreamBlockedFrame(connection: Connection, streamBlocked: StreamBlockedFrame) {
@@ -186,7 +186,7 @@ export class FrameHandler {
         }
 
         var streamId = streamBlocked.getStreamId()
-        connection.getStreamManager().getStream(streamId).setIsRemoteBlocked(true);
+        connection.getStreamManager().getStream(streamId).setPeerBlocked(true);
     }
 
     private handleStreamIdBlockedFrame(connection: Connection, streamIdBlockedFrame: StreamIdBlockedFrame) {
@@ -212,7 +212,7 @@ export class FrameHandler {
             stream.setStreamState(StreamState.LocalClosed);
         } else if (stream.getStreamState() === StreamState.RemoteClosed) {
             stream.setStreamState(StreamState.Closed);
-        }
+        } 
         stream.setRemoteFinalOffset(stream.getRemoteOffset());
         var rstStreamFrame = FrameFactory.createRstStreamFrame(stream.getStreamID(), 0, stream.getRemoteFinalOffset());
     }
