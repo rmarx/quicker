@@ -17,6 +17,7 @@ import { Socket, createSocket, RemoteInfo } from 'dgram';
 import { Endpoint } from './endpoint';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 export class Client extends Endpoint {
 
@@ -143,6 +144,8 @@ export class Client extends Endpoint {
         try {
             this.connection.checkConnectionState();
             this.connection.resetIdleAlarm();
+            VerboseLogging.trace("client:onMessage: message length in bytes: " + msg.byteLength);
+            VerboseLogging.trace("client:onMessage: raw message from the wire : " + msg.toString('hex'));
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
             headerOffsets.forEach((headerOffset: HeaderOffset) => {

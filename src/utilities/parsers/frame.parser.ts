@@ -26,6 +26,8 @@ import { VerboseLogging } from '../logging/verbose.logging';
 export class FrameParser {
 
     public parse(msg: Buffer, offset: number): BaseFrame[] {
+        VerboseLogging.trace("FrameParser:parse : full decrypted hex of all frames together : " + msg.toString('hex'));
+        
         var frames: BaseFrame[] = [];
 
         var frameOffset: FrameOffset | undefined = this.parseFrame(msg, offset);
@@ -43,7 +45,7 @@ export class FrameParser {
             return undefined;
         }
         var type = buffer.readUInt8(offset++);
-        VerboseLogging.trace("FrameParser:ParseFrame " + FrameType[type] + " = " + buffer);
+        VerboseLogging.trace("FrameParser:ParseFrame : type=" + FrameType[type] + ", length=" + buffer.byteLength);
         switch (type) {
             case FrameType.PADDING:
                 return this.parsePadding(buffer, offset);

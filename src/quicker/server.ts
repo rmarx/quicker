@@ -60,6 +60,7 @@ export class Server extends Endpoint {
 
     private init(socketType: SocketType) {
         var server = createSocket(socketType);
+        VerboseLogging.info("Server:init: Creating a socket of type " + socketType + " @ " + this.hostname);
         server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
         server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.handleClose() });
         server.bind(this.port, this.hostname);
@@ -87,6 +88,9 @@ export class Server extends Endpoint {
         this.DEBUGmessageCounter++;
         let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
         console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
+
+        VerboseLogging.trace("server:onMessage: message length in bytes: " + msg.byteLength);
+        VerboseLogging.trace("server:onMessage: raw message from the wire : " + msg.toString('hex'));
         
         try {
             var receivedTime = Time.now();

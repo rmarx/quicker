@@ -32,6 +32,7 @@ import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 import { ShortHeader } from '../../packet/header/short.header';
 import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
 import { VerboseLogging } from './verbose.logging';
+import { QuicErrorCode, ConnectionErrorCodes } from '../errors/quic.codes';
 
 
 
@@ -289,7 +290,7 @@ export class PacketLogging {
 
     private logConnectionCloseFrame(connectionCloseFrame: ConnectionCloseFrame, color: ConsoleColor): string {
         var log = "";
-        log += this.getSpaces(4) + "Error code= " + connectionCloseFrame.getErrorCode() + "\n";
+        log += this.getSpaces(4) + "Error code= " + ConnectionErrorCodes[ connectionCloseFrame.getErrorCode() ] + "\n";
         log += this.getSpaces(4) + "Error phrase= " + connectionCloseFrame.getErrorPhrase();
         return log;
     }

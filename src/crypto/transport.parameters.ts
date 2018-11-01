@@ -286,7 +286,7 @@ export class TransportParameters {
     public static fromExtensionBuffer(isServer: boolean, buffer: Buffer, version: Version): TransportParameters {
         var values: { [index: number]: any; } = [];
         var offset = 0;
-        var transportParameters = new TransportParameters(isServer, -1, -1, -1, version);
+        var transportParameters = new TransportParameters(isServer, 0, 0, 0, version);
         while (offset < buffer.byteLength) {
             var type = buffer.readUInt16BE(offset);
             offset += 2;
@@ -363,18 +363,19 @@ export class TransportParameters {
      * @param version 
      */
     public static getDefaultTransportParameters(isServer: boolean, version: Version): TransportParameters {
-        var transportParameters = new TransportParameters(isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.DEFAULT_IDLE_TIMEOUT, version);
-            transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
-            transportParameters.setTransportParameter(TransportParameterType.DISABLE_MIGRATION, Constants.DISABLE_MIGRATION);
-            if (isServer) {
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
-                // TODO: better to calculate this value
-                transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
-            } else {
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
-                transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
-            }
+        let transportParameters = new TransportParameters(isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.DEFAULT_IDLE_TIMEOUT, version);
+
+        transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
+        transportParameters.setTransportParameter(TransportParameterType.DISABLE_MIGRATION, Constants.DISABLE_MIGRATION);
+        if (isServer) {
+            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
+            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
+            // TODO: better to calculate this value
+            transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
+        } else {
+            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
+            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
+        }
         return transportParameters;
     }
 

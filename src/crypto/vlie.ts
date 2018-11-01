@@ -45,8 +45,18 @@ export class VLIE {
     }
 
     public static decodePn(buffer: Buffer, offset: number = 0): VLIEOffset {
-        var pnSize = 1;
-        var msb = buffer.readUInt8(offset++);
+
+        // pnSize is encoded in the first 1-2 bits
+        // 0x00... : pn is 1 byte, 7 bits left to read
+        // 0x10... : pn is 2 bytes, 14 bits left to read
+        // 0x11... : pn is 4 bytes, 30 bits left to read
+
+        // 0x80 = 0x1000 0000 : check for the first bit to be set
+        // 0x40 = 0x0100 0000 : checks for the second bit to be set
+
+        var pnSize = 1; // in bytes
+        var msb = buffer.readUInt8(offset);
+        offset = ++offset;
         if(msb & 0x80) {
             pnSize++;
             msb -= 0x80;

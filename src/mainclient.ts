@@ -5,6 +5,8 @@ import { QuickerEvent } from "./quicker/quicker.event";
 import { PacketLogging } from "./utilities/logging/packet.logging";
 import { HandshakeState } from "./crypto/qtls";
 import { Constants } from "./utilities/constants";
+import { TestAeaedCleartextVector } from "./tests/test.aead.cleartext.vector";
+import { TestLsquicCleartextDecode } from "./tests/test.lsquic.cleartext.decode";
 
 
 
@@ -18,6 +20,11 @@ if (isNaN(Number(port))) {
 }
 
 Constants.LOG_FILE_NAME = "client.log";
+
+//console.log("AEAD cleartext result: ", TestAeaedCleartextVector.execute() );
+//console.log("LSQUIC cleartext decode result: ", TestLsquicCleartextDecode.execute() );
+//process.exit(666);
+
 
 console.log("QUICker client connecting to " + host + ":" + port);
 

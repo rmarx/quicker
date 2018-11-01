@@ -100,8 +100,9 @@ export class LongHeader extends BaseHeader {
         this.payloadLengthBuffer = VLIE.encode(value);
     }
 
-    // for the wire format and more in-depth info, see header.parser.ts:parseLongHeader
-    // this is simply the reverse of that operation 
+    // this is NOT the actual wire format: serialized version that is used for encryption calculations (e.g., associated data etc.)
+    // real wire format is toPNEBuffer
+    // TODO: rename these to make this kind of stuff clearer. Also find a way to de-duplicate code like this across the codebase
     public toBuffer(): Buffer {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
@@ -138,6 +139,8 @@ export class LongHeader extends BaseHeader {
         return buf; 
     }
 
+    // for the wire format and more in-depth info, see header.parser.ts:parseLongHeader
+    // this is simply the reverse of that operation 
     public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;

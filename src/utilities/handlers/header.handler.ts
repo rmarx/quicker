@@ -44,30 +44,37 @@ export class HeaderHandler {
         
         let actualPacketType:PacketType = PacketType.Initial;
 
+
         header.getParsedBuffer().copy(pne, 0, header.getParsedBuffer().byteLength - 4);
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
             if (longHeader.getPacketType() === LongHeaderType.Protected0RTT) {
-                var pn = connection.getAEAD().protected0RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+                var decryptedPn = connection.getAEAD().protected0RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
                 actualPacketType = PacketType.Protected0RTT;
             }
             else if( longHeader.getPacketType() === LongHeaderType.Handshake ){
-                var pn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+                var decryptedPn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
                 actualPacketType = PacketType.Handshake;
             } 
             else {
-                var pn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
+                var decryptedPn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
                 actualPacketType = PacketType.Initial; // TODO: FIXME: handle retry and vneg packets! (though they are also in the Initial atmosphere when it comes to pnSpace, no?)
             }
         } else {
-            var pn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+            var decryptedPn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
             actualPacketType = PacketType.Protected1RTT;
         }
 
-        var decodedPnVlieOffset = VLIE.decodePn(pn);
-        header.getPacketNumber().setValue(decodedPnVlieOffset.value);
-        headerOffset.offset = headerOffset.offset - 4 + decodedPnVlieOffset.offset;
-        header.setParsedBuffer(Buffer.concat([header.getParsedBuffer().slice(0, header.getParsedBuffer().byteLength - 4), decodedPnVlieOffset.value.toBuffer(decodedPnVlieOffset.offset)]));
+        // we first decrypted the PN, now we have the cleartext
+        // however, that is then also encoded to save space in a kind-of-but-not-really VLIE scheme
+        // so we need to decode the cleartext to get the actual value 
+
+        var decodedPn = VLIE.decodePn(decryptedPn);
+        header.getPacketNumber().setValue(decodedPn.value);
+        headerOffset.offset = headerOffset.offset - 4 + decodedPn.offset;
+        // the Associated Data (for AEAD decryption of the payload) expects the DECRYPTED pn, not the DECODED pn (we had a bug about that here before)
+        // however, we only add the part of the DECRYPTED pn that actually contains the PN, for which we need to DECODE it first (decrypted is always 4 bytes, but can be 1, 2 or 4 in decoded reality)
+        header.setParsedBuffer(Buffer.concat([header.getParsedBuffer().slice(0, header.getParsedBuffer().byteLength - 4), decryptedPn.slice(0, decodedPn.offset)]));
 
         let pnSpace:PacketNumberSpace = connection.getEncryptionContextByPacketType( actualPacketType ).getPacketNumberSpace();
         let DEBUGpreviousHighest:number = -1;
@@ -95,12 +102,13 @@ export class HeaderHandler {
         // custom handlers for long and short headers
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var lh = <LongHeader>header;
-            lh.setPayloadLength(lh.getPayloadLength().subtract(decodedPnVlieOffset.offset));
+            lh.setPayloadLength(lh.getPayloadLength().subtract(decodedPn.offset));
             this.handleLongHeader(connection, lh, highestCurrentPacketNumber);
         } else if(header.getHeaderType() === HeaderType.ShortHeader){
-            var sh = <ShortHeader>header;
+            var sh = <ShortHeader>header; 
             this.handleShortHeader(connection, sh, highestCurrentPacketNumber);
         }
+        
         return {
             header: header,
             offset: headerOffset.offset

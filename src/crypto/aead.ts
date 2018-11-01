@@ -360,13 +360,13 @@ export class AEAD {
 
         if (encryptingEndpoint === EndpointType.Client) { 
             if( this.protected1RTTClientSecret == undefined )
-                VerboseLogging.error("aead:protected1RTTPnDecrypt : client decryption secret not set!");
+                VerboseLogging.error("aead:protected1RTTPnDecrypt : client decryption secret not set! packet probably has to be buffered while waiting for handshake to complete.");
             else{
                 key = this.protected1RTTClientPn;
             }
         } else { 
-            if( this.protectedHandshakeServerSecret == undefined )
-                VerboseLogging.error("aead:protected1RTTPnDecrypt : server decryption secret not set!");
+            if( this.protected1RTTServerSecret == undefined )
+                VerboseLogging.error("aead:protected1RTTPnDecrypt : server decryption secret not set! packet probably has to be buffered while waiting for handshake to complete.");
             else{
                 key = this.protected1RTTServerPn;
             }
@@ -374,7 +374,8 @@ export class AEAD {
         return this._pnDecrypt(this.qtls.getCipher().getAeadCtr(), key as Buffer, Constants.SAMPLE_LENGTH, packetNumberBuffer, header, payload);
     }
 
-    private generateClearTextSecrets(connectionID: ConnectionID, qtls: QTLS, version: Version): void {
+    // FIXME: make private again, only needed for testing 
+    public generateClearTextSecrets(connectionID: ConnectionID, qtls: QTLS, version: Version): void {
         var hkdf = this.getHKDFObject(Constants.DEFAULT_HASH);
         // Generate client key, IV, PN
         var clearTextClientSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Client);
@@ -643,6 +644,7 @@ export class AEAD {
         cipher.setAAD(ad);
         var authTag = encryptedPayload.slice(encryptedPayload.length - Constants.TAG_LENGTH, encryptedPayload.length);
         var encPayload = encryptedPayload.slice(0, encryptedPayload.length - Constants.TAG_LENGTH);
+
         cipher.setAuthTag(authTag);
         var update: Buffer = cipher.update(encPayload);
         var final: Buffer = cipher.final();

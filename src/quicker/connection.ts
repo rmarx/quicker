@@ -99,7 +99,7 @@ export class Connection extends FlowControlledObject {
         this.retrySent = false;
 
         if (this.endpointType === EndpointType.Client) {
-            if (options.version)
+            if (options && options.version)
                 this.version = new Version(Buffer.from(options.version, "hex"));
             else
                 this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));

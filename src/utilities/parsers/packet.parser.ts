@@ -29,16 +29,16 @@ export class PacketParser {
         this.frameParser = new FrameParser();
     }
 
-    public parse(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, endpoint: EndpointType): PacketOffset {
+    public parse(connection: Connection, headerOffset: HeaderOffset, fullPacket: Buffer, endpoint: EndpointType): PacketOffset {
         var header = headerOffset.header;
         // TODO: in theory, we MUST discard all packets with invalid version, so we have to check that for each header... but that's quite a bit of overhead?
         // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.1.1
         if (header.getHeaderType() === HeaderType.LongHeader) {
-            return this.parseLongHeaderPacket(connection, headerOffset, msg, endpoint)
+            return this.parseLongHeaderPacket(connection, headerOffset, fullPacket, endpoint)
         } else if (header.getHeaderType() === HeaderType.VersionNegotiationHeader) {
-            return this.parseVersionNegotiationPacket(headerOffset, msg);
+            return this.parseVersionNegotiationPacket(headerOffset, fullPacket);
         }
-        return this.parseShortHeaderPacket(connection, headerOffset, msg, endpoint);
+        return this.parseShortHeaderPacket(connection, headerOffset, fullPacket, endpoint);
     }
 
     private parseLongHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
@@ -72,11 +72,13 @@ export class PacketParser {
         return packetOffset;
     }
 
-    private parseShortHeaderPacket(connection: Connection, headerOffset: HeaderOffset, buffer: Buffer, endpoint: EndpointType): PacketOffset {
-        var dataBuffer = Buffer.alloc(buffer.byteLength - headerOffset.offset);
-        buffer.copy(dataBuffer, 0, headerOffset.offset);
-        dataBuffer = connection.getAEAD().protected1RTTDecrypt(headerOffset.header, dataBuffer, endpoint);
-        var frames = this.frameParser.parse(dataBuffer, 0);
+    private parseShortHeaderPacket(connection: Connection, headerOffset: HeaderOffset, fullPacket: Buffer, endpoint: EndpointType): PacketOffset {
+        // shortHeaderPacket is never coalesced and takes up the full message, so we just read from end of the header to the end of the packet 
+        let payloadBuffer = Buffer.alloc(fullPacket.byteLength - headerOffset.offset);
+        fullPacket.copy(payloadBuffer, 0, headerOffset.offset);
+        payloadBuffer = connection.getAEAD().protected1RTTDecrypt(headerOffset.header, payloadBuffer, endpoint);
+
+        let frames = this.frameParser.parse(payloadBuffer, 0);
         return {
             packet: new ShortHeaderPacket(headerOffset.header, frames),
             offset: headerOffset.offset

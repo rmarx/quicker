@@ -19,6 +19,7 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
+        'ff00000e': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38', // FIXME: remove, purely for testing
         'ff00000f': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
         'abcdef0c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38', 
     }
