@@ -261,6 +261,13 @@ export class LossDetection extends EventEmitter {
     }
 
     private removeFromSentPackets( packetNumber:Bignum ){
+
+        let packet = this.sentPackets[packetNumber.toString('hex', 8)];
+        if( !packet ){
+            VerboseLogging.error("LossDetection:removeFromSentPackets : packet not in sentPackets " + packetNumber.toString('hex', 8) + ". SHOULD NOT HAPPEN! added this because it crashes our server, no idea yet what causes it");
+            return;
+        }
+
         if (this.sentPackets[packetNumber.toString('hex', 8)].packet.isRetransmittable()) {
             this.retransmittablePacketsOutstanding--;
         }
