@@ -61,7 +61,7 @@ export class ConnectionID extends BaseProperty {
     // -> so check the logic when SENDING packets and how we fill the ConnectionID there before manhandling this  
 
     public static randomConnectionID(): ConnectionID {
-        var len = Math.round(Math.random() * 14) + 3;
+        var len = Math.ceil(Math.random() * 14) + 3; // in octects (bytes), has to be between 4 and 18
         var highHex = "";
         for (var i = 0; i < len; i++) {
             highHex += "ff";
