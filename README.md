@@ -1,36 +1,19 @@
 # quicker
-NodeJS implementation of the QUIC protocol
+NodeJS/TypeScript implementation of the IETF QUIC protocol (https://github.com/quicwg).
+Maintained by Hasselt University, see quic.edm.uhasselt.be. 
+
+Installation/testing is easiest via the dockerfile (see scripts/system/docker_setup/main/dockerfile).
+Building and launching the docker container can be done via convenience scripts (see scripts/system/server_config/control/). 
+Most of these convenience scripts include hard paths to where we've checked out this repository, so some manual edits will be required to get it running on your system.
 
 
-# setup
-```shell
-# install dependencies
-apt-get update && apt-get install -y       \
-                                    git    \ 
-                                    gcc    \ 
-                                    g++    \  
-                                    make   \
-                                    python \
-                                    nasm   \
-                                    npm
-# clone custom nodejs with QtlsWrap module
-git clone --depth 1 -b add_quicker_support-tls-d28 https://github.com/kevin-kp/node
-cd ./node
-# build nodejs
-./configure && make
-cd ..
-# install typescript
-npm install typescript -g && npm install
-# Clone quicker sources
-git clone https://github.com/rmarx/quicker
-cd ./quicker
-# Install quicker dependencies
-npm install
-tsc -p ./
-# Run Server
-./../node/out/Release/node ./out/main.js 127.0.0.1 4433 ./keys/selfsigned_default.key ./keys/selfsigned_default.crt
-# Run Client
-./../node/out/Release/node ./out/mainclient.js 127.0.0.1 4433
-# Alternatively: Run Client with version negotation
-./../node/out/Release/node ./out/mainclient.js 127.0.0.1 4433 deadbeef
-```
+The container currently launches the server via this command:
+> node /quicker/out/main.js 127.0.0.1 4433 /quicker/keys/selfsigned_default.key /quicker/keys/selfsigned_default.crt
+
+Launching the client would look like this:
+> node /quicker/out/mainclient.js 127.0.0.1 4433
+
+
+NOTE: the "node" command is from a custom built version of NodeJS, from this repository: https://github.com/kevin-kp/node/tree/add_quicker_support-draft-15
+Instructions for building and installing this custom version before running quicker are in the dockerfile mentioned above. 
+QUICker does NOT currently work with other versions of NodeJS!
