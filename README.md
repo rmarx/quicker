@@ -2,8 +2,8 @@
 NodeJS/TypeScript implementation of the IETF QUIC protocol (https://github.com/quicwg).
 Maintained by Hasselt University, see quic.edm.uhasselt.be. 
 
-Installation/testing is easiest via the dockerfile (see scripts/system/docker_setup/main/dockerfile).
-Building and launching the docker container can be done via convenience scripts (see scripts/system/server_config/control/). 
+Installation/testing is easiest via the dockerfile (see scripts/docker_setup/main/dockerfile).
+Building and launching the docker container can be done via convenience scripts (see scripts/server_config/control/). 
 Most of these convenience scripts include hard paths to where we've checked out this repository, so some manual edits will be required to get it running on your system.
 
 
