@@ -6,7 +6,7 @@ export class Constants {
      * Supported versions
      */
     public static readonly SUPPORTED_VERSIONS = [
-        'ff00000f','abcdef0c'
+        'ff00000f','ff000010','abcdef0c'
     ];
 
     public static readonly LOG_TYPE = "stdout";
@@ -21,9 +21,10 @@ export class Constants {
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
         'ff00000e': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38', // FIXME: remove, purely for testing
         'ff00000f': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
+        'ff000010': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
         'abcdef0c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38', 
     }
-    public static readonly ALPN_LABEL = "hq-15";
+    public static readonly ALPN_LABELS = ["hq-15", "hq-16"];
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 

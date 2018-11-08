@@ -14,6 +14,10 @@ export class VerboseLogging{
         return this.logger;
     }
 
+    public static getInternalLogger():Logger {
+        return VerboseLogging.getInstance().output;
+    }
+
     public static trace(message:string){
         VerboseLogging.getInstance().output.trace(message);
     }

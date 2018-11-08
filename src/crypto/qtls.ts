@@ -85,7 +85,7 @@ export class QTLS extends EventEmitter{
 
     public init() {
         if (this.options.alpnProtocol === undefined) {
-            this.options.alpnProtocols = [Constants.ALPN_LABEL];
+            this.options.alpnProtocols = Constants.ALPN_LABELS;
         }
         if (this.options.transportparameters !== undefined) {
             this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, this.options.transportparameters));
@@ -98,7 +98,8 @@ export class QTLS extends EventEmitter{
     }
 
     private createQtlsHelper(): QuicTLS {
-	    this.options.logLevel = VerboseLogging.getLogLevel();
+        this.options.logLevel = VerboseLogging.getLogLevel();
+        this.options.logger = VerboseLogging.getInternalLogger();
 
         var qtlsHelper = new QuicTLS(this.isServer, this.options);
         qtlsHelper.on(NodeQTLSEvent.HANDSHAKE_DONE, () => {
