@@ -502,8 +502,13 @@ export class Connection extends FlowControlledObject {
     public resetConnectionState() {
         // NOTE: we do not reset packet numbers, as this is explicitly forbidden by the QUIC transport spec 
         // FIXME: we have to reset the offsets of the crypto packets!
-        VerboseLogging.error("Connection:resetConnectionState : TODO: implement CRYPTO stream offset reset, currently does not do this!");
         VerboseLogging.error("Connection:resetConnectionState : TODO: implement Ack Handler resets, loss detection resets, currently does not do this!");
+
+        this.contextInitial.getCryptoStream().resetOffsets();
+        this.contextHandshake.getCryptoStream().resetOffsets();
+        this.context0RTT.getCryptoStream().resetOffsets();
+        this.context1RTT .getCryptoStream().resetOffsets(); 
+
         this.resetOffsets();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
             stream.resetOffsets();
