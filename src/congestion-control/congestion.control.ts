@@ -151,27 +151,23 @@ export class CongestionControl extends EventEmitter {
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {
-                let pnSpace:PacketNumberSpace = this.connection.getEncryptionContextByPacketType( packet.getPacketType() ).getPacketNumberSpace();
+                let ctx:CryptoContext|undefined = this.connection.getEncryptionContextByPacketType( packet.getPacketType() );
 
-                packet.getHeader().setPacketNumber( pnSpace.getNext() ); //this.connection.getNextPacketNumber());
+                if( ctx ){ // VNEG and retry packets have no packet numbers
+                    let pnSpace:PacketNumberSpace = ctx.getPacketNumberSpace();
 
-                let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
-                let DEBUGrxNumber = -1;
-                if( DEBUGhighestReceivedNumber !== undefined )
-                    DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
+                    packet.getHeader().setPacketNumber( pnSpace.getNext() ); 
 
-                VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
+                    let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
+                    let DEBUGrxNumber = -1;
+                    if( DEBUGhighestReceivedNumber !== undefined )
+                        DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
 
-                /*
-                if( pnSpace == this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE).getPacketNumberSpace() ){
-                    if( pnSpace.DEBUGgetCurrent() == 1 ){ 
-                        VerboseLogging.error("CongestionControl:sendPackets : dropping second handshake packet to see what ngtcp2 does in response, since it can't send ACK for the first without handshake keys");
-                        return; 
-                    }
+                    VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
                 }
-                */
-
-                VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + packet.getHeader().getPacketNumber().getValue().toNumber() );
+                
+                let pktNumber = packet.getHeader().getPacketNumber();
+                VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
                 this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
                 this.onPacketSent(packet);
                 

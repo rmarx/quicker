@@ -13,8 +13,10 @@ export class VersionNegotiationHeader extends BaseHeader {
     private destConnectionID: ConnectionID;
     private srcConnectionID: ConnectionID;
     
-    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID) {
-        super(HeaderType.VersionNegotiationHeader, type, undefined);
+    // NOTE: the actual versions are added as payload to the VNEG packet, not as part of the "header" here 
+    public constructor(destConnectionID: ConnectionID, srcConnectionID: ConnectionID) {
+        // VNEG packet type is a random 7-bit number 
+        super(HeaderType.VersionNegotiationHeader, Math.floor((Math.random() * 128)), undefined);
         this.destConnectionID = destConnectionID;
         this.srcConnectionID = srcConnectionID;
     }
@@ -39,13 +41,16 @@ export class VersionNegotiationHeader extends BaseHeader {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
 
-        var type = 0x80 + this.getPacketType();
+        var type = 0x80 + this.getPacketType(); // type is 0x1yyyyyyy, where y are random digits
         buf.writeUInt8(type, offset++);
 
+        // VNEG packet looks like Initial packet, but version is always 0
         offset += Buffer.from('00000000', 'hex').copy(buf, offset);
 
-        var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
-        var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
+        // non-zero connectionIDs are always at least 4 bytes, so we can encode their lenghts in an optimized way
+        let destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
+        let srcLength  = this.srcConnectionID.getLength() === 0  ? this.srcConnectionID.getLength()  : this.srcConnectionID.getLength()  - 3;
+        // 0xddddssss (d = destination length, s = source length)
         buf.writeUInt8(((destLength << 4) + srcLength), offset++);
 
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
@@ -54,7 +59,7 @@ export class VersionNegotiationHeader extends BaseHeader {
         return buf;
     }    
     
-    toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
+    public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
         throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "toPNEBuffer is not needed for version negotiation header");
     }
     

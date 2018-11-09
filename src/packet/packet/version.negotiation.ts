@@ -1,7 +1,6 @@
 import { BasePacket, PacketType } from "../base.packet";
 import { BaseHeader } from "../header/base.header";
 import { Version } from "../header/header.properties";
-import { Constants } from "../../utilities/constants";
 import { EndpointType } from "../../types/endpoint.type";
 import { Connection } from "../../quicker/connection";
 
@@ -21,25 +20,19 @@ export class VersionNegotiationPacket extends BasePacket {
         this.versions = versions;
     }
 
-    /**
-     * Method to get buffer object from a VersionNegotiationPacket object
-     */
     public toBuffer(connection: Connection) {
-    
-        var payloadOffset = 0
-        var payloadBuffer = Buffer.alloc(Constants.SUPPORTED_VERSIONS.length * 4);
-        Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
-            payloadBuffer.write(version, payloadOffset, 4, 'hex');
-            payloadOffset += 4;
+
+        // each individual supported version is 4 bytes in length
+        let output = Buffer.alloc( this.getSize() );
+        let offset = this.getHeader().toBuffer().copy(output, 0);
+
+        this.versions.forEach((version: Version) => {
+            // TODO PERF: see if we can bypass the conversion to string here 
+            output.write(version.getValue().toString('hex'), offset, 4, 'hex');
+            offset += 4;
         });
 
-        var headerBuffer = this.getHeader().toBuffer();
-        var outOffset = headerBuffer.length;
-
-        var buf = Buffer.alloc(headerBuffer.length + payloadBuffer.length);
-        headerBuffer.copy(buf, 0);
-        payloadBuffer.copy(buf, outOffset)
-        return buf;
+        return output;
     }
 
     public getSize(): number {

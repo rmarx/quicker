@@ -181,7 +181,9 @@ export class Connection extends FlowControlledObject {
             // we COULD let loss detection check the proper PNS itself, but this feels cleaner, 
             // especially if we want to refactor all the events out of the internal codebase anyway
             let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
-            ctx.getLossDetection().onPacketSent( basePacket );
+            if( ctx ){ // TODO: should packets like VersionNegotation and RETRY etc. have influence on loss detection? probably not on retransmit, but maybe on latency estimates? 
+                ctx.getLossDetection().onPacketSent( basePacket );
+            }
 
             this.emit(ConnectionEvent.PACKET_SENT, basePacket);
         });
@@ -458,7 +460,7 @@ export class Connection extends FlowControlledObject {
         this.spinBit = spinbit;
     }
 
-    public getEncryptionContextByPacketType(packetType:PacketType): CryptoContext{
+    public getEncryptionContextByPacketType(packetType:PacketType): CryptoContext | undefined {
         if( packetType == PacketType.Initial )
             return this.contextInitial;
         else if( packetType == PacketType.Handshake )
@@ -467,13 +469,17 @@ export class Connection extends FlowControlledObject {
             return this.context0RTT;
         else if( packetType == PacketType.Protected1RTT )
             return this.context1RTT;
-        else {
+        else if( packetType == PacketType.VersionNegotiation || packetType == PacketType.Retry ){
+            // these packets are outside of normal packet functions and don't have encryption contexts or packet number spaces etc. 
+            return undefined;
+        }
+        else{
             VerboseLogging.error("Connection:getEncryptionContextByPacketType : unsupported PacketType : " + PacketType[packetType] );
-            return this.context1RTT;
+            return undefined;
         }
     }
 
-    public getEncryptionContext(level:EncryptionLevel): CryptoContext{
+    public getEncryptionContext(level:EncryptionLevel): CryptoContext | undefined{
         if( level == EncryptionLevel.INITIAL )
             return this.contextInitial;
         else if( level == EncryptionLevel.HANDSHAKE )
@@ -484,7 +490,7 @@ export class Connection extends FlowControlledObject {
             return this.context1RTT;
         else {
             VerboseLogging.error("Connection:getEncryptionContext : unsupported EncryptionLevel : " + EncryptionLevel[level] );
-            return this.context1RTT;
+            return undefined;
         }
     }
 
@@ -501,7 +507,7 @@ export class Connection extends FlowControlledObject {
 
     public resetConnectionState() {
         // NOTE: we do not reset packet numbers, as this is explicitly forbidden by the QUIC transport spec 
-        // FIXME: we have to reset the offsets of the crypto packets!
+        // FIXME: make sure the packet number spaces are not reset (especially Initial, since this method will mostly be used during Version Negotiation)
         VerboseLogging.error("Connection:resetConnectionState : TODO: implement Ack Handler resets, loss detection resets, currently does not do this!");
 
         this.contextInitial.getCryptoStream().resetOffsets();

@@ -22,20 +22,21 @@ export class HeaderHandler {
 
     public handle(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, encryptingEndpoint: EndpointType): HeaderOffset {
         var header = headerOffset.header;
-        var highestCurrentPacketNumber = false;
 
-        // we need to check if we support the QUIC version the client is attempting to use
-        // if not, we need to explicitly send a version negotation message
-        if (header.getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
-            var longHeader = <LongHeader>header;
-            var negotiatedVersion = this.handleClientVersion(connection, longHeader);
-            connection.setVersion(negotiatedVersion);
-        }
+        // version negotation headers do not need to be handled separately, see PacketHandler for this 
         if (header.getHeaderType() === HeaderType.VersionNegotiationHeader) {
             return {
                 header: header,
                 offset: headerOffset.offset
             };
+        }
+
+        // we need to check if we support the QUIC version the client is attempting to use
+        // if not, we need to explicitly send a version negotation message
+        if (header.getHeaderType() === HeaderType.LongHeader && connection.getEndpointType() === EndpointType.Server) {
+            var longHeader = <LongHeader>header;
+            var negotiatedVersion = this.validateClientVersion(connection, longHeader);
+            connection.setVersion(negotiatedVersion);
         }
 
         var payload = msg.slice(headerOffset.offset);
@@ -76,34 +77,37 @@ export class HeaderHandler {
         // however, we only add the part of the DECRYPTED pn that actually contains the PN, for which we need to DECODE it first (decrypted is always 4 bytes, but can be 1, 2 or 4 in decoded reality)
         header.setParsedBuffer(Buffer.concat([header.getParsedBuffer().slice(0, header.getParsedBuffer().byteLength - 4), decryptedPn.slice(0, decodedPn.offset)]));
 
-        let pnSpace:PacketNumberSpace = connection.getEncryptionContextByPacketType( actualPacketType ).getPacketNumberSpace();
-        let DEBUGpreviousHighest:number = -1;
+        let ctx = connection.getEncryptionContextByPacketType( actualPacketType );
+        let highestCurrentPacketNumber = false;
+        if( ctx ){
+            let pnSpace:PacketNumberSpace = ctx.getPacketNumberSpace();
+            let DEBUGpreviousHighest:number = -1;
 
-        // adjust remote packet number
-        if (pnSpace.getHighestReceivedNumber() === undefined) {
-            pnSpace.setHighestReceivedNumber(header.getPacketNumber());
-            highestCurrentPacketNumber = true;
-        } 
-        else {
-            let highestReceivedNumber = pnSpace.getHighestReceivedNumber() as PacketNumber;
-            DEBUGpreviousHighest = highestReceivedNumber.getValue().toNumber();
-
-            var adjustedNumber = highestReceivedNumber.adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
-            if (highestReceivedNumber.getValue().lessThan(adjustedNumber)) {
-                pnSpace.setHighestReceivedNumber( new PacketNumber(adjustedNumber) );
+            // adjust remote packet number
+            if (pnSpace.getHighestReceivedNumber() === undefined) {
+                pnSpace.setHighestReceivedNumber(header.getPacketNumber());
                 highestCurrentPacketNumber = true;
+            } 
+            else {
+                let highestReceivedNumber = pnSpace.getHighestReceivedNumber() as PacketNumber;
+                DEBUGpreviousHighest = highestReceivedNumber.getValue().toNumber();
+
+                var adjustedNumber = highestReceivedNumber.adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
+                if (highestReceivedNumber.getValue().lessThan(adjustedNumber)) {
+                    pnSpace.setHighestReceivedNumber( new PacketNumber(adjustedNumber) );
+                    highestCurrentPacketNumber = true;
+                }
+                // adjust the packet number in the header
+                header.getPacketNumber().setValue(adjustedNumber);
             }
-            // adjust the packet number in the header
-            header.getPacketNumber().setValue(adjustedNumber);
+
+            VerboseLogging.info("HeaderHandler:handle : PN space \"" + PacketType[ actualPacketType ] + "\" RX went from " + DEBUGpreviousHighest + " -> " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + " (TX = " + pnSpace.DEBUGgetCurrent() + ")" );
         }
 
-        VerboseLogging.info("HeaderHandler:handle : PN space \"" + PacketType[ actualPacketType ] + "\" RX went from " + DEBUGpreviousHighest + " -> " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + " (TX = " + pnSpace.DEBUGgetCurrent() + ")" );
-       
         // custom handlers for long and short headers
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var lh = <LongHeader>header;
             lh.setPayloadLength(lh.getPayloadLength().subtract(decodedPn.offset));
-            this.handleLongHeader(connection, lh, highestCurrentPacketNumber);
         } else if(header.getHeaderType() === HeaderType.ShortHeader){
             var sh = <ShortHeader>header; 
             this.handleShortHeader(connection, sh, highestCurrentPacketNumber);
@@ -115,28 +119,27 @@ export class HeaderHandler {
         };
     }
 
-    private handleClientVersion(connection: Connection, longHeader: LongHeader): Version {
-        var negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
+    private validateClientVersion(connection: Connection, longHeader: LongHeader): Version {
+        let negotiatedVersion = VersionValidation.validateVersion(connection.getVersion(), longHeader);
+
         if (negotiatedVersion === undefined) {
             if (longHeader.getPacketType() === LongHeaderType.Initial) {
+                // It's an initial packet for which we don't have a version match: this should trigger a VersionNegotation packet
+                // we do this by means of throwing an error because we don't have enough state here to handle it in this class 
                 throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, longHeader.getVersion().getValue().toString() );
-            } else if (longHeader.getPacketType() === LongHeaderType.Protected0RTT || connection.getQuicTLS().getHandshakeState() === HandshakeState.SERVER_HELLO) {
-                // Protected0RTT is if the client's early data is being sent along with the Initial
-                // SERVER_HELLO is starting state of the server: basically an "allow all as long as we're starting the handshake"
-                // VERIFY TODO: is this correct? and, if yes, do we need the Protected0RTT check, as it wil arrive during SERVER_HELLO? 
+            } 
+            else if (longHeader.getPacketType() === LongHeaderType.Protected0RTT) {
                 // TODO: #section-6.1.2 allows us to buffer 0RTT packets in anticipation of a late ClientInitial (but... 0RTTs with invalid version will still be bad right?) 
                 //  -> probably primarily check that we don't trigger vneg twice or more (once in response to initial, once to 0RTT etc.) 
-                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
-            } else {
-                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet : " + connection.getVersion().getValue().toString('hex'));
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "Unsupported version in 0RTT packet");
+            } 
+            else {
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Unsupported version received in non-initial type packet : " + connection.getVersion().getValue().toString('hex') + " != " + longHeader.getVersion().toString());
             }
         }
         return negotiatedVersion;
     }
-
-    private handleLongHeader(connection: Connection, longHeader: LongHeader, highestCurrentPacketNumber: boolean): void {
-        //
-    }
+    
     private handleShortHeader(connection: Connection, shortHeader: ShortHeader, highestCurrentPacketNumber: boolean): void {
         if (highestCurrentPacketNumber) {
             var spinbit = connection.getEndpointType() === EndpointType.Client ? !shortHeader.getSpinBit() : shortHeader.getSpinBit();

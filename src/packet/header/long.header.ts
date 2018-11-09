@@ -112,9 +112,11 @@ export class LongHeader extends BaseHeader {
 
         offset += this.getVersion().toBuffer().copy(buf, offset);
 
+        // non-zero connectionIDs are always at least 4 bytes, so we can encode their lenghts in an optimized way
         var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
-        var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
-        buf.writeUInt8(((destLength << 4) + srcLength), offset++);
+        var srcLength  = this.srcConnectionID.getLength() === 0  ? this.srcConnectionID.getLength()  : this.srcConnectionID.getLength()  - 3;
+         // 0xddddssss (d = destination length, s = source length)
+         buf.writeUInt8(((destLength << 4) + srcLength), offset++);
 
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
@@ -187,13 +189,13 @@ export class LongHeader extends BaseHeader {
         var size = 6;
         size += this.destConnectionID.getLength();
         size += this.srcConnectionID.getLength();
-        if (!VersionValidation.IsVersionNegotationFlag(this.getVersion())) {
-            if (this.getPacketNumber() === undefined) {
-                size += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
-            } else {
-                size += this.getPacketNumberSize();
-            }
+        
+        if (this.getPacketNumber() === undefined) {
+            size += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
+        } else {
+            size += this.getPacketNumberSize();
         }
+
         // TODO: PROPERLY add tokens here
         if( this.getPacketType() == LongHeaderType.Initial )
             size += VLIE.encode(this.initialTokenLength).byteLength;

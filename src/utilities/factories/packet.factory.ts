@@ -25,24 +25,19 @@ import { Endpoint } from '../../quicker/endpoint';
 
 export class PacketFactory {
 
-    /**
-     *  Method to create a Version Negotiation packet, given the connection
-     * 
-     * @param connection
-     */
     public static createVersionNegotiationPacket(connection: Connection): VersionNegotiationPacket {
-        var version = new Version(Buffer.from('00000000', 'hex'));
+
         // is only created by a server in response to a client that had an unsupported version in its ClientInitial packet
-        // destConnectionID must be the srcID the client wanted (is in getDestConnectionID, as expected)
+        // destConnectionID must be the srcID the client wanted (is in getDestConnectionID, as expected, from us as the server perspective)
         // srcConnectionID must echo the random value the client choose for us, so NO CUSTOM GENERATED VALUE
-        // for some reason, in our implementation, we get that client-generated value from getInitialDestConnectionID (which is correct, in theory, but quite difficult to reason about)
-        // REFACTOR TODO: maybe rename the initialDestConnectionID to something that more clearly describes its goal at the server? or make a separate var for this? 
-        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3
-        var header = new VersionNegotiationHeader(Math.floor((Math.random() * 128)), connection.getDestConnectionID(), connection.getInitialDestConnectionID());
+        // this is stored in the "Initial" destConnId (meaning it's not the one we generated, which would be getSrcConnectionID, from us as the server perspective)
+        let header = new VersionNegotiationHeader(connection.getDestConnectionID(), connection.getInitialDestConnectionID());
+        
         var versions: Version[] = [];
         Constants.SUPPORTED_VERSIONS.forEach((version: string) => {
             versions.push(new Version(Buffer.from(version, 'hex')));
         });
+        
         return new VersionNegotiationPacket(header, versions);
     }
 

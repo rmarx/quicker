@@ -176,44 +176,23 @@ export class HeaderParser {
         return { header: header, offset: offset };
     }
 
-    /**
-     *  https://quicwg.org/base-drafts/draft-ietf-quic-transport.html#rfc.section.4.3
-        0                   1                   2                   3
-        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-        +-+-+-+-+-+-+-+-+
-        |1|  Unused (7) |
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                          Version (32)                         |
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |DCIL(4)|SCIL(4)|
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |               Destination Connection ID (0/32..144)         ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                 Source Connection ID (0/32..144)            ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                     Supported Versions (n*32)               ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     * @param buf 
-     * @param offset 
-     * @param type 
-     */
     private parseVersionNegotiationHeader(buf: Buffer, offset: number, type: number): HeaderOffset {
         var conLengths = buf.readUInt8(offset++); // single byte containing both ConnectionID lengths DCIL and SCIL 
-        // VERIFY TODO: connectionIDs can be empty if the other party can choose them freely
-        var destLength = conLengths >> 4; // the 4 leftmost bits are the DCIL 
+        let destLength = conLengths >> 4; // the 4 leftmost bits are the DCIL : 0xddddssss becomes 0x0000dddd
         destLength = destLength === 0 ? destLength : destLength + 3;
-        var srcLength = conLengths & 0xF; // 0xF = 0b1111, so we keep just the 4 rightmost bits 
+        let srcLength = conLengths & 0xF; // 0xF = 0b1111, so we keep just the 4 rightmost bits 
         srcLength = srcLength === 0 ? srcLength : srcLength + 3;
 
         // NOTE for above: we want to encode variable lengths for the Connection IDs of 4 to 18 bytes
         // to save space, we cram this info into 4 bits. Normally, they can only hold 0-15 as values, but because minimum length is 4, we can just do +3 to get the real value
 
-        var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
+        // VERIFY TODO: connectionIDs can be empty if the other party can choose them freely
+        let destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
         offset += destLength;
-        var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
+        let srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
         offset += srcLength;
 
-        var header = new VersionNegotiationHeader(type, destConnectionID, srcConnectionID);
+        var header = new VersionNegotiationHeader(destConnectionID, srcConnectionID);
         return { header: header, offset: offset };
     }
 

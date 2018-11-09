@@ -1,3 +1,5 @@
+import { VerboseLogging } from "./logging/verbose.logging";
+
 export class Constants {
 
     public static DEBUG_fakeECN = false;
@@ -95,7 +97,7 @@ export class Constants {
     public static getVersionSalt(version: string): string {
         let salt = Constants.VERSION_SALTS[version];
 		if( !salt ){
-			console.log("Constants::getVersionSalt : ERROR: salt not found for this version. Should only happen if we're explicitly testing version negotation at the client!!!");
+			VerboseLogging.error("Constants::getVersionSalt : ERROR: salt not found for this version. Should only happen if we're explicitly testing version negotation at the client!!!");
 			salt = "6666666666666666666666666666666666666666";     
 		}
         return salt;

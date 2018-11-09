@@ -12,13 +12,15 @@ import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 import { BaseHeader, HeaderType } from '../packet/header/base.header';
 import { ShortHeader } from '../packet/header/short.header';
-import { ConnectionID } from '../packet/header/header.properties';
+import { ConnectionID, PacketNumber } from '../packet/header/header.properties';
 import { isIPv4, isIPv6 } from 'net';
 import { Socket, RemoteInfo, createSocket, SocketType } from 'dgram';
 import { SecureContext, createSecureContext } from 'tls';
 import { Endpoint } from './endpoint';
 import { ConnectionManager, ConnectionManagerEvents } from './connection.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
+import { Bignum } from '../types/bignum';
+import { EncryptionLevel } from '../crypto/crypto.context';
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
@@ -104,7 +106,7 @@ export class Server extends Endpoint {
         console.log("Message contains " + headerOffsets.length + " independent packets (we think)");
         
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
-            var connection: Connection | undefined = undefined;
+            let connection: Connection | undefined = undefined;
             try {
                 connection = this.connectionManager.getConnection(headerOffset, rinfo);
                 connection.checkConnectionState();
@@ -113,19 +115,23 @@ export class Server extends Endpoint {
                 var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
                 this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
                 connection.startIdleAlarm();
-            } catch (err) {
+            } 
+            catch (err) {
                 if (connection === undefined) {
                     // Ignore when connection is undefined
                     // Only possible when a non-initial packet was received with a connection ID that is unknown to quicker
-                    VerboseLogging.debug("server:onMessage : message received but ignored because we only expect an INITIAL packet at this point");
+                    // TODO: handle this by buffering
+                    VerboseLogging.error("server:onMessage : message received but ignored because we only expect an INITIAL packet at this point. TODO: buffer this until the initial is received, then re-process");
                     return;
                 }
                 else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
                     VerboseLogging.debug("server:onMessage : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
                     connection = connection as Connection; // get rid of possible undefined, we check for that above
                     connection.resetConnectionState();
-                    this.connectionManager.deleteConnection(connection);
-                    var versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection); 
+                    // we have received one initial, we need to keep packet numbers at 0, because next one will have pn 1 
+                    connection.getEncryptionContext(EncryptionLevel.INITIAL)!.getPacketNumberSpace().setHighestReceivedNumber( new PacketNumber(new Bignum(0)) );
+
+                    let versionNegotiationPacket = PacketFactory.createVersionNegotiationPacket(connection); 
                     connection.sendPacket(versionNegotiationPacket);
                     return;
                 } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {

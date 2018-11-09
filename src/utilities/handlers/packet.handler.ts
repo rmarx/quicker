@@ -125,6 +125,8 @@ export class PacketHandler {
 
     // only on SERVER (client sends ClientInitial packet)
     private handleInitialPacket(connection: Connection, clientInitialPacket: InitialPacket): void {
+        // TODO: compliance: if this is the second initial we get after a VNEG, we need to check it uses correct packet number 1 instead of 0
+        // Note: if we properly deal with duplicate packet numbers, this should be an auto-fix though? 
         this.handleFrames(connection, clientInitialPacket);
     }
 
@@ -217,7 +219,9 @@ export class PacketHandler {
 
     private onPacketReceived(connection: Connection, packet: BasePacket, receivedTime: Time): void {
         let ctx = connection.getEncryptionContextByPacketType( packet.getPacketType() );
-        ctx.getAckHandler().onPacketReceived( connection, packet, receivedTime );
+        if( ctx ){ // VNEG and RETRY packets don't generate ACKs 
+            ctx.getAckHandler().onPacketReceived( connection, packet, receivedTime );
+        }
         //connection.getAckHandler().onPacketReceived(connection, packet, receivedTime);
     }
 }
