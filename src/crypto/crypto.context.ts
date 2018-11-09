@@ -101,6 +101,9 @@ export class PacketNumberSpace{
     }
 
     public setHighestReceivedNumber(nr:PacketNumber){
+        if( this.highestReceivedNumber && nr.getValue().lessThanOrEqual(this.highestReceivedNumber.getValue()) )
+            VerboseLogging.error("PacketNumberSpace:setHighestReceivedNumber : next number is equal or less than current setting!");
+            
         this.highestReceivedNumber = new PacketNumber( nr.getValue() );
     }
 

@@ -97,6 +97,9 @@ export class HeaderHandler {
                     pnSpace.setHighestReceivedNumber( new PacketNumber(adjustedNumber) );
                     highestCurrentPacketNumber = true;
                 }
+                else
+                    VerboseLogging.error("HeaderHandler:handle : packetnr was smaller than previous highest received: RE-ORDERING not yet supported! TODO! " + adjustedNumber.toNumber() + " <= " + highestReceivedNumber.getValue().toNumber() );
+
                 // adjust the packet number in the header
                 header.getPacketNumber().setValue(adjustedNumber);
             }
