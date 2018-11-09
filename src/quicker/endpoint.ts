@@ -12,6 +12,7 @@ import { HeaderHandler } from '../utilities/handlers/header.handler';
 import { EventEmitter } from "events";
 import { PacketParser } from '../utilities/parsers/packet.parser';
 import { PacketHandler } from '../utilities/handlers/packet.handler';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 
 export abstract class Endpoint extends EventEmitter {
@@ -41,7 +42,7 @@ export abstract class Endpoint extends EventEmitter {
     }
 
     protected handleError(connection: Connection, error: any): any {
-        console.log(error.message);
+        VerboseLogging.error("Endpoint:handleError : " + error.message + " -- " + JSON.stringify(error));
         console.log(error.stack);
 
         var closeFrame: ConnectionCloseFrame;

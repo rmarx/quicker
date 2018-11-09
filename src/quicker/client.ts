@@ -26,6 +26,8 @@ export class Client extends Endpoint {
     private bufferedRequests: BufferedRequest[];
     private connected: boolean;
 
+    private DEBUGmessageCounter:number = 0;
+
     private constructor() {
         super();
         this.connected = false;
@@ -138,8 +140,10 @@ export class Client extends Endpoint {
      * @param rinfo 
      */
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
-
-        console.log("---------------------------------------------------////////////////////////////// CLIENT ON MESSAGE ////////////////////////////////");
+        this.DEBUGmessageCounter++;
+        let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
+        
+        VerboseLogging.trace("---------------------------------------------------////////////////////////////// CLIENT ON MESSAGE "+ DEBUGmessageNumber +" ////////////////////////////////" + msg.length);
         
         try {
             this.connection.checkConnectionState();
@@ -154,7 +158,8 @@ export class Client extends Endpoint {
                 this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
             });
             this.connection.startIdleAlarm();
-        } catch (err) {
+        } 
+        catch (err) {
             if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
                 return;
             }
@@ -162,9 +167,12 @@ export class Client extends Endpoint {
                 this.emit(QuickerEvent.ERROR, err);
                 return;
             }
+
             this.handleError(this.connection, err);
             return;
         }
+
+        VerboseLogging.trace("---------------------------------------------------////////////////////////////// Client: DONE WITH MESSAGE " + DEBUGmessageNumber + " //////////////////////////////// " + msg.length);
     }
 
 }

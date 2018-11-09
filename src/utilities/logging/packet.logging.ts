@@ -271,7 +271,7 @@ export class PacketLogging {
             log += this.logStreamFrame(streamFrame, color);
         }
         if( log == "" )
-            console.log("packet.logging:logFrame : ERROR nothing logged for frame, shouldn't happen!", baseFrame.getType(), baseFrame.toBuffer() );
+            VerboseLogging.error("packet.logging:logFrame : ERROR nothing logged for frame, shouldn't happen! " + baseFrame.getType() + " // " + baseFrame.toBuffer() );
             
         return log;
     }

@@ -10,6 +10,7 @@ import { VLIE } from "../../crypto/vlie";
 import { Bignum } from "../../types/bignum";
 import { VersionValidation } from "../validation/version.validation";
 import { VersionNegotiationHeader } from "../../packet/header/version.negotiation.header";
+import { VerboseLogging } from "../logging/verbose.logging";
 
 
 export class HeaderParser {
@@ -107,7 +108,7 @@ export class HeaderParser {
         var startOffset = offset; // measured in bytes
         var type = (buf.readUInt8(offset++) - 0x80); // 0x80 to negate header type, see :parseHeader
 
-        console.log("longheader type " + type + " // " + LongHeaderType[type] );
+        VerboseLogging.debug("HeaderParser:parseLongHeader: type " + type + " // " + LongHeaderType[type] );
 
         var version = new Version(buf.slice(offset, offset + 4)); // version is 4 bytes
         offset += 4;
@@ -146,9 +147,9 @@ export class HeaderParser {
                 tokens = Buffer.alloc(tokenLength.toNumber());
                 buf.copy(tokens, 0, offset, offset + tokenLength.toNumber());
                 offset += tokenLengthV.value.toNumber();
-                console.log("---------------------------------------------");
-                console.log("WARNING: HeaderParser:Initial packet contained reset token, this code is not yet tested, can break! ", tokens.byteLength, tokens);
-                console.log("---------------------------------------------");
+                VerboseLogging.warn("---------------------------------------------");
+                VerboseLogging.warn("WARNING: HeaderParser:Initial packet contained reset token, this code is not yet tested, can break! " + tokens.byteLength + " // " + tokens);
+                VerboseLogging.warn("---------------------------------------------");
             }
         }
 
@@ -227,13 +228,12 @@ export class HeaderParser {
         var spinBit: boolean = (type & 0x04) === 0x04;        // 6th, 7th and 8th bit reserved for experimentation 
 
         if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
-            console.log("bit check failed in the first octet");
             if (thirdBitCheck)
-                console.log("third bit must be 1");
+                VerboseLogging.error("HeaderParser:parseShortHeader : third bit must be 1");
             if (fourthBitCheck)
-                console.log("fourth bit must be 1");
+                VerboseLogging.error("HeaderParser:parseShortHeader : fourth bit must be 1");
             if (!fifthBitCheck)
-                console.log("fifth bit must be 0");
+                VerboseLogging.error("HeaderParser:parseShortHeader : fifth bit must be 0");
             //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
         }
 

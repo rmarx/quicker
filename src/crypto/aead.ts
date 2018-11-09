@@ -376,28 +376,28 @@ export class AEAD {
 
     // FIXME: make private again, only needed for testing 
     public generateClearTextSecrets(connectionID: ConnectionID, qtls: QTLS, version: Version): void {
-        var hkdf = this.getHKDFObject(Constants.DEFAULT_HASH);
+        let hkdf = this.getHKDFObject(Constants.DEFAULT_HASH);
         // Generate client key, IV, PN
-        var clearTextClientSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Client);
+        let clearTextClientSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Client);
         this.clearTextClientKey   = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         this.clearTextClientIv    = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         this.clearTextClientPn    = hkdf.qhkdfExpandLabel(clearTextClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, Constants.DEFAULT_AEAD_LENGTH);
-        console.log("clear text client Secret: " + clearTextClientSecret.toString('hex'));
-        console.log("clear text client key: " + this.clearTextClientKey.toString('hex'));
-        console.log("clear text client iv:  " + this.clearTextClientIv.toString('hex'));
-        console.log("clear text client pn:  " + this.clearTextClientPn.toString('hex'));
+        VerboseLogging.debug("clear text client Secret: " + clearTextClientSecret.toString('hex'));
+        VerboseLogging.debug("clear text client key: " + this.clearTextClientKey.toString('hex'));
+        VerboseLogging.debug("clear text client iv:  " + this.clearTextClientIv.toString('hex'));
+        VerboseLogging.debug("clear text client pn:  " + this.clearTextClientPn.toString('hex'));
 
         // Generate server key, IV, PN
-        var clearTextServerSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Server);
+        let clearTextServerSecret = this.getClearTextSecret(hkdf, connectionID, version, EndpointType.Server);
         this.clearTextServerKey = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_KEY_LABEL, Constants.DEFAULT_AEAD_LENGTH);
         this.clearTextServerIv = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_IV_LABEL, Constants.IV_LENGTH);
         this.clearTextServerPn = hkdf.qhkdfExpandLabel(clearTextServerSecret, Constants.PACKET_PROTECTION_PN_LABEL, Constants.DEFAULT_AEAD_LENGTH);
-        console.log("clear text server Secret: " + clearTextServerSecret.toString('hex'));
-        console.log("clear text server key: " + this.clearTextServerKey.toString('hex'));
-        console.log("clear text server iv:  " + this.clearTextServerIv.toString('hex'));
-        console.log("clear text server pn:  " + this.clearTextServerPn.toString('hex'));
+        VerboseLogging.debug("clear text server Secret: " + clearTextServerSecret.toString('hex'));
+        VerboseLogging.debug("clear text server key: " + this.clearTextServerKey.toString('hex'));
+        VerboseLogging.debug("clear text server iv:  " + this.clearTextServerIv.toString('hex'));
+        VerboseLogging.debug("clear text server pn:  " + this.clearTextServerPn.toString('hex'));
 
-        console.log("Clear text generated for version " + version + ", previous was for version " + this.usedVersion);
+        VerboseLogging.debug("Clear text keys generated for version " + version + ", previous was for version " + this.usedVersion);
 
         // Keep track of what version is used to generate these keys
         this.usedVersion = version;
@@ -459,7 +459,7 @@ export class AEAD {
     public setProtectedHandshakeSecrets(endpoint:EndpointType, secret:Buffer, key:Buffer, iv:Buffer){
         VerboseLogging.debug("aead:setProtectedHandshakeSecrets : set HANDSHAKE secrets for " + EndpointType[endpoint] );
 
-        var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
+        let hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
     
         if( endpoint == EndpointType.Client ){
             this.protectedHandshakeClientSecret = secret;
@@ -467,10 +467,10 @@ export class AEAD {
             this.protectedHandshakeClientIv = iv; 
             this.protectedHandshakeClientPn = hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
         
-            console.log( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeClientSecret.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeClientKey.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeClientIv.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS calc pn:   " + this.protectedHandshakeClientPn.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeClientSecret.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeClientKey.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeClientIv.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS calc pn:   " + this.protectedHandshakeClientPn.toString('hex') );
         }
         else if( endpoint == EndpointType.Server ){
             this.protectedHandshakeServerSecret = secret;
@@ -478,10 +478,10 @@ export class AEAD {
             this.protectedHandshakeServerIv = iv; 
             this.protectedHandshakeServerPn = hkdf.qhkdfExpandLabel(secret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
         
-            console.log( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeServerSecret.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeServerKey.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeServerIv.toString('hex') );
-            console.log( EndpointType[endpoint] + " TLS calc pn:   " + this.protectedHandshakeServerPn.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS in secret: " + this.protectedHandshakeServerSecret.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS in key:    " + this.protectedHandshakeServerKey.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS in iv:     " + this.protectedHandshakeServerIv.toString('hex') );
+            VerboseLogging.debug( EndpointType[endpoint] + " TLS calc pn:   " + this.protectedHandshakeServerPn.toString('hex') );
         }
         else
             VerboseLogging.error("aead:setProtectedHandshakeSecrets : unknown endpoint type : " + endpoint);
@@ -508,7 +508,7 @@ export class AEAD {
 
         VerboseLogging.debug("aead:setProtected1RTTSecrets : set 1RTT secrets for " + EndpointType[endpoint] );
 
-        var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
+        let hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
     
         if( endpoint == EndpointType.Client ){
             this.protected1RTTClientSecret = secret;
@@ -516,10 +516,10 @@ export class AEAD {
             this.protected1RTTClientIv = iv; 
             this.protected1RTTClientPn = hkdf.qhkdfExpandLabel(this.protected1RTTClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
 
-            console.log("protected1RTT client Secret: " + this.protected1RTTClientSecret.toString('hex'));
-            console.log("protected1RTT client key: " + this.protected1RTTClientKey.toString('hex'));
-            console.log("protected1RTT client iv: " + this.protected1RTTClientIv.toString('hex'));
-            console.log("protected1RTT client pn: " + this.protected1RTTClientPn.toString('hex'));
+            VerboseLogging.debug("protected1RTT client Secret: " + this.protected1RTTClientSecret.toString('hex'));
+            VerboseLogging.debug("protected1RTT client key: " + this.protected1RTTClientKey.toString('hex'));
+            VerboseLogging.debug("protected1RTT client iv: " + this.protected1RTTClientIv.toString('hex'));
+            VerboseLogging.debug("protected1RTT client pn: " + this.protected1RTTClientPn.toString('hex'));
         }
         else if( endpoint == EndpointType.Server ){
             this.protected1RTTServerSecret = secret;
@@ -527,10 +527,10 @@ export class AEAD {
             this.protected1RTTServerIv = iv; 
             this.protected1RTTServerPn = hkdf.qhkdfExpandLabel(this.protected1RTTServerSecret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
         
-            console.log("protected1RTT server Secret: " + this.protected1RTTServerSecret.toString('hex'));
-            console.log("protected1RTT server key: " + this.protected1RTTServerKey.toString('hex'));
-            console.log("protected1RTT server iv: " + this.protected1RTTServerIv.toString('hex'));
-            console.log("protected1RTT server pn: " + this.protected1RTTServerPn.toString('hex'));
+            VerboseLogging.debug("protected1RTT server Secret: " + this.protected1RTTServerSecret.toString('hex'));
+            VerboseLogging.debug("protected1RTT server key: " + this.protected1RTTServerKey.toString('hex'));
+            VerboseLogging.debug("protected1RTT server iv: " + this.protected1RTTServerIv.toString('hex'));
+            VerboseLogging.debug("protected1RTT server pn: " + this.protected1RTTServerPn.toString('hex'));
         }
         else
             VerboseLogging.error("aead:setProtected1RTTSecretsNew : unknown endpoint type : " + endpoint);
@@ -572,7 +572,7 @@ export class AEAD {
 
         VerboseLogging.debug("aead:setProtected0TTSecrets : set 0RTT secrets for " + EndpointType[endpoint] );
 
-        var hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
+        let hkdf = this.getHKDFObject(this.qtls.getCipher().getHash()); 
     
         if( endpoint == EndpointType.Client ){
             this.protected0RTTClientSecret = secret;
@@ -580,10 +580,10 @@ export class AEAD {
             this.protected0RTTIv = iv; 
             this.protected0RTTPn = hkdf.qhkdfExpandLabel(this.protected0RTTClientSecret, Constants.PACKET_PROTECTION_PN_LABEL, this.qtls.getCipher().getAeadKeyLength());
 
-            console.log("protected0RTT client Secret: " + this.protected0RTTClientSecret.toString('hex'));
-            console.log("protected0RTT client key: " + this.protected0RTTKey.toString('hex'));
-            console.log("protected0RTT client iv: " + this.protected0RTTIv.toString('hex'));
-            console.log("protected0RTT client pn: " + this.protected0RTTPn.toString('hex'));
+            VerboseLogging.debug("protected0RTT client Secret: " + this.protected0RTTClientSecret.toString('hex'));
+            VerboseLogging.debug("protected0RTT client key: " + this.protected0RTTKey.toString('hex'));
+            VerboseLogging.debug("protected0RTT client iv: " + this.protected0RTTIv.toString('hex'));
+            VerboseLogging.debug("protected0RTT client pn: " + this.protected0RTTPn.toString('hex'));
         }
         else if( endpoint == EndpointType.Server ){
             VerboseLogging.error("aead:setProtected0TTSecrets : cannot set 0RTT secrets for the server, because they shouldn't exist!");

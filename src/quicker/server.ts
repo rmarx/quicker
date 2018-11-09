@@ -89,7 +89,7 @@ export class Server extends Endpoint {
     private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
         this.DEBUGmessageCounter++;
         let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
-        console.log("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
+        VerboseLogging.trace("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
 
         VerboseLogging.trace("server:onMessage: message length in bytes: " + msg.byteLength);
         VerboseLogging.trace("server:onMessage: raw message from the wire : " + msg.toString('hex'));
@@ -98,12 +98,12 @@ export class Server extends Endpoint {
             var receivedTime = Time.now();
             var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
         } catch(err) {
-            console.log("ERROR: server:onMessage : could not parse headers!", rinfo, msg);
+            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + rinfo.address + " // " + rinfo.family + " // " + rinfo.port );
             // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
 
-        console.log("Message contains " + headerOffsets.length + " independent packets (we think)");
+        VerboseLogging.trace("Server:onMessage: Message contains " + headerOffsets.length + " independent packets (we think)");
         
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
             let connection: Connection | undefined = undefined;
@@ -144,7 +144,7 @@ export class Server extends Endpoint {
             }
         });
         
-        console.log("---------------------------------------------------////////////////////////////// Server: DONE WITH MESSAGE " + DEBUGmessageNumber + " //////////////////////////////// " + msg.length);
+        VerboseLogging.trace("---------------------------------------------------////////////////////////////// Server: DONE WITH MESSAGE " + DEBUGmessageNumber + " //////////////////////////////// " + msg.length);
     }
 
 
