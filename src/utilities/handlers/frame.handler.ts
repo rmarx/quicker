@@ -224,7 +224,7 @@ export class FrameHandler {
         if( encryptionLevel === undefined )
             VerboseLogging.error("FrameHandler:handleAckFrame : frame had no encryptionLevel set, need this to properly deliver the data!");
         else
-            connection.getEncryptionContext( encryptionLevel ).getLossDetection().onAckReceived( ackFrame );
+            connection.getEncryptionContext( encryptionLevel )!.getLossDetection().onAckReceived( ackFrame );
     
     }
 
@@ -242,7 +242,7 @@ export class FrameHandler {
         if( encryptionLevel === undefined )
             VerboseLogging.error("FrameHandler:handleCryptoFrame : frame had no encryptionLevel set, need this to properly deliver the data!");
         else
-            connection.getEncryptionContext( encryptionLevel ).getCryptoStream().receiveData( cryptoFrame.getData(), cryptoFrame.getOffset() );
+            connection.getEncryptionContext( encryptionLevel )!.getCryptoStream().receiveData( cryptoFrame.getData(), cryptoFrame.getOffset() );
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {

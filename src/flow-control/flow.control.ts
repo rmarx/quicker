@@ -118,11 +118,11 @@ export class FlowControl {
             // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.3
             // REFACTOR TODO: allow coalescing of ACKS together with other packets of the same encryption level
             let initCTX = this.connection.getEncryptionContext(EncryptionLevel.INITIAL);
-            let cfrs = this.getCryptoStreamFrames( initCTX.getCryptoStream(), maxPayloadSize );
+            let cfrs = this.getCryptoStreamFrames( initCTX!.getCryptoStream(), maxPayloadSize );
             DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createInitialPacket(this.connection, [frame]) );
-            let ackframe = initCTX.getAckHandler().getAckFrame(this.connection);
+            let ackframe = initCTX!.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
                 if( this.connection.getAEAD().canClearTextEncrypt(this.connection.getEndpointType()) ){
                     DEBUGackFrameCount++;
@@ -134,7 +134,7 @@ export class FlowControl {
 
 
             let zeroCTX = this.connection.getEncryptionContext(EncryptionLevel.ZERO_RTT);
-            cfrs = this.getCryptoStreamFrames( zeroCTX.getCryptoStream(), maxPayloadSize );
+            cfrs = this.getCryptoStreamFrames( zeroCTX!.getCryptoStream(), maxPayloadSize );
             DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createProtected0RTTPacket(this.connection, [frame]) );
@@ -149,11 +149,11 @@ export class FlowControl {
 
             
             let handshakeCTX = this.connection.getEncryptionContext(EncryptionLevel.HANDSHAKE);
-            cfrs = this.getCryptoStreamFrames( handshakeCTX.getCryptoStream(), maxPayloadSize );
+            cfrs = this.getCryptoStreamFrames( handshakeCTX!.getCryptoStream(), maxPayloadSize );
             DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createHandshakePacket(this.connection, [frame]) );
-            ackframe = handshakeCTX.getAckHandler().getAckFrame(this.connection);
+            ackframe = handshakeCTX!.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
                 if( this.connection.getAEAD().canHandshakeEncrypt(this.connection.getEndpointType()) ){
                     DEBUGackFrameCount++;
@@ -165,11 +165,11 @@ export class FlowControl {
 
 
             let oneCTX = this.connection.getEncryptionContext(EncryptionLevel.ONE_RTT);
-            cfrs = this.getCryptoStreamFrames( oneCTX.getCryptoStream(), maxPayloadSize );
+            cfrs = this.getCryptoStreamFrames( oneCTX!.getCryptoStream(), maxPayloadSize );
             DEBUGcryptoFrameCount += cfrs.length;
             for( let frame of cfrs )
                 packets.push( PacketFactory.createShortHeaderPacket(this.connection, [frame]) );
-            ackframe = oneCTX.getAckHandler().getAckFrame(this.connection);
+            ackframe = oneCTX!.getAckHandler().getAckFrame(this.connection);
             if( ackframe !== undefined ){
                 if( this.connection.getAEAD().can1RTTEncrypt(this.connection.getEndpointType()) ){
                     DEBUGackFrameCount++;
