@@ -2,6 +2,7 @@ import { Client } from "./quicker/client";
 import { HttpHelper } from "./http/http0.9/http.helper";
 import { QuicStream } from "./quicker/quic.stream";
 import { QuickerEvent } from "./quicker/quicker.event";
+import { StreamType } from "./quicker/stream";
 import { PacketLogging } from "./utilities/logging/packet.logging";
 import { HandshakeState } from "./crypto/qtls";
 import { Constants } from "./utilities/constants";
@@ -34,7 +35,7 @@ for (var i = 0; i < 1; i++) {
     var client = Client.connect(host, Number(port), { version: version });
     client.on(QuickerEvent.CLIENT_CONNECTED, () => {
 
-        var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
+        var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"), StreamType.ClientBidi);
         var bufferedData = Buffer.alloc(0);
 
         quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {

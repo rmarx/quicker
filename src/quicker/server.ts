@@ -160,6 +160,7 @@ export class Server extends Endpoint {
         this.connectionManager = new ConnectionManager(this.options.secureContext, this.serverSockets, this.options);
         this.connectionManager.on(ConnectionManagerEvents.CONNECTION_CREATED, (connection: Connection) => {
             this.setupConnectionEvents(connection);
+            this.emit(QuickerEvent.CONNECTION_CREATED, connection);
         });
     }
 
