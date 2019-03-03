@@ -107,8 +107,8 @@ export class Client extends Endpoint {
         });
     }
 
-    public request(request: Buffer): QuicStream {
-        var stream: Stream = this.connection.getStreamManager().getNextStream(StreamType.ClientBidi);
+    public request(request: Buffer, streamType: StreamType.ClientBidi | StreamType.ClientUni): QuicStream {
+        var stream: Stream = this.connection.getStreamManager().getNextStream(streamType);
         if (this.connected) {
             this.sendRequest(stream, request);
         } else {
