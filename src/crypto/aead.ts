@@ -13,7 +13,7 @@ import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 import { LongHeader, LongHeaderType } from '../packet/header/long.header';
 import { ShortHeader } from '../packet/header/short.header';
-import { VLIE } from './vlie';
+import { VLIE } from '../types/vlie';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';

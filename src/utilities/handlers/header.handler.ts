@@ -13,7 +13,7 @@ import { QuickerError } from '../errors/quicker.error';
 import { QuickerErrorCodes } from '../errors/quicker.codes';
 import { HandshakeState } from '../../crypto/qtls';
 import { PacketType } from '../../packet/base.packet';
-import { VLIE } from '../../crypto/vlie';
+import { VLIE } from '../../types/vlie';
 import { VerboseLogging } from '../logging/verbose.logging';
 import { PacketLogging } from '../logging/packet.logging';
 import { PacketNumberSpace } from '../../crypto/crypto.context';
