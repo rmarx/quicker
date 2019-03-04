@@ -2,7 +2,7 @@ import { BaseHeader, HeaderType } from "./base.header";
 import { ConnectionID, PacketNumber, Version } from './header.properties';
 import { Bignum } from "../../types/bignum";
 import { Constants } from "../../utilities/constants";
-import { VLIE } from "../../crypto/vlie";
+import { VLIE } from "../../types/vlie";
 import { VersionValidation } from "../../utilities/validation/version.validation";
 import { Connection } from "../../quicker/connection";
 

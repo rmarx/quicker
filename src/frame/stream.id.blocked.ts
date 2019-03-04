@@ -1,6 +1,6 @@
 import {BaseFrame, FrameType} from './base.frame';
 import {Bignum} from '../types/bignum';
-import {VLIE} from '../crypto/vlie';
+import {VLIE} from '../types/vlie';
 
 
 export class StreamIdBlockedFrame extends BaseFrame {
