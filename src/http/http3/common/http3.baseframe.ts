@@ -1,5 +1,3 @@
-import { Bignum } from "../../../types/bignum";
-
 export enum Http3FrameType {
     DATA = 0x1,
     HEADERS = 0x1,
@@ -22,7 +20,7 @@ export enum Http3FrameType {
 export abstract class Http3BaseFrame {
     public abstract toBuffer(): Buffer;
 
-    public abstract getPayloadLength(): Bignum;
+    public abstract getPayloadLength(): number;
 
     /**
      * Returns the Http3FrameType value as an enum, if valid
