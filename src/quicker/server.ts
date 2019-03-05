@@ -21,6 +21,7 @@ import { ConnectionManager, ConnectionManagerEvents } from './connection.manager
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { Bignum } from '../types/bignum';
 import { EncryptionLevel, BufferedPacket } from '../crypto/crypto.context';
+import { StreamType } from './stream'
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
@@ -58,6 +59,11 @@ export class Server extends Endpoint {
             this.init("udp6");
         }
         this.createConnectionManager();
+    }
+    
+    public createStream(connection: Connection, streamType: StreamType.ServerBidi | StreamType.ServerUni): QuicStream {
+        // TODO Check connection ownership
+        return new QuicStream(connection, connection.getStreamManager().getNextStream(streamType));
     }
 
     private init(socketType: SocketType) {
