@@ -2,14 +2,14 @@ import { Http3BaseFrame, Http3FrameType } from "../http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
 import { VLIE, VLIEOffset } from "../../../../types/vlie";
 
-enum PrioritizedElementType {
+export enum PrioritizedElementType {
     REQUEST_STREAM = 0x0,
     PUSH_STREAM = 0x1,
     PLACEHOLDER = 0x2,
     CURRENT_STREAM = 0x3,
 }
 
-enum ElementDependencyType {
+export enum ElementDependencyType {
     REQUEST_STREAM = 0x0,
     PUSH_STREAM = 0x1,
     PLACEHOLDER = 0x2,
@@ -72,11 +72,11 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         let length: Bignum = new Bignum(2); // 1 byte for PET/EDT, 1 byte for weight
 
         if (this.prioritizedElementID !== undefined) {
-            length.add(VLIE.getEncodedByteLength(this.prioritizedElementID));
+            length = length.add(VLIE.getEncodedByteLength(this.prioritizedElementID));
         }
 
         if (this.elementDependencyID !== undefined) {
-            length.add(VLIE.getEncodedByteLength(this.elementDependencyID));
+            length = length.add(VLIE.getEncodedByteLength(this.elementDependencyID));
         }
 
         return length;
@@ -92,7 +92,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         // First byte: 2 bits PET - 2 bits EDT - 4 bits empty
         let types: number = payload.readUInt8(offset++);
         let pet: PrioritizedElementType | undefined = this.toPET(types >> 6)
-        let edt: ElementDependencyType | undefined = this.toEDT((0x30) >> 4)
+        let edt: ElementDependencyType | undefined = this.toEDT((types & 0x30) >> 4)
         if (pet === undefined || edt === undefined) {
             // TODO: throw error?
             return;
