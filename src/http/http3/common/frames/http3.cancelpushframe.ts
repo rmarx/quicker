@@ -22,8 +22,8 @@ export class Http3CancelPushFrame extends Http3BaseFrame {
         return buffer;
     }
 
-    public getPayloadLength(): Bignum {
-        return new Bignum(VLIE.getEncodedByteLength(this.pushID));
+    public getPayloadLength(): number {
+        return VLIE.getEncodedByteLength(this.pushID);
     }
 
     public getFrameType(): Http3FrameType {

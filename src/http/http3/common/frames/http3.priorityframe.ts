@@ -31,7 +31,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     public toBuffer(): Buffer {
         let encodedLength: Buffer = VLIE.encode(this.getPayloadLength());
         // TODO Test to make sure payload isnt longer than 2^53 bytes
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.getPayloadLength().toNumber());
+        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.getPayloadLength());
 
         let offset: number = 0;
 
@@ -68,15 +68,15 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         return buffer;
     }
 
-    public getPayloadLength(): Bignum {
-        let length: Bignum = new Bignum(2); // 1 byte for PET/EDT, 1 byte for weight
+    public getPayloadLength(): number {
+        let length: number = 2; // 1 byte for PET/EDT, 1 byte for weight
 
         if (this.prioritizedElementID !== undefined) {
-            length = length.add(VLIE.getEncodedByteLength(this.prioritizedElementID));
+            length += VLIE.getEncodedByteLength(this.prioritizedElementID);
         }
 
         if (this.elementDependencyID !== undefined) {
-            length = length.add(VLIE.getEncodedByteLength(this.elementDependencyID));
+            length += VLIE.getEncodedByteLength(this.elementDependencyID);
         }
 
         return length;

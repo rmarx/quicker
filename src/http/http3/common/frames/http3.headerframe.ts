@@ -23,8 +23,8 @@ export class Http3HeaderFrame extends Http3BaseFrame {
         return buffer;
     }
 
-    public getPayloadLength(): Bignum {
-        return new Bignum(this.payload.byteLength);
+    public getPayloadLength(): number {
+        return this.payload.byteLength;
     }
 
     public getFrameType(): Http3FrameType {
