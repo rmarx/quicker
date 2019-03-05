@@ -1,6 +1,6 @@
 import { VLIE, VLIEOffset } from "../../../../types/vlie";
 import { Bignum } from "../../../../types/bignum";
-import { Http3DataFrame } from "../frames";
+import { Http3DataFrame, Http3CancelPushFrame } from "../frames";
 import { Http3PriorityFrame } from "../frames/http3.priorityframe";
 import { Http3HeaderFrame } from "../frames/http3.headerframe";
 import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
@@ -40,6 +40,9 @@ export function parse(buffer: Buffer, bufferOffset: number): [Http3BaseFrame[], 
             break;
         case Http3FrameType.PRIORITY:
             frames.push(new Http3PriorityFrame(payload));
+            break;
+        case Http3FrameType.CANCEL_PUSH:
+            frames.push(new Http3CancelPushFrame(payload));
             break;
         default:
             throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unknown frametype encountered while parsing http3 frames");
