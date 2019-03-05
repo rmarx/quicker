@@ -28,6 +28,16 @@ export class TestHttp3Frameparser {
         }
         ++testCount;
         
+        // Cancel push frames
+        if (this.testCancelPushFrame() === true) {
+            console.info("HTTP/3 cancel push frame parsing test succeeded")
+        } else {
+            console.error("HTTP/3 cancel push frame parsing test failed");
+            console.error("Failed after " + testCount + " tests");
+            return false;
+        }
+        ++testCount;
+
         console.info("All " + testCount + " HTTP/3 frame parsing tests succeeded");
         
         return true;
@@ -173,7 +183,22 @@ export class TestHttp3Frameparser {
     }
     
     private static testCancelPushFrame(): boolean {
+        const payload: Buffer = VLIE.encode(3503); // PushID
+        const length: Buffer = VLIE.encode(payload.byteLength);
+        const type: Buffer = new Buffer([Http3FrameType.CANCEL_PUSH]);
         
+        // Create frame
+        const frame: Buffer = Buffer.concat([length, type, payload]);
+        
+        const [baseframe, offset] = parseFrame(frame, 0);
+        
+        // Assertions
+        if (baseframe.length !== 1) {
+            return false;
+        }
+        if (baseframe[0].toBuffer().compare(frame) !== 0) {
+            return false;
+        }
         
         return true;
     }
