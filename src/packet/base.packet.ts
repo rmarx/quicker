@@ -40,6 +40,9 @@ export abstract class BasePacket {
         return (this.packetType === PacketType.Initial || this.packetType === PacketType.Handshake);
     }
 
+    /**
+     * @remark new term for this in the rfc is "ack-eliciting"
+     */
     public isRetransmittable(): boolean {
         return this.retransmittable;
     }
