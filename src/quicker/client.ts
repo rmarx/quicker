@@ -103,6 +103,15 @@ export class Client extends Endpoint {
         }
         return new QuicStream(this.connection, stream);
     }
+    
+    public createStream(streamType: StreamType.ClientBidi | StreamType.ClientUni): QuicStream {
+        // TODO Check connection ownership
+        if (this.connected) {
+            return new QuicStream(this.connection, this.connection.getStreamManager().getNextStream(streamType));   
+        } else {
+            throw new QuickerError(QuickerErrorCodes.NO_CONNECTION);
+        }
+    }
 
     private sendRequest(stream: Stream, buf: Buffer) {
         stream.addData(buf, true);

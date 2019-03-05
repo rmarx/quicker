@@ -5,6 +5,7 @@ import { QuickerEvent } from "../../../quicker/quicker.event";
 import { Connection } from "../../../quicker/connection";
 import { QuicStream } from "../../../quicker/quic.stream";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
+import { StreamType } from "../../../quicker/stream";
 
 export class Http3Server {
     private readonly quicServer: QuicServer;
@@ -38,6 +39,9 @@ export class Http3Server {
     // Add post/put/delete
 
     private async acceptConnection(connection: Connection) {
+        // Create control stream to client on connect
+        this.quicServer.createStream(connection, StreamType.ServerUni);
+
         this.connections.set(connection.getDestConnectionID().toString(), connection);
         connection.on(QuickerEvent.NEW_STREAM, this.newStream);
         connection.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
