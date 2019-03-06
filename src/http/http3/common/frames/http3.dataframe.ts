@@ -20,6 +20,10 @@ export class Http3DataFrame extends Http3BaseFrame {
 
         return buffer;
     }
+    
+    public getPayload(): Buffer {
+        return this.payload;
+    }
 
     public getPayloadLength(): number {
         return this.payload.byteLength;
