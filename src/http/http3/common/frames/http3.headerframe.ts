@@ -5,29 +5,63 @@ import { VLIE } from "../../../../types/vlie";
 /* TODO: QPACK! */
 
 export class Http3HeaderFrame extends Http3BaseFrame {
-    private payload: Buffer;
+    private headers: {[property: string]: string} = {};
 
-    public constructor(payload: Buffer) {
+    public constructor(headers: {[property: string]: string}) {
         super();
-        this.payload = payload;
+        this.headers = headers;
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getPayloadLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.payload.byteLength);
+        const encodedLength: Buffer = VLIE.encode(this.getPayloadLength());
+        const frameType: Buffer = new Buffer([this.getFrameType()]);
+        const payload: Buffer = this.getPayloadBuffer();
 
-        encodedLength.copy(buffer);
-        buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
-        this.payload.copy(buffer, encodedLength.byteLength + 1);
-
-        return buffer;
+        return Buffer.concat([encodedLength, frameType, payload]);
+    }
+    
+    public static fromPayload(buffer: Buffer): Http3HeaderFrame {
+        const headers: {[property: string]: string} = {};
+        
+        // TODO Parsing compressed with QPack
+        // Temp uncompressed parsing
+        
+        const headerList: string[] = buffer.toString('utf8').split('\r\n');
+        
+        for (let header of headerList) {
+            const [property, value] = header.split(":");
+            headers[property] = value;
+        }
+        
+        return new Http3HeaderFrame(headers);
     }
 
     public getPayloadLength(): number {
-        return this.payload.byteLength;
+        return this.getPayloadBuffer().byteLength;
     }
 
     public getFrameType(): Http3FrameType {
         return Http3FrameType.HEADERS;
+    }
+    
+    public getHeaderValue(property: string): string | undefined {
+        return this.headers[property];
+    }
+    
+    public setHeaderValue(property: string, value: string) {
+        this.headers[property] = value;
+    }
+    
+    private getPayloadBuffer(): Buffer {
+        // TODO QPACK (headerblock, compression, etc)
+        
+        let headerBlock = "";
+        
+        Object.keys(this.headers).forEach(key => {
+            const header: string = key + ": " + this.headers[key];
+           headerBlock += header;
+        });
+        
+        return new Buffer(headerBlock);
     }
 }

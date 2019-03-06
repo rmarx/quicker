@@ -15,9 +15,9 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         this.settingsParameters = settingsParameters;
     }
     
-    public static fromPayload(buffer: Buffer, offset: number = 0): [Http3SettingsFrame, number] {
+    public static fromPayload(buffer: Buffer, offset: number = 0): Http3SettingsFrame {
         const [params, bufferOffset] = Http3SettingsFrame.parseParameters(buffer, offset);
-        return [new Http3SettingsFrame(params), offset];
+        return new Http3SettingsFrame(params);
     }
 
     public toBuffer(): Buffer {

@@ -12,7 +12,7 @@ import { Http3BaseFrame, Http3FrameType } from "../http3.baseframe";
  * @param buffer A buffer object containing the frame
  * @param bufferOffset The offset within the buffer where the frame starts at
  */
-export function parse(buffer: Buffer, bufferOffset: number): [Http3BaseFrame[], number] {
+export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame[], number] {
     let frames: Http3BaseFrame[] = [];
 
     // TODO Safety checks before parsing to make sure format is valid
@@ -36,7 +36,7 @@ export function parse(buffer: Buffer, bufferOffset: number): [Http3BaseFrame[], 
             frames.push(new Http3DataFrame(payload));
             break;
         case Http3FrameType.HEADERS:
-            frames.push(new Http3HeaderFrame(payload));
+            frames.push(Http3HeaderFrame.fromPayload(payload));
             break;
         case Http3FrameType.PRIORITY:
             frames.push(new Http3PriorityFrame(payload));
@@ -46,7 +46,7 @@ export function parse(buffer: Buffer, bufferOffset: number): [Http3BaseFrame[], 
             break;
         case Http3FrameType.SETTINGS:
             let frame: Http3SettingsFrame;
-            [frame, offset] = Http3SettingsFrame.fromPayload(payload);
+            frame = Http3SettingsFrame.fromPayload(payload);
             frames.push(frame);
         case Http3FrameType.GOAWAY:
             frames.push(new Http3GoAwayFrame(payload));

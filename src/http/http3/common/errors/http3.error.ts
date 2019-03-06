@@ -3,6 +3,7 @@ import { BaseError } from "../../../../utilities/errors/base.error";
 export enum Http3ErrorCode {
     HTTP3_MALFORMED_FRAME,
     HTTP3_UNKNOWN_FRAMETYPE,
+    HTTP3_UNEXPECTED_FRAME,
 }
 
 /**
