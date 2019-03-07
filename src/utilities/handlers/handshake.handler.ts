@@ -13,7 +13,8 @@ import { AEAD } from '../../crypto/aead';
 
 
 export enum HandshakeHandlerEvents {
-    ClientHandshakeDone = "client-handshake-done"
+    ClientHandshakeDone = "client-handshake-done",
+    NewDecryptionKeyAvailable = "new-encryption-key-available"
 }
 
 export class HandshakeHandler extends EventEmitter{
@@ -118,7 +119,6 @@ export class HandshakeHandler extends EventEmitter{
         let previousLevel:EncryptionLevel = this.currentSendingCryptoStream.getCryptoLevel();
 
         // note: EncryptionLevel.INITIAL is the original currentSendingCryptoStream, set in registerCryptoStream
-        // note: this is for sending. Receiving logic (e.g., actually passing keys, buffering packets for which we don't have keys) is TODO!!!
         if( this.isServer ){
             switch(type){
                 case TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
@@ -132,12 +132,15 @@ export class HandshakeHandler extends EventEmitter{
 
                 case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
                     this.aead.setProtected0TTSecrets( EndpointType.Client, secret, key, iv );
+                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
                     this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret, key, iv );
+                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.HANDSHAKE );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
                     this.aead.setProtected1RTTSecrets( EndpointType.Client, secret, key, iv );
+                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
                     break;
             }
         }
@@ -158,9 +161,11 @@ export class HandshakeHandler extends EventEmitter{
                 
                 case TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
                     this.aead.setProtectedHandshakeSecrets( EndpointType.Server, secret, key, iv );
+                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.HANDSHAKE );
                     break;
                 case TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC:
                     this.aead.setProtected1RTTSecrets( EndpointType.Server, secret, key, iv );
+                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
                     break;
             }
         }
@@ -177,9 +182,6 @@ export class HandshakeHandler extends EventEmitter{
             else
                 VerboseLogging.info("HandshakeHandler: OnNewTLSKey : got decryption key of the other side : " + TLSKeyType[type] );
         }
-
-        // FIXME: TODO: need to process buffered packets from encryption levels that are just unlocked (re-ordering could have prevented their decryption ahead of time)
-
         
         //VerboseLogging.error("HandshakeHandler: OnNewTLSKey : actually set these keys on the encryption handlers!!!");
         //VerboseLogging.info("NewTLSKey: secret : " + secret.toString('hex'));

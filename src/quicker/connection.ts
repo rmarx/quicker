@@ -32,7 +32,7 @@ import { MaxDataFrame } from '../frame/max.data';
 import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
 import { StreamManager, StreamManagerEvents, StreamFlowControlParameters } from './stream.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
-import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
+import { CryptoContext, EncryptionLevel, PacketNumberSpace, BufferedPacket } from '../crypto/crypto.context';
 import { RTTMeasurement } from '../loss-detection/rtt.measurement';
 
 export class Connection extends FlowControlledObject {
@@ -169,7 +169,43 @@ export class Connection extends FlowControlledObject {
     private hookHandshakeHandlerEvents() {
         this.handshakeHandler.on(HandshakeHandlerEvents.ClientHandshakeDone, () => {
             this.emit(ConnectionEvent.HANDSHAKE_DONE);
-        })
+        });
+
+        this.handshakeHandler.on( HandshakeHandlerEvents.NewDecryptionKeyAvailable, (forLevel:EncryptionLevel) => {
+
+            // here, we mainly deal with out-of-order packets from other encryption levels
+            // they have potentially been buffered, waiting for decryption keys to become available
+            // normally: decryption key available = ready to decrypt
+            // HOWEVER: there is an edge case here.
+            // When the handshake is done, we first get the decryption key available, and then a SEPARATE event that the handshake is done
+            // NORMALLY this shouldn't give issues, but we want to be a bit future proof and very paranoid
+            // so: in the case of 1-RTT keys, we only process any buffered stuff when the handshake is also actually done
+            // Before, we didn't do this, which caused us to send STREAM frames in Handshake packets
+            // since a buffered 1-RTT GET request was process immediately after the TLS CLIENT_FINISHED, but before HANDSHAKE_DONE
+            // NOTE: current setup still leads to NewSessionTicket events (which come after handshake-done) to be processed and transmitted
+            // after the packets we bubble up here... that's sub-ideal but should be fixed with additional logic that has congestion control/flow control
+            // wait a bit instead of trying to TX everything immediately as it comes in
+            // NOTE 2 : ngtcp2 doesn't have this issue, because they don't use SSLInfoCallback to see if handshake is done 
+            // TODO: maybe we can use this logic as well? still doesn't solve our NewSessionTicket issue though 
+            //  (ngtcp2 solves that by using libev, which sends when the socket is ready, not when we have put stuff in the buffers)
+
+            if( forLevel == EncryptionLevel.ONE_RTT ){
+                if( this.qtls.getHandshakeState() < HandshakeState.CLIENT_COMPLETED ){ // handshake not yet done
+
+                    VerboseLogging.info("Connection:NewDecryptionKeyAvailable : 1RTT keys before handshake done: delaying buffered bubbling");
+
+                    this.qtls.once( QuicTLSEvents.HANDSHAKE_DONE, () => {
+                        VerboseLogging.info("Connection:NewDecryptionKeyAvailable : handshake done: bubbling up any buffered 1RTT packets");
+                        this.processBufferedReceivedPackets( forLevel );
+                    });
+
+                    return;
+                }
+                // here, handshake is done, so free to bubble up packets
+            }
+            
+            this.processBufferedReceivedPackets( forLevel );
+        });
     }
 
     private hookCongestionControlEvents() {
@@ -494,6 +530,20 @@ export class Connection extends FlowControlledObject {
         }
     }
 
+    public processBufferedReceivedPackets(forLevel:EncryptionLevel){
+        let ctx = this.getEncryptionContext(forLevel);
+        if( !ctx ){
+            VerboseLogging.error("Connection:processBufferedReceivedPackets : unknown encryptionLevel " + EncryptionLevel[forLevel]);
+            return;
+        }
+
+        let bufferedPackets:Array<BufferedPacket> = ctx.getAndClearBufferedPackets();
+        VerboseLogging.info("Connection:processBufferedReceivedPackets : " + EncryptionLevel[forLevel] + ", bubbling " + bufferedPackets.length + " buffered packets");
+        for( let packet of bufferedPackets ){
+            this.emit( ConnectionEvent.BufferedPacketReadyForDecryption, packet );
+        }
+    }
+
     public resetConnection(negotiatedVersion?: Version) {
         this.resetConnectionState();
         this.getStreamManager().getStreams().forEach((stream: Stream) => {
@@ -772,5 +822,7 @@ export enum ConnectionEvent {
     STREAM = "con-stream",
     DRAINING = "con-draining",
     CLOSE = "con-close",
-    PACKET_SENT = "con-packet-sent"
+    PACKET_SENT = "con-packet-sent",
+
+    BufferedPacketReadyForDecryption = "buffered-packet-ready-for-decryption"
 }

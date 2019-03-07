@@ -50,7 +50,7 @@ for (var i = 0; i < 1; i++) {
 	
         setTimeout(() => {
             for( let i = 0; i < 10; ++i)
-                VerboseLogging.trace("///////////////////////////////////////////////////////////////////////////////");
+                VerboseLogging.debug("///////////////////////////////////////////////////////////////////////////////");
                 
             var client2 = Client.connect(host, Number(port), {
                 session: client.getSession(),
