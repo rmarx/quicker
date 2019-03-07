@@ -126,6 +126,9 @@ export class QuicCongestionControl extends EventEmitter {
             lossDetection.on(QuicLossDetectionEvents.PTO_PROBE_SEND, (pto_count : number)=>{
                 this.pto_count = pto_count;
             });
+            lossDetection.on(QuicLossDetectionEvents.ECN_ACK, (frame : AckFrame) => {
+                this.ProcessECN(frame);
+            });
         }
     }
     
@@ -306,9 +309,34 @@ export class QuicCongestionControl extends EventEmitter {
         let pktNumber = packet.getHeader().getPacketNumber();
         VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
 
-        this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
-        this.onPacketSentCC(packet);
-        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+        if( Constants.DEBUG_fakeReorder && packet.getPacketType() == PacketType.Handshake && this.connection.getEndpointType() == EndpointType.Client ){
+            // this test case delays the client's handshake packets
+            // this leads to 1RTT requests being sent before handshake CLIENT_FINISHED
+            // server should buffer the 1RTT request until the handshake is done before replying
+            // TODO: move this type of test out of congestion-control into its own thing
+            //  FIXME: probably best not to set things directly onto the socket in CongestionControl either... 
+
+            VerboseLogging.warn("CongestionControl:sendPackets : DEBUGGING REORDERED Handshake DATA! Disable this for normal operation!");
+            let delayedPacket = packet;
+
+            // Robin start hier//
+            // kijk in server logs: opeens sturen we STREAM data in een Handshake packet... geen flauw idee waarom
+            setTimeout( () => {
+                VerboseLogging.warn("CongestionControl:fake-reorder: sending actual Handshake after delay, should arrive after 1-RTT");
+                this.connection.getSocket().send(delayedPacket.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+            
+                this.onPacketSentCC(delayedPacket as BasePacket);    
+                this.emit(CongestionControlEvents.PACKET_SENT, delayedPacket);
+            }, 500);
+        }
+        else{
+            // NORMAL BEHAVIOUR
+            VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+            this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+        
+            this.onPacketSentCC(packet);    
+            this.emit(CongestionControlEvents.PACKET_SENT, packet);
+        }         
     }
 }
 
