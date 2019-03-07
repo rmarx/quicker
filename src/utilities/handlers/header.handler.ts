@@ -20,7 +20,7 @@ import { PacketNumberSpace } from '../../crypto/crypto.context';
 
 export class HeaderHandler {
 
-    public handle(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, encryptingEndpoint: EndpointType): HeaderOffset {
+    public handle(connection: Connection, headerOffset: HeaderOffset, msg: Buffer, encryptingEndpoint: EndpointType): HeaderOffset | undefined {
         var header = headerOffset.header;
 
         // version negotation headers do not need to be handled separately, see PacketHandler for this 
@@ -44,26 +44,57 @@ export class HeaderHandler {
         var pne = Buffer.alloc(4);
         
         let actualPacketType:PacketType = PacketType.Initial;
+        let decryptedPn:Buffer|undefined = undefined;
 
 
         header.getParsedBuffer().copy(pne, 0, header.getParsedBuffer().byteLength - 4);
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
+
             if (longHeader.getPacketType() === LongHeaderType.Protected0RTT) {
-                var decryptedPn = connection.getAEAD().protected0RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
                 actualPacketType = PacketType.Protected0RTT;
+                if( !connection.getAEAD().can0RTTDecrypt(encryptingEndpoint) ) {
+                    VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received 0RTT packet: buffering");
+                    let ctx = connection.getEncryptionContextByPacketType( actualPacketType );
+                    ctx!.bufferPacket( { packet: msg, offset: headerOffset, connection: connection} );
+                    return undefined; 
+                }
+                else {
+                    decryptedPn = connection.getAEAD().protected0RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+                }
             }
             else if( longHeader.getPacketType() === LongHeaderType.Handshake ){
-                var decryptedPn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
                 actualPacketType = PacketType.Handshake;
+                if( !connection.getAEAD().canHandshakeDecrypt(encryptingEndpoint) ) {
+                    VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received Handshake packet: buffering");
+                    let ctx = connection.getEncryptionContextByPacketType( actualPacketType );
+                    ctx!.bufferPacket( { packet: msg, offset: headerOffset, connection: connection} );
+                    return undefined; 
+                }
+                else {
+                    decryptedPn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+                }
             } 
-            else {
-                var decryptedPn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
-                actualPacketType = PacketType.Initial; // TODO: FIXME: handle retry and vneg packets! (though they are also in the Initial atmosphere when it comes to pnSpace, no?)
+            else {    
+                actualPacketType = PacketType.Initial; // we can always decrypt initial packets, since we can just generate keys for them
+                decryptedPn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
             }
         } else {
-            var decryptedPn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
             actualPacketType = PacketType.Protected1RTT;
+            if( !connection.getAEAD().can1RTTDecrypt(encryptingEndpoint) ) {
+                VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received 1RTT packet: buffering");
+                let ctx = connection.getEncryptionContextByPacketType( actualPacketType );
+                ctx!.bufferPacket( { packet: msg, offset: headerOffset, connection: connection} );
+                return undefined; 
+            }
+            else {
+                decryptedPn = connection.getAEAD().protected1RTTPnDecrypt(pne, header, fullPayload, encryptingEndpoint);
+            }
+        }
+
+        if( !decryptedPn ){
+            VerboseLogging.error("HeaderHandler:handle decryptedPN is undefined. THIS SHOULD NEVER HAPPEN!");
+            return undefined;
         }
 
         // we first decrypted the PN, now we have the cleartext

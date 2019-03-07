@@ -1,5 +1,6 @@
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
+import { VerboseLogging } from "../../utilities/logging/verbose.logging";
 
 export class HttpHelper {
 
@@ -16,6 +17,7 @@ export class HttpHelper {
     }
 
     public handleRequest(data: Buffer): Buffer {
+        VerboseLogging.info("HttpHelper:handleRequest : " + data.toString() );
         var request = this.parse(data);
         var file = resolve(__dirname) + "/../../../public" + request;
         if (!existsSync(file)) {

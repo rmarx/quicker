@@ -20,7 +20,7 @@ import { Endpoint } from './endpoint';
 import { ConnectionManager, ConnectionManagerEvents } from './connection.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { Bignum } from '../types/bignum';
-import { EncryptionLevel } from '../crypto/crypto.context';
+import { EncryptionLevel, BufferedPacket } from '../crypto/crypto.context';
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
@@ -63,7 +63,7 @@ export class Server extends Endpoint {
     private init(socketType: SocketType) {
         var server = createSocket(socketType);
         VerboseLogging.info("Server:init: Creating a socket of type " + socketType + " @ " + this.hostname);
-        server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo, undefined) });
         server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.handleClose() });
         server.bind(this.port, this.hostname);
         if (socketType === "udp4") {
@@ -84,21 +84,29 @@ export class Server extends Endpoint {
             this.connectionManager.deleteConnection(connection);
             this.emit(QuickerEvent.CONNECTION_CLOSE, connection.getSrcConnectionID().toString());
         });
+        connection.on(ConnectionEvent.BufferedPacketReadyForDecryption, (packet:BufferedPacket) => {
+            // TODO: now we're going to re-parse the entire packet, but we already parsed the header... see packet.offset
+            // could be optimized so we don't re-parse the headers 
+            this.onMessage( packet.packet, undefined, packet.connection );
+        });
     }
 
-    private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+    private onMessage(msg: Buffer, rinfo: RemoteInfo | undefined, receivingConnection: Connection | undefined): any {
         this.DEBUGmessageCounter++;
         let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
-        VerboseLogging.trace("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
+        
+        VerboseLogging.debug("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
 
         VerboseLogging.trace("server:onMessage: message length in bytes: " + msg.byteLength);
         VerboseLogging.trace("server:onMessage: raw message from the wire : " + msg.toString('hex'));
         
+        let receivedTime = Time.now();
+        let headerOffsets:HeaderOffset[]|undefined = undefined;
+
         try {
-            var receivedTime = Time.now();
-            var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
+            headerOffsets = this.headerParser.parse(msg);
         } catch(err) {
-            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + rinfo.address + " // " + rinfo.family + " // " + rinfo.port );
+            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + JSON.stringify(rinfo) );
             // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
@@ -108,12 +116,22 @@ export class Server extends Endpoint {
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
             let connection: Connection | undefined = undefined;
             try {
-                connection = this.connectionManager.getConnection(headerOffset, rinfo);
+                if( receivingConnection )
+                    connection = receivingConnection;
+                else
+                    connection = this.connectionManager.getConnection(headerOffset, rinfo!);
+
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
-                headerOffset = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
-                var packetOffset: PacketOffset = this.packetParser.parse(connection, headerOffset, msg, EndpointType.Client);
-                this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+
+                let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
+                if( fullHeaderOffset ){
+                    let packetOffset: PacketOffset = this.packetParser.parse(connection, fullHeaderOffset, msg, EndpointType.Client);
+                    this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+                }
+                else
+                    VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");
+
                 connection.startIdleAlarm();
             } 
             catch (err) {

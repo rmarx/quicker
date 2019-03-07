@@ -3,6 +3,7 @@ import { VerboseLogging } from "./logging/verbose.logging";
 export class Constants {
 
     public static DEBUG_fakeECN = false;
+    public static DEBUG_fakeReorder = false;
 
     /**
      * Supported versions

@@ -9,6 +9,8 @@ import {PacketType} from '../packet/base.packet';
 import { PacketLogging } from "../utilities/logging/packet.logging";
 import { VerboseLogging } from "../utilities/logging/verbose.logging"
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
+import { HeaderType } from "../packet/header/base.header";
+import { EndpointType } from "../types/endpoint.type";
 
 
 export class CongestionControl extends EventEmitter {
@@ -165,13 +167,37 @@ export class CongestionControl extends EventEmitter {
 
                     VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
                 }
-                
+
                 let pktNumber = packet.getHeader().getPacketNumber();
-                VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
-                this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
-                this.onPacketSent(packet);
+
+                if( Constants.DEBUG_fakeReorder && packet.getPacketType() == PacketType.Handshake && this.connection.getEndpointType() == EndpointType.Client ){
+                    // this test case delays the client's handshake packets
+                    // this leads to 1RTT requests being sent before handshake CLIENT_FINISHED
+                    // server should buffer the 1RTT request until the handshake is done before replying
+                    // TODO: move this type of test out of congestion-control into its own thing
+                    //  FIXME: probably best not to set things directly onto the socket in CongestionControl either... 
+
+                    VerboseLogging.warn("CongestionControl:sendPackets : DEBUGGING REORDERED Handshake DATA! Disable this for normal operation!");
+                    let delayedPacket = packet;
+
+                    // Robin start hier//
+                    // kijk in server logs: opeens sturen we STREAM data in een Handshake packet... geen flauw idee waarom
+                    setTimeout( () => {
+                        VerboseLogging.warn("CongestionControl:fake-reorder: sending actual Handshake after delay, should arrive after 1-RTT");
+                        this.connection.getSocket().send(delayedPacket.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                    
+                        this.onPacketSent(delayedPacket as BasePacket);    
+                        this.emit(CongestionControlEvents.PACKET_SENT, delayedPacket);
+                    }, 500);
+                }
+                else{
+                    // NORMAL BEHAVIOUR
+                    VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                    this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
                 
-                this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    this.onPacketSent(packet);    
+                    this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                }                    
             }
         }
     }

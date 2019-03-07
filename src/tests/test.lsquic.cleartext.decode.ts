@@ -33,8 +33,8 @@ export class TestLsquicCleartextDecode  {
 
         var headerOffsets: HeaderOffset[] = headerParser.parse(msg);
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
-            headerOffset = headerHandler.handle(connection, headerOffset, msg, EndpointType.Server);
-            var packetOffset: PacketOffset = packetParser.parse(connection, headerOffset, msg, EndpointType.Server);
+            let fullHeaderOffset = headerHandler.handle(connection, headerOffset, msg, EndpointType.Server);
+            var packetOffset: PacketOffset = packetParser.parse(connection, fullHeaderOffset!, msg, EndpointType.Server);
             packetHandler.handle(connection, packetOffset.packet, receivedTime);
         });
 

@@ -102,7 +102,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
                     isValidFrame = false;
 
                 if( !isValidFrame ){
-                    VerboseLogging.error("BaseEncryptedPacket:containsValidFrames : invalid frame " + frame.getType() + " for packet " + PacketType[this.getPacketType()] );
+                    VerboseLogging.error("BaseEncryptedPacket:containsValidFrames : invalid frame " + FrameType[frame.getType()] + " for packet " + PacketType[this.getPacketType()] );
                     isValidPacket = false; // don't eagerly return here, because we want to log all invalid frames (if more than one)
                 }
             }
