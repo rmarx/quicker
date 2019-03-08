@@ -61,11 +61,36 @@ export class VerboseLogging{
                         pattern: '%d %m' // don't want colors in our files 
                     }
                     */
+                },
+                
+                qlogConsole: {
+                    type: Constants.LOG_TYPE,
+                    layout: {
+                        type: "pattern",
+                        pattern: "%[[%d] [%p] %c [%X{connectionID}] -%] %m%n" // basically the same as 'basic' but with connectionID added
+                    }
+                },
+                // https://github.com/log4js-node/log4js-node/blob/master/docs/multiFile.md
+                qlogMultifile: { // see qlog.wrapper.ts for actual usage. Can only have 1 log4js instance, so have to add this here 
+                    type: "multiFile",
+                    base: './logs/',
+                    extension: ".qlog",
+                    property: "connectionID", // see QlogWrapper:ctor
+                    maxLogSize: Constants.MAX_LOG_FILE_SIZE,
+                    flags: "w", // do not append but overwrite a file if it exists already
+                    layout: {
+                        type: 'pattern',
+                        pattern: '%m' // qlog is its own format, just want to keep that, no log4js magic otherwise 
+                    }
                 }
             },
             categories: {
                 default: {
                     appenders: ['consoleOut', 'fileOut'],
+                    level: Constants.LOG_LEVEL
+                },
+                qlog: {
+                    appenders: ['qlogConsole', 'qlogMultifile'],
                     level: Constants.LOG_LEVEL
                 }
             }
