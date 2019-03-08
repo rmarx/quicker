@@ -5,12 +5,20 @@ import { AckHandler } from '../utilities/handlers/ack.handler';
 import { Bignum } from '../types/bignum';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { LossDetection } from '../loss-detection/loss.detection';
+import { HeaderOffset } from '../utilities/parsers/header.parser';
+import { Connection } from '../quicker/connection';
 
 export enum EncryptionLevel{
     INITIAL,
     ZERO_RTT, // 0 -RTT
     HANDSHAKE,
     ONE_RTT   // 1-RTT
+}
+
+export interface BufferedPacket{
+    packet: Buffer,
+    offset: HeaderOffset,
+    connection: Connection
 }
 
 // CryptoContext helps keep track of the different encryption levels and packet number spaces introduced in draft-13
@@ -34,12 +42,17 @@ export class CryptoContext {
     private ackHandler!:AckHandler;
     private lossDetection!:LossDetection;
 
+    // if we receive out-of-order packets for this cryptocontext and thus cannot decode them yet, we buffer them 
+    private bufferedPackets!:Array<BufferedPacket>;
+
     public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace, ackHandler:AckHandler, lossDetection:LossDetection) {
         this.cryptoLevel = cryptoLevel;
         this.packetNumberSpace = packetNumberSpace;
         this.cryptoStream = new CryptoStream(this.cryptoLevel);
         this.ackHandler = ackHandler;
         this.lossDetection = lossDetection;
+
+        this.bufferedPackets = new Array<BufferedPacket>();
     }
 
     public getLevel() : EncryptionLevel {
@@ -60,6 +73,16 @@ export class CryptoContext {
 
     public getLossDetection():LossDetection{
         return this.lossDetection;
+    }
+
+    public bufferPacket( packet:BufferedPacket ){
+        this.bufferedPackets.push( packet );
+    }
+
+    public getAndClearBufferedPackets():Array<BufferedPacket> {
+        let output = this.bufferedPackets;
+        this.bufferedPackets = new Array<BufferedPacket>();
+        return output;
     }
 }
 

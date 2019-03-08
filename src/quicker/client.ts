@@ -18,6 +18,7 @@ import { Endpoint } from './endpoint';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
+import { BufferedPacket } from '../crypto/crypto.context';
 
 export class Client extends Endpoint {
 
@@ -68,7 +69,7 @@ export class Client extends Endpoint {
         this.setupConnectionEvents();
 
         socket.on(QuickerEvent.ERROR, (err) => { this.handleError(this.connection, err) });
-        socket.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
+        socket.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg) });
     }
 
 
@@ -88,6 +89,11 @@ export class Client extends Endpoint {
             });
             this.bufferedRequests = [];
             this.emit(QuickerEvent.CLIENT_CONNECTED);
+        });
+        this.connection.on(ConnectionEvent.BufferedPacketReadyForDecryption, (packet:BufferedPacket) => {
+            // TODO: now we're going to re-parse the entire packet, but we already parsed the header... see packet.offset
+            // could be optimized so we don't re-parse the headers 
+            this.onMessage( packet.packet );
         });
     }
 
@@ -146,26 +152,41 @@ export class Client extends Endpoint {
     /**
      * 
      * @param msg The buffer containing one full UDP datagram (can consist of multiple compound QUIC-level packets)
-     * @param rinfo 
      */
-    private onMessage(msg: Buffer, rinfo: RemoteInfo): any {
+    private onMessage(msg: Buffer): any {
         this.DEBUGmessageCounter++;
         let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
         
-        VerboseLogging.trace("---------------------------------------------------////////////////////////////// CLIENT ON MESSAGE "+ DEBUGmessageNumber +" ////////////////////////////////" + msg.length);
-        
+        VerboseLogging.debug("---------------------------------------------------////////////////////////////// CLIENT ON MESSAGE "+ DEBUGmessageNumber +" ////////////////////////////////" + msg.length);
+            
+        VerboseLogging.trace("client:onMessage: message length in bytes: " + msg.byteLength);
+        VerboseLogging.trace("client:onMessage: raw message from the wire : " + msg.toString('hex'));
+
         try {
             this.connection.checkConnectionState();
             this.connection.resetIdleAlarm();
-            VerboseLogging.trace("client:onMessage: message length in bytes: " + msg.byteLength);
-            VerboseLogging.trace("client:onMessage: raw message from the wire : " + msg.toString('hex'));
-            var receivedTime = Time.now();
-            var headerOffsets: HeaderOffset[] = this.headerParser.parse(msg);
+            
+            let receivedTime = Time.now();
+            let headerOffsets:HeaderOffset[]|undefined = undefined;
+
+            try {
+                headerOffsets = this.headerParser.parse(msg);
+            } catch(err) {
+                VerboseLogging.error("Client:onMessage: could not parse headers! Ignoring packet. ");
+                // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
+                return;
+            }
+
             headerOffsets.forEach((headerOffset: HeaderOffset) => {
-                headerOffset = this.headerHandler.handle(this.connection, headerOffset, msg, EndpointType.Server);
-                var packetOffset: PacketOffset = this.packetParser.parse(this.connection, headerOffset, msg, EndpointType.Server);
-                this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
+                let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(this.connection, headerOffset, msg, EndpointType.Server);
+                if( fullHeaderOffset ){
+                    var packetOffset: PacketOffset = this.packetParser.parse(this.connection, fullHeaderOffset, msg, EndpointType.Server);
+                    this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
+                }
+                else
+                    VerboseLogging.info("Client:handle: could not decrypt packet, buffering till later");
             });
+
             this.connection.startIdleAlarm();
         } 
         catch (err) {

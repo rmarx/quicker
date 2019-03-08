@@ -14,6 +14,6 @@ Launching the client would look like this:
 > node /quicker/out/mainclient.js 127.0.0.1 4433
 
 
-NOTE: the "node" command is from a custom built version of NodeJS, from this repository: https://github.com/kevin-kp/node/tree/add_quicker_support-draft-15
+NOTE: the "node" command is from a custom built version of NodeJS, from this repository: https://github.com/rmarx/node/tree/add_quicker_support-draft-15
 Instructions for building and installing this custom version before running quicker are in the dockerfile mentioned above. 
 QUICker does NOT currently work with other versions of NodeJS!

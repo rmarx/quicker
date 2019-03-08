@@ -243,6 +243,8 @@ export class QTLS extends EventEmitter{
         } else {
             this.handshakeState = HandshakeState.CLIENT_COMPLETED;
         }
+
+        this.emit(QuicTLSEvents.HANDSHAKE_DONE);
     }
 
     private handleNewSession(): void {
@@ -298,5 +300,6 @@ export enum HandshakeState {
 export enum QuicTLSEvents {
     EARLY_DATA_ALLOWED = "qtls-early-data-allowed",
     REMOTE_TRANSPORTPARAM_AVAILABLE = "qtls-remote-transportparam-available",
-    LOCAL_TRANSPORTPARAM_AVAILABLE = "qtls-local-transportparam-available"
+    LOCAL_TRANSPORTPARAM_AVAILABLE = "qtls-local-transportparam-available",
+    HANDSHAKE_DONE = "qtls-handshake-done"
 }
