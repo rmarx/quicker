@@ -42,14 +42,33 @@ export class Client extends Endpoint {
         // setting host to fill in SNI
         options.host = hostname;
         client.options = options;
-        client.init();
+        client.init(() => {
+            client.connection.startConnection();
+            client.connection.attemptEarlyData(earlyDataRequest);
+        });
 
-        client.connection.startConnection();
-        client.connection.attemptEarlyData(earlyDataRequest);
         return client;
     }
 
-    private init(): void {
+    private init(onSocketReady:() => void): void {
+
+        let onSocketBound = () => {
+            var remoteInfo: RemoteInformation = {
+                address: this.hostname,
+                port: this.port,
+                family: family
+            };
+    
+            this.connection = new Connection(remoteInfo, EndpointType.Client, socket, ConnectionID.randomConnectionID(), this.options);
+            this.connection.setSrcConnectionID(ConnectionID.randomConnectionID());
+            this.setupConnectionEvents();
+    
+            socket.on(QuickerEvent.ERROR, (err) => { this.handleError(this.connection, err) });
+            socket.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg) });
+
+            onSocketReady();
+        }
+
         var family = 'IPv4';
         if (isIPv6(this.hostname)) {
             var socket = createSocket("udp6");
@@ -57,19 +76,10 @@ export class Client extends Endpoint {
         } else {
             var socket = createSocket("udp4");
         }
-        var remoteInfo: RemoteInformation = {
-            address: this.hostname,
-            port: this.port,
-            family: family
-        };
 
-        this.connection = new Connection(remoteInfo, EndpointType.Client, socket, this.options);
-        this.connection.setSrcConnectionID(ConnectionID.randomConnectionID());
-        this.connection.setInitialDestConnectionID(ConnectionID.randomConnectionID());
-        this.setupConnectionEvents();
-
-        socket.on(QuickerEvent.ERROR, (err) => { this.handleError(this.connection, err) });
-        socket.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg) });
+        // TODO: allow top-level user to specify an address and port to bind client socket on 
+        // look at how Node's HTTP client typically does this 
+        socket.bind(undefined, undefined, onSocketBound);
     }
 
 

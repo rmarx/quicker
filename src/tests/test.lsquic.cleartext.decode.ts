@@ -28,10 +28,9 @@ export class TestLsquicCleartextDecode  {
 
         let receivedTime = Time.now();
 
-        let connection = new Connection({address: "", port: 1234, family: ""}, EndpointType.Client, createSocket( "udp4" ) );
-        connection.setInitialDestConnectionID( connectionID );
+        let connection = new Connection({address: "", port: 1234, family: ""}, EndpointType.Client, createSocket( "udp4" ), connectionID );
 
-        var headerOffsets: HeaderOffset[] = headerParser.parse(msg);
+        var headerOffsets: HeaderOffset[] = headerParser.parse(msg); 
         headerOffsets.forEach((headerOffset: HeaderOffset) => {
             let fullHeaderOffset = headerHandler.handle(connection, headerOffset, msg, EndpointType.Server);
             var packetOffset: PacketOffset = packetParser.parse(connection, fullHeaderOffset!, msg, EndpointType.Server);

@@ -34,6 +34,7 @@ import { StreamManager, StreamManagerEvents, StreamFlowControlParameters } from 
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { CryptoContext, EncryptionLevel, PacketNumberSpace, BufferedPacket } from '../crypto/crypto.context';
 import { RTTMeasurement } from '../loss-detection/rtt.measurement';
+import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
 
 export class Connection extends FlowControlledObject {
 
@@ -85,7 +86,9 @@ export class Connection extends FlowControlledObject {
     private streamManager!: StreamManager;
     private handshakeHandler!: HandshakeHandler;
 
-    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, options?: any, bufferSize: number = Constants.DEFAULT_MAX_DATA) {
+    private qlogger!:QlogWrapper;
+
+    public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, initialDestConnectionID: ConnectionID, options?: any, bufferSize: number = Constants.DEFAULT_MAX_DATA) {
         super(bufferSize);
         this.remoteInfo = remoteInfo;
         this.socket = socket;
@@ -97,6 +100,8 @@ export class Connection extends FlowControlledObject {
         this.closeSentCount = 0;
         this.spinBit = false;
         this.retrySent = false;
+
+        this.initialDestConnectionID = initialDestConnectionID;
 
         if (this.endpointType === EndpointType.Client) {
             if (options && options.version)
@@ -125,6 +130,12 @@ export class Connection extends FlowControlledObject {
             }
             this.initialVersion = this.version;
         }
+
+        // TODO: make this opt-in, as logging has overhead
+        // make a dummy qlogger that has the same methods, but which just don't do anything
+        this.qlogger = new QlogWrapper( this.initialDestConnectionID.toString(), this.endpointType, "Qlog from " + (new Date().toString()) );
+
+        this.qlogger.onPathUpdate( remoteInfo.family, this.socket.address().address, this.socket.address().port, remoteInfo.address, remoteInfo.port );
     }
 
     private initializeCryptoContexts(){
@@ -210,6 +221,7 @@ export class Connection extends FlowControlledObject {
 
     private hookCongestionControlEvents() {
         this.congestionControl.on(CongestionControlEvents.PACKET_SENT, (basePacket: BasePacket) => {
+            this.qlogger.onPacketTX( basePacket );
             PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
 
             // can't simply let loss detection listing to the PACKET_SENT event, 
@@ -271,9 +283,11 @@ export class Connection extends FlowControlledObject {
         return this.initialDestConnectionID;
     }
 
+    /*
     public setInitialDestConnectionID(connectionID: ConnectionID): void {
         this.initialDestConnectionID = connectionID;
     }
+    */
 
     public setRetrySent(ret: boolean): void {
         this.retrySent = ret;
@@ -305,6 +319,10 @@ export class Connection extends FlowControlledObject {
 
     public setState(connectionState: ConnectionState) {
         this.state = connectionState;
+
+        if( connectionState == ConnectionState.Closed ){
+            this.qlogger.close();
+        }
     }
 
     public getEndpointType(): EndpointType {
@@ -528,6 +546,10 @@ export class Connection extends FlowControlledObject {
             VerboseLogging.error("Connection:getEncryptionContext : unsupported EncryptionLevel : " + EncryptionLevel[level] );
             return undefined;
         }
+    }
+
+    public getQlogger(){
+        return this.qlogger;
     }
 
     public processBufferedReceivedPackets(forLevel:EncryptionLevel){
@@ -769,6 +791,7 @@ export class Connection extends FlowControlledObject {
                 this.closeSentCount++;
                 var closePacket = this.getClosePacket();
                 closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext());
+                this.qlogger.onPacketTX( closePacket );
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
                 this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);
             }

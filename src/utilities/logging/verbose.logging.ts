@@ -62,7 +62,7 @@ export class VerboseLogging{
                     }
                     */
                 },
-                
+
                 qlogConsole: {
                     type: Constants.LOG_TYPE,
                     layout: {
@@ -75,7 +75,7 @@ export class VerboseLogging{
                     type: "multiFile",
                     base: './logs/',
                     extension: ".qlog",
-                    property: "connectionID", // see QlogWrapper:ctor
+                    property: "ID", // see QlogWrapper:ctor
                     maxLogSize: Constants.MAX_LOG_FILE_SIZE,
                     flags: "w", // do not append but overwrite a file if it exists already
                     layout: {

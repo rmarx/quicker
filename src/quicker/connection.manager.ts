@@ -100,8 +100,7 @@ export class ConnectionManager extends EventEmitter{
         let headerSrcConnectionID = longHeader.getSrcConnectionID();
         let headerDestConnectionID = longHeader.getDestConnectionID();
 
-        let connection = new Connection(remoteInfo, EndpointType.Server, this.serverSockets[rinfo.family], this.options);
-        connection.setInitialDestConnectionID(headerDestConnectionID);
+        let connection = new Connection(remoteInfo, EndpointType.Server, this.serverSockets[rinfo.family], headerDestConnectionID, this.options);
 
         // src is from the viewpoint of the server here. We choose our own, so it is random
         // the client chooses a temporary src for us (Which is called "initialDestConnectionID"), which we ourselves overwrite here
