@@ -9,6 +9,11 @@ import { HeaderType, BaseHeader } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
 import { ShortHeader } from '../../packet/header/short.header';
 import { EndpointType } from '../../types/endpoint.type';
+import { Bignum } from '../../types/bignum';
+import { MaxStreamFrame } from '../../frame/max.stream';
+import { MaxDataFrame } from '../../frame/max.data';
+import { QuicStream } from '../../quicker/quic.stream';
+import { StreamState } from '../../quicker/stream';
 
 /*
 Example usage: 
@@ -96,6 +101,7 @@ export class QlogWrapper{
         this.logger.debug("]}]}");
     }
 
+    // FIXME: make this of type qlog.IEventTuple instead of any (but also allow a more general setup that can bypass this if absolutely needed)
     private logToFile(evt:any[]){
         evt[0] = ((new Date()).getTime() - this.startTime); // we store the delta, which is small enough, shouldn't need a string
         this.logger.debug( "                " + JSON.stringify(evt) + ",");
@@ -259,4 +265,186 @@ export class QlogWrapper{
 
         this.logToFile(evt);
     }
+
+    // NOTE: stream states changes should have at least 2 entries, 1 for QUIC and 1 for H3, both with different metadata
+    public onStreamStateChanged(streamID:Bignum, state:StreamState, trigger:string){
+
+        // TODO: look at spec to get proper names for this 
+        let stateString:string = "";
+        switch(state){
+            case StreamState.Open:
+                stateString = qlog.TransportEventType.STREAM_NEW;
+                break;
+            case StreamState.Closed:
+                stateString = "STREAM_CLOSED";
+                break;
+            case StreamState.LocalClosed:
+                stateString = "STREAM_LOCAL_CLOSED";
+                break;
+            case StreamState.RemoteClosed:
+                stateString = "STREAM_REMOTE_CLOSED";
+                break;
+
+        }
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.TRANSPORT,
+            "STREAM_STATE_UPDATE",
+            trigger,
+            {
+                id: streamID.toDecimalString(),
+                state: stateString
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    //----------------------------------------
+    // Frame logs
+    //----------------------------------------
+
+    // TODO: decide on if we pass the old value here or not... 
+    // if working purely event-based: preferably yes (though maybe we can track this state in qlog as well? no need to stay outside necessarily?)
+    // if logging mainly the MAXSTREAMDATA frame: no 
+    // this would indicate we need 2 separate events: one for FRAME_RX and one for actually upping the allowance...
+    // let's keep it as a pure frame log for now and revisit later
+    // probably :for frames that have simple side-effects this is enough. For more complex side-effects (e.g., ACK): add additional events
+    // TODO: trigger doubles here as RX/TX determiner... is this ok? 
+    onFrame_MaxStreamData(frame:MaxStreamFrame, trigger:("PACKET_RX"|"PACKET_TX")){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.TRANSPORT,
+            qlog.TransportEventType.MAXSTREAMDATA_NEW,
+            trigger,
+            {
+                stream: frame.getStreamId().toDecimalString(),
+                max_data: frame.getMaxData().toDecimalString()
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    onFrame_MaxData(frame:MaxDataFrame, trigger:("PACKET_RX"|"PACKET_TX")){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.TRANSPORT,
+            qlog.TransportEventType.MAXDATA_NEW,
+            trigger,
+            {
+                max_data: frame.getMaxData().toDecimalString()
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    //----------------------------------------
+    // RECOVERY
+    //----------------------------------------
+
+    public onPacketLost(packetNumber:Bignum, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            "PACKET_LOST",
+            trigger,
+            {
+                nr: packetNumber.toDecimalString()
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onRTTUpdate(latestRTT:number, minRTT:number, smoothedRTT:number, variance:number, maxAckDelay:number, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            qlog.RecoveryEventType.RTT_UPDATE,
+            trigger,
+            {
+                latest: latestRTT,
+                min: minRTT,
+                smoothed: smoothedRTT,
+                variance: variance,
+                max_ack_delay: maxAckDelay
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onCWNDUpdate(ccPhase:string, currentCWND:number, oldCWND:number, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX){
+        
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            qlog.RecoveryEventType.CWND_UPDATE,
+            trigger,
+            {
+                phase: ccPhase,
+                new: currentCWND,
+                old: oldCWND
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // TODO: maybe currentCWND is not needed here? separate event? would just be included here to easily calculate available_cwnd value from bytes_in_flight
+    public onBytesInFlightUpdate(bytesInFlight:number, currentCWND:number, trigger:string = "PACKET_TX"){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            qlog.RecoveryEventType.BYTES_IN_FLIGHT_UPDATE,
+            trigger,
+            {
+                bytes_in_flight: bytesInFlight
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onLossDetectionArmed(alarmType:string, lastSentHandshakeTimestamp:Date, alarmDuration:number, trigger:string = "PACKET_TX"){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            qlog.RecoveryEventType.LOSS_DETECTION_ARMED,
+            trigger,
+            {
+                type: alarmType,
+                last_handshake: lastSentHandshakeTimestamp.getMilliseconds(),
+                duratoin: alarmDuration
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onLossDetectionTriggered(alarmType:string, metadata:Object, trigger:string = "TIMEOUT"){
+        
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            qlog.RecoveryEventType.LOSS_DETECTION_TRIGGERED,
+            trigger,
+            {
+                type: alarmType,
+                ...metadata // TODO: verify: this SHOULD copy all the fields from metadata into this object via the destructuring operator... not sure though
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
 }
