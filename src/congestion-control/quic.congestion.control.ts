@@ -10,7 +10,8 @@ import { PacketLogging } from "../utilities/logging/packet.logging";
 import { VerboseLogging } from "../utilities/logging/verbose.logging"
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 import { AckFrame } from "../frame/ack";
-
+import { HeaderType } from "../packet/header/base.header";
+import { EndpointType } from "../types/endpoint.type";
 
 
 /**
