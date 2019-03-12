@@ -71,6 +71,7 @@ export class QuicCongestionControl extends EventEmitter {
     /**
      * The time when a loss is detected. (and thus entered recovery)
      * @remarks Stores the highest packet number since QUIC monotonically increases packet numbers
+     * TODO: double check if this is correct. PN spaces might prohibit this as a measure of time
      */
     private recoveryStartTime : Bignum;
     /**
@@ -194,6 +195,7 @@ export class QuicCongestionControl extends EventEmitter {
             //TODO: a way to get the largest packet number
             // In the RFC the actual timestamp seems to be used
             // but due to monotonically increasing packet numbers it's possible to use that instead
+            // or not since it has different packet number spaces?
             //this.recoveryStartTime = Now();  <----------
             this.congestionWindow = this.congestionWindow.multiply(QuicCongestionControl.kLossReductionFactor);
             this.congestionWindow = Bignum.max(this.congestionWindow, QuicCongestionControl.kMinimumWindow);
@@ -278,6 +280,7 @@ export class QuicCongestionControl extends EventEmitter {
         // + a serperate class can be made to handle coalescing https://tools.ietf.org/html/draft-ietf-quic-transport-18#section-12.2 and put into the pipeline
         //https://tools.ietf.org/html/draft-ietf-quic-recovery-18#section-7.8
         // TODO: doublecheck if some packets need to be excluded from blocking by CC/pacer
+        // update, PTO packets need to not be blocked
         this.checkIdleConnection();
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
