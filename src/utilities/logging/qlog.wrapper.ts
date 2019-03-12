@@ -447,4 +447,141 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
+    //----------------------------------------
+    // HTTP/3
+    //----------------------------------------
+
+    // e.g., onALPNSelected("h3-19", ["hq-18", "h3-19"])
+    onALPNSelected(selectedOption:string, availableALPNOptions:string[]){
+
+        let evt:any = [
+            123, 
+            "HTTP",
+            "ALPN_UPDATE",
+            "HANDSHAKE",
+            {
+                chosen: selectedOption,
+                available: availableALPNOptions
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.OPENED, "GET")
+    // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.OPENED, "CONTROL") 
+    // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.OPENED, "QPACK_ENCODE")
+    // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.CLOSED, "FIN")
+    public onHTTPStreamStateChanged(streamID:Bignum, state:string, trigger:string){
+
+        let evt:any = [
+            123, 
+            "HTTP",
+            "STREAM_STATE_UPDATE",
+            trigger,
+            {
+                id: streamID.toDecimalString(),
+                state: state
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // TODO: change frame to be the actual HTTP3 Data Frame class!
+    public onHTTPFrame_Data(frame:any, trigger:("TX"|"RX")){
+
+        let evt:any = [
+            123, 
+            "HTTP",
+            "DATA_FRAME_NEW",
+            trigger,
+            {
+                // TODO: add frame info
+                payload_length: frame.payload.length
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // TODO: change frame to be the actual HTTP3 Headers Frame class!
+    public onHTTPFrame_Headers(frame:any, trigger:("TX"|"RX")){
+
+        let evt:any = [
+            123, 
+            "HTTP",
+            "HEADERS_FRAME_NEW",
+            trigger,
+            {
+                // TODO: add frame info
+                payload_length: frame.payload.length,
+                // TODO: add all decoded qpack fields here:
+                fields: [
+                    ...frame.fields
+                ]
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // TODO: change frame to be the actual HTTP3 Settings Frame class!
+    public onHTTPFrame_Settings(frame:any, trigger:("TX"|"RX")){
+
+        let evt:any = [
+            123, 
+            "HTTP",
+            "SETTINGS_FRAME_NEW",
+            trigger,
+            {
+                max_header_list_size: frame.maxHeaderListSize,
+                num_placeholders: frame.numPlaceholders
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // this is a more high-level log message that makes it easier to just follow HTTP level stuff without having to parse HEADERS
+    // for a typical GET, you would log this first, then the HEADERS frame (as it was constructed)
+    // TODO: is this something we really want to do? isn't this too high-level? 
+    public onHTTPGet(uri:string, trigger:("TX"|"RX")){
+
+        let evt:any = [
+            123, 
+            "HTTP",
+            "GET",
+            trigger,
+            {
+                uri: uri
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    //----------------------------------------
+    // QPACK
+    //----------------------------------------
+
+    // TODO: change frame to be the actual QPACK instruction Frame class!
+    // TODO: potentially, split this over multiple methods, one for each qpack instruction
+    public onQPACKEncoderInstruction(instruction:any, trigger:string){
+
+        let evt:any = [
+            123, 
+            "QPACK",
+            "ENCODER_INSTRUCTION_NEW",
+            trigger,
+            {
+                // TODO: actually add necessary metadata here 
+                ...instruction
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // TODO: add something similar for DECODER instructions 
 }
