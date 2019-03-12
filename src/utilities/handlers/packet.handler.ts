@@ -42,7 +42,9 @@ export class PacketHandler {
     }
 
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
+        connection.getQlogger().onPacketRX(packet);
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
+
         this.onPacketReceived(connection, packet, receivedTime);
 
         switch (packet.getPacketType()) {
@@ -51,8 +53,8 @@ export class PacketHandler {
                 this.handleVersionNegotiationPacket(connection, versionNegotiationPacket);
                 break;
             case PacketType.Initial:
-                var clientInitialPacket: InitialPacket = <InitialPacket>packet;
-                this.handleInitialPacket(connection, clientInitialPacket);
+                var initialPacket: InitialPacket = <InitialPacket>packet;
+                this.handleInitialPacket(connection, initialPacket);
                 break;
             case PacketType.Retry:
                 var retryPacket: RetryPacket = <RetryPacket>packet;
@@ -123,11 +125,22 @@ export class PacketHandler {
         connection.resetConnection(negotiatedVersion);
     }
 
-    // only on SERVER (client sends ClientInitial packet)
-    private handleInitialPacket(connection: Connection, clientInitialPacket: InitialPacket): void {
+    private handleInitialPacket(connection: Connection, initialPacket: InitialPacket): void {
         // TODO: compliance: if this is the second initial we get after a VNEG, we need to check it uses correct packet number 1 instead of 0
         // Note: if we properly deal with duplicate packet numbers, this should be an auto-fix though? 
-        this.handleFrames(connection, clientInitialPacket);
+        let longHeader = <LongHeader>initialPacket.getHeader();
+        let connectionID = longHeader.getSrcConnectionID();
+        if (connection.getEndpointType() === EndpointType.Client) {
+            // we only change our server destination ID for the very first initial packet
+            // afterwards, NEW_CONNECTION_ID frames should be used
+            if (connection.getDestConnectionID() === undefined || connection.getRetrySent()) {
+                connection.setDestConnectionID(connectionID);
+                connection.setRetrySent(false);
+            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
+                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent handshake packet, ignoring");
+            }
+        }
+        this.handleFrames(connection, initialPacket);
     }
 
     // only on the SERVER (client sends stateless retry packet)
@@ -149,21 +162,7 @@ export class PacketHandler {
         connection.resetConnectionState();
     }
 
-    // only on the CLIENT (Server sends handshake in reply to ClientInitial packet)
     private handleHandshakePacket(connection: Connection, handshakePacket: HandshakePacket): void {
-        var longHeader = <LongHeader>handshakePacket.getHeader();
-        var connectionID = longHeader.getSrcConnectionID();
-        if (connection.getEndpointType() === EndpointType.Client) {
-            // we only change our server destination ID for the very first handshake packet
-            // subsequent changes are ignored and we check for them explicitly in the "else if" below
-            // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.7
-            if (connection.getDestConnectionID() === undefined || connection.getRetrySent()) {
-                connection.setDestConnectionID(connectionID);
-                connection.setRetrySent(false);
-            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
-                throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent handshake packet, ignoring");
-            }
-        }
         this.handleFrames(connection, handshakePacket);
     }
 

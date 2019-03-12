@@ -176,8 +176,18 @@ export class HeaderHandler {
     
     private handleShortHeader(connection: Connection, shortHeader: ShortHeader, highestCurrentPacketNumber: boolean): void {
         if (highestCurrentPacketNumber) {
-            var spinbit = connection.getEndpointType() === EndpointType.Client ? !shortHeader.getSpinBit() : shortHeader.getSpinBit();
-            connection.setSpinBit(spinbit);
+            let spinbit = false;
+
+            let currentSpinbit = connection.getSpinBit();
+
+            if( connection.getEndpointType() === EndpointType.Client ){
+                spinbit = !shortHeader.getSpinBit();
+            }
+            else
+                spinbit = shortHeader.getSpinBit();
+
+            if( currentSpinbit != spinbit )
+                connection.setSpinBit(spinbit);
         }
     }
 }

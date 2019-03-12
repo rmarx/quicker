@@ -25,6 +25,7 @@
     "typescript": "^2.8.3"
   },
   "dependencies": {
+    "@quictools/qlog-schema": ">=0.0.8",
     "bn.js": "^4.11.8",
     "log4js": "^2.4.1"
   }
