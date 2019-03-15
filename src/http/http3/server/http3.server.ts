@@ -5,9 +5,7 @@ import { QuickerEvent } from "../../../quicker/quicker.event";
 import { Connection } from "../../../quicker/connection";
 import { QuicStream } from "../../../quicker/quic.stream";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
-import { StreamType } from "../../../quicker/stream";
-import { resolve } from "path";
-import { existsSync, readFileSync, fstat } from "fs";
+import { readFileSync } from "fs";
 import { parseHttp3Message } from "../common/parsers/http3.request.parser";
 
 export class Http3Server {
@@ -19,6 +17,9 @@ export class Http3Server {
     private connections: Map<string, Connection> = new Map<string, Connection>();
 
     public constructor(keyFilepath?: string, certFilepath?: string) {
+        this.acceptConnection = this.acceptConnection.bind(this);
+        this.newStream = this.newStream.bind(this);
+        this.handleRequest = this.handleRequest.bind(this);
         if (keyFilepath === undefined || certFilepath === undefined) {
             this.quicServer = QuicServer.createServer({});
         } else {
@@ -30,7 +31,7 @@ export class Http3Server {
         }
     }
 
-    public listen(port: number, host: string = 'localhost') {
+    public listen(port: number, host: string = '127.0.0.1') {
         this.quicServer.listen(port, host);
         this.quicServer.on(QuickerEvent.CONNECTION_CREATED, this.acceptConnection);
         this.quicServer.on(QuickerEvent.ERROR, this.quicServerError);
@@ -50,11 +51,11 @@ export class Http3Server {
         console.debug("DEBUG: A new client is connecting!");
         
         // Create control stream to client on connect
-        this.quicServer.createStream(connection, StreamType.ServerUni);
+        // this.quicServer.createStream(connection, StreamType.ServerUni);
 
         this.connections.set(connection.getDestConnectionID().toString(), connection);
-        connection.on(QuickerEvent.NEW_STREAM, this.newStream);
-        connection.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
+        this.quicServer.on(QuickerEvent.NEW_STREAM, this.newStream);
+        this.quicServer.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
         
         console.debug("DEBUG: A new client has connected!");
     }
@@ -71,16 +72,16 @@ export class Http3Server {
         quicStream.on(QuickerEvent.STREAM_END, () => {
             // TODO: Handle data
             this.handleRequest(quicStream, bufferedData);
-            quicStream.end(/* Send any last data if needed */);
             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
         });
     }
     
-    private async handleRequest(quicStream: QuicStream, bufferedData: Buffer): Promise<void> {
+    private handleRequest(quicStream: QuicStream, bufferedData: Buffer) {
         let req: Http3Request = parseHttp3Message(bufferedData);
         let res: Http3Response = new Http3Response();
-        const reqPath: string | undefined = req.getPath();
-        if (reqPath !== undefined) {
+        const reqPath: string | undefined = req.getHeaderValue("path");
+        // TODO log if request arrives for unhandled path?
+        if (reqPath !== undefined && this.handledGetPaths[reqPath] !== undefined) {
             // Call user function to fill response
             this.handledGetPaths[reqPath](req, res);
                 

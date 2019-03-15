@@ -1,5 +1,5 @@
 export enum Http3FrameType {
-    DATA = 0x1,
+    DATA = 0x0,
     HEADERS = 0x1,
     PRIORITY = 0x2,
     CANCEL_PUSH = 0x3,

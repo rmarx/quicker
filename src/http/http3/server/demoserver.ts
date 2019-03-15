@@ -4,7 +4,7 @@ import { Http3Response } from "../common/http3.response";
 import { resolve } from "path";
 
 let server: Http3Server = new Http3Server(resolve(__dirname + "../../../../../keys/selfsigned_default.key"), resolve(__dirname + "../../../../../keys/selfsigned_default.crt"));
-server.listen(4433);
+server.listen(4433, "127.0.0.1");
 
 console.log("HTTP/3 server listening on port 4433");
 

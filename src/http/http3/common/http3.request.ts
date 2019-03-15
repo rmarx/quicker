@@ -1,12 +1,13 @@
 import { Http3HeaderFrame } from "./frames";
 
 export class Http3Request {    
-    private path?: string;
     private content: Buffer = new Buffer(0);
     private headers: {[property: string]: string} = {};
     
-    public constructor(path?: string) {
-        this.path = path;
+    public constructor(headers?: {[property: string]: string}) {
+        if (headers !== undefined) {
+            this.headers = headers;
+        }
     }
     
     public toBuffer(): Buffer {
@@ -21,12 +22,16 @@ export class Http3Request {
         return buffer;
     }
     
-    public getPath(): string | undefined {
-        return this.path;
+    public getHeaderValue(headerName: string): string | undefined {
+        return this.headers[headerName];
     }
     
-    public setPath(path: string) {
-        this.path = path;
+    public setHeader(headerName: string, headerValue: string) {
+        this.headers[headerName] = headerValue;
+    }
+    
+    public setHeaders(headers: {[property: string]: string}) {
+        this.headers = headers;
     }
     
     public appendContent(content: Buffer) {
@@ -35,9 +40,5 @@ export class Http3Request {
     
     public setContent(content: Buffer) {
         this.content = content;
-    }
-    
-    public isComplete(): boolean {
-        return (this.path !== undefined);
     }
 }
