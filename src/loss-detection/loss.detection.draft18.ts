@@ -33,13 +33,13 @@ export class QuicLossDetection extends EventEmitter {
     ///////////////////////////
 
     // Maximum reordering in packets before packet threshold loss detection considers a packet lost
-    private static readonly kPacketThreshold: number = 3;
+    public static readonly kPacketThreshold: number = 3;
     // Maximum reordering in time before time threshold loss detection considers a packet lost.  Specified as an RTT multiplier
-    private static readonly kTimeThreshold: number = 9.0 / 8.0;
+    public static readonly kTimeThreshold: number = 9.0 / 8.0;
     // Timer granularity.  In ms
-    private static readonly kGranularity : number = 50;
+    public static readonly kGranularity : number = 50;
     // The default RTT used before an RTT sample is taken. In ms.
-    private static readonly kInitialRTT: number = 100;
+    public static readonly kInitialRTT: number = 100;
 
     ///////////////////////////
     // Variables of interest

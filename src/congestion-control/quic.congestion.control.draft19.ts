@@ -12,6 +12,7 @@ import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/cry
 import { AckFrame } from "../frame/ack";
 import { HeaderType } from "../packet/header/base.header";
 import { EndpointType } from "../types/endpoint.type";
+import { RTTMeasurement } from "../loss-detection/rtt.measurement";
 
 
 /**
@@ -37,7 +38,7 @@ export class QuicCongestionControl extends EventEmitter {
      * Starting size of the congestion window. Limits the inital amount of data in flight.
      */
     private static kInitialWindow : number = Math.min(10*QuicCongestionControl.kMaxDatagramSize, 
-                                                        Math.max(2*QuicCongestionControl.kMaxDatagramSize, 14600));
+                                                        Math.max(2*QuicCongestionControl.kMaxDatagramSize, 14720));
     /**
      * The lowest value the window may hit
      */
@@ -60,7 +61,7 @@ export class QuicCongestionControl extends EventEmitter {
      * used to detect changes in the ECN-CE counter
      * Contains highest value reported by the peer. 
      */
-    private ecnCeCounter : number;
+    private ecnCeCounter : Bignum;
     /**
      * The total number of bytes in flight.
      */
@@ -92,6 +93,11 @@ export class QuicCongestionControl extends EventEmitter {
      */
     /* THOUGHT: Maybe put this in a helper class? could be reused for maybe pacer */
     private packetsQueue: BasePacket[];
+    /**
+     * Data class that calculates and saves the current rtt measurements
+     * used for calculating persistent congestion
+     */
+    private RTTMeasurer : RTTMeasurement;
 
     /**
      * gets updated to the new state of the pto count of the loss detection
@@ -100,10 +106,10 @@ export class QuicCongestionControl extends EventEmitter {
      */
     private pto_count = 0;
 
-    public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>) {
+    public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>, rttMeasurer: RTTMeasurement) {
         super();
         //quic congestion control init
-        this.ecnCeCounter = 0; //TODO: is this correct?
+        this.ecnCeCounter = new Bignum(0);
         this.congestionWindow = new Bignum(QuicCongestionControl.kInitialWindow);
         this.bytesInFlight = new Bignum(0);
         this.recoveryStartTime = new Bignum(0);
@@ -113,6 +119,7 @@ export class QuicCongestionControl extends EventEmitter {
         this.packetsQueue = [];
         this.connection = connection;
         this.hookCongestionControlEvents(lossDetectionInstances);
+        this.RTTMeasurer = rttMeasurer;
     }
 
     
@@ -171,6 +178,11 @@ export class QuicCongestionControl extends EventEmitter {
             // No change in congestion window in recovery period
             return;
         }
+        /** TODO how to detect if app limited
+         * else if(isAppLimited()){
+         * return;
+         * }
+         */
         else if(this.inSlowStart()){
             // increase congestion window by ackedPacket bytes
             this.congestionWindow = this.congestionWindow.add(bytesAcked);
@@ -201,26 +213,40 @@ export class QuicCongestionControl extends EventEmitter {
             this.congestionWindow = this.congestionWindow.multiply(QuicCongestionControl.kLossReductionFactor);
             this.congestionWindow = Bignum.max(this.congestionWindow, QuicCongestionControl.kMinimumWindow);
             this.ssthresh = this.congestionWindow;
-            //TODO: find out what this is supposed to do/ how to do this (get ptoCount)
-            /*
-            if(ptoCount > QuicCongestionControl.kPersistentCongestionThreashold){
-                this.congestionWindow = new Bignum(QuicCongestionControl.kMinimumWindow)
-            }
-            */
         }
     }
 
     /**
      * 
-     * @param ack TODO type? what is this exactly supposed to be passed
+     * @param ack AckFrame the ack frame that contained the congestion notification
      */
     private ProcessECN(ack : AckFrame){
-        /** TODO
-         * if(ackFrame.ceCounter > this.ecnCeCounter){
-         *  this.ecnCeCounter = ackFrame.ceCounter;
-         *   this.congestionEventHappened(sent_packets[ack.largest_acked].time_sent)
-         * }
-         */
+        if(ack.getCEcount().greaterThan(this.ecnCeCounter)){
+          this.ecnCeCounter = ack.getCEcount();
+          //this.congestionEventHappened(sent_packets[ack.largest_acked].time_sent)
+        }
+         
+    }
+
+    private isWindowLost(largestLost : BasePacket, congestionPeriod : number){
+        //TODO: There is going to be the need of getting the smallest/longest ago packet in the congestion window.
+        // (and thus the smallest/longest ago unacked) if this packets send time is longer ago that congestionPeriod
+        // return true
+        return false;
+    }
+
+    /**
+     * 
+     * @param largestLost 
+     */
+    private InPersistentCongestion(largestLost : BasePacket) : Boolean{
+        
+
+        let pto = this.RTTMeasurer.smoothedRtt + Math.max(4* this.RTTMeasurer.rttVar, QuicLossDetection.kGranularity) + this.RTTMeasurer.maxAckDelay;
+
+        let congestionPeriod = pto * (Math.pow(2, QuicCongestionControl.kPersistenCongestionThreshold -1))
+
+        return this.isWindowLost(largestLost, congestionPeriod);
     }
 
 
