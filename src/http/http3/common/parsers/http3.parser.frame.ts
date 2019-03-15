@@ -20,7 +20,10 @@ export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame
     let length: Bignum = lengthVlie.value;
     let offset: number = lengthVlie.offset;
 
-    let frameType: number = buffer.readUInt8(offset++);
+    // let frameType: number = buffer.readUInt8(offset++);
+    const frameTypeVlie: VLIEOffset = VLIE.decode(buffer, offset);
+    const frameType: Bignum = frameTypeVlie.value;
+    offset = frameTypeVlie.offset;
     let frameTypeEnum: Http3FrameType | undefined = toFrameType(frameType);
     if (frameTypeEnum === undefined) {
         throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME);
@@ -31,7 +34,7 @@ export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame
     let payload: Buffer = buffer.slice(offset, offset + length.toNumber());
     offset += length.toNumber();
 
-    switch(frameType) {
+    switch(frameTypeEnum) {
         case Http3FrameType.DATA:
             frames.push(new Http3DataFrame(payload));
             break;
@@ -70,8 +73,9 @@ export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame
  * @param frameType A frametype as a number
  * @returns A value of type Http3FrameType if valid, undefined otherwise
  */
-function toFrameType(frameType: number): Http3FrameType | undefined {
-    switch(frameType) {
+function toFrameType(frameType: Bignum): Http3FrameType | undefined {
+    const ft: number = frameType.toNumber();
+    switch(ft) {
         case Http3FrameType.DATA:
         case Http3FrameType.HEADERS:
         case Http3FrameType.PRIORITY:
@@ -81,7 +85,7 @@ function toFrameType(frameType: number): Http3FrameType | undefined {
         case Http3FrameType.GOAWAY:
         case Http3FrameType.MAX_PUSH_ID:
         case Http3FrameType.DUPLICATE_PUSH:
-            return frameType as Http3FrameType;
+            return ft as Http3FrameType;
         default:
             if (isReservedFrameType(frameType) == true) {
                 return Http3FrameType.RESERVED;
@@ -91,12 +95,7 @@ function toFrameType(frameType: number): Http3FrameType | undefined {
     }
 }
 
-function isReservedFrameType(frameType: number): boolean {
-    for (let i = 0; i <= 7; ++i) {
-        // Check if frametype is of format "0xb + (0x1f * N)"
-        if ((frameType ^ (0xb + (0x1f * i))) === 0) {
-            return true;
-        }
-    }
-    return false;
+function isReservedFrameType(frameType: Bignum): boolean {
+    // Check if frametype is of format "0x1f * N + 0x21"
+    return (frameType.subtract(0x21).modulo(0x1f).equals(new Bignum(0))); 
 }

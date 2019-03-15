@@ -3,6 +3,7 @@ import { Bignum } from "../../../../types/bignum";
 import { VLIE, VLIEOffset } from "../../../../types/vlie";
 
 interface Http3SettingsParameter {
+    // RESERVED: "0x1f * N + 0x21", Endpoints SHOULD include at least one such setting in their SETTINGS frame
     identifier: Bignum,
     value: Bignum,
 }

@@ -8,7 +8,7 @@ export enum Http3FrameType {
     GOAWAY = 0x7,
     MAX_PUSH_ID = 0xD,
     DUPLICATE_PUSH = 0xE,
-    RESERVED = 0xB, // All formats that match with "0xb + (0x1f * N)"
+    RESERVED = 0x21, // All formats that match with "0x1f * N + 0x21"
 }
 
 /**

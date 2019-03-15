@@ -46,7 +46,7 @@ export class TestHttp3Frameparser {
     private static testDataFrame(): boolean {
         const payload: Buffer = new Buffer("This is testdata. Can we parse it?");
         const length: Buffer = VLIE.encode(payload.byteLength);
-        const type: Buffer = new Buffer([Http3FrameType.DATA]);
+        const type: Buffer = VLIE.encode(Http3FrameType.DATA);
         
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]);
@@ -80,7 +80,7 @@ export class TestHttp3Frameparser {
         const weight: Buffer = new Buffer([50]);
         const payload: Buffer = Buffer.concat([typesBuffer, peid, edid, weight]);
         const length: Buffer = VLIE.encode(payload.byteLength);
-        const type: Buffer = new Buffer([Http3FrameType.PRIORITY]);
+        const type: Buffer = VLIE.encode(Http3FrameType.PRIORITY);
         
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]); 
@@ -108,7 +108,7 @@ export class TestHttp3Frameparser {
         const weight: Buffer = new Buffer([50]);
         const payload: Buffer = Buffer.concat([typesBuffer, peid, weight]);
         const length: Buffer = VLIE.encode(payload.byteLength);
-        const type: Buffer = new Buffer([Http3FrameType.PRIORITY]);
+        const type: Buffer = VLIE.encode(Http3FrameType.PRIORITY);
         
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]); 
@@ -136,7 +136,7 @@ export class TestHttp3Frameparser {
         const weight: Buffer = new Buffer([50]);
         const payload: Buffer = Buffer.concat([typesBuffer, edid, weight]);
         const length: Buffer = VLIE.encode(payload.byteLength);
-        const type: Buffer = new Buffer([Http3FrameType.PRIORITY]);
+        const type: Buffer = VLIE.encode(Http3FrameType.PRIORITY);
         
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]); 
@@ -163,7 +163,7 @@ export class TestHttp3Frameparser {
         const weight: Buffer = new Buffer([50]);
         const payload: Buffer = Buffer.concat([typesBuffer, weight]);
         const length: Buffer = VLIE.encode(payload.byteLength);
-        const type: Buffer = new Buffer([Http3FrameType.PRIORITY]);
+        const type: Buffer = VLIE.encode(Http3FrameType.PRIORITY);
         
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]); 
@@ -185,7 +185,7 @@ export class TestHttp3Frameparser {
     private static testCancelPushFrame(): boolean {
         const payload: Buffer = VLIE.encode(3503); // PushID
         const length: Buffer = VLIE.encode(payload.byteLength);
-        const type: Buffer = new Buffer([Http3FrameType.CANCEL_PUSH]);
+        const type: Buffer = VLIE.encode(Http3FrameType.CANCEL_PUSH);
         
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]);
