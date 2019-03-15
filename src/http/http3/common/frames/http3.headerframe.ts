@@ -29,13 +29,19 @@ export class Http3HeaderFrame extends Http3BaseFrame {
         const headerList: string[] = buffer.toString('utf8').split('\r\n');
         
         for (let header of headerList) {
-            const [property, value] = header.split(":");
+            let [property, value] = header.split(":");
+            property = property.trim();
+            value = value.trim();
             headers[property] = value;
         }
         
         return new Http3HeaderFrame(headers);
     }
 
+    public getHeaders(): {[property: string]: string} {
+        return this.headers;
+    }
+    
     public getPayloadLength(): number {
         return this.getPayloadBuffer().byteLength;
     }
