@@ -21,7 +21,7 @@ import { ConnectionManager, ConnectionManagerEvents } from './connection.manager
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { Bignum } from '../types/bignum';
 import { EncryptionLevel, BufferedPacket } from '../crypto/crypto.context';
-import { StreamType } from './stream'
+import { StreamType } from './stream';
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
