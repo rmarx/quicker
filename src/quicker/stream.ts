@@ -121,7 +121,15 @@ export class Stream extends FlowControlledObject {
 
     public isReceiveOnly(): boolean {
 		return Stream.isReceiveOnly(this.endpointType, this.streamID);
-    }
+	}
+	
+	public isUniStream(): boolean {
+		return Stream.isUniStreamId(this.streamID);
+	}
+	
+	public isBidiStream(): boolean {
+		return Stream.isBidiStreamId(this.streamID);
+	}
 
 	public receiveData(data: Buffer, offset: Bignum, isFin: boolean): void {
 		if (this.localFinalOffset !== undefined && offset.add(data.byteLength).greaterThan(this.localFinalOffset)) {

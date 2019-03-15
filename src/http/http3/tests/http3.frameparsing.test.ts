@@ -1,5 +1,5 @@
-import { Http3BaseFrame, Http3FrameType } from "../common/http3.baseframe";
-import { parse as parseFrame } from "../common/parsers/http3.parser.frame";
+import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
+import { parse as parseFrame } from "../common/parsers/http3.frame.parser";
 import { ElementDependencyType, Http3CancelPushFrame, Http3DataFrame, Http3HeaderFrame,Http3PriorityFrame, PrioritizedElementType } from "../common/frames"
 import { VLIE } from "../../../types/vlie";
 

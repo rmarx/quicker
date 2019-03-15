@@ -1,4 +1,4 @@
-import { Http3BaseFrame, Http3FrameType } from "../http3.baseframe";
+import { Http3BaseFrame, Http3FrameType } from "./http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
 import { VLIE } from "../../../../types/vlie";
 

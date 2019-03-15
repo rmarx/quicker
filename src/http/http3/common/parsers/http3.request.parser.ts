@@ -1,6 +1,6 @@
 import { Http3Request } from "../http3.request";
-import { parse as parseHttp3Frames } from "../parsers/http3.parser.frame";
-import { Http3FrameType } from "../http3.baseframe";
+import { parse as parseHttp3Frames } from "./http3.frame.parser";
+import { Http3FrameType } from "../frames/http3.baseframe";
 import { Http3DataFrame, Http3HeaderFrame } from "../frames";
 import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 

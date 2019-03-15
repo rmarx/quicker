@@ -14,7 +14,7 @@ export enum Http3FrameType {
 /**
  * Frame structure:
  * Length: Variable-length integer (VLIE)
- * Type: 8 bit
+ * Type: Variable-length integer (VLIE)
  * Frame payload: length can be determined from length field
  */
 export abstract class Http3BaseFrame {
@@ -23,8 +23,7 @@ export abstract class Http3BaseFrame {
     public abstract getPayloadLength(): number;
 
     /**
-     * Returns the Http3FrameType value as an enum, if valid
-     * returns undefined if not a known value
+     * Returns the Http3FrameType value as an enum
      */
     public abstract getFrameType(): Http3FrameType;
 };

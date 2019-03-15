@@ -8,12 +8,16 @@ import { Http3ClientEvent as Http3ClientEvent } from "./http3.client.events";
 
 export class Http3Client extends EventEmitter {
     private connection: Client;
+    private controlStream?: QuicStream;
     
     public constructor(hostname: string, port: number) {
         super();
         this.connection = Client.connect(hostname, port);
         
         this.connection.on(QuickerEvent.CLIENT_CONNECTED, () => {
+            // Create control stream
+            //this.controlStream = this.connection.createStream(StreamType.ClientUni);
+            
             this.emit(Http3ClientEvent.CLIENT_CONNECTED);
         });
     }
