@@ -7,6 +7,7 @@ import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { LossDetection } from '../loss-detection/loss.detection';
 import { HeaderOffset } from '../utilities/parsers/header.parser';
 import { Connection } from '../quicker/connection';
+import { QuicLossDetection } from '../loss-detection/loss.detection.draft19';
 
 export enum EncryptionLevel{
     INITIAL,
@@ -40,12 +41,12 @@ export class CryptoContext {
     private cryptoStream!:CryptoStream;
     private packetNumberSpace!:PacketNumberSpace; // we have to abstract this because 0-RTT and 1-RTT share a PNS, but have separate crypto levels
     private ackHandler!:AckHandler;
-    private lossDetection!:LossDetection;
+    private lossDetection!:QuicLossDetection;
 
     // if we receive out-of-order packets for this cryptocontext and thus cannot decode them yet, we buffer them 
     private bufferedPackets!:Array<BufferedPacket>;
 
-    public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace, ackHandler:AckHandler, lossDetection:LossDetection) {
+    public constructor(cryptoLevel:EncryptionLevel, packetNumberSpace:PacketNumberSpace, ackHandler:AckHandler, lossDetection:QuicLossDetection) {
         this.cryptoLevel = cryptoLevel;
         this.packetNumberSpace = packetNumberSpace;
         this.cryptoStream = new CryptoStream(this.cryptoLevel);
@@ -71,7 +72,7 @@ export class CryptoContext {
         return this.ackHandler;
     }
 
-    public getLossDetection():LossDetection{
+    public getLossDetection():QuicLossDetection{
         return this.lossDetection;
     }
 

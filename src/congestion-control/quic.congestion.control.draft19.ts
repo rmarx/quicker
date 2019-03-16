@@ -3,7 +3,7 @@ import { Constants } from "../utilities/constants";
 import { Bignum } from "../types/bignum";
 import { BasePacket } from "../packet/base.packet";
 import { Connection, ConnectionEvent } from "../quicker/connection";
-import { QuicLossDetection, QuicLossDetectionEvents } from "../loss-detection/loss.detection.draft18";
+import { QuicLossDetection, QuicLossDetectionEvents } from "../loss-detection/loss.detection.draft19";
 import { Socket } from "dgram";
 import {PacketType} from '../packet/base.packet';
 import { PacketLogging } from "../utilities/logging/packet.logging";

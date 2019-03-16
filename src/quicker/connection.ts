@@ -20,7 +20,6 @@ import { PacketFactory } from '../utilities/factories/packet.factory';
 import { QuicStream } from './quic.stream';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { HandshakeHandler, HandshakeHandlerEvents } from '../utilities/handlers/handshake.handler';
-import { QuicLossDetection, QuicLossDetectionEvents } from '../loss-detection/loss.detection.draft18';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuickerError } from '../utilities/errors/quicker.error';
@@ -34,7 +33,8 @@ import { StreamManager, StreamManagerEvents, StreamFlowControlParameters } from 
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { CryptoContext, EncryptionLevel, PacketNumberSpace, BufferedPacket } from '../crypto/crypto.context';
 import { RTTMeasurement } from '../loss-detection/rtt.measurement';
-import { QuicCongestionControl } from '../congestion-control/quic.congestion.control';
+import { QuicLossDetection, QuicLossDetectionEvents } from '../loss-detection/loss.detection.draft19';
+import { QuicCongestionControl } from '../congestion-control/quic.congestion.control.draft19';
 import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
 
 export class Connection extends FlowControlledObject {
@@ -165,7 +165,7 @@ export class Connection extends FlowControlledObject {
         this.handshakeHandler = new HandshakeHandler(this.qtls, this.aead, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
         this.flowControl = new FlowControl(this);
-        this.congestionControl = new QuicCongestionControl(this, [this.contextInitial.getLossDetection(), this.contextHandshake.getLossDetection(), this.context1RTT.getLossDetection()] ); // 1RTT and 0RTT share loss detection, don't add twice!
+        this.congestionControl = new QuicCongestionControl(this, [this.contextInitial.getLossDetection(), this.contextHandshake.getLossDetection(), this.context1RTT.getLossDetection()], this.contextInitial.getLossDetection().rttMeasurer ); // 1RTT and 0RTT share loss detection, don't add twice!
 
         this.hookStreamManagerEvents();
         this.hookLossDetectionEvents();
