@@ -87,6 +87,8 @@ export class Connection extends FlowControlledObject {
     private streamManager!: StreamManager;
     private handshakeHandler!: HandshakeHandler;
 
+    private lossDet!: QuicLossDetection;
+
     private qlogger!:QlogWrapper;
 
     public constructor(remoteInfo: RemoteInformation, endpointType: EndpointType, socket: Socket, initialDestConnectionID: ConnectionID, options?: any, bufferSize: number = Constants.DEFAULT_MAX_DATA) {
@@ -142,19 +144,16 @@ export class Connection extends FlowControlledObject {
     private initializeCryptoContexts(){
 
         let rttMeasurer = new RTTMeasurement(this);
-        let lossInit = new QuicLossDetection(rttMeasurer, this);
-        lossInit.DEBUGname = "Initial";
-        let lossHandshake = new QuicLossDetection(rttMeasurer, this);
-        lossHandshake.DEBUGname = "Handshake";
-        let lossData = new QuicLossDetection(rttMeasurer, this);
-        lossData.DEBUGname = "0/1RTT";
+        let lossDet = new QuicLossDetection(rttMeasurer, this);
+        this.lossDet = lossDet;
+        lossDet.DEBUGname = "LossDetection";
 
         let pnsData      = new PacketNumberSpace(); // 0-RTT and 1-RTT have different encryption levels, but they share a PNS
         let ackData      = new AckHandler(this); // TODO: AckHandler should be coupled to PNSpace directly? make this more clear by adding it to that class instead maybe?
-        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   new PacketNumberSpace(), new AckHandler(this), lossInit );
-        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData,                 ackData,              lossData );
-        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, new PacketNumberSpace(), new AckHandler(this), lossHandshake );
-        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData,                 ackData,              lossData );
+        this.contextInitial     = new CryptoContext( EncryptionLevel.INITIAL,   new PacketNumberSpace(), new AckHandler(this), lossDet );
+        this.context0RTT        = new CryptoContext( EncryptionLevel.ZERO_RTT,  pnsData,                 ackData,              lossDet );
+        this.contextHandshake   = new CryptoContext( EncryptionLevel.HANDSHAKE, new PacketNumberSpace(), new AckHandler(this), lossDet );
+        this.context1RTT        = new CryptoContext( EncryptionLevel.ONE_RTT,   pnsData,                 ackData,              lossDet );
 
         ackData.DEBUGname = "0/1RTT";
         this.contextInitial.getAckHandler().DEBUGname = "Initial";
@@ -165,7 +164,7 @@ export class Connection extends FlowControlledObject {
         this.handshakeHandler = new HandshakeHandler(this.qtls, this.aead, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
         this.flowControl = new FlowControl(this);
-        this.congestionControl = new QuicCongestionControl(this, [this.contextInitial.getLossDetection(), this.contextHandshake.getLossDetection(), this.context1RTT.getLossDetection()], this.contextInitial.getLossDetection().rttMeasurer ); // 1RTT and 0RTT share loss detection, don't add twice!
+        this.congestionControl = new QuicCongestionControl(this, [this.lossDet], this.lossDet.rttMeasurer ); // 1RTT and 0RTT share loss detection, don't add twice!
 
         this.hookStreamManagerEvents();
         this.hookLossDetectionEvents();
@@ -239,19 +238,14 @@ export class Connection extends FlowControlledObject {
     }
 
     private hookLossDetectionEvents() {
-        let contexts = [this.contextInitial, this.contextHandshake, this.context1RTT]; // 0/1RTT share a packet number space and loss detector/ack handler
-
-        for( let context of contexts ){
-            context.getLossDetection().on(QuicLossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
+            this.lossDet.on(QuicLossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
                 this.retransmitPacket(basePacket);
             });
-            context.getLossDetection().on(QuicLossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
-                //let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
-                //ctx.getAckHandler().onPacketAcked(basePacket);
-                
-                context.getAckHandler().onPacketAcked(basePacket); 
+            this.lossDet.on(QuicLossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
+                let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
+                if(ctx !== undefined)
+                    ctx.getAckHandler().onPacketAcked(basePacket);
             });
-        }
     }
 
     private hookQuicTLSEvents() {
