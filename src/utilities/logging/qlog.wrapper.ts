@@ -381,7 +381,8 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
-    public onCWNDUpdate(ccPhase:string, currentCWND:number, oldCWND:number, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX){
+    // changed currentCWND and oldCWND to string so bignum can be displayed
+    public onCWNDUpdate(ccPhase:string, currentCWND:string, oldCWND:string, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX){
         
         let evt:any = [
             123, 
@@ -399,7 +400,8 @@ export class QlogWrapper{
     }
 
     // TODO: maybe currentCWND is not needed here? separate event? would just be included here to easily calculate available_cwnd value from bytes_in_flight
-    public onBytesInFlightUpdate(bytesInFlight:number, currentCWND:number, trigger:string = "PACKET_TX"){
+    // changed currentCWND and bytesinflight to string so bignum can be displayed
+    public onBytesInFlightUpdate(bytesInFlight:string, currentCWND:string, trigger:string = "PACKET_TX"){
 
         let evt:any = [
             123, 
@@ -424,7 +426,7 @@ export class QlogWrapper{
             {
                 type: alarmType,
                 last_handshake: lastSentHandshakeTimestamp.getMilliseconds(),
-                duratoin: alarmDuration
+                duration: alarmDuration
             }
         ];
 

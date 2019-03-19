@@ -101,5 +101,7 @@ export class RTTMeasurement{
         else if( this.latestRtt > 2000 || this.smoothedRtt > 2000 || this.rttVar > 2000 || this.maxAckDelay > 2000 ){
             VerboseLogging.warn("RTTMeasurerment:updateRTT : something went wrong calculating RTT values, they are too high! latest=" + this.latestRtt + ", smooth="+ this.smoothedRtt +", rttVar=" + this.rttVar + ", maxAckDelay=" + this.maxAckDelay );
         }
+        
+        this.connection.getQlogger().onRTTUpdate(this.latestRtt, this.minRtt, this.smoothedRtt, this.rttVar,this.maxAckDelay);
     }
 }

@@ -99,13 +99,6 @@ export class QuicCongestionControl extends EventEmitter {
      */
     private RTTMeasurer : RTTMeasurement;
 
-    /**
-     * gets updated to the new state of the pto count of the loss detection
-     * TODO: refactor, will not work due to the differing loss detection instances for the pn spaces
-     * 
-     */
-    private pto_count = 0;
-
     public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>, rttMeasurer: RTTMeasurement) {
         super();
         //quic congestion control init
@@ -124,16 +117,12 @@ export class QuicCongestionControl extends EventEmitter {
 
     
     private hookCongestionControlEvents(lossDetectionInstances: Array<QuicLossDetection>) {
-        
         for( let lossDetection of lossDetectionInstances){
             lossDetection.on(QuicLossDetectionEvents.PACKET_ACKED, (ackedPacket: BasePacket) => {
                 this.onPacketAckedCC(ackedPacket);
             });
             lossDetection.on(QuicLossDetectionEvents.PACKETS_LOST, (lostPackets: BasePacket[]) => {
                 this.onPacketsLost(lostPackets);
-            });
-            lossDetection.on(QuicLossDetectionEvents.PTO_PROBE_SEND, (pto_count : number)=>{
-                this.pto_count = pto_count;
             });
             lossDetection.on(QuicLossDetectionEvents.ECN_ACK, (frame : AckFrame) => {
                 this.ProcessECN(frame);
@@ -165,14 +154,18 @@ export class QuicCongestionControl extends EventEmitter {
         //if the packets contains non-ack frames
         if( !sentPacket.isAckOnly()){
             var bytesSent = sentPacket.toBuffer(this.connection).byteLength;
-            this.bytesInFlight = this.bytesInFlight.add(bytesSent);
+            this.updateBytesInFlight(this.bytesInFlight.add(bytesSent));
         }
     }
 
 
+    /**
+     * When an ack for a packet has been received
+     * @param ackedPacket the packet that has been ACKed
+     */
     private onPacketAckedCC(ackedPacket : BasePacket) {
         var bytesAcked = ackedPacket.toBuffer(this.connection).byteLength;
-        this.bytesInFlight = this.bytesInFlight.subtract(bytesAcked);
+        this.updateBytesInFlight(this.bytesInFlight.subtract(bytesAcked));
 
         if(this.inRecovery(ackedPacket.getHeader().getPacketNumber().getValue())){
             // No change in congestion window in recovery period
@@ -185,13 +178,13 @@ export class QuicCongestionControl extends EventEmitter {
          */
         else if(this.inSlowStart()){
             // increase congestion window by ackedPacket bytes
-            this.congestionWindow = this.congestionWindow.add(bytesAcked);
+            this.updateCWND(this.congestionWindow.add(bytesAcked));
         }
         else{
             // in congestion avoidance
             //THOUGHT: change from maxsize -> bytesacked in quic algorithm why?
             let bytesIncrease : Bignum = new Bignum(QuicCongestionControl.kMaxDatagramSize * bytesAcked).divide(this.congestionWindow)
-            this.congestionWindow = this.congestionWindow.add(bytesIncrease);
+            this.updateCWND(this.congestionWindow.add(bytesIncrease));
         }
         //THOUGHT: this is here because the bytesinflight only decreases after an ack
         this.sendPackets();
@@ -210,8 +203,8 @@ export class QuicCongestionControl extends EventEmitter {
             // but due to monotonically increasing packet numbers it's possible to use that instead
             // or not since it has different packet number spaces?
             //this.recoveryStartTime = Now();  <----------
-            this.congestionWindow = this.congestionWindow.multiply(QuicCongestionControl.kLossReductionFactor);
-            this.congestionWindow = Bignum.max(this.congestionWindow, QuicCongestionControl.kMinimumWindow);
+            let newval = this.congestionWindow.multiply(QuicCongestionControl.kLossReductionFactor);
+            this.updateCWND(Bignum.max(newval, QuicCongestionControl.kMinimumWindow));
             this.ssthresh = this.congestionWindow;
         }
     }
@@ -223,7 +216,7 @@ export class QuicCongestionControl extends EventEmitter {
     private ProcessECN(ack : AckFrame){
         if(ack.getCEcount().greaterThan(this.ecnCeCounter)){
           this.ecnCeCounter = ack.getCEcount();
-          //this.congestionEventHappened(sent_packets[ack.largest_acked].time_sent)
+          this.congestionEventHappened(ack.getLargestAcknowledged())
         }
          
     }
@@ -232,6 +225,8 @@ export class QuicCongestionControl extends EventEmitter {
         //TODO: There is going to be the need of getting the smallest/longest ago packet in the congestion window.
         // (and thus the smallest/longest ago unacked) if this packets send time is longer ago that congestionPeriod
         // return true
+
+
         return false;
     }
 
@@ -240,12 +235,15 @@ export class QuicCongestionControl extends EventEmitter {
      * @param largestLost 
      */
     private InPersistentCongestion(largestLost : BasePacket) : Boolean{
-        
-
         let pto = this.RTTMeasurer.smoothedRtt + Math.max(4* this.RTTMeasurer.rttVar, QuicLossDetection.kGranularity) + this.RTTMeasurer.maxAckDelay;
 
         let congestionPeriod = pto * (Math.pow(2, QuicCongestionControl.kPersistenCongestionThreshold -1))
 
+        //InPersistentCongestion( newest_lost_packet.time_sent - oldest_lost_packet.time_sent)
+        // InPersistentCongestion(congestion_period):
+        //pto = smoothed_rtt + 4 * rttvar + max_ack_delay
+        //return congestion_period >
+        // pto * (2 ^ kPersistentCongestionThreshold - 1)
         return this.isWindowLost(largestLost, congestionPeriod);
     }
 
@@ -253,18 +251,21 @@ export class QuicCongestionControl extends EventEmitter {
     // TODO: REFACTOR: largestLost shouldn't be done on packet number basis since we have separate pn-spaces now! 
     private onPacketsLost(lostPackets: BasePacket[]) {
         var largestLost = new Bignum(0);
+        let totalLost = new Bignum(0);
         lostPackets.forEach((lostPacket: BasePacket) => {
             if (lostPacket.isAckOnly())
                 return;
             var packetByteSize = lostPacket.toBuffer(this.connection).byteLength;
-            // Remove lost packets from bytesInFlight.
-            this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
+            totalLost = totalLost.add(packetByteSize);
             if (lostPacket.getHeader().getPacketNumber().getValue().greaterThan(largestLost)) {
                 largestLost = lostPacket.getHeader().getPacketNumber().getValue();
             }
         });
+        // Remove lost packets from bytesInFlight.
+        this.updateBytesInFlight(this.bytesInFlight.subtract(totalLost));
         this.congestionEventHappened(largestLost);
-        this.sendPackets();
+        //moved into updateBytesInFlight
+        //this.sendPackets();
     }
 
 
@@ -293,7 +294,7 @@ export class QuicCongestionControl extends EventEmitter {
         //TODO: check if this causes no unintentional resets of the congestion window
         // or if this test even passes at all due to the current placed this.sendPackets() setup
         if(this.packetsQueue.length == 0 && this.bytesInFlight.equals(0)){
-            this.congestionWindow = new Bignum(QuicCongestionControl.kInitialWindow);
+            this.updateCWND(new Bignum(QuicCongestionControl.kInitialWindow));
         }
     }
 
@@ -367,6 +368,27 @@ export class QuicCongestionControl extends EventEmitter {
             this.onPacketSentCC(packet);    
             this.emit(CongestionControlEvents.PACKET_SENT, packet);
         }         
+    }
+
+
+
+    private updateCWND(newVal : Bignum){
+        let oldVal = this.congestionWindow;
+        this.congestionWindow = newVal;
+
+        //TODO: find a way to differntiate between these two
+        // to see if it's recovery we need a packet number
+        let congestionState = "Recovery or Avoidance"
+        if(this.inSlowStart()){
+            congestionState = "Slow Start"
+        }
+        this.connection.getQlogger().onCWNDUpdate(congestionState, this.congestionWindow.toDecimalString(), oldVal.toDecimalString())
+    }
+
+
+    private updateBytesInFlight(newVal : Bignum){
+        this.bytesInFlight = newVal;
+        this.connection.getQlogger().onBytesInFlightUpdate(this.bytesInFlight.toDecimalString(), this.congestionWindow.toDecimalString());
     }
 }
 

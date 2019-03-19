@@ -83,8 +83,11 @@ export class QuicLossDetection extends EventEmitter {
     //TODO: change this from public
     public rttMeasurer: RTTMeasurement;
 
+    private connection : Connection;
+
     public constructor(rttMeasurer: RTTMeasurement, connection: Connection) {
         super();
+        this.connection = connection;
         this.lossDetectionAlarm = new Alarm();
         this.cryptoCount = 0;
         this.ptoCount = 0;
@@ -117,14 +120,12 @@ export class QuicLossDetection extends EventEmitter {
         else if(type == PacketType.Initial){
             return kPacketNumberSpace.Initial;
         }
-        else{
-            /**
-             * TODO: check if doing "else" here is ok
-             * the pn_spaces in the recovery-document seems to be limited to
-             * handshake, inital and applications. while retry and 0/1rtt are also separate
-             * (retry does not have separate number space, but does it fall under "application data"?) 
-             */
+        else if(type == PacketType.Protected0RTT || type == PacketType.Protected1RTT){
             return kPacketNumberSpace.ApplicationData;
+        }
+        else{ 
+            VerboseLogging.warn(this.DEBUGname + "lossDetection: Trying to find packet space of version negotation or retry packettype or something totally different.")
+            return undefined;
         }
     }
 
@@ -136,27 +137,26 @@ export class QuicLossDetection extends EventEmitter {
         else if(type == EncryptionLevel.INITIAL){
             return kPacketNumberSpace.Initial;
         }
-        else{
-            /**
-             * TODO: check if doing "else" here is ok
-             * Don't know if basing this of the encryption level is ok either.
-             * the pn_spaces in the recovery-document seems to be limited to
-             * handshake, inital and applications. while retry and 0/1rtt are also separate
-             * (retry does not have separate number space, but does it fall under "application data"?) 
-             */
+        else if(type == EncryptionLevel.ZERO_RTT || type == EncryptionLevel.ONE_RTT){
             return kPacketNumberSpace.ApplicationData;
+        }
+        else{
+            VerboseLogging.error(this.DEBUGname + "lossDetection: Trying to find packet space of " + type);
+            return undefined;
         }
     }
 
 
  
-
     /**
      * After any packet is sent, be it a new transmission or a rebundled transmission, the following OnPacketSent function is called
      * @param basePacket The packet that is being sent. From this packet, the packetnumber and the number of bytes sent can be derived.
      */
     public onPacketSent(basePacket: BasePacket): void {
-        let space : kPacketNumberSpace = this.findPacketSpaceFromPacket(basePacket);
+        let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromPacket(basePacket);
+        if(space === undefined)
+            return;
+        
         var currentTime = (new Date()).getTime();
         var packetNumber = basePacket.getHeader().getPacketNumber().getValue();
 
@@ -195,13 +195,16 @@ export class QuicLossDetection extends EventEmitter {
 
 
     private updateRtt(ackFrame: AckFrame) {
-        let space : kPacketNumberSpace = this.findPacketSpaceFromAckFrame(ackFrame);
+        let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromAckFrame(ackFrame);
+        if( space === undefined ){
+            return;
+        }
         let largestAcknowledgedPacket : SentPacket = this.sentPackets[space][ackFrame.getLargestAcknowledged().toString('hex', 8)];
 
          // check if we have not yet received an ACK for the largest acknowledge packet (then it would have been removed from this.sentPackets)
          // we could receive a duplicate ACK here, for which we don't want to update our RTT estimates
-        if( largestAcknowledgedPacket !== undefined &&largestAcknowledgedPacket.isRetransmittable){
-            this.rttMeasurer.updateRTT(ackFrame, largestAcknowledgedPacket);
+         if( largestAcknowledgedPacket !== undefined &&largestAcknowledgedPacket.isRetransmittable){
+             this.rttMeasurer.updateRTT(ackFrame, largestAcknowledgedPacket);
         }
         else
             VerboseLogging.info(this.DEBUGname + " LossDetection:updateRtt : not actually updating RTT because largestAcknowledgedPacket was previously acknowledged in a different ACK frame or it was an ACK-only frame");
@@ -215,10 +218,12 @@ export class QuicLossDetection extends EventEmitter {
      * @param ackFrame The ack frame that is received by this endpoint
      */
     public onAckReceived(ackFrame: AckFrame): void {
-        let space : kPacketNumberSpace = this.findPacketSpaceFromAckFrame(ackFrame);
+        let space : kPacketNumberSpace | undefined= this.findPacketSpaceFromAckFrame(ackFrame);
+        if(space === undefined){
+            return;
+        }
         VerboseLogging.info(this.DEBUGname + " Loss:onAckReceived AckFrame is acking " + ackFrame.determineAckedPacketNumbers().map((val, idx, arr) => val.toNumber()).join(","));
         this.largestAckedPacket[space] = Bignum.max( ackFrame.getLargestAcknowledged(), this.largestAckedPacket[space]);
-
 
         this.updateRtt(ackFrame);
 
@@ -295,8 +300,12 @@ export class QuicLossDetection extends EventEmitter {
 
 
 
-    private removeFromSentPackets( space:kPacketNumberSpace, packetNumber:Bignum ){
+    private removeFromSentPackets( space:kPacketNumberSpace | undefined, packetNumber:Bignum ){
 
+        if(space === undefined){
+            VerboseLogging.warn(this.DEBUGname + " LossDetection: Trying to remove packet from undefined packet space ");
+            return;
+        }
         let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
         if( !packet ){
             VerboseLogging.error("LossDetection:removeFromSentPackets : packet not in sentPackets " + packetNumber.toString('hex', 8) + ". SHOULD NOT HAPPEN! added this because it crashes our server, no idea yet what causes it");
@@ -346,7 +355,16 @@ export class QuicLossDetection extends EventEmitter {
         var alarmDuration: number;
         var time: number = this.timeOfLastSentAckElicitingPacket;
         let earliestLoss = this.getEarliestLossTime()[0];
-        if (this.cryptoOutstanding !== 0) {
+        let alarmType : string = "";
+
+        if (earliestLoss != 0) {
+            // time threshold loss detection
+            // context: If packets sent prior to the largest acknowledged packet cannot yet be declared lost, then a timer SHOULD be set for the remaining time.
+            // TODO: check if this calculation does what it's supposed to
+            alarmDuration = earliestLoss - this.timeOfLastSentAckElicitingPacket;
+            VerboseLogging.debug(this.DEBUGname + " LossDetection:alarm: early retransmit " + alarmDuration);
+            alarmType = "TimeThreshold";
+        } else if (this.cryptoOutstanding !== 0) {
             // Crypto retransmission alarm.
             if (this.rttMeasurer.smoothedRtt == 0) {
                 alarmDuration = QuicLossDetection.kInitialRTT * 2;
@@ -358,26 +376,26 @@ export class QuicLossDetection extends EventEmitter {
             var pw = Math.pow(2, this.cryptoCount);
             alarmDuration = alarmDuration * pw;
             time = this.timeOfLastSentCryptoPacket;
-            VerboseLogging.debug(this.DEBUGname + " LossDetection:alarm: handshake mode " + alarmDuration );
-        } else if (earliestLoss != 0) {
-            // time threshold loss detection
-            alarmDuration = earliestLoss - this.timeOfLastSentAckElicitingPacket;
-            VerboseLogging.debug(this.DEBUGname + " LossDetection:alarm: early retransmit " + alarmDuration);
+            VerboseLogging.debug(this.DEBUGname + " LossDetection:alarm: handshake mode " + alarmDuration + " | cryptoOutstanding = " + this.cryptoOutstanding );
+            alarmType = "CryptoRetransmission";
         } else {
             // PTO alarm
            alarmDuration = this.rttMeasurer.smoothedRtt + this.rttMeasurer.rttVar * 4 + this.rttMeasurer.maxAckDelay;
            alarmDuration = Math.max(alarmDuration, QuicLossDetection.kGranularity);
            alarmDuration = alarmDuration * Math.pow(2, this.ptoCount);
+           alarmType = "PTOTimeout";
         }
 
-        if (!this.lossDetectionAlarm.isRunning()) {
-            this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, (timePassed:number) => {
-                VerboseLogging.info(this.DEBUGname + " LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
-                this.lossDetectionAlarm.reset();
-                this.onLossDetectionAlarm();
-            });
-            this.lossDetectionAlarm.start(alarmDuration);
-        }
+        this.lossDetectionAlarm.reset();
+        this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, (timePassed:number) => {
+            VerboseLogging.info(this.DEBUGname + " LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
+            this.lossDetectionAlarm.reset();
+            this.onLossDetectionAlarm();
+        });
+        this.lossDetectionAlarm.start(alarmDuration);
+        //TODO: get last handshake date?
+        this.connection.getQlogger().onLossDetectionArmed(alarmType, new Date(0), alarmDuration);
+        
     }
 
 
@@ -389,20 +407,25 @@ export class QuicLossDetection extends EventEmitter {
     public onLossDetectionAlarm(): void {
         let earliestLossTime = this.getEarliestLossTime()[0];
         let space = this.getEarliestLossTime()[1];
+        let alarmtype = "";
 
         if (this.cryptoOutstanding > 0) {
-            // Handshake retransmission alarm.
+            // Crypto retransmission alarm.
             this.retransmitAllUnackedHandshakeData();
             this.cryptoCount++;
+            alarmtype = "CryptoRetransmission";
         } else if (earliestLossTime != 0) {
-            // Early retransmit or Time Loss Detection
+            // Time threshold detection
             this.detectLostPackets(space);
+            alarmtype = "TimeThreshold";
         } else {
             //PTO
             //this is also allowed to be one packet
             this.sendTwoPackets()
             this.ptoCount++;
+            alarmtype = "PTOTimeout";
         }
+        this.connection.getQlogger().onLossDetectionTriggered(alarmtype, {});
         this.setLossDetectionAlarm();
     }
 
@@ -421,7 +444,7 @@ export class QuicLossDetection extends EventEmitter {
         let lostPN : Bignum = this.largestAckedPacket[space].subtract(QuicLossDetection.kPacketThreshold);
 
 
-        Object.keys(this.sendPackets).forEach((key:string) => {
+        Object.keys(this.sentPackets[space]).forEach((key:string) => {
             var unackedPacketNumber = new Bignum(Buffer.from(key, 'hex'));
             if(unackedPacketNumber > this.largestAckedPacket[space])
                 return;
@@ -432,6 +455,7 @@ export class QuicLossDetection extends EventEmitter {
                 //TODO: check for
                 //if(unacked.inFlight){
                 lostPackets.push(unacked.packet);
+                this.connection.getQlogger().onPacketLost(unacked.packet.getHeader().getPacketNumber().getValue());
                 //}
             }
             else{ 
@@ -533,6 +557,5 @@ export enum QuicLossDetectionEvents {
     PACKETS_LOST = "ld-packets-lost",
     PACKET_ACKED = "ld-packet-acked",
     RETRANSMIT_PACKET = "ld-retransmit-packet",
-    ECN_ACK = "ld-ECN-in-ACK",
-    PTO_PROBE_SEND = "ld-PTO-PROBE"
+    ECN_ACK = "ld-ECN-in-ACK"
 }
