@@ -84,6 +84,9 @@ export class Client extends Endpoint {
 
 
     private setupConnectionEvents() {
+        this.connection.on(ConnectionEvent.STREAM, (quicStream: QuicStream) => {
+            this.emit(QuickerEvent.NEW_STREAM, quicStream);
+        });
         this.connection.on(ConnectionEvent.DRAINING, () => {
             var connectionID = this.connection.getSrcConnectionID();
             this.emit(QuickerEvent.CONNECTION_DRAINING, connectionID.toString());

@@ -15,7 +15,9 @@ import { Http3BaseFrame, Http3FrameType } from "../frames/http3.baseframe";
 export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame[], number] {
     let frames: Http3BaseFrame[] = [];
     let offset: number = bufferOffset;
+    let parsedOffset = offset;
 
+    // TODO catch error out of range and return all completely parsed frames and parsedOffset
     while(offset < buffer.byteLength) {
         // TODO Safety checks before parsing to make sure format is valid
         let lengthVlie: VLIEOffset = VLIE.decode(buffer, bufferOffset);
@@ -65,9 +67,10 @@ export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame
             default:
                 throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unknown frametype encountered while parsing http3 frames");
         }
+        parsedOffset = offset;
     }
     
-    return [frames, offset];
+    return [frames, parsedOffset];
 }
 
 /**

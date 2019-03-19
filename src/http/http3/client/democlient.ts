@@ -8,5 +8,6 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
     client.on(Http3ClientEvent.RESPONSE_RECEIVED, (path: string, responseData: Buffer) => {
         console.log("HTTP3 RESPONSE ON PATH '" + path + "':\n" + responseData.toString("utf8"));
         client.close();
+        process.exit(0);
     });
 });

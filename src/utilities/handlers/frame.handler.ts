@@ -150,7 +150,8 @@ export class FrameHandler {
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
         var streamId = maxDataStreamFrame.getStreamId();
         if (Stream.isReceiveOnly(connection.getEndpointType(), streamId)) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+            //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+            return;
         }
         if (Stream.isSendOnly(connection.getEndpointType(), streamId) && !connection.getStreamManager().hasStream(streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);

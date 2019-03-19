@@ -30,6 +30,10 @@ export class QuicStream extends EventEmitter{
             this.emit(QuickerEvent.STREAM_END);
         });
     }
+    
+    public getStreamId():Bignum {
+        return this.stream.getStreamID();
+    }
 
     public write(data: Buffer): void {
         this.stream.addData(data);
