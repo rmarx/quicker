@@ -14,6 +14,7 @@ import { Http3SendingControlStream } from "../common/http3.sendingcontrolstream"
 import { VLIE, VLIEOffset } from "../../../types/vlie";
 import { Bignum } from "../../../types/bignum";
 import { Http3Error, Http3ErrorCode } from "../common/errors/http3.error";
+import { EndpointType } from "../../../types/endpoint.type";
 
 export class Http3Server {
     private readonly quickerServer: QuicServer;
@@ -24,6 +25,7 @@ export class Http3Server {
     private connections: Map<string, Connection> = new Map<string, Connection>();
     private sendingControlStreams: Map<string, Http3SendingControlStream> = new Map<string, Http3SendingControlStream>();
     private receivingControlStreams: Map<string, Http3ReceivingControlStream> = new Map<string, Http3ReceivingControlStream>();
+    private lastUsedStreamIDs: Map<string, Bignum> = new Map<string, Bignum>();
 
     public constructor(keyFilepath?: string, certFilepath?: string) {
         this.onNewConnection = this.onNewConnection.bind(this);
@@ -67,7 +69,7 @@ export class Http3Server {
     private async onNewConnection(connection: Connection) {
         // Create control stream to client on connect
         const controlQuicStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
-        const controlHttp3Stream: Http3SendingControlStream = new Http3SendingControlStream(controlQuicStream);
+        const controlHttp3Stream: Http3SendingControlStream = new Http3SendingControlStream(EndpointType.Server, controlQuicStream);
         this.sendingControlStreams.set(connection.getDestConnectionID().toString(), controlHttp3Stream);
         this.connections.set(connection.getDestConnectionID().toString(), connection);
 
@@ -86,6 +88,8 @@ export class Http3Server {
         // Check what type of stream it is: 
         //  Bidi -> Request stream
         //  Uni -> Control or push stream based on first frame
+        
+        this.lastUsedStreamIDs.set(quicStream.getConnection().getDestConnectionID().toString(), quicStream.getStreamId())
 
         // TODO HTTP request data should be handled from the moment enough has been received, not just on stream end
         if (quicStream.isBidiStream()) {
@@ -167,10 +171,15 @@ export class Http3Server {
     }
 
     private async closeConnection(conId: string) {
-        // TODO: Terminate http connection
+        const sendingControlStream: Http3SendingControlStream | undefined = this.sendingControlStreams.get(conId);
+        const lastUsedStreamID: Bignum | undefined = this.lastUsedStreamIDs.get(conId);
+        if (sendingControlStream !== undefined && lastUsedStreamID !== undefined) {
+            sendingControlStream.close(lastUsedStreamID);
+        }
         this.connections.delete(conId);
         this.receivingControlStreams.delete(conId);
         this.sendingControlStreams.delete(conId);
+        this.lastUsedStreamIDs.delete(conId);
     }
 
     private async onQuicServerError(error: Error) {

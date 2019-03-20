@@ -29,4 +29,8 @@ export class Http3CancelPushFrame extends Http3BaseFrame {
     public getFrameType(): Http3FrameType {
         return Http3FrameType.CANCEL_PUSH;
     }
+    
+    public getPushID(): Bignum {
+        return this.pushID;
+    }
 }

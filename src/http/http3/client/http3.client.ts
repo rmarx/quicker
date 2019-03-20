@@ -9,15 +9,24 @@ import { Http3Error, Http3ErrorCode } from "../common/errors/http3.error";
 import { Http3UniStreamType } from "../common/frames/streamtypes/http3.unistreamtypeframe";
 import { VLIEOffset, VLIE } from "../../../types/vlie";
 import { Bignum } from "../../../types/bignum";
-import { Http3ReceivingControlStream as Http3ReceivingControlStream, Http3EndpointType } from "../common/http3.receivingcontrolstream";
+import { Http3ReceivingControlStream as Http3ReceivingControlStream, Http3EndpointType, Http3ControlStreamEvent } from "../common/http3.receivingcontrolstream";
 import { Http3SendingControlStream } from "../common/http3.sendingcontrolstream";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
+import { EndpointType } from "../../../types/endpoint.type";
+import { Http3SettingsFrame, Http3PriorityFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "../common/frames";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
     private sendingControlStream?: Http3SendingControlStream; // Client initiated
     private receivingControlStream?: Http3ReceivingControlStream; // Server initiated
+
+    // For server side goaways
+    private terminateConnection: boolean = false;
+    // Used to keep track of what requests will still be handled by a server after a goaway frame
+    private lastStreamID: Bignum = new Bignum(0);
     
+    private pendingRequestStreams: QuicStream[] = [];
+
     public constructor(hostname: string, port: number) {
         super();
         this.onNewStream = this.onNewStream.bind(this);
@@ -26,7 +35,7 @@ export class Http3Client extends EventEmitter {
         this.quickerClient.on(QuickerEvent.CLIENT_CONNECTED, () => {
             // Create control stream
             const controlStream: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
-            this.sendingControlStream = new Http3SendingControlStream(controlStream);
+            this.sendingControlStream = new Http3SendingControlStream(EndpointType.Client, controlStream);
             
             this.emit(Http3ClientEvent.CLIENT_CONNECTED);
         });
@@ -86,8 +95,14 @@ export class Http3Client extends EventEmitter {
     }
     
     public get(path: string) {
+        if (this.terminateConnection === true) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_SERVER_CLOSED, "Can not send request, server has requested that the connection be closed");
+        }
+        
         const req: Http3Request = new Http3Request({path});
         const stream: QuicStream = this.quickerClient.request(req.toBuffer(), StreamType.ClientBidi);
+        this.lastStreamID = stream.getStreamId();
+        this.pendingRequestStreams.push(stream);
         VerboseLogging.info("Created new stream for HTTP/3 GET request. StreamID: " + stream.getStreamId());
         stream.end();
         
@@ -97,18 +112,56 @@ export class Http3Client extends EventEmitter {
             bufferedData = Buffer.concat([bufferedData, data]);
         });
         stream.on(QuickerEvent.STREAM_END, () => {
-            // TODO Temporary for debugging, function should return data instead
-            console.log(bufferedData.toString());
+            // Send out event that the response has been received
             this.emit(Http3ClientEvent.RESPONSE_RECEIVED, path, bufferedData)
+            
+            // Mark request as completed
+            this.pendingRequestStreams.filter((requestStream) => {
+                return requestStream !== stream;
+            });
+            
+            if (this.pendingRequestStreams.length === 0) {
+                this.emit(Http3ClientEvent.ALL_REQUESTS_FINISHED);
+            }
         })
     }
 
     public close() {
-        this.quickerClient.close();
+        // Wait for outbound requests to complete
+        // TODO This will give problems if server doesn't respond to all requests. Use a timeout as alternative
+        this.on(Http3ClientEvent.ALL_REQUESTS_FINISHED, () => {
+            this.quickerClient.close();  
+        });
     }
 
     private setupControlStreamEvents(controlStream: Http3ReceivingControlStream) {
-       // TODO Hook up all events and handle them
-        // controlStream.on()
+        controlStream.on(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, (frame: Http3PriorityFrame) => {
+            // TODO
+            VerboseLogging.info("HTTP/3: priority frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
+        });
+        controlStream.on(Http3ControlStreamEvent.HTTP3_CANCEL_PUSH_FRAME, (frame: Http3CancelPushFrame) => {
+            // TODO
+            VerboseLogging.info("HTTP/3: cancel push frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString() + " - Cancelled PushID: " + frame.getPushID().toDecimalString());
+        });
+        controlStream.on(Http3ControlStreamEvent.HTTP3_SETTINGS_FRAME, (frame: Http3SettingsFrame) => {
+            // TODO
+            VerboseLogging.info("HTTP/3: settings frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
+        });
+        controlStream.on(Http3ControlStreamEvent.HTTP3_GOAWAY_FRAME, (frame: Http3GoAwayFrame) => {
+            VerboseLogging.info("HTTP/3: goaway frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString() + " - MaxStreamID: " + frame.getStreamID().toDecimalString());
+            this.terminateConnection = true;
+            this.pendingRequestStreams.filter((stream) => {
+                if (stream.getStreamId().greaterThanOrEqual(frame.getStreamID())) {
+                    // Stop listening to stream and remove from pendingrequests
+                    stream.removeAllListeners();
+                    return false;
+                }
+                return true;
+            });
+        });
+        controlStream.on(Http3ControlStreamEvent.HTTP3_MAX_PUSH_ID, (frame: Http3MaxPushIDFrame) => {
+            VerboseLogging.info("HTTP/3: max push id frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
+            throw new Http3Error(Http3ErrorCode.HTTP_UNEXPECTED_FRAME, "Received an HTTP/3 MAX_PUSH_ID frame on client control stream. This is not allowed. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
+        });
     }
 }

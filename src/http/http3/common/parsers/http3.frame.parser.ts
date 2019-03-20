@@ -52,11 +52,11 @@ export function parse(buffer: Buffer, bufferOffset: number = 0): [Http3BaseFrame
                 frames.push(new Http3CancelPushFrame(payload));
                 break;
             case Http3FrameType.SETTINGS:
-                let frame: Http3SettingsFrame;
-                frame = Http3SettingsFrame.fromPayload(payload);
-                frames.push(frame);
+                const settingsFrame: Http3SettingsFrame = Http3SettingsFrame.fromPayload(payload);
+                frames.push(settingsFrame);
             case Http3FrameType.GOAWAY:
-                frames.push(new Http3GoAwayFrame(payload));
+                const goAwayFrame: Http3GoAwayFrame = Http3GoAwayFrame.fromPayload(payload);
+                frames.push(goAwayFrame);
                 break;
             case Http3FrameType.MAX_PUSH_ID:
                 frames.push(new Http3MaxPushIDFrame(payload));

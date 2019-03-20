@@ -1,13 +1,13 @@
 import { Http3BaseFrame, Http3FrameType } from "./http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
-import { VLIE } from "../../../../types/vlie";
+import { VLIE, VLIEOffset } from "../../../../types/vlie";
 
 export class Http3GoAwayFrame extends Http3BaseFrame {
     private streamID: Bignum;
 
-    public constructor(payload: Buffer) {
+    public constructor(streamID: Bignum) {
         super();
-        this.streamID = VLIE.decode(payload).value;
+        this.streamID = streamID;
     }
 
     public toBuffer(): Buffer {
@@ -21,6 +21,11 @@ export class Http3GoAwayFrame extends Http3BaseFrame {
 
         return buffer;
     }
+    
+    public static fromPayload(payload: Buffer, offset: number = 0): Http3GoAwayFrame {
+        const streamID: VLIEOffset = VLIE.decode(payload, offset);
+        return new Http3GoAwayFrame(streamID.value);
+    }
 
     public getPayloadLength(): number {
         return VLIE.getEncodedByteLength(this.streamID);
@@ -28,5 +33,9 @@ export class Http3GoAwayFrame extends Http3BaseFrame {
 
     public getFrameType(): Http3FrameType {
         return Http3FrameType.GOAWAY;
+    }
+    
+    public getStreamID(): Bignum {
+        return this.streamID;
     }
 }

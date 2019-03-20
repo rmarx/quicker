@@ -2,16 +2,16 @@ import { Http3BaseFrame, Http3FrameType } from "./http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
 import { VLIE, VLIEOffset } from "../../../../types/vlie";
 
-interface Http3SettingsParameter {
+interface Http3Setting {
     // RESERVED: "0x1f * N + 0x21", Endpoints SHOULD include at least one such setting in their SETTINGS frame
     identifier: Bignum,
     value: Bignum,
 }
 
 export class Http3SettingsFrame extends Http3BaseFrame {
-    private settingsParameters: Http3SettingsParameter[];
+    private settingsParameters: Http3Setting[];
 
-    public constructor(settingsParameters: Http3SettingsParameter[]) {
+    public constructor(settingsParameters: Http3Setting[]) {
         super();
         this.settingsParameters = settingsParameters;
     }
@@ -47,9 +47,9 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         return Http3FrameType.SETTINGS;
     }
 
-    private static parseParameters(buffer: Buffer, offset: number): [Http3SettingsParameter[], number] {
-        let param: Http3SettingsParameter | undefined;
-        const params: Http3SettingsParameter[] = [];
+    private static parseParameters(buffer: Buffer, offset: number): [Http3Setting[], number] {
+        let param: Http3Setting | undefined;
+        const params: Http3Setting[] = [];
         while (offset < buffer.byteLength) {
             [param, offset] = this.parseParameter(buffer, offset);
             params.push(param); 
@@ -57,7 +57,7 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         return [params, offset];
     }
 
-    private static parseParameter(buffer: Buffer, offset: number): [Http3SettingsParameter, number] {
+    private static parseParameter(buffer: Buffer, offset: number): [Http3Setting, number] {
         let vlieOffset: VLIEOffset = VLIE.decode(buffer, offset);
         const identifier: Bignum = vlieOffset.value;
         offset = vlieOffset.offset;
@@ -77,7 +77,7 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         return buffer;
     }
 
-    private settingsParameterToBuffer(param: Http3SettingsParameter): Buffer {
+    private settingsParameterToBuffer(param: Http3Setting): Buffer {
         return Buffer.concat([VLIE.encode(param.identifier), VLIE.encode(param.value)]);
     }
 }

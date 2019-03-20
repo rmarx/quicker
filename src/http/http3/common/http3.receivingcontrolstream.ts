@@ -4,10 +4,20 @@ import { Http3Error, Http3ErrorCode } from "./errors/http3.error";
 import { EventEmitter } from "events";
 import { parse as parseFrame } from "./parsers/http3.frame.parser";
 import { QuickerEvent } from "../../../quicker/quicker.event";
+import { Http3PriorityFrame, Http3SettingsFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "./frames";
+import { Bignum } from "../../../types/bignum";
 
 export enum Http3EndpointType {
     CLIENT,
     SERVER,
+}
+
+export enum Http3ControlStreamEvent {
+    HTTP3_PRIORITY_FRAME = "priority",
+    HTTP3_CANCEL_PUSH_FRAME = "cancel push",
+    HTTP3_SETTINGS_FRAME = "settings",
+    HTTP3_GOAWAY_FRAME = "goaway",
+    HTTP3_MAX_PUSH_ID = "max push id",
 }
 
 export class Http3ReceivingControlStream extends EventEmitter {
@@ -15,12 +25,14 @@ export class Http3ReceivingControlStream extends EventEmitter {
     private endpointType: Http3EndpointType;
     private bufferedData: Buffer;
     
+    private firstFrameHandled: boolean = false;
+    
     // Initial buffer contains data already buffered after the StreamType frame if there is any
     public constructor(quicControlStream: QuicStream, endpointType: Http3EndpointType, initialBuffer?: Buffer) {
+        super();
         if (quicControlStream.isUniStream() === false) {
             throw new Http3Error(Http3ErrorCode.HTTP3_INCORRECT_STREAMTYPE, "HTTP/3 Control streams can only be unidirectional.");
         }
-        super();
         this.quicControlStream = quicControlStream;
         this.endpointType = endpointType;
         if (initialBuffer === undefined) {
@@ -42,6 +54,10 @@ export class Http3ReceivingControlStream extends EventEmitter {
         });
     }
     
+    public getStreamID(): Bignum {
+        return this.quicControlStream.getStreamId();
+    }
+    
     private parseCurrentBuffer() {
         const [frames, offset] = parseFrame(this.bufferedData);
         for (let frame of frames) {
@@ -51,16 +67,32 @@ export class Http3ReceivingControlStream extends EventEmitter {
     }
 
     private handleFrame(frame: Http3BaseFrame) {
+        if (this.firstFrameHandled === false && frame.getFrameType() !== Http3FrameType.SETTINGS) {
+            throw new Http3Error(Http3ErrorCode.HTTP_UNEXPECTED_FRAME, "First frame received on HTTP/3 control stream was not a settings frame. This is not allowed. StreamID: " + this.quicControlStream.getStreamId().toDecimalString());
+        } else {
+            this.firstFrameHandled = true;
+        }
+        
         // Handle different types of frames differently
         switch(frame.getFrameType()) {
             case Http3FrameType.PRIORITY:
+                this.emit(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, frame as Http3PriorityFrame);
+                break;
             case Http3FrameType.CANCEL_PUSH:
+                this.emit(Http3ControlStreamEvent.HTTP3_CANCEL_PUSH_FRAME, frame as Http3CancelPushFrame);
+                break;
             case Http3FrameType.SETTINGS: // First frame only
+                this.emit(Http3ControlStreamEvent.HTTP3_SETTINGS_FRAME, frame as Http3SettingsFrame);
+                break;
             case Http3FrameType.GOAWAY:
+                this.emit(Http3ControlStreamEvent.HTTP3_GOAWAY_FRAME, frame as Http3GoAwayFrame);
+                break;
             case Http3FrameType.MAX_PUSH_ID:
+                this.emit(Http3ControlStreamEvent.HTTP3_MAX_PUSH_ID, frame as Http3MaxPushIDFrame);
+                break;
             default:
                 // Frametype not handled by control stream
-                // throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_FRAME)
+                throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_FRAME)
         }
     }
 }
