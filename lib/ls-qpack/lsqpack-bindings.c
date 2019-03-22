@@ -1,6 +1,8 @@
 #include "node_api.h"
 #include "lsqpack.h"
 #include <stdlib.h>
+#include <stdbool.h>
+#include <stdio.h>
 
 #define MAX_ENCODERS 64 // FIXME Currently just an arbitrary number
 #define MAX_ENCODED_BUFFER_SIZE 2048 // FIXME Currently just an arbitrary number
@@ -8,24 +10,119 @@
 static struct lsqpack_enc * encoders[MAX_ENCODERS];
 static uint32_t num_encoders = 0;
 
-// Args: max_table_size, dyn_table_size, max_risked_streams, qpack_enc_options
-// Returns: id of the new encoder
+/** Prints out the given string to confirm that argument passing works. Then returns the same string back.
+ * @param:
+ *  - argv[0]: string (buffer can hold up to 255 chars)
+ * @returns: The same string (up to 255 chars)
+*/
+napi_value testBindings(napi_env env, napi_callback_info info) {
+    napi_status status;
+    napi_value argv[1];
+    size_t argc = 1;
+    napi_value ret;
+    
+    unsigned char string_buf[256];
+    size_t copy_size;
+    
+    // Get argv
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not extract arguments for 'testBindings' call.");
+    }
+    
+    if (argc != 1) {
+        napi_throw_error(env, NULL, "Incorrect parameter count in 'testBindings' call. Expected 1 argument");
+    }
+    
+    status = napi_get_value_string_utf8(env, argv[0], string_buf, 256, &copy_size);
+    
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not convert passed argument to a string in 'testBindings' call.");
+    }
+    
+    printf("You passed the following string to the native library: `%s`\n", string_buf);
+    
+    status = napi_create_string_utf8(env, string_buf, 256, &ret);
+    
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not convert passed string back to napi_value in 'testBindings' call.");
+    }
+    
+    return ret;
+}
+
+/* Args: Object
+    {
+        max_table_size: number (unsigned),
+        dyn_table_size: number (unsigned),
+        max_risked_streams: number (unsigned),
+        is_server: boolean
+    }
+    Returns: id of the new encoder as a uint32 (number in javascript)
+*/
 napi_value createEncoder(napi_env env, napi_callback_info info) {
     if (num_encoders >= MAX_ENCODERS) {
         return NULL;
     }
     
-    napi_value value;
+    napi_status status;
+    napi_value argv[1];
+    size_t argc = 1;
+    
+    napi_value encoderID; // Return value
+    napi_value max_table_size_napi_value;
+    napi_value dyn_table_size_napi_value;
+    napi_value max_risked_streams_napi_value;
+    napi_value is_server_napi_value;
+    
+    uint32_t max_table_size;
+    uint32_t dyn_table_size;
+    uint32_t max_risked_streams;
+    bool is_server;
+    enum lsqpack_enc_opts opts;
+    
+    // Get argv
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not extract arguments for 'createEncoder' call.");
+    }
+    
+    if (argc != 1) {
+        napi_throw_error(env, NULL, "Incorrect parameter count in 'createEncoder' call. Expected 1 argument");
+    }
+    
+    status = napi_get_named_property(env, argv[0], "max_table_size", &max_table_size_napi_value);
+    status |= napi_get_named_property(env, argv[0], "dyn_table_size", &dyn_table_size_napi_value);
+    status |= napi_get_named_property(env, argv[0], "max_risked_streams", &max_risked_streams_napi_value);
+    status |= napi_get_named_property(env, argv[0], "is_server", &is_server_napi_value);
+    
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not retrieve all required parameters from parameter object in 'createEncoder' call.");
+    }
+    
+    // Convert from napi_value to uint32s
+    status = napi_get_value_uint32(env, max_table_size_napi_value, &max_table_size);
+    status |= napi_get_value_uint32(env, dyn_table_size_napi_value, &dyn_table_size);
+    status |= napi_get_value_uint32(env, max_risked_streams_napi_value, &max_risked_streams);
+    status |= napi_get_value_bool(env, is_server_napi_value, &is_server);
+    
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not convert all required paramters from parameter object to expected types in 'createEncoder' call.");
+    }
+    
+    // Flags mark that encoder has been preinit and if the encoder belongs to a server or client
+    opts = LSQPACK_ENC_OPT_STAGE_2 | is_server ? LSQPACK_ENC_OPT_SERVER : 0;
     
     struct lsqpack_enc * enc = (struct lsqpack_enc*) malloc(sizeof(struct lsqpack_enc));
     lsqpack_enc_preinit(enc, NULL);
-    lsqpack_enc_init(enc, NULL, /*MAX_TABLE_SIZE*/, /*DYN_TABLE_SIZE*/, /*MAX_RISKED_STREAMS*/, /*QPACK_ENC_OPTIONS*/, /*TSU_BUF*/, /*TSU_BUF_SZ*/);
+    // FIXME TSU_BUF may only be NULL if max_table_size == dyn_table_size
+    lsqpack_enc_init(enc, NULL, max_table_size, dyn_table_size, max_risked_streams, opts, NULL /* TODO TSU_BUF*/, NULL/* TODO TSU_BUF_SZ*/);
 
     // FIXME: Possible race condition with num encoders. Use semaphore/mutex if code could be executed in multiple threads
-    napi_create_uint32(env, num_encoders, &value);
+    napi_create_uint32(env, num_encoders, &encoderID);
     encoders[num_encoders++] = enc;
     
-    return value;
+    return encoderID;
 }
 
 static struct HttpHeader {
@@ -37,8 +134,8 @@ static struct HttpHeader {
 
 /* Args: Object
     {
-        encoderID: number,
-        streamID: number,
+        encoderID: number (unsigned),
+        streamID: number (unsigned),
         headers: {
             name: string,
             value: string
@@ -65,16 +162,16 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     }
     
     status = napi_get_named_property(env, argv[0], "encoderID", &properties[0]);
-    status = status | napi_get_named_property(env, argv[0], "streamID", &properties[1]);
-    status = status | napi_get_named_property(env, argv[0], "headers", &properties[2]);
+    status |= napi_get_named_property(env, argv[0], "streamID", &properties[1]);
+    status |= napi_get_named_property(env, argv[0], "headers", &properties[2]);
     
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'encodeHeaders' call.");
     }
     
     status = napi_get_value_uint32(env, properties[0], &encoderID);
-    status = status | napi_get_value_uint32(env, properties[1], &streamID);
-    status = status | napi_get_array_length(env, properties[2], &headerCount);
+    status |= napi_get_value_uint32(env, properties[1], &streamID);
+    status |= napi_get_array_length(env, properties[2], &headerCount);
     
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert values from parameter object to correct types in 'encodeHeaders' call.");
@@ -96,7 +193,7 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     size_t headerPropertyLen;
     
     // Convert to HttpHeaders
-    for (int i = 0; i < headerCount; ++i) {
+    for (size_t i = 0; i < headerCount; ++i) {
         status = status | napi_get_element(env, properties[2], i, &headerNapi);
         
         if (status != napi_ok) {
@@ -109,36 +206,45 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
             napi_throw_error(env, NULL, "Could not retrieve headername from header object in 'encodeHeaders' call.");
         }
         
-        status = status | napi_get_value_string_utf8(env, headerProperty, NULL, 0, &headerPropertyLen);
+        status |= napi_get_value_string_utf8(env, headerProperty, NULL, 0, &headerPropertyLen);
         headers[i].name = malloc(sizeof(char) * headerPropertyLen + 1);
         headers[i].name_len = headerPropertyLen;
-        status = status | napi_get_value_string_utf8(env, headerProperty, headers[i].name, headerPropertyLen+1, NULL);
+        status |= napi_get_value_string_utf8(env, headerProperty, headers[i].name, headerPropertyLen+1, NULL);
         
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headername from header object in 'encodeHeaders' call.");
         }
         
-        status = status | napi_get_named_property(env, headerNapi, "value", &headerProperty);
+        status |= napi_get_named_property(env, headerNapi, "value", &headerProperty);
         
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headervalue from header object in 'encodeHeaders' call.");
         }
         
-        status = status | napi_get_value_string_utf8(env, headerProperty, NULL, 0, &headerPropertyLen);
+        status |= napi_get_value_string_utf8(env, headerProperty, NULL, 0, &headerPropertyLen);
         headers[i].value = malloc(sizeof(char) * headerPropertyLen + 1);
         headers[i].value_len = headerPropertyLen;
-        status = status | napi_get_value_string_utf8(env, headerProperty, headers[i].value, headerPropertyLen+1, NULL);
+        status |= napi_get_value_string_utf8(env, headerProperty, headers[i].value, headerPropertyLen+1, NULL);
         
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headervalue from header object in 'encodeHeaders' call.");
         }
         
-        lsqpack_enc_encode(encoders[encoderID], /*enc_buf*/, /*enc_sz*/, /*header_buf*/, /*header_sz*/, headers[i].name, headers[i].name_len, headers[i].value, headers[i].value_len, 0 /*FIXME find out what this is*/);
+        // FIXME non arbitrary values
+        unsigned char enc_buf[1024];
+        size_t enc_sz = 1024;
+        unsigned char header_buf[1024];
+        size_t header_sz = 1024;
+        
+        lsqpack_enc_encode(encoders[encoderID], enc_buf/*enc_buf*/, &enc_sz/*enc_sz*/, header_buf/*header_buf*/, &header_sz/*header_sz*/, headers[i].name, headers[i].name_len, headers[i].value, headers[i].value_len, 0 /*FIXME find out what this is*/);
     }
     
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert all properties of parameter object to required types in 'encodeHeaders' call.");
     }
+    
+    unsigned char header_data_prefix[1024 /*FIXME non arbitrary value*/];
+    int bytes_written = lsqpack_enc_end_header(encoders[encoderID], header_data_prefix, 1024);
 }
 
 // Args: id of the encoder to delete
@@ -165,17 +271,19 @@ napi_value deleteEncoder(napi_env env, napi_callback_info info) {
     }
 }
 
-napi_value encodeBuffer(napi_env env, napi_callback_info info) {
-    napi_status status;
-    napi_value argv[1];
-    size_t argc = 1;
-    
-    
-}
-
 napi_value init(napi_env env, napi_value exports) {
     napi_status status;
     napi_value result;
+    
+    status = napi_create_function(env, "testBindings", NAPI_AUTO_LENGTH, testBindings, NULL, &result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to wrap 'testBindings' function");
+    }
+
+    status = napi_set_named_property(env, exports, "testBindings", result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to add 'testBindings' function to exports");
+    }
 
     status = napi_create_function(env, "createEncoder", NAPI_AUTO_LENGTH, createEncoder, NULL, &result);
     if (status != napi_ok) {
@@ -187,7 +295,17 @@ napi_value init(napi_env env, napi_value exports) {
         napi_throw_error(env, NULL, "Unable to add 'createEncoder' function to exports");
     }
     
-    for (int i = 0; i < MAX_ENCODERS; ++i) {
+    status = napi_create_function(env, "encodeHeaders", NAPI_AUTO_LENGTH, encodeHeaders, NULL, &result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to wrap 'encodeHeaders' function");
+    }
+
+    status = napi_set_named_property(env, exports, "encodeHeaders", result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to add 'encodeHeaders' function to exports");
+    }
+    
+    for (size_t i = 0; i < MAX_ENCODERS; ++i) {
         encoders[i] = NULL;
     }
 
