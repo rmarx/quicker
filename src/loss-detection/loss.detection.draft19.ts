@@ -433,7 +433,7 @@ export class QuicLossDetection extends EventEmitter {
 
     private detectLostPackets(space: kPacketNumberSpace): void {
         this.lossTime[space] = 0;
-        var lostPackets: BasePacket[] = [];
+        var lostPackets: SentPacket[] = [];
         let lossDelay : number = QuicLossDetection.kTimeThreshold * Math.max(this.rttMeasurer.latestRtt, this.rttMeasurer.smoothedRtt);
 
         //packets send before this time are deemed lost
@@ -454,7 +454,7 @@ export class QuicLossDetection extends EventEmitter {
                 this.removeFromSentPackets(space, unackedPacketNumber);
                 //TODO: check for
                 //if(unacked.inFlight){
-                lostPackets.push(unacked.packet);
+                lostPackets.push(unacked);
                 this.connection.getQlogger().onPacketLost(unacked.packet.getHeader().getPacketNumber().getValue());
                 //}
             }
@@ -473,8 +473,8 @@ export class QuicLossDetection extends EventEmitter {
         // let it decide whether to retransmit immediately.
         if (lostPackets.length > 0) {
             this.emit(QuicLossDetectionEvents.PACKETS_LOST, lostPackets);
-            lostPackets.forEach((packet: BasePacket) => {
-                var sentPacket = this.sentPackets[space][packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
+            lostPackets.forEach((lostPacket: SentPacket) => {
+                var sentPacket = this.sentPackets[space][lostPacket.packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
                 if (sentPacket !== undefined && sentPacket.packet.isHandshake()) {
                     this.cryptoOutstanding--;
                 }

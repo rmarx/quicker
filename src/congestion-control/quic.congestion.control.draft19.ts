@@ -1,7 +1,7 @@
 import { Bignum } from "../types/bignum";
 import { BasePacket } from "../packet/base.packet";
 import { Connection, ConnectionEvent } from "../quicker/connection";
-import { QuicLossDetection, QuicLossDetectionEvents } from "../loss-detection/loss.detection.draft19";
+import { QuicLossDetection, QuicLossDetectionEvents, SentPacket } from "../loss-detection/loss.detection.draft19";
 import {PacketType} from '../packet/base.packet';
 import { VerboseLogging } from "../utilities/logging/verbose.logging"
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
@@ -93,6 +93,8 @@ export class QuicCongestionControl extends PacketPipe {
      */
     private RTTMeasurer : RTTMeasurement;
 
+    
+
 
 
     public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>, rttMeasurer: RTTMeasurement) {
@@ -117,7 +119,7 @@ export class QuicCongestionControl extends PacketPipe {
             lossDetection.on(QuicLossDetectionEvents.PACKET_ACKED, (ackedPacket: BasePacket) => {
                 this.onPacketAckedCC(ackedPacket);
             });
-            lossDetection.on(QuicLossDetectionEvents.PACKETS_LOST, (lostPackets: BasePacket[]) => {
+            lossDetection.on(QuicLossDetectionEvents.PACKETS_LOST, (lostPackets: SentPacket[]) => {
                 this.onPacketsLost(lostPackets);
             });
             lossDetection.on(QuicLossDetectionEvents.ECN_ACK, (frame : AckFrame) => {
@@ -206,7 +208,7 @@ export class QuicCongestionControl extends PacketPipe {
     }
 
     /**
-     * 
+     * Process a received ECN frame
      * @param ack AckFrame the ack frame that contained the congestion notification
      */
     private ProcessECN(ack : AckFrame){
@@ -214,64 +216,119 @@ export class QuicCongestionControl extends PacketPipe {
           this.ecnCeCounter = ack.getCEcount();
           this.congestionEventHappened(ack.getLargestAcknowledged())
         }
-         
     }
 
-    private isWindowLost(largestLost : BasePacket, congestionPeriod : number){
-        //TODO: There is going to be the need of getting the smallest/longest ago packet in the congestion window.
-        // (and thus the smallest/longest ago unacked) if this packets send time is longer ago that congestionPeriod
-        // return true
 
+    // Determine if all packets in the window before the
+    // newest lost packet, including the edges, are marked
+    // lost
+    private isWindowLost(largestLostTime : number, smallestLostTime : number, congestionPeriod : number){
+/**
+     * first idea was to use lastackedpacket (known from onpackedackedCC function)
+     * TODO: doublecheck
+     *      would there be situations where basing this on the last acked and not the last-sent time acked would cause problems?
+     *      for example, if there are packets in the window [unacked unacked unacked... unacked acked unacked] the window might not be big enough according to
+     *      persistent congestion, while technically it would be in persistent congestion
+     *      
+     *      this might possibly pose a real issue since inPersistentCongestion gets called when there is a loss (which can be due to max reorder threshold)
+     *      in the case where the window is as follows [unacked unacked unacked... unacked acked unacked]
+     *      InPersistentCongestion() will take the largestlostpacket (which is the third to last packet in the window)
+     *      and try to detect if the window is lost using lastAckedPacket in the current implementation, the isWindowLost() will not only see a smaller lost-block
+     *      but possibly even a negative one.
+     * 
+     * 
+     *      other solution is when going through the array of lostpackets received from lossdetection, also look for the smallest(longest time ago) lost
+     *      all calculations using time, not pn
+     *      [unacked  unacked unacked acked unacked]
+     *        ^smallest        ^largest
+     *      
+     *      if smallest is smaller than or equal to [largest - congestion_period] then it's in persistent congestion (??)
+     *      
+     *      what the quinn implementation does is: 
+     *                                              if the left edge of the window is before the perioud of [largest_lost - period, largest_lost]
+     *                                              then it's in persistent congestion
+     *      what this implementation could do is:
+     *                                              if the smallest is before *or on* the left edge of [largest_lost - period, largest_lost]
+     *                                              then it's in persistent congestion. since the window slides along with the already acked, the smallest lost could also be a 
+     *                                              decent measure of where the left edge of the window is.
+     *                                              this would also work in following situation [unacked acked unacked unacked ...unacked acked ...]
+     *                                                                                           ^smallestlost                      ^largestlost
+     *                                              
+     */
 
-        return false;
+        // quinn : rust implementation version
+        // InPersistentCongestion: Determine if all packets in the window before the newest
+        // lost packet, including the edges, are marked lost
+        // in_persistent_congestion |= space.largest_acked_packet_sent
+        //                              < largest_lost_time.unwrap() - persistent_congestion_period;
+
+        return smallestLostTime <= largestLostTime - congestionPeriod;
     }
 
     /**
      * 
-     * @param largestLost 
+     * @param largestLostTime time since epoch for the largest lost packet
+     * @param smallestLostTime time since epoch for the smallest lost packet
      */
-    private InPersistentCongestion(largestLost : BasePacket) : Boolean{
+    private inPersistentCongestion(largestLostTime : number, smallestLostTime : number) : Boolean{
         let pto = this.RTTMeasurer.smoothedRtt + Math.max(4* this.RTTMeasurer.rttVar, QuicLossDetection.kGranularity) + this.RTTMeasurer.maxAckDelay;
 
         let congestionPeriod = pto * (Math.pow(2, QuicCongestionControl.kPersistenCongestionThreshold -1))
 
+        //older pseudocode:
         //InPersistentCongestion( newest_lost_packet.time_sent - oldest_lost_packet.time_sent)
+        //
         // InPersistentCongestion(congestion_period):
-        //pto = smoothed_rtt + 4 * rttvar + max_ack_delay
-        //return congestion_period >
-        // pto * (2 ^ kPersistentCongestionThreshold - 1)
-        return this.isWindowLost(largestLost, congestionPeriod);
+            //pto = smoothed_rtt + 4 * rttvar + max_ack_delay
+            //return congestion_period > pto * (2 ^ kPersistentCongestionThreshold - 1)
+        return this.isWindowLost(largestLostTime, smallestLostTime,congestionPeriod);
     }
 
 
-    // TODO: REFACTOR: largestLost shouldn't be done on packet number basis since we have separate pn-spaces now! 
-    private onPacketsLost(lostPackets: BasePacket[]) {
-        var largestLost = new Bignum(0);
-        let totalLost = new Bignum(0);
-        lostPackets.forEach((lostPacket: BasePacket) => {
-            if (lostPacket.isAckOnly())
+     
+    private onPacketsLost(lostPackets: SentPacket[]) {
+        var largestLostPN : Bignum = new Bignum(0);
+        //time since epoch
+        let largestLostTime : number = 0;
+        let largestLostPacket! : BasePacket;
+
+        var smallestLostPN : Bignum = Bignum.infinity();
+        //time since epoch
+        let smallestLostTime : number = Number.POSITIVE_INFINITY;
+        let smallestLostPacket! : BasePacket;
+
+        let totalLostBytes = new Bignum(0);
+
+        lostPackets.forEach((lostPacket: SentPacket) => {
+            if (lostPacket.packet.isAckOnly())
                 return;
-            var packetByteSize = lostPacket.toBuffer(this.connection).byteLength;
-            totalLost = totalLost.add(packetByteSize);
-            if (lostPacket.getHeader().getPacketNumber().getValue().greaterThan(largestLost)) {
-                largestLost = lostPacket.getHeader().getPacketNumber().getValue();
+
+            var packetByteSize = lostPacket.packet.toBuffer(this.connection).byteLength;
+            totalLostBytes = totalLostBytes.add(packetByteSize);
+
+            if (lostPacket.time > largestLostTime) {
+                largestLostPN = lostPacket.packet.getHeader().getPacketNumber().getValue();
+                largestLostTime = lostPacket.time;
+                largestLostPacket = lostPacket.packet;
+            }
+            if(lostPacket.time < smallestLostTime){
+                smallestLostPN = lostPacket.packet.getHeader().getPacketNumber().getValue();
+                smallestLostTime = lostPacket.time;
+                smallestLostPacket = lostPacket.packet;
             }
         });
+
         // Remove lost packets from bytesInFlight.
-        this.updateBytesInFlight(this.bytesInFlight.subtract(totalLost));
-        this.congestionEventHappened(largestLost);
+        this.updateBytesInFlight(this.bytesInFlight.subtract(totalLostBytes));
+        this.congestionEventHappened(largestLostPN);
         this.sendPackets();
+
+        if(this.inPersistentCongestion(largestLostTime, smallestLostTime)){
+            //reset cwnd to minimum
+            this.updateCWND(new Bignum(QuicCongestionControl.kMinimumWindow));
+        }
     }
 
-
-    /**
-     * TODO : replace usage of this function by packetIn() (of the pipeline or this one specific)
-     * @param packets 
-     */
-    public queuePackets(packets: BasePacket[]) {
-        this.packetsQueue = this.packetsQueue.concat(packets);
-        this.sendPackets();
-    }
 
     /**
      * implementation of the abstract PacketPipe function
