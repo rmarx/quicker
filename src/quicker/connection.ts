@@ -37,9 +37,8 @@ import { QuicLossDetection, QuicLossDetectionEvents } from '../loss-detection/lo
 import { QuicCongestionControl } from '../congestion-control/quic.congestion.control.draft19';
 import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
 import { PacketPipeline } from '../packet-pipeline/packet.pipeline';
-import { DEBUGFakeReorderPipe } from '../general-packet-output-pipes/debug.fakereorder.pipe';
+import { DEBUGFakeReorderPipe } from '../general-packet-output-pipes/debug.pipes';
 import { SocketOutPipe } from '../general-packet-output-pipes/socket.out.pipe';
-import { TemplatePipe } from '../general-packet-output-pipes/template.pipe';
 
 export class Connection extends FlowControlledObject {
 

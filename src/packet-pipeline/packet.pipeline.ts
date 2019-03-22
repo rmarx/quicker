@@ -7,7 +7,7 @@ import { VerboseLogging } from "../utilities/logging/verbose.logging";
  * This class is used to contain and line up all operations that need to be done on outgoing packets.
  * It should simplify implementing and also abstract features like a Pacer or the Coalescing of packets.
  * 
- * Implementing test cases is simpler via this too, see "src/general-packet-output-pipes/debug.fakereorder.pipe.ts" for an example where
+ * Implementing test cases is simpler via this too, see "src/general-packet-output-pipes/debug.pipes.ts" for an example where
  * handshake packets get reordered.
  */
 //Pacer: https://tools.ietf.org/html/draft-ietf-quic-recovery-18#section-7.7
