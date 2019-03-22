@@ -1,18 +1,13 @@
-import { EventEmitter } from "events";
-import { Constants } from "../utilities/constants";
 import { Bignum } from "../types/bignum";
 import { BasePacket } from "../packet/base.packet";
 import { Connection, ConnectionEvent } from "../quicker/connection";
 import { QuicLossDetection, QuicLossDetectionEvents } from "../loss-detection/loss.detection.draft19";
-import { Socket } from "dgram";
 import {PacketType} from '../packet/base.packet';
-import { PacketLogging } from "../utilities/logging/packet.logging";
 import { VerboseLogging } from "../utilities/logging/verbose.logging"
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 import { AckFrame } from "../frame/ack";
-import { HeaderType } from "../packet/header/base.header";
-import { EndpointType } from "../types/endpoint.type";
 import { RTTMeasurement } from "../loss-detection/rtt.measurement";
+import { PacketPipe } from "../packet-pipeline/packet.pipe.interface";
 
 
 /**
@@ -22,9 +17,8 @@ import { RTTMeasurement } from "../loss-detection/rtt.measurement";
  * Variable name changes will try to be made only for clarity or code style.
  */
 
-export class QuicCongestionControl extends EventEmitter {
-
-
+export class QuicCongestionControl extends PacketPipe {
+    
     /////////////////////////////////
     // CONSTANTS
     ////////////////////////////////
@@ -98,6 +92,8 @@ export class QuicCongestionControl extends EventEmitter {
      * used for calculating persistent congestion
      */
     private RTTMeasurer : RTTMeasurement;
+
+
 
     public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>, rttMeasurer: RTTMeasurement) {
         super();
@@ -264,13 +260,25 @@ export class QuicCongestionControl extends EventEmitter {
         // Remove lost packets from bytesInFlight.
         this.updateBytesInFlight(this.bytesInFlight.subtract(totalLost));
         this.congestionEventHappened(largestLost);
-        //moved into updateBytesInFlight
-        //this.sendPackets();
+        this.sendPackets();
     }
 
 
+    /**
+     * TODO : replace usage of this function by packetIn() (of the pipeline or this one specific)
+     * @param packets 
+     */
     public queuePackets(packets: BasePacket[]) {
         this.packetsQueue = this.packetsQueue.concat(packets);
+        this.sendPackets();
+    }
+
+    /**
+     * implementation of the abstract PacketPipe function
+     * @param packet packet to enter the congestion control
+     */
+    public packetIn(packet: BasePacket) {
+        this.packetsQueue.push(packet);
         this.sendPackets();
     }
 
@@ -304,33 +312,41 @@ export class QuicCongestionControl extends EventEmitter {
     // having this.sendpackets() in random places doesn't really make sense to me?
     // find out reason why this is and change it, will probably lead to cleaner system
     private sendPackets(){
-        //TODO: perhaps some sort of pipelining functionality?? that way a pacer is easy to implement at later times
-        // + a serperate class can be made to handle coalescing https://tools.ietf.org/html/draft-ietf-quic-transport-18#section-12.2 and put into the pipeline
-        //https://tools.ietf.org/html/draft-ietf-quic-recovery-18#section-7.8
         // TODO: doublecheck if some packets need to be excluded from blocking by CC/pacer
         // update, PTO packets need to not be blocked
         this.checkIdleConnection();
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {
-                let pnSpace:PacketNumberSpace | undefined = this.getPNSpace(packet);
-
-                if(pnSpace !== undefined){ 
-                    packet.getHeader().setPacketNumber( pnSpace.getNext() ); 
-
-                    let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
-                    let DEBUGrxNumber = -1;
-                    if( DEBUGhighestReceivedNumber !== undefined )
-                        DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
-
-                    VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
-                }
+                this.initPacketNumber(packet);
                 
                 this.sendSingularPacket(packet);
                 
             }
         }
     }
+
+    /**
+     * Init's the packet with the correct PNSpace packet number
+     * 
+     * Currently also does some debug logging
+     * @param packet
+     */
+    private initPacketNumber(packet : BasePacket){
+        let pnSpace:PacketNumberSpace | undefined = this.getPNSpace(packet);
+
+        if(pnSpace !== undefined){ 
+            packet.getHeader().setPacketNumber( pnSpace.getNext() ); 
+
+            let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
+            let DEBUGrxNumber = -1;
+            if( DEBUGhighestReceivedNumber !== undefined )
+                DEBUGrxNumber = DEBUGhighestReceivedNumber.getValue().toNumber();
+
+            VerboseLogging.info("CongestionControl:sendPackets : PN space \"" + PacketType[ packet.getPacketType() ] + "\" TX is now at " + pnSpace.DEBUGgetCurrent() + " (RX = " + DEBUGrxNumber + ")" );
+        }
+    }
+
     
     /**
      * Send out a singular packet, emit PACKET_SENT
@@ -338,36 +354,15 @@ export class QuicCongestionControl extends EventEmitter {
      */
     private sendSingularPacket(packet : BasePacket){
         let pktNumber = packet.getHeader().getPacketNumber();
+
+        // NORMAL BEHAVIOUR
         VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
-
-        if( Constants.DEBUG_fakeReorder && packet.getPacketType() == PacketType.Handshake && this.connection.getEndpointType() == EndpointType.Client ){
-            // this test case delays the client's handshake packets
-            // this leads to 1RTT requests being sent before handshake CLIENT_FINISHED
-            // server should buffer the 1RTT request until the handshake is done before replying
-            // TODO: move this type of test out of congestion-control into its own thing
-            //  FIXME: probably best not to set things directly onto the socket in CongestionControl either... 
-
-            VerboseLogging.warn("CongestionControl:sendPackets : DEBUGGING REORDERED Handshake DATA! Disable this for normal operation!");
-            let delayedPacket = packet;
-
-            // Robin start hier//
-            // kijk in server logs: opeens sturen we STREAM data in een Handshake packet... geen flauw idee waarom
-            setTimeout( () => {
-                VerboseLogging.warn("CongestionControl:fake-reorder: sending actual Handshake after delay, should arrive after 1-RTT");
-                this.connection.getSocket().send(delayedPacket.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
-            
-                this.onPacketSentCC(delayedPacket as BasePacket);    
-                this.emit(CongestionControlEvents.PACKET_SENT, delayedPacket);
-            }, 500);
-        }
-        else{
-            // NORMAL BEHAVIOUR
-            VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
-            this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
-        
-            this.onPacketSentCC(packet);    
-            this.emit(CongestionControlEvents.PACKET_SENT, packet);
-        }         
+        VerboseLogging.info("nextpipefunc" + this.debug);
+        this.nextPipeFunc(packet);
+    
+        this.onPacketSentCC(packet);    
+        this.connection.packetHasBeenSent(packet);
+                 
     }
 
 
@@ -390,12 +385,4 @@ export class QuicCongestionControl extends EventEmitter {
         this.bytesInFlight = newVal;
         this.connection.getQlogger().onBytesInFlightUpdate(this.bytesInFlight.toDecimalString(), this.congestionWindow.toDecimalString());
     }
-}
-
-
-
-
-
-export enum CongestionControlEvents {
-    PACKET_SENT = 'cc-packet-sent'
 }

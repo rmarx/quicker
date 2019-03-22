@@ -36,6 +36,10 @@ import { RTTMeasurement } from '../loss-detection/rtt.measurement';
 import { QuicLossDetection, QuicLossDetectionEvents } from '../loss-detection/loss.detection.draft19';
 import { QuicCongestionControl } from '../congestion-control/quic.congestion.control.draft19';
 import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
+import { PacketPipeline } from '../packet-pipeline/packet.pipeline';
+import { DEBUGFakeReorderPipe } from '../general-packet-output-pipes/debug.fakereorder.pipe';
+import { SocketOutPipe } from '../general-packet-output-pipes/socket.out.pipe';
+import { TemplatePipe } from '../general-packet-output-pipes/template.pipe';
 
 export class Connection extends FlowControlledObject {
 
@@ -88,6 +92,7 @@ export class Connection extends FlowControlledObject {
     private handshakeHandler!: HandshakeHandler;
 
     private lossDet!: QuicLossDetection;
+    private outgoingPacketPipeline! : PacketPipeline;
 
     private qlogger!:QlogWrapper;
 
@@ -164,11 +169,12 @@ export class Connection extends FlowControlledObject {
         this.handshakeHandler = new HandshakeHandler(this.qtls, this.aead, this.endpointType === EndpointType.Server);
         this.streamManager = new StreamManager(this.endpointType);
         this.flowControl = new FlowControl(this);
-        this.congestionControl = new QuicCongestionControl(this, [this.lossDet], this.lossDet.rttMeasurer ); // 1RTT and 0RTT share loss detection, don't add twice!
+        
+        this.initializeOutgoingPacketsPipeline();
 
         this.hookStreamManagerEvents();
         this.hookLossDetectionEvents();
-        this.hookCongestionControlEvents();
+        
         this.hookHandshakeHandlerEvents();
 
         this.handshakeHandler.registerCryptoStream( this.contextInitial.getCryptoStream() );
@@ -176,6 +182,22 @@ export class Connection extends FlowControlledObject {
         this.handshakeHandler.registerCryptoStream( this.contextHandshake.getCryptoStream() );
         this.handshakeHandler.registerCryptoStream( this.context1RTT.getCryptoStream() );
     }
+
+
+    private initializeOutgoingPacketsPipeline(){
+        this.outgoingPacketPipeline = new PacketPipeline();
+        this.congestionControl = new QuicCongestionControl(this, [this.lossDet], this.lossDet.rttMeasurer);
+        let fakeReorder = new DEBUGFakeReorderPipe(this);
+        let outSocketPipe = new SocketOutPipe(this);
+
+        //order is important
+        this.outgoingPacketPipeline.addPipe(this.congestionControl);
+        this.outgoingPacketPipeline.addPipe(fakeReorder);
+        this.outgoingPacketPipeline.addPipe(outSocketPipe);
+    }
+
+
+
 
     private hookHandshakeHandlerEvents() {
         this.handshakeHandler.on(HandshakeHandlerEvents.ClientHandshakeDone, () => {
@@ -219,22 +241,26 @@ export class Connection extends FlowControlledObject {
         });
     }
 
-    private hookCongestionControlEvents() {
-        this.congestionControl.on(CongestionControlEvents.PACKET_SENT, (basePacket: BasePacket) => {
-            this.qlogger.onPacketTX( basePacket );
-            PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
+    
+    //It's not clean to have this on public
+    // but due to change of congestion controller class extends and seeing this too late (visual code did not detect for some reason)
+    // it has to be like this for the moment, (does filter out the events originating from congestioncontrol though)
+    public packetHasBeenSent(basePacket : BasePacket) {
+    
+        this.qlogger.onPacketTX( basePacket );
+        PacketLogging.getInstance().logOutgoingPacket(this, basePacket);
 
-            // can't simply let loss detection listing to the PACKET_SENT event, 
-            // because we need to marshall the event to the correct Packet Number Space loss detector
-            // we COULD let loss detection check the proper PNS itself, but this feels cleaner, 
-            // especially if we want to refactor all the events out of the internal codebase anyway
-            let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
-            if( ctx ){ // TODO: should packets like VersionNegotation and RETRY etc. have influence on loss detection? probably not on retransmit, but maybe on latency estimates? 
-                ctx.getLossDetection().onPacketSent( basePacket );
-            }
+        // can't simply let loss detection listing to the PACKET_SENT event, 
+        // because we need to marshall the event to the correct Packet Number Space loss detector
+        // we COULD let loss detection check the proper PNS itself, but this feels cleaner, 
+        // especially if we want to refactor all the events out of the internal codebase anyway
+        let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
+        if( ctx ){ // TODO: should packets like VersionNegotation and RETRY etc. have influence on loss detection? probably not on retransmit, but maybe on latency estimates? 
+            ctx.getLossDetection().onPacketSent( basePacket );
+        }
 
-            this.emit(ConnectionEvent.PACKET_SENT, basePacket);
-        });
+        this.emit(ConnectionEvent.PACKET_SENT, basePacket);
+    
     }
 
     private hookLossDetectionEvents() {
@@ -706,7 +732,8 @@ export class Connection extends FlowControlledObject {
             var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>basePacket;
             this.queueFrames(baseEncryptedPacket.getFrames());
         } else {
-            this.congestionControl.queuePackets([basePacket]);
+             //send the packets through congestion control etc, see initializeOutgoingPacketsPipeline() to see which pipes are activated
+            this.outgoingPacketPipeline.packetIn(basePacket);
         }
     }
 
@@ -720,7 +747,8 @@ export class Connection extends FlowControlledObject {
         this.transmissionAlarm.reset();
         var packets: BasePacket[] = this.flowControl.getPackets();
         VerboseLogging.info("Connection:sendPackets : queueing " + packets.length + " packets on congestionControl");
-        this.congestionControl.queuePackets(packets);
+        //send the packets through congestion control etc, see initializeOutgoingPacketsPipeline() to see which pipes are activated
+        this.outgoingPacketPipeline.packetsIn(packets);
     }
 
     private startTransmissionAlarm(): void {
