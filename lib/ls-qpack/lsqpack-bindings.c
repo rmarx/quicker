@@ -128,7 +128,7 @@ napi_value createEncoder(napi_env env, napi_callback_info info) {
     // Flags mark that encoder has been preinit and if the encoder belongs to a server or client
     opts = LSQPACK_ENC_OPT_STAGE_2 | is_server ? LSQPACK_ENC_OPT_SERVER : 0;
 
-    struct lsqpack_enc * enc = (struct lsqpack_enc*) malloc(sizeof(struct lsqpack_enc));
+    struct lsqpack_enc * enc = malloc(sizeof(struct lsqpack_enc));
     lsqpack_enc_preinit(enc, NULL);
     // FIXME TSU_BUF may only be NULL if max_table_size == dyn_table_size
     lsqpack_enc_init(enc, NULL, max_table_size, dyn_table_size, max_risked_streams, opts, NULL /* TODO TSU_BUF*/, NULL/* TODO TSU_BUF_SZ*/);
@@ -208,12 +208,10 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     napi_value headerProperty;
     size_t headerPropertyLen;
 
-    unsigned char ** enc_bufs = malloc(sizeof(unsigned char*) * headerCount);
-    size_t * enc_szs = malloc(sizeof(size_t) * headerCount);
+    unsigned char * enc_buf = malloc(0);
     size_t total_enc_sz = 0;
 
-    unsigned char ** header_bufs = malloc(sizeof(unsigned char*) * headerCount);
-    size_t * header_szs = malloc(sizeof(size_t) * headerCount);
+    unsigned char * header_buf = malloc(0);
     size_t total_header_sz = 0;
 
     // Convert to HttpHeaders
@@ -255,12 +253,12 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
         }
 
         // FIXME non arbitrary values
-        unsigned char enc_buf[1024];
-        enc_szs[i] = 1024;
-        unsigned char header_buf[1024];
-        header_szs[i] = 1024;
+        unsigned char tmp_enc_buf[1024];
+        size_t enc_sz = 1024;
+        unsigned char tmp_header_buf[1024];
+        size_t header_sz = 1024;
 
-        enum lsqpack_enc_status encode_status = lsqpack_enc_encode(encoders[encoderID], enc_buf/*enc_buf*/, &enc_szs[i]/*enc_sz*/, header_buf/*header_buf*/, &header_szs[i]/*header_sz*/, headers[i].name, headers[i].name_len, headers[i].value, headers[i].value_len, 0 /*FIXME find out what this is*/);
+        enum lsqpack_enc_status encode_status = lsqpack_enc_encode(encoders[encoderID], tmp_enc_buf/*enc_buf*/, &enc_sz/*enc_sz*/, tmp_header_buf/*header_buf*/, &header_sz/*header_sz*/, headers[i].name, headers[i].name_len, headers[i].value, headers[i].value_len, 0 /*FIXME find out what this is*/);
 
         switch (encode_status) {
             case LQES_OK:
@@ -274,13 +272,16 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
                 break;
         }
 
-        // Save header bufs
-        enc_bufs[i] = (unsigned char *) malloc(enc_szs[i]);
-        memcpy(enc_bufs[i], enc_buf, enc_szs[i]);
-        total_enc_sz += enc_szs[i];
-        header_bufs[i] = (unsigned char *) malloc(header_szs[i]);
-        memcpy(header_bufs[i], header_buf, header_szs[i]);
-        total_header_sz += header_szs[i];
+        // Increase allocated memory
+        enc_buf = realloc(enc_buf, total_enc_sz+enc_sz);
+        header_buf = realloc(header_buf, total_header_sz+header_sz);
+
+        // Append to buffers
+        memcpy(enc_buf+total_enc_sz, tmp_enc_buf, enc_sz);
+        memcpy(header_buf+total_header_sz, tmp_header_buf, header_sz);
+
+        total_enc_sz += enc_sz;
+        total_header_sz += header_sz;
     }
 
     if (status != napi_ok) {
@@ -288,40 +289,42 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     }
 
     unsigned char header_data_prefix[1024 /*FIXME non arbitrary value*/];
-    ssize_t bytes_written = lsqpack_enc_end_header(encoders[encoderID], header_data_prefix, 1024);
+    ssize_t prefix_sz = lsqpack_enc_end_header(encoders[encoderID], header_data_prefix, 1024);
 
-    if (bytes_written == 0) {
+    if (prefix_sz == 0) {
         napi_throw_error(env, NULL, "Could not copy header prefix data into buffer: buffer too small. Call: 'encodeHeaders'");
     }
 
-    if (bytes_written < 0) {
+    if (prefix_sz < 0) {
         napi_throw_error(env, NULL, "Error transferring header prefix data into buffer in 'encodeHeaders' call");
     }
 
-    printf("Prefix: <%.*s>\nPrefix size: %lu\nTotal header size: %lu\nTotal encoder size: %lu\n", bytes_written, header_data_prefix, bytes_written, total_header_sz, total_enc_sz);
-
-    unsigned char * complete_header = (unsigned char*) malloc(total_header_sz);
-    size_t offset = 0;
-
-    for (size_t i = 0; i < headerCount; ++i) {
-        memcpy(complete_header+offset, header_bufs[i], header_szs[i]);
-        offset += header_szs[i];
-    }
+    printf("Prefix size: %lu\nTotal header size: %lu\nTotal encoder size: %lu\n", prefix_sz, total_header_sz, total_enc_sz);
 
     for (size_t i = 0; i < total_header_sz; ++i) {
-        printf("Header[%u]: "BYTE_TO_BINARY_PATTERN"\n", (unsigned) i, BYTE_TO_BINARY(complete_header[i]));
+        printf("Header[%u]: "BYTE_TO_BINARY_PATTERN"\n", (unsigned) i, BYTE_TO_BINARY(header_buf[i]));
     }
     
-    unsigned char * buffer = malloc(bytes_written + total_header_sz);
-    memcpy(buffer, header_data_prefix, bytes_written);
-    memcpy(buffer+bytes_written, complete_header, total_header_sz);
-    
-    status = napi_create_buffer(env, bytes_written + total_header_sz, &buffer, &ret);
-    
+    void * raw_buffer;
+
+    status = napi_create_buffer(env, prefix_sz + total_header_sz, &raw_buffer, &ret);
+
+    memcpy(raw_buffer, header_data_prefix, prefix_sz);
+    memcpy(raw_buffer+prefix_sz, header_buf, total_header_sz);
+
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not create buffer object from headers in 'encodeHeaders' call.");
     }
     
+    // Free used memory
+    for (size_t i = 0; i < headerCount; ++i) {
+        free(headers[i].name);
+        free(headers[i].value);
+    }
+    free(headers);
+    free(enc_buf);
+    free(header_buf);
+
     return ret;
 }
 
@@ -344,7 +347,9 @@ napi_value deleteEncoder(napi_env env, napi_callback_info info) {
 
     // Free the encoder
     if (encoderID < MAX_ENCODERS && encoders[encoderID] != NULL) {
+        printf("Freeing encoder with ID <%u>\n", encoderID);
         lsqpack_enc_cleanup(encoders[encoderID]);
+        free(encoders[encoderID]);
         encoders[encoderID] = NULL;
     }
 }
@@ -382,7 +387,7 @@ napi_value init(napi_env env, napi_value exports) {
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to add 'encodeHeaders' function to exports");
     }
-    
+
     status = napi_create_function(env, "deleteEncoder", NAPI_AUTO_LENGTH, deleteEncoder, NULL, &result);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to wrap 'deleteEncoder' function");
