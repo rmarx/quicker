@@ -22,8 +22,12 @@
 #define MAX_ENCODERS 64 // FIXME Currently just an arbitrary number
 #define MAX_ENCODED_BUFFER_SIZE 2048 // FIXME Currently just an arbitrary number
 
+#define MAX_DECODERS 64 // FIXME Currently just an arbitrary number
+
 static struct lsqpack_enc * encoders[MAX_ENCODERS];
+static struct lsqpack_dec * decoders[MAX_DECODERS];
 static uint32_t num_encoders = 0;
+static uint32_t num_decoders = 0;
 
 /** Prints out the given string to confirm that argument passing works. Then returns the same string back.
  * @param:
@@ -140,6 +144,64 @@ napi_value createEncoder(napi_env env, napi_callback_info info) {
     return encoderID;
 }
 
+/* Args: Object
+    {
+        dyn_table_size: number (unsigned),
+        max_risked_streams: number (unsigned),
+    }
+    Returns: id of the new decoder as a uint32 (number in javascript)
+*/
+napi_value createDecoder(napi_env env, napi_callback_info info) {
+    if (num_decoders >= MAX_DECODERS) {
+        return NULL;
+    }
+
+    napi_status status;
+    napi_value argv[1];
+    size_t argc = 1;
+
+    napi_value decoderID; // Return value
+    napi_value dyn_table_size_napi_value;
+    napi_value max_risked_streams_napi_value;
+    
+    uint32_t dyn_table_size;
+    uint32_t max_risked_streams;
+    
+    // Get argv
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not extract arguments for 'createDecoder' call.");
+    }
+
+    if (argc != 1) {
+        napi_throw_error(env, NULL, "Incorrect parameter count in 'createDecoder' call. Expected 1 argument");
+    }
+
+    status |= napi_get_named_property(env, argv[0], "dyn_table_size", &dyn_table_size_napi_value);
+    status |= napi_get_named_property(env, argv[0], "max_risked_streams", &max_risked_streams_napi_value);
+
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not retrieve all required parameters from parameter object in 'createDecoder' call.");
+    }
+    
+    // Convert from napi_value to uint32s
+    status |= napi_get_value_uint32(env, dyn_table_size_napi_value, &dyn_table_size);
+    status |= napi_get_value_uint32(env, max_risked_streams_napi_value, &max_risked_streams);
+
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not convert all required paramters from parameter object to expected types in 'createDecoder' call.");
+    }
+    
+    struct lsqpack_dec * dec = malloc(sizeof(struct lsqpack_dec));
+    lsqpack_dec_init(dec, NULL, dyn_table_size, max_risked_streams, NULL /* FIXME? */);
+    
+    // FIXME: Possible race condition with num decoders. Use semaphore/mutex if code could be executed in multiple threads
+    napi_create_uint32(env, num_decoders, &decoderID);
+    decoders[num_decoders++] = dec;
+
+    return decoderID;
+}
+
 static struct HttpHeader {
     char * name;
     size_t name_len;
@@ -156,6 +218,7 @@ static struct HttpHeader {
             value: string
         }[]
     }
+    @returns: [Headerblock: Buffer, encoderdata: Buffer]
 */
 napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     napi_status status;
@@ -180,7 +243,6 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     status = napi_get_named_property(env, argv[0], "encoderID", &properties[0]);
     status |= napi_get_named_property(env, argv[0], "streamID", &properties[1]);
     status |= napi_get_named_property(env, argv[0], "headers", &properties[2]);
-
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'encodeHeaders' call.");
     }
@@ -302,19 +364,39 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     printf("Prefix size: %lu\nTotal header size: %lu\nTotal encoder size: %lu\n", prefix_sz, total_header_sz, total_enc_sz);
 
     for (size_t i = 0; i < total_header_sz; ++i) {
-        printf("Header[%u]: "BYTE_TO_BINARY_PATTERN"\n", (unsigned) i, BYTE_TO_BINARY(header_buf[i]));
+        printf("header_buffer[%u]: "BYTE_TO_BINARY_PATTERN"\n", (unsigned) i, BYTE_TO_BINARY(header_buf[i]));
     }
     
-    void * raw_buffer;
+    for (size_t i = 0; i < total_enc_sz; ++i) {
+        printf("encoder_buffer[%u]: "BYTE_TO_BINARY_PATTERN"\n", (unsigned) i, BYTE_TO_BINARY(enc_buf[i]));
+    }
+    
+    void * header_buffer;
+    void * encoder_buffer;
+    napi_value header_buffer_napi_value;
+    napi_value encoder_buffer_napi_value;
 
-    status = napi_create_buffer(env, prefix_sz + total_header_sz, &raw_buffer, &ret);
-
-    memcpy(raw_buffer, header_data_prefix, prefix_sz);
-    memcpy(raw_buffer+prefix_sz, header_buf, total_header_sz);
+    status = napi_create_buffer(env, prefix_sz + total_header_sz, &header_buffer, &header_buffer_napi_value);
+    status |= napi_create_buffer(env, total_enc_sz, &encoder_buffer, &encoder_buffer_napi_value);
 
     if (status != napi_ok) {
-        napi_throw_error(env, NULL, "Could not create buffer object from headers in 'encodeHeaders' call.");
+        napi_throw_error(env, NULL, "Could not create buffer objects from headers or encoderdata in 'encodeHeaders' call.");
     }
+    
+    // [Headerblock, encoderdata]
+    status = napi_create_array_with_length(env, 2, &ret);
+    
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not create array for return value in 'encodeHeaders' call.");
+    }
+    
+    status = napi_set_element(env, ret, 0, header_buffer_napi_value);
+    status |= napi_set_element(env, ret, 1, encoder_buffer_napi_value);
+
+    memcpy(header_buffer, header_data_prefix, prefix_sz);
+    memcpy(header_buffer+prefix_sz, header_buf, total_header_sz);
+    
+    memcpy(encoder_buffer, enc_buf, total_enc_sz);
     
     // Free used memory
     for (size_t i = 0; i < headerCount; ++i) {
@@ -324,6 +406,8 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     free(headers);
     free(enc_buf);
     free(header_buf);
+    
+    printf("Dynamic table insertion count: %u\n", encoders[encoderID]->qpe_ins_count);
 
     return ret;
 }
@@ -342,7 +426,7 @@ napi_value deleteEncoder(napi_env env, napi_callback_info info) {
 
     status = napi_get_value_uint32(env, argv[0], &encoderID);
     if (status != napi_ok) {
-        napi_throw_error(env, NULL, "EncdoerID passed to deleteEncoder could not be converted to uint32.");
+        napi_throw_error(env, NULL, "EncoderID passed to deleteEncoder could not be converted to uint32.");
     }
 
     // Free the encoder
@@ -352,6 +436,36 @@ napi_value deleteEncoder(napi_env env, napi_callback_info info) {
         free(encoders[encoderID]);
         encoders[encoderID] = NULL;
     }
+    
+    return NULL;
+}
+
+// Args: id of the decoder to delete
+napi_value deleteDecoder(napi_env env, napi_callback_info info) {
+    napi_status status;
+    napi_value argv[1];
+    size_t argc = 1;
+    uint32_t decoderID;
+
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not extract arguments for 'deleteDecoder' call. Expected arguments: decoderID: number");
+    }
+
+    status = napi_get_value_uint32(env, argv[0], &decoderID);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "decoderID passed to deleteDecoder could not be converted to uint32.");
+    }
+
+    // Free the decoder
+    if (decoderID < MAX_DECODERS && decoders[decoderID] != NULL) {
+        printf("Freeing decoder with ID <%u>\n", decoderID);
+        lsqpack_dec_cleanup(decoders[decoderID]);
+        free(decoders[decoderID]);
+        decoders[decoderID] = NULL;
+    }
+    
+    return NULL;
 }
 
 napi_value init(napi_env env, napi_value exports) {
@@ -377,6 +491,16 @@ napi_value init(napi_env env, napi_value exports) {
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to add 'createEncoder' function to exports");
     }
+    
+    status = napi_create_function(env, "createDecoder", NAPI_AUTO_LENGTH, createDecoder, NULL, &result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to wrap 'createDecoder' function");
+    }
+
+    status = napi_set_named_property(env, exports, "createDecoder", result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to add 'createDecoder' function to exports");
+    }
 
     status = napi_create_function(env, "encodeHeaders", NAPI_AUTO_LENGTH, encodeHeaders, NULL, &result);
     if (status != napi_ok) {
@@ -396,6 +520,16 @@ napi_value init(napi_env env, napi_value exports) {
     status = napi_set_named_property(env, exports, "deleteEncoder", result);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to add 'deleteEncoder' function to exports");
+    }
+    
+    status = napi_create_function(env, "deleteDecoder", NAPI_AUTO_LENGTH, deleteDecoder, NULL, &result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to wrap 'deleteDecoder' function");
+    }
+
+    status = napi_set_named_property(env, exports, "deleteDecoder", result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to add 'deleteDecoder' function to exports");
     }
 
     for (size_t i = 0; i < MAX_ENCODERS; ++i) {
