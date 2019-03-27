@@ -412,6 +412,106 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     return ret;
 }
 
+/* Args: Object
+    {
+        decoderID: number (unsigned),
+        streamID: number (unsigned),
+        headerBuffer: Buffer,
+    }
+    @returns: Object
+    {
+        status: number
+            1: Success
+            0: Needs more data to decode headers
+            -1: Blocked, more dynamic table entries needed
+            -2: Error, fatal,
+        headers: HttpHeader{
+            name: string,
+            value: string,    
+        }[],
+    }
+*/
+napi_value decodeHeaders(napi_env env, napi_callback_info info) {
+    napi_status status;
+    napi_value argv[1];
+    napi_value properties[3]; // decoderID, streamID, headerBuffer
+    size_t argc = 1;
+    uint32_t decoderID;
+    uint32_t streamID;
+    void * header_buffer;
+    size_t header_buffer_sz;
+    struct lsqpack_header_set * hset = NULL;
+    unsigned char dec_buf[LSQPACK_LONGEST_HACK];
+    size_t dec_buf_sz;
+    const unsigned char * buffer[1024]; // FIXME arbitrary size
+    
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not extract arguments for 'decodeHeaders' call.");
+    }
+
+    if (argc != 1) {
+        napi_throw_error(env, NULL, "Too many arguments for 'decodeHeaders' call.");
+    }
+
+    status = napi_get_named_property(env, argv[0], "decoderID", &properties[0]);
+    status |= napi_get_named_property(env, argv[0], "streamID", &properties[1]);
+    status |= napi_get_named_property(env, argv[0], "headerBuffer", &properties[2]);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'decodeHeaders' call.");
+    }
+
+    status = napi_get_value_uint32(env, properties[0], &decoderID);
+    status |= napi_get_value_uint32(env, properties[1], &streamID);
+    // FIXME? Warning: Use caution while using napi_get_buffer_info since the underlying data buffer's lifetime is not guaranteed if it's managed by the VM.
+    status |= napi_get_buffer_info(env, properties[2], &header_buffer, &header_buffer_sz);
+
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not convert values from parameter object to correct types in 'decodeHeaders' call.");
+    }
+    
+    if (decoderID > MAX_DECODERS) {
+        napi_throw_error(env, NULL, "DecoderID is larger than maximum allowed decoderID initialized in 'decodeHeaders' call.");
+    }
+
+    if (decoders[decoderID] == NULL) {
+        napi_throw_error(env, NULL, "Decoder with given ID has not yet been initialized in 'decodeHeaders' call.");
+    }
+    
+    printf("decoderID: %u\nstreamID: %u\nheaderBuffer: %.*s\n", decoderID, streamID, (int) header_buffer_sz, (unsigned char*) header_buffer);
+
+    enum lsqpack_read_header_status read_status = lsqpack_dec_header_in(decoders[decoderID], header_buffer, streamID, header_buffer_sz, buffer, 1024, &hset, dec_buf, &dec_buf_sz);
+    
+    switch (read_status) {
+        case LQRHS_DONE:
+            printf("Decoder successfully decoded block\n");
+            break;
+        case LQRHS_NEED:
+            printf("Decoder needs more data\n");
+            break;
+        case LQRHS_BLOCKED:
+            printf("Decoder blocked\n");
+            break;
+        case LQRHS_ERROR:
+            printf("Error occurred during decoding\n");
+            return NULL;
+    }
+    
+    if (hset != NULL) {
+        printf("Header count: %u\n", hset->qhs_count);
+    
+        for (size_t i = 0; i < hset->qhs_count; ++i) {
+            printf("Header[%lu]: \nName: %.*s\nValue: %.*s", i, hset->qhs_headers[i]->qh_name_len, hset->qhs_headers[i]->qh_name, hset->qhs_headers[i]->qh_value_len, hset->qhs_headers[i]->qh_value);
+        }   
+    } else {
+        printf("Header set is NULL\n");
+    }
+    
+    //lsqpack_dec_header_read(decoders[decoderID], /*hblock*/, /*buf*/, /*buf_sz*/, /*hset*/, /*dec_buf*/, /*dec_buf_sz*/);
+
+    return NULL;
+}
+
 // Args: id of the encoder to delete
 napi_value deleteEncoder(napi_env env, napi_callback_info info) {
     napi_status status;
@@ -510,6 +610,16 @@ napi_value init(napi_env env, napi_value exports) {
     status = napi_set_named_property(env, exports, "encodeHeaders", result);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to add 'encodeHeaders' function to exports");
+    }
+
+    status = napi_create_function(env, "decodeHeaders", NAPI_AUTO_LENGTH, decodeHeaders, NULL, &result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to wrap 'decodeHeaders' function");
+    }
+
+    status = napi_set_named_property(env, exports, "decodeHeaders", result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to add 'decodeHeaders' function to exports");
     }
 
     status = napi_create_function(env, "deleteEncoder", NAPI_AUTO_LENGTH, deleteEncoder, NULL, &result);

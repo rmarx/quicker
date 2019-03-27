@@ -26,6 +26,12 @@ export interface EncodeHeadersParam {
     headers: HttpHeader[],
 }
 
+export interface DecodeHeadersParam {
+    decoderID: number,
+    streamID: number,
+    headerBuffer: Buffer,
+}
+
 function httpHeaderToString(header: HttpHeader): string {
     return "Name: " + header.name + "\tValue: " + header.value + "\n";
 }
@@ -76,6 +82,11 @@ export function encodeHeaders(param: EncodeHeadersParam): [Buffer, Buffer] {
     return [headers, encoderData];
 }
 
+export function decodeHeaders(param: DecodeHeadersParam): HttpHeader[] {
+    lsqpack.decodeHeaders(param);
+    return [];
+}
+
 export function deleteEncoder(encoderID: number): void {
     lsqpack.deleteEncoder(encoderID);
 }
@@ -84,7 +95,7 @@ export function deleteDecoder(decoderID: number): void {
     lsqpack.deleteDecoder(decoderID);
 }
 
-function testEncoding() {
+function testLSQPackBindings() {
     VerboseLogging.info("Testing lsqpack encoding");
     
     const encoderID: number | null = createEncoder({
@@ -93,8 +104,43 @@ function testEncoding() {
         max_risked_streams: 16,
         max_table_size: 1024,
     });
+    const decoderID: number = createDecoder({
+        dyn_table_size: 1024,
+        max_risked_streams: 16,
+    });
 
-    encodeHeaders({
+    const [headers_1, encoderData_1] = encodeHeaders({
+        encoderID: encoderID,
+        headers: [
+            {
+                name: ":path",
+                value: "/",
+            },
+            {
+                name: "path",
+                "value": "/",
+            },
+            {
+                name: "content-length",
+                "value": "0",
+            },
+            {
+                name: "content-length",
+                "value": "15",
+            },
+        ],
+        streamID: 0,
+    });
+    
+    const decodedHeaders: HttpHeader[] = decodeHeaders({
+        decoderID,
+        headerBuffer: headers_1,
+        streamID: 0,
+    });
+    
+    VerboseLogging.info("Decoded headers: " + decodedHeaders.toString());
+    /*
+    const [headers_2, encoderData_2] = encodeHeaders({
         encoderID: encoderID,
         headers: [
             {
@@ -144,20 +190,10 @@ function testEncoding() {
         ],
         streamID: 0,
     });
+    */
 
     deleteEncoder(encoderID);
-}
-
-function testDecoding() {
-    VerboseLogging.info("Testing lsqpack decoding");
-    
-    const decoderID: number = createDecoder({
-        dyn_table_size: 1024,
-        max_risked_streams: 16,
-    });
-    
     deleteDecoder(decoderID);
 }
 
-testEncoding();
-testDecoding();
+testLSQPackBindings();
