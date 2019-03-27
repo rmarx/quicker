@@ -15,17 +15,65 @@ import { VLIE, VLIEOffset } from "../../../types/vlie";
 import { Bignum } from "../../../types/bignum";
 import { Http3Error, Http3ErrorCode } from "../common/errors/http3.error";
 import { EndpointType } from "../../../types/endpoint.type";
+import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
+import { Http3QPackEncoder } from "../common/qpack/http3.qpackencoder";
+import { Http3QPackDecoder } from "../common/qpack/http3.qpackdecoder";
+
+class ClientState {
+    private sendingControlStream: Http3SendingControlStream;
+    private receivingControlStream?: Http3ReceivingControlStream;
+    private lastUsedStreamID: Bignum;
+    private qpackEncoder: Http3QPackEncoder;
+    private qpackDecoder: Http3QPackDecoder;
+    private frameParser: Http3FrameParser;
+    
+    public constructor(sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
+        this.sendingControlStream = sendingControlStream;
+        this.receivingControlStream = receivingControlStream;
+        this.lastUsedStreamID = lastUsedStreamID;
+        this.qpackEncoder = qpackEncoder;
+        this.qpackDecoder = qpackDecoder;
+        this.frameParser = frameParser;
+    }
+    
+    public setReceivingControlStream(receivingControlStream: Http3ReceivingControlStream) {
+        this.receivingControlStream = receivingControlStream;
+    }
+    
+    public setLastUsedStreamID(lastUsedStreamID: Bignum) {
+        this.lastUsedStreamID = lastUsedStreamID;
+    }
+    
+    public getSendingControlStream(): Http3SendingControlStream {
+        return this.sendingControlStream;
+    }
+    
+    public getReceivingControlStream(): Http3ReceivingControlStream | undefined {
+        return this.receivingControlStream;
+    }
+    
+    public getLastUsedStreamID(): Bignum {
+        return this.lastUsedStreamID;
+    }
+    
+    public getQPackEncoder(): Http3QPackEncoder {
+        return this.qpackEncoder;
+    }
+    
+    public getQPackDecoder(): Http3QPackDecoder {
+        return this.qpackDecoder;
+    }
+    
+    public getFrameParser(): Http3FrameParser {
+        return this.frameParser;
+    }
+}
 
 export class Http3Server {
     private readonly quickerServer: QuicServer;
     private handledGetPaths: { [path: string]: (req: Http3Request, res: Http3Response) => Promise<void>; } = {};
     
-    // Map conn_ids to connections and their control streams
-    // TODO Reconsider if this is necessary
-    private connections: Map<string, Connection> = new Map<string, Connection>();
-    private sendingControlStreams: Map<string, Http3SendingControlStream> = new Map<string, Http3SendingControlStream>();
-    private receivingControlStreams: Map<string, Http3ReceivingControlStream> = new Map<string, Http3ReceivingControlStream>();
-    private lastUsedStreamIDs: Map<string, Bignum> = new Map<string, Bignum>();
+    private connectionStates: Map<string, ClientState> = new Map<string, ClientState>();
 
     public constructor(keyFilepath?: string, certFilepath?: string) {
         this.onNewConnection = this.onNewConnection.bind(this);
@@ -70,8 +118,20 @@ export class Http3Server {
         // Create control stream to client on connect
         const controlQuicStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
         const controlHttp3Stream: Http3SendingControlStream = new Http3SendingControlStream(EndpointType.Server, controlQuicStream);
-        this.sendingControlStreams.set(connection.getDestConnectionID().toString(), controlHttp3Stream);
-        this.connections.set(connection.getDestConnectionID().toString(), connection);
+        
+        // QPack streams
+        const qpackEncoderStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
+        const qpackEncoder: Http3QPackEncoder = new Http3QPackEncoder(qpackEncoderStream, true)
+        const qpackDecoderStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
+        const qpackDecoder: Http3QPackDecoder = new Http3QPackDecoder(qpackDecoderStream);
+        
+        this.connectionStates.set(connection.getSrcConnectionID().toString(), new ClientState(
+            controlHttp3Stream,
+            controlQuicStream.getStreamId(),
+            qpackEncoder,
+            qpackDecoder,
+            new Http3FrameParser(qpackEncoder, qpackDecoder)
+        ));
 
         this.quickerServer.on(QuickerEvent.NEW_STREAM, this.onNewStream);
         this.quickerServer.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
@@ -85,11 +145,17 @@ export class Http3Server {
     }
     
     private async onNewStream(quicStream: QuicStream) {
+        const connectionID: string = quicStream.getConnection().getSrcConnectionID().toString();
+        const state: ClientState | undefined = this.connectionStates.get(connectionID);
+        
+        if (state === undefined) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_UNTRACKED_CONNECTION, "Received a new stream on the server from an untracked connection (no state found for this connection).\nConnectionID: <" + connectionID + ">\nStreamID <" + quicStream.getStreamId().toDecimalString() + ">");
+        }
+        state.setLastUsedStreamID(quicStream.getStreamId());
+
         // Check what type of stream it is: 
         //  Bidi -> Request stream
         //  Uni -> Control or push stream based on first frame
-        
-        this.lastUsedStreamIDs.set(quicStream.getConnection().getDestConnectionID().toString(), quicStream.getStreamId())
 
         // TODO HTTP request data should be handled from the moment enough has been received, not just on stream end
         if (quicStream.isBidiStream()) {
@@ -115,13 +181,17 @@ export class Http3Server {
                         const vlieOffset: VLIEOffset = VLIE.decode(bufferedData);
                         const streamTypeBignum: Bignum = vlieOffset.value;
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
-                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, bufferedData.slice(vlieOffset.offset));
+                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, state.getFrameParser(), bufferedData.slice(vlieOffset.offset));
                             this.setupControlStreamEvents(controlStream);
-                            this.receivingControlStreams.set(quicStream.getConnection().getDestConnectionID().toString(), controlStream);
+                            state.setReceivingControlStream(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
                             // Server shouldn't receive push streams
                             quicStream.end();
                             throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
+                        } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
+                            state.getQPackDecoder().setPeerEncoderStream(quicStream, bufferedData);
+                        } else if (streamTypeBignum.equals(Http3UniStreamType.DECODER)) {
+                            state.getQPackEncoder().setPeerDecoderStream(quicStream, bufferedData);
                         } else {
                             quicStream.end();
                             throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control stream or a push stream");
@@ -154,13 +224,23 @@ export class Http3Server {
      * An Http/3 request is derived from this buffer and will be passed to user functions for the path specified in the request
      */
     private handleRequest(quicStream: QuicStream, bufferedData: Buffer) {
-        let req: Http3Request = parseHttp3Message(bufferedData);
-        let res: Http3Response = new Http3Response();
-        const reqPath: string | undefined = req.getHeaderValue("path");
+        const connectionID: string = quicStream.getConnection().getSrcConnectionID().toString();
+        const state: ClientState | undefined = this.connectionStates.get(connectionID);
+        
+        if (state === undefined) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_UNTRACKED_CONNECTION, "Handling request for on the server for an untracked connection (no state found for this connection).\nConnectionID: <" + connectionID + ">\nStreamID <" + quicStream.getStreamId().toDecimalString() + ">");
+        }
+        const frameParser: Http3FrameParser = state.getFrameParser();
+        const encoder: Http3QPackEncoder = state.getQPackEncoder();
+        const decoder: Http3QPackDecoder = state.getQPackDecoder();
+        
+        let req: Http3Request = parseHttp3Message(bufferedData, quicStream.getStreamId(), frameParser, encoder);
+        let res: Http3Response = new Http3Response([], quicStream.getStreamId(), encoder, decoder);
+        const requestPath: string | undefined = req.getHeaderValue("path");
         // TODO log if request arrives for unhandled path?
-        if (reqPath !== undefined && this.handledGetPaths[reqPath] !== undefined) {
+        if (requestPath !== undefined && this.handledGetPaths[requestPath] !== undefined) {
             // Call user function to fill response
-            this.handledGetPaths[reqPath](req, res);
+            this.handledGetPaths[requestPath](req, res);
 
             // Respond and close stream
             VerboseLogging.debug("Handling HTTP/3 Request");
@@ -170,16 +250,17 @@ export class Http3Server {
         }
     }
 
-    private async closeConnection(conId: string) {
-        const sendingControlStream: Http3SendingControlStream | undefined = this.sendingControlStreams.get(conId);
-        const lastUsedStreamID: Bignum | undefined = this.lastUsedStreamIDs.get(conId);
-        if (sendingControlStream !== undefined && lastUsedStreamID !== undefined) {
-            sendingControlStream.close(lastUsedStreamID);
+    private async closeConnection(connectionID: string) {
+        const state: ClientState | undefined = this.connectionStates.get(connectionID);
+        
+        if (state === undefined) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_UNTRACKED_CONNECTION, "Tried closing connection of an untracked connection on the server (no state found for this connection).\nConnectionID: <" + connectionID + ">");
         }
-        this.connections.delete(conId);
-        this.receivingControlStreams.delete(conId);
-        this.sendingControlStreams.delete(conId);
-        this.lastUsedStreamIDs.delete(conId);
+        
+        const sendingControlStream: Http3SendingControlStream  = state.getSendingControlStream();
+        const lastUsedStreamID: Bignum = state.getLastUsedStreamID();
+        sendingControlStream.close(lastUsedStreamID); // Lets client know what the streamID is of the last stream that might be handled
+        this.connectionStates.delete(connectionID);
     }
 
     private async onQuicServerError(error: Error) {

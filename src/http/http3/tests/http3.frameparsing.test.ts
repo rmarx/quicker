@@ -1,14 +1,18 @@
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
-import { parse as parseFrame } from "../common/parsers/http3.frame.parser";
+import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
 import { ElementDependencyType, Http3CancelPushFrame, Http3DataFrame, Http3HeaderFrame,Http3PriorityFrame, PrioritizedElementType } from "../common/frames"
 import { VLIE } from "../../../types/vlie";
+import { Http3QPackEncoder } from "../common/qpack/http3.qpackencoder";
+import { Bignum } from "../../../types/bignum";
 
 export class TestHttp3Frameparser {
     public static execute(): boolean {
+        const frameParser: Http3FrameParser = new Http3FrameParser();
+        
         let testCount = 0;
         
         // Data frames
-        if (this.testDataFrame() === true) {
+        if (this.testDataFrame(frameParser) === true) {
             console.info("HTTP/3 data frame parsing test succeeded")
         } else {
             console.error("HTTP/3 data frame parsing test failed");
@@ -18,8 +22,8 @@ export class TestHttp3Frameparser {
         ++testCount;
         
         // Priority frames
-        if (this.testPriorityFrame_1() === true && this.testPriorityFrame_2() === true&&
-            this.testPriorityFrame_3() === true && this.testPriorityFrame_4() === true) {
+        if (this.testPriorityFrame_1(frameParser) === true && this.testPriorityFrame_2(frameParser) === true&&
+            this.testPriorityFrame_3(frameParser) === true && this.testPriorityFrame_4(frameParser) === true) {
             console.info("HTTP/3 priority frame parsing test succeeded")
         } else {
             console.error("HTTP/3 priority frame parsing test failed");
@@ -29,7 +33,7 @@ export class TestHttp3Frameparser {
         ++testCount;
         
         // Cancel push frames
-        if (this.testCancelPushFrame() === true) {
+        if (this.testCancelPushFrame(frameParser) === true) {
             console.info("HTTP/3 cancel push frame parsing test succeeded")
         } else {
             console.error("HTTP/3 cancel push frame parsing test failed");
@@ -43,7 +47,7 @@ export class TestHttp3Frameparser {
         return true;
     }
     
-    private static testDataFrame(): boolean {
+    private static testDataFrame(frameParser: Http3FrameParser): boolean {
         const payload: Buffer = new Buffer("This is testdata. Can we parse it?");
         const length: Buffer = VLIE.encode(payload.byteLength);
         const type: Buffer = VLIE.encode(Http3FrameType.DATA);
@@ -51,7 +55,7 @@ export class TestHttp3Frameparser {
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]);
         
-        const [baseframe, offset] = parseFrame(frame, 0);
+        const [baseframe, offset] = frameParser.parse(frame, new Bignum(0), 0);
         
         // Assertions
         if (baseframe.length !== 1) {
@@ -71,7 +75,7 @@ export class TestHttp3Frameparser {
     }
     
     // With PEID and EDID
-    private static testPriorityFrame_1(): boolean {
+    private static testPriorityFrame_1(frameParser: Http3FrameParser): boolean {
         // Create frame building blocks
         const types: number = ((PrioritizedElementType.REQUEST_STREAM) << 6) | ((ElementDependencyType.REQUEST_STREAM) << 4);
         const typesBuffer: Buffer = new Buffer([types]);
@@ -86,7 +90,7 @@ export class TestHttp3Frameparser {
         const frame: Buffer = Buffer.concat([length, type, payload]); 
         
         // Parse it
-        const [baseframe, offset] = parseFrame(frame, 0);
+        const [baseframe, offset] = frameParser.parse(frame, new Bignum(0), 0);
         
         // Assertions
         if (baseframe.length !== 1) {
@@ -100,7 +104,7 @@ export class TestHttp3Frameparser {
     }
     
     // With PEID, without EDID
-    private static testPriorityFrame_2(): boolean {
+    private static testPriorityFrame_2(frameParser: Http3FrameParser): boolean {
         // Create frame building blocks
         const types: number = ((PrioritizedElementType.REQUEST_STREAM) << 6) | ((ElementDependencyType.ROOT) << 4);
         const typesBuffer: Buffer = new Buffer([types]);
@@ -114,7 +118,7 @@ export class TestHttp3Frameparser {
         const frame: Buffer = Buffer.concat([length, type, payload]); 
         
         // Parse it
-        const [baseframe, offset] = parseFrame(frame, 0);
+        const [baseframe, offset] = frameParser.parse(frame, new Bignum(0), 0);
         
         // Assertions
         if (baseframe.length !== 1) {
@@ -128,7 +132,7 @@ export class TestHttp3Frameparser {
     }
     
     // Without PEID, with EDID
-    private static testPriorityFrame_3(): boolean {
+    private static testPriorityFrame_3(frameParser: Http3FrameParser): boolean {
         // Create frame building blocks
         const types: number = ((PrioritizedElementType.CURRENT_STREAM) << 6) | ((ElementDependencyType.REQUEST_STREAM) << 4);
         const typesBuffer: Buffer = new Buffer([types]);
@@ -142,7 +146,7 @@ export class TestHttp3Frameparser {
         const frame: Buffer = Buffer.concat([length, type, payload]); 
         
         // Parse it
-        const [baseframe, offset] = parseFrame(frame, 0);
+        const [baseframe, offset] = frameParser.parse(frame, new Bignum(0), 0);
         
         // Assertions
         if (baseframe.length !== 1) {
@@ -156,7 +160,7 @@ export class TestHttp3Frameparser {
     }
     
     // Without PEID and EDID
-    private static testPriorityFrame_4(): boolean {
+    private static testPriorityFrame_4(frameParser: Http3FrameParser): boolean {
         // Create frame building blocks
         const types: number = ((PrioritizedElementType.CURRENT_STREAM) << 6) | ((ElementDependencyType.ROOT) << 4);
         const typesBuffer: Buffer = new Buffer([types]);
@@ -169,7 +173,7 @@ export class TestHttp3Frameparser {
         const frame: Buffer = Buffer.concat([length, type, payload]); 
         
         // Parse it
-        const [baseframe, offset] = parseFrame(frame, 0);
+        const [baseframe, offset] = frameParser.parse(frame, new Bignum(0), 0);
         
         // Assertions
         if (baseframe.length !== 1) {
@@ -182,7 +186,7 @@ export class TestHttp3Frameparser {
         return true;
     }
     
-    private static testCancelPushFrame(): boolean {
+    private static testCancelPushFrame(frameParser: Http3FrameParser): boolean {
         const payload: Buffer = VLIE.encode(3503); // PushID
         const length: Buffer = VLIE.encode(payload.byteLength);
         const type: Buffer = VLIE.encode(Http3FrameType.CANCEL_PUSH);
@@ -190,7 +194,7 @@ export class TestHttp3Frameparser {
         // Create frame
         const frame: Buffer = Buffer.concat([length, type, payload]);
         
-        const [baseframe, offset] = parseFrame(frame, 0);
+        const [baseframe, offset] = frameParser.parse(frame, new Bignum(0), 0);
         
         // Assertions
         if (baseframe.length !== 1) {

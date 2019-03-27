@@ -14,29 +14,47 @@ import { Http3SendingControlStream } from "../common/http3.sendingcontrolstream"
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
 import { EndpointType } from "../../../types/endpoint.type";
 import { Http3SettingsFrame, Http3PriorityFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "../common/frames";
+import { Http3QPackEncoder } from "../common/qpack/http3.qpackencoder";
+import { Http3QPackDecoder } from "../common/qpack/http3.qpackdecoder";
+import { Http3Header } from "../common/qpack/types/http3.header";
+import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
     private sendingControlStream?: Http3SendingControlStream; // Client initiated
     private receivingControlStream?: Http3ReceivingControlStream; // Server initiated
 
+    private clientQPackEncoder?: Http3QPackEncoder; // Connects to decoder on server side
+    private clientQPackDecoder?: Http3QPackDecoder; // Connects to encoder on server side
+
     // For server side goaways
     private terminateConnection: boolean = false;
     // Used to keep track of what requests will still be handled by a server after a goaway frame
     private lastStreamID: Bignum = new Bignum(0);
-    
+
     private pendingRequestStreams: QuicStream[] = [];
+
+    private http3FrameParser: Http3FrameParser;
 
     public constructor(hostname: string, port: number) {
         super();
         this.onNewStream = this.onNewStream.bind(this);
         this.quickerClient = Client.connect(hostname, port);
-        
+        this.http3FrameParser = new Http3FrameParser();
+
         this.quickerClient.on(QuickerEvent.CLIENT_CONNECTED, () => {
             // Create control stream
             const controlStream: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
             this.sendingControlStream = new Http3SendingControlStream(EndpointType.Client, controlStream);
-            
+
+            // Create encoder and decoder stream for QPack
+            const clientQPackEncoder: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
+            const clientQPackDecoder: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
+            this.clientQPackEncoder = new Http3QPackEncoder(clientQPackEncoder, false);
+            this.clientQPackDecoder = new Http3QPackDecoder(clientQPackDecoder);
+            this.http3FrameParser.setEncoder(this.clientQPackEncoder);
+            this.http3FrameParser.setDecoder(this.clientQPackDecoder);
+
             this.emit(Http3ClientEvent.CLIENT_CONNECTED);
         });
 
@@ -64,12 +82,16 @@ export class Http3Client extends EventEmitter {
                         const vlieOffset: VLIEOffset = VLIE.decode(bufferedData);
                         const streamTypeBignum: Bignum = vlieOffset.value;
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
-                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, bufferedData.slice(vlieOffset.offset));
+                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, bufferedData.slice(vlieOffset.offset));
                             this.setupControlStreamEvents(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
                             // Server shouldn't receive push streams
                             quicStream.end();
                             throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
+                        } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
+                            this.setupServerEncoderStream(quicStream, bufferedData);
+                        } else if (streamTypeBignum.equals(Http3UniStreamType.DECODER)) {
+                            this.setupServerDecoderStream(quicStream, bufferedData);
                         } else {
                             // TODO
                         }
@@ -93,33 +115,41 @@ export class Http3Client extends EventEmitter {
             });
         }
     }
-    
+
     public get(path: string) {
         if (this.terminateConnection === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_SERVER_CLOSED, "Can not send request, server has requested that the connection be closed");
         }
-        
-        const req: Http3Request = new Http3Request({path});
-        const stream: QuicStream = this.quickerClient.request(req.toBuffer(), StreamType.ClientBidi);
+        if (this.clientQPackEncoder === undefined) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_UNINITIALISED_ENCODER);
+        }
+        if (this.clientQPackDecoder === undefined) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_UNINITIALISED_DECODER);
+        }
+
+        const stream: QuicStream = this.quickerClient.createStream(StreamType.ClientBidi);
+        const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
+        req.setHeader("path", path);
+
         this.lastStreamID = stream.getStreamId();
         this.pendingRequestStreams.push(stream);
         VerboseLogging.info("Created new stream for HTTP/3 GET request. StreamID: " + stream.getStreamId());
-        stream.end();
-        
+        stream.end(req.toBuffer()); // Send request
+
         let bufferedData: Buffer = new Buffer(0);
-        
+
         stream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
             bufferedData = Buffer.concat([bufferedData, data]);
         });
         stream.on(QuickerEvent.STREAM_END, () => {
             // Send out event that the response has been received
             this.emit(Http3ClientEvent.RESPONSE_RECEIVED, path, bufferedData)
-            
+
             // Mark request as completed
             this.pendingRequestStreams.filter((requestStream) => {
                 return requestStream !== stream;
             });
-            
+
             if (this.pendingRequestStreams.length === 0) {
                 this.emit(Http3ClientEvent.ALL_REQUESTS_FINISHED);
             }
@@ -130,7 +160,7 @@ export class Http3Client extends EventEmitter {
         // Wait for outbound requests to complete
         // TODO This will give problems if server doesn't respond to all requests. Use a timeout as alternative
         this.on(Http3ClientEvent.ALL_REQUESTS_FINISHED, () => {
-            this.quickerClient.close();  
+            this.quickerClient.close();
         });
     }
 
@@ -163,5 +193,21 @@ export class Http3Client extends EventEmitter {
             VerboseLogging.info("HTTP/3: max push id frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
             throw new Http3Error(Http3ErrorCode.HTTP_UNEXPECTED_FRAME, "Received an HTTP/3 MAX_PUSH_ID frame on client control stream. This is not allowed. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
+    }
+
+    private setupServerEncoderStream(serverEncoderStream: QuicStream, bufferedStreamData: Buffer) {
+        if (this.clientQPackDecoder === undefined) {
+            VerboseLogging.warn("Tried adding server qpack encoder stream to client while client sided decoder stream was undefined. This should not happen! ConnectionID: " + this.quickerClient.getConnection().getSrcConnectionID().toString());
+            return;
+        }
+        this.clientQPackDecoder.setPeerEncoderStream(serverEncoderStream, bufferedStreamData.byteLength === 0 ? undefined : bufferedStreamData);
+    }
+
+    private setupServerDecoderStream(serverDecoderStream: QuicStream, bufferedStreamData: Buffer) {
+        if (this.clientQPackEncoder === undefined) {
+            VerboseLogging.warn("Tried adding server qpack decoder stream to client while client sided encoder stream was undefined. This should not happen! ConnectionID: " + this.quickerClient.getConnection().getSrcConnectionID().toString());
+            return;
+        }
+        this.clientQPackEncoder.setPeerDecoderStream(serverDecoderStream, bufferedStreamData.byteLength === 0 ? undefined : bufferedStreamData);
     }
 }

@@ -1,5 +1,6 @@
 import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
 import { LSQPackBindingError, LSQpackBindingErrorCode } from "./errors/http3.lsqpackerror";
+import { Http3Header } from "./types/http3.header";
 
 const lsqpack = require("../../../../../build/Debug/lsqpack.node");
 
@@ -15,15 +16,10 @@ export interface CreateDecoderParam {
     max_risked_streams: number,
 }
 
-export interface HttpHeader {
-    name: string,
-    value: string,
-}
-
 export interface EncodeHeadersParam {
     encoderID: number,
     streamID: number,
-    headers: HttpHeader[],
+    headers: Http3Header[],
 }
 
 export interface DecodeHeadersParam {
@@ -32,11 +28,11 @@ export interface DecodeHeadersParam {
     headerBuffer: Buffer,
 }
 
-function httpHeaderToString(header: HttpHeader): string {
+function httpHeaderToString(header: Http3Header): string {
     return "Name: " + header.name + "\tValue: " + header.value + "\n";
 }
 
-function httpHeadersToString(headers: HttpHeader[]): string {
+function httpHeadersToString(headers: Http3Header[]): string {
     let ret: string = "{\n";
     for (const header of headers) {
         ret = ret.concat("\t" + httpHeaderToString(header));
@@ -82,9 +78,10 @@ export function encodeHeaders(param: EncodeHeadersParam): [Buffer, Buffer] {
     return [headers, encoderData];
 }
 
-export function decodeHeaders(param: DecodeHeadersParam): HttpHeader[] {
+// TODO
+export function decodeHeaders(param: DecodeHeadersParam): [Http3Header[], Buffer] {
     lsqpack.decodeHeaders(param);
-    return [];
+    return [[], Buffer.alloc(0)];
 }
 
 export function deleteEncoder(encoderID: number): void {
@@ -132,7 +129,7 @@ function testLSQPackBindings() {
         streamID: 0,
     });
     
-    const decodedHeaders: HttpHeader[] = decodeHeaders({
+    const [decodedHeaders, decoderStreamData]: [Http3Header[], Buffer] = decodeHeaders({
         decoderID,
         headerBuffer: headers_1,
         streamID: 0,
@@ -195,5 +192,3 @@ function testLSQPackBindings() {
     deleteEncoder(encoderID);
     deleteDecoder(decoderID);
 }
-
-testLSQPackBindings();

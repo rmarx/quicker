@@ -2,7 +2,7 @@ import { QuicStream } from "../../../quicker/quic.stream";
 import { Http3BaseFrame, Http3FrameType } from "./frames/http3.baseframe";
 import { Http3Error, Http3ErrorCode } from "./errors/http3.error";
 import { EventEmitter } from "events";
-import { parse as parseFrame } from "./parsers/http3.frame.parser";
+import { Http3FrameParser } from "./parsers/http3.frame.parser";
 import { QuickerEvent } from "../../../quicker/quicker.event";
 import { Http3PriorityFrame, Http3SettingsFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "./frames";
 import { Bignum } from "../../../types/bignum";
@@ -23,18 +23,20 @@ export enum Http3ControlStreamEvent {
 export class Http3ReceivingControlStream extends EventEmitter {
     private quicControlStream: QuicStream;
     private endpointType: Http3EndpointType;
+    private frameParser: Http3FrameParser;
     private bufferedData: Buffer;
     
     private firstFrameHandled: boolean = false;
     
     // Initial buffer contains data already buffered after the StreamType frame if there is any
-    public constructor(quicControlStream: QuicStream, endpointType: Http3EndpointType, initialBuffer?: Buffer) {
+    public constructor(quicControlStream: QuicStream, endpointType: Http3EndpointType, frameParser: Http3FrameParser, initialBuffer?: Buffer) {
         super();
         if (quicControlStream.isUniStream() === false) {
             throw new Http3Error(Http3ErrorCode.HTTP3_INCORRECT_STREAMTYPE, "HTTP/3 Control streams can only be unidirectional.");
         }
         this.quicControlStream = quicControlStream;
         this.endpointType = endpointType;
+        this.frameParser = frameParser;
         if (initialBuffer === undefined) {
             this.bufferedData = Buffer.alloc(0);
         } else {
@@ -59,7 +61,7 @@ export class Http3ReceivingControlStream extends EventEmitter {
     }
     
     private parseCurrentBuffer() {
-        const [frames, offset] = parseFrame(this.bufferedData);
+        const [frames, offset] = this.frameParser.parse(this.bufferedData, this.getStreamID());
         for (let frame of frames) {
             this.handleFrame(frame);
         }

@@ -1,15 +1,24 @@
 import { Http3BaseFrame, Http3FrameType } from "./http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
 import { VLIE } from "../../../../types/vlie";
+import { Http3Header } from "../qpack/types/http3.header";
+import { Http3QPackEncoder } from "../qpack/http3.qpackencoder";
+import { Http3QPackDecoder } from "../qpack/http3.qpackdecoder";
 
 /* TODO: QPACK! */
 
 export class Http3HeaderFrame extends Http3BaseFrame {
-    private headers: {[property: string]: string} = {};
+    private headers: Map<string, string> = new Map<string, string>();
+    private requestStreamID: Bignum;
+    private encoder: Http3QPackEncoder;
 
-    public constructor(headers: {[property: string]: string}) {
+    public constructor(headers: Http3Header[], requestStreamID: Bignum, encoder: Http3QPackEncoder) {
         super();
-        this.headers = headers;
+        for (const header of headers) {
+            this.headers.set(header.name, header.value);
+        }
+        this.requestStreamID = requestStreamID;
+        this.encoder = encoder;
     }
 
     public toBuffer(): Buffer {
@@ -19,29 +28,24 @@ export class Http3HeaderFrame extends Http3BaseFrame {
 
         return Buffer.concat([encodedLength, frameType, payload]);
     }
-    
-    public static fromPayload(buffer: Buffer): Http3HeaderFrame {
-        const headers: {[property: string]: string} = {};
-        
-        // TODO Parsing compressed with QPack
-        // Temp uncompressed parsing
-        
-        const headerList: string[] = buffer.toString('utf8').split('\r\n');
-        
-        for (let header of headerList) {
-            let [property, value] = header.split(":");
-            property = property.trim();
-            value = value.trim();
-            headers[property] = value;
-        }
-        
-        return new Http3HeaderFrame(headers);
+
+    public static fromPayload(buffer: Buffer, requestStreamID: Bignum, encoder: Http3QPackEncoder, decoder: Http3QPackDecoder): Http3HeaderFrame {
+        const headers: Http3Header[] = decoder.decodeHeaders(buffer, requestStreamID);
+
+        return new Http3HeaderFrame(headers, requestStreamID, encoder);
     }
 
-    public getHeaders(): {[property: string]: string} {
-        return this.headers;
+    public getHeaders(): Http3Header[] {
+        const headerList: Http3Header[] = [];
+        this.headers.forEach((value, key) => {
+           headerList.push({
+               name: key,
+               value,
+           });
+        });
+        return headerList;
     }
-    
+
     public getPayloadLength(): number {
         return this.getPayloadBuffer().byteLength;
     }
@@ -49,25 +53,23 @@ export class Http3HeaderFrame extends Http3BaseFrame {
     public getFrameType(): Http3FrameType {
         return Http3FrameType.HEADERS;
     }
-    
+
     public getHeaderValue(property: string): string | undefined {
-        return this.headers[property];
+        return this.headers.get(property);
     }
-    
+
     public setHeaderValue(property: string, value: string) {
-        this.headers[property] = value;
+        this.headers.set(property, value);
     }
     
+    public setHeaders(headers: Http3Header[]) {
+        this.headers.clear();
+        for (const header of headers) {
+            this.headers.set(header.name, header.value);
+        }
+    }
+
     private getPayloadBuffer(): Buffer {
-        // TODO QPACK (headerblock, compression, etc)
-        
-        let headerBlock = "";
-        
-        Object.keys(this.headers).forEach(key => {
-            const header: string = key + ": " + this.headers[key];
-           headerBlock += header;
-        });
-        
-        return new Buffer(headerBlock);
+        return this.encoder.encodeHeaders(this.getHeaders(), this.requestStreamID);
     }
 }

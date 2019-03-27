@@ -1,19 +1,18 @@
 import { Http3HeaderFrame } from "./frames";
+import { Http3QPackEncoder } from "./qpack/http3.qpackencoder";
+import { Http3Header } from "./qpack/types/http3.header";
+import { Bignum } from "../../../types/bignum";
 
 export class Http3Request {    
     private content: Buffer = new Buffer(0);
-    private headers: {[property: string]: string} = {};
+    private headerFrame: Http3HeaderFrame;
     
-    public constructor(headers?: {[property: string]: string}) {
-        if (headers !== undefined) {
-            this.headers = headers;
-        }
+    public constructor(requestStreamID: Bignum, encoder: Http3QPackEncoder, headers: Http3Header[] = []) {
+        this.headerFrame = new Http3HeaderFrame(headers, requestStreamID, encoder);
     }
     
-    public toBuffer(): Buffer {
-        const headerFrame: Http3HeaderFrame = new Http3HeaderFrame(this.headers);
-        
-        let buffer: Buffer = headerFrame.toBuffer();
+    public toBuffer(): Buffer {        
+        let buffer: Buffer = this.headerFrame.toBuffer();
 
         if (this.content !== undefined) {
             buffer = Buffer.concat([buffer, this.content]);
@@ -22,16 +21,16 @@ export class Http3Request {
         return buffer;
     }
     
-    public getHeaderValue(headerName: string): string | undefined {
-        return this.headers[headerName];
+    public getHeaderValue(property: string): string | undefined {
+        return this.headerFrame.getHeaderValue(property);
     }
     
-    public setHeader(headerName: string, headerValue: string) {
-        this.headers[headerName] = headerValue;
+    public setHeader(property: string, value: string) {
+        this.headerFrame.setHeaderValue(property, value);
     }
     
-    public setHeaders(headers: {[property: string]: string}) {
-        this.headers = headers;
+    public setHeaders(headers: Http3Header[]) {
+        this.headerFrame.setHeaders(headers);
     }
     
     public appendContent(content: Buffer) {

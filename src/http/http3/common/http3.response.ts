@@ -1,18 +1,24 @@
 import { Http3HeaderFrame, Http3DataFrame } from "./frames";
 import { resolve } from "path";
 import { existsSync, readFileSync } from "fs";
+import { Http3QPackEncoder } from "./qpack/http3.qpackencoder";
+import { Http3QPackDecoder } from "./qpack/http3.qpackdecoder";
+import { Http3Header } from "./qpack/types/http3.header";
+import { Bignum } from "../../../types/bignum";
 
 export class Http3Response {
     private ready: boolean = false;
     private content?: Buffer;
     private filePath?: string;
-    private headers: {[property: string]: string} = {};
+    private headerFrame: Http3HeaderFrame;
     // -> Content-Type
     
-    public toBuffer(): Buffer {
-        const headerFrame: Http3HeaderFrame = new Http3HeaderFrame(this.headers);
-        
-        let buffer: Buffer = headerFrame.toBuffer();
+    public constructor(headers: Http3Header[], requestStreamID: Bignum, encoder: Http3QPackEncoder, decoder: Http3QPackDecoder) {
+        this.headerFrame = new Http3HeaderFrame(headers, requestStreamID, encoder);
+    }
+    
+    public toBuffer(): Buffer {        
+        let buffer: Buffer = this.headerFrame.toBuffer();
 
         if (this.filePath !== undefined) {
             let absoluteFilePath = this.parsePath(resolve(__dirname) + "/../../../../public" + this.filePath);
@@ -45,7 +51,7 @@ export class Http3Response {
         return true;
     }
     
-    public send(content: Buffer): boolean {
+    public sendBuffer(content: Buffer): boolean {
         // Can only send something when no other content has been buffered
         if (this.content !== undefined || this.filePath != undefined) {
             return false;
@@ -59,10 +65,8 @@ export class Http3Response {
     }
     
     public setHeaderValue(property: string, value: string) {
-        this.headers[property] = value;
+        this.headerFrame.setHeaderValue(property, value);
     }
-    
-    // TODO public setHeader(headerName: string, value: string) {}
     
     public isReady(): boolean {
         return this.ready;
