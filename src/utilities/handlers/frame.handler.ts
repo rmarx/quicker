@@ -58,10 +58,12 @@ export class FrameHandler {
             case FrameType.MAX_DATA:
                 var maxDataFrame = <MaxDataFrame>frame;
                 this.handleMaxDataFrame(connection, maxDataFrame);
+                connection.getQlogger().onFrame_MaxData(maxDataFrame, "PACKET_RX");
                 break;
             case FrameType.MAX_STREAM_DATA:
                 var maxDataStreamFrame = <MaxStreamFrame>frame;
                 this.handleMaxStreamDataFrame(connection, maxDataStreamFrame);
+                connection.getQlogger().onFrame_MaxStreamData(maxDataStreamFrame, "PACKET_RX");
                 break;
             case FrameType.MAX_STREAM_ID:
                 var maxStreamIdFrame = <MaxStreamIdFrame>frame;

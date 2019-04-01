@@ -225,6 +225,7 @@ export class FlowControl {
             }
             size = size.add(frameSize);
             packetFrames.push(frame);
+            this.connection.getQlogger().onFrame_Stream(frame as StreamFrame, "PACKET_TX");
         });
         if (packetFrames.length > 0) {
             packets.push(this.createNewPacket(packetFrames));

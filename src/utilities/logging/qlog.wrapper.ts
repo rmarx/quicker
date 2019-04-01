@@ -14,6 +14,8 @@ import { MaxStreamFrame } from '../../frame/max.stream';
 import { MaxDataFrame } from '../../frame/max.data';
 import { QuicStream } from '../../quicker/quic.stream';
 import { StreamState } from '../../quicker/stream';
+import { BaseFrame } from '../../frame/base.frame';
+import { StreamFrame } from '../../frame/stream';
 
 /*
 Example usage: 
@@ -273,7 +275,7 @@ export class QlogWrapper{
         let stateString:string = "";
         switch(state){
             case StreamState.Open:
-                stateString = qlog.TransportEventType.STREAM_NEW;
+                stateString = "STREAM_OPEN";//qlog.TransportEventType.STREAM_NEW;
                 break;
             case StreamState.Closed:
                 stateString = "STREAM_CLOSED";
@@ -343,6 +345,23 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
+    onFrame_Stream(frame:StreamFrame, trigger:("PACKET_RX"|"PACKET_TX")){
+        let evt:any = [
+            123, 
+            qlog.EventCategory.TRANSPORT,
+            qlog.TransportEventType.STREAM_NEW,
+            trigger,
+            {
+                stream_id: frame.getStreamID().toString(),
+                offset: frame.getOffset().toString(),
+                length: frame.getLength().toString(),
+                final_frame: frame.getFin()
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
     //----------------------------------------
     // RECOVERY
     //----------------------------------------
@@ -401,7 +420,7 @@ export class QlogWrapper{
 
     // TODO: maybe currentCWND is not needed here? separate event? would just be included here to easily calculate available_cwnd value from bytes_in_flight
     // changed currentCWND and bytesinflight to string so bignum can be displayed
-    public onBytesInFlightUpdate(bytesInFlight:string, currentCWND:string, trigger:string = "PACKET_TX"){
+    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger:string = "PACKET_TX"){
 
         let evt:any = [
             123, 
@@ -409,7 +428,9 @@ export class QlogWrapper{
             qlog.RecoveryEventType.BYTES_IN_FLIGHT_UPDATE,
             trigger,
             {
-                bytes_in_flight: bytesInFlight
+                bytes_in_flight: bytesInFlight.toDecimalString(),
+                current_CWND : currentCWND.toDecimalString(),
+                available_cwnd : currentCWND.subtract(bytesInFlight).toDecimalString()
             }
         ];
 
