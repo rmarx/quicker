@@ -49,3 +49,137 @@ export class DEBUGFakeReorderPipe extends PacketPipe{
 
 
 }
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+/**
+ * Randomly "drops" packets according to the percentage
+ */
+export class DEBUGRandomDrop extends PacketPipe{
+
+    // 0.7 == 70%
+    private percentSucces : number = 0.7;
+   
+    constructor(){
+        super();
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        if(Math.random() < this.percentSucces){
+            this.nextPipeFunc(packet);
+        }
+    }
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+/**
+ * "drops" every xth packet
+ * will not drop handshake packets
+ */
+export class DEBUGDropEveryXth extends PacketPipe{
+
+    // every 10th packets gets dropped
+    private everyX : number = 2;
+    private count : number;
+   
+    constructor(){
+        super();
+        this.count = 0;
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        this.count = this.count + 1;
+        if(this.count % this.everyX !== 0 || packet.isHandshake()){
+            this.nextPipeFunc(packet);
+        }
+        else{
+            VerboseLogging.warn("DROPPING PACKET FOR DEBUG, SHOULD NOT BE ENABLED OUTSIDE OF TESTING");
+        }
+    }
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+
+/**
+ * "drops" every packet after the xth, for y packets
+ */
+export class DEBUGPersistentCongestionAfterX extends PacketPipe{
+
+    // every 10th packets gets dropped
+    private afterX : number = 5;
+    private forY : number = 50;
+    private count : number;
+   
+    constructor(){
+        super();
+        this.count = 0;
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        this.count = this.count + 1;
+        if(this.count < this.afterX && this.count > this.afterX + this.forY){
+            this.nextPipeFunc(packet);
+        }
+    }
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+/**
+ * NOTE, if both endpoints are a copy of eachother, (and thus both use this pipe) it will be double rtt delay
+ */
+export class DEBUGIncreaseRTT extends PacketPipe{
+
+     // wait for this many ms before sending
+     private waitMS : number = 5;
+
+    
+     constructor(){
+         super();
+         
+     }
+ 
+     /**
+      * 
+      * @param packet 
+      */
+     public packetIn(packet: BasePacket) {
+        setTimeout(() => { 
+            this.nextPipeFunc(packet);
+        }, this.waitMS);
+     }
+}
