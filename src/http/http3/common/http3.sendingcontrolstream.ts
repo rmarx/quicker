@@ -5,16 +5,26 @@ import { VLIE } from "../../../types/vlie";
 import { Bignum } from "../../../types/bignum";
 import { Http3GoAwayFrame } from "./frames";
 import { EndpointType } from "../../../types/endpoint.type";
+import { QuickerEvent } from "../../../quicker/quicker.event";
+import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
 
 export class Http3SendingControlStream {
     private endpointType: EndpointType;
     private quicStream: QuicStream;
+    private logger: QlogWrapper;
     
-    public constructor(endpointType: EndpointType, quicStream: QuicStream) {
+    public constructor(endpointType: EndpointType, quicStream: QuicStream, logger: QlogWrapper) {
         this.endpointType = endpointType;
         this.quicStream = quicStream;
+        this.logger = logger;
+        
         // Write an initial frame with StreamType
         quicStream.write(VLIE.encode(Http3UniStreamType.CONTROL));
+        
+        // Close when other end closes
+        quicStream.on(QuickerEvent.STREAM_END, () => {
+            quicStream.end();
+        });
     }
     
     public sendFrame(frame: Http3BaseFrame) {

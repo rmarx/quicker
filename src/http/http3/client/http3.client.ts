@@ -18,6 +18,8 @@ import { Http3QPackEncoder } from "../common/qpack/http3.qpackencoder";
 import { Http3QPackDecoder } from "../common/qpack/http3.qpackdecoder";
 import { Http3Header } from "../common/qpack/types/http3.header";
 import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
+import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
+import { Http3StreamState } from "../common/types/http3.streamstate";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
@@ -35,6 +37,8 @@ export class Http3Client extends EventEmitter {
     private pendingRequestStreams: QuicStream[] = [];
 
     private http3FrameParser: Http3FrameParser;
+    
+    private logger?: QlogWrapper;
 
     public constructor(hostname: string, port: number) {
         super();
@@ -43,15 +47,21 @@ export class Http3Client extends EventEmitter {
         this.http3FrameParser = new Http3FrameParser();
 
         this.quickerClient.on(QuickerEvent.CLIENT_CONNECTED, () => {
+            this.logger = this.quickerClient.getConnection().getQlogger();
+
+            
             // Create control stream
             const controlStream: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
-            this.sendingControlStream = new Http3SendingControlStream(EndpointType.Client, controlStream);
+            this.sendingControlStream = new Http3SendingControlStream(EndpointType.Client, controlStream, this.logger);
+            this.logger.onHTTPStreamStateChanged(controlStream.getStreamId(), Http3StreamState.OPENED, "CONTROL");
 
             // Create encoder and decoder stream for QPack
             const clientQPackEncoder: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
+            this.logger.onHTTPStreamStateChanged(clientQPackEncoder.getStreamId(), Http3StreamState.OPENED, "QPACK_ENCODE");
             const clientQPackDecoder: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
-            this.clientQPackEncoder = new Http3QPackEncoder(clientQPackEncoder, false);
-            this.clientQPackDecoder = new Http3QPackDecoder(clientQPackDecoder);
+            this.logger.onHTTPStreamStateChanged(clientQPackDecoder.getStreamId(), Http3StreamState.OPENED, "QPACK_DECODE");
+            this.clientQPackEncoder = new Http3QPackEncoder(clientQPackEncoder, false, this.logger);
+            this.clientQPackDecoder = new Http3QPackDecoder(clientQPackDecoder, this.logger);
             this.http3FrameParser.setEncoder(this.clientQPackEncoder);
             this.http3FrameParser.setDecoder(this.clientQPackDecoder);
 
@@ -62,6 +72,8 @@ export class Http3Client extends EventEmitter {
     }
 
     private async onNewStream(quicStream: QuicStream) {
+        const logger: QlogWrapper = quicStream.getConnection().getQlogger();
+        
         // Check what type of stream it is:
         //  Bidi -> Request stream
         //  Uni -> Control or push stream based on first frame
@@ -82,7 +94,7 @@ export class Http3Client extends EventEmitter {
                         const vlieOffset: VLIEOffset = VLIE.decode(bufferedData);
                         const streamTypeBignum: Bignum = vlieOffset.value;
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
-                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, bufferedData.slice(vlieOffset.offset));
+                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, logger, bufferedData.slice(vlieOffset.offset));
                             this.setupControlStreamEvents(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
                             // Server shouldn't receive push streams
@@ -129,12 +141,24 @@ export class Http3Client extends EventEmitter {
 
         const stream: QuicStream = this.quickerClient.createStream(StreamType.ClientBidi);
         const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
-        req.setHeader("path", path);
+        req.setHeader(":path", path);
+        req.setHeader(":method", "GET");
 
         this.lastStreamID = stream.getStreamId();
         this.pendingRequestStreams.push(stream);
         VerboseLogging.info("Created new stream for HTTP/3 GET request. StreamID: " + stream.getStreamId());
+        
+        if (this.logger !== undefined) {
+            this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.OPENED, "GET");
+            this.logger.onHTTPGet(path, "TX");
+            this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");    
+        }
+        
         stream.end(req.toBuffer()); // Send request
+        
+        if (this.logger !== undefined) {
+            this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
+        }
 
         let bufferedData: Buffer = new Buffer(0);
 
@@ -142,6 +166,10 @@ export class Http3Client extends EventEmitter {
             bufferedData = Buffer.concat([bufferedData, data]);
         });
         stream.on(QuickerEvent.STREAM_END, () => {
+            if (this.logger !== undefined) {
+                this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.CLOSED, "FIN");
+            }
+            
             // Send out event that the response has been received
             this.emit(Http3ClientEvent.RESPONSE_RECEIVED, path, bufferedData)
 

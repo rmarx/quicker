@@ -1,0 +1,5 @@
+export enum Http3StreamState {
+    OPENED = "STREAM OPENED",
+    MODIFIED = "STREAM STATE MODIFIED",
+    CLOSED = "STREAM CLOSED",
+}

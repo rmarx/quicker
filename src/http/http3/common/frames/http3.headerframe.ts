@@ -5,7 +5,7 @@ import { Http3Header } from "../qpack/types/http3.header";
 import { Http3QPackEncoder } from "../qpack/http3.qpackencoder";
 import { Http3QPackDecoder } from "../qpack/http3.qpackdecoder";
 
-/* TODO: QPACK! */
+// TODO check for uppercase headers -> Malformed
 
 export class Http3HeaderFrame extends Http3BaseFrame {
     private headers: Map<string, string> = new Map<string, string>();
@@ -14,9 +14,7 @@ export class Http3HeaderFrame extends Http3BaseFrame {
 
     public constructor(headers: Http3Header[], requestStreamID: Bignum, encoder: Http3QPackEncoder) {
         super();
-        for (const header of headers) {
-            this.headers.set(header.name, header.value);
-        }
+        this.setHeaders(headers);
         this.requestStreamID = requestStreamID;
         this.encoder = encoder;
     }
@@ -55,17 +53,17 @@ export class Http3HeaderFrame extends Http3BaseFrame {
     }
 
     public getHeaderValue(property: string): string | undefined {
-        return this.headers.get(property);
+        return this.headers.get(property.toLowerCase());
     }
 
     public setHeaderValue(property: string, value: string) {
-        this.headers.set(property, value);
+        this.headers.set(property.toLowerCase(), value);
     }
     
     public setHeaders(headers: Http3Header[]) {
         this.headers.clear();
         for (const header of headers) {
-            this.headers.set(header.name, header.value);
+            this.headers.set(header.name.toLowerCase(), header.value);
         }
     }
 

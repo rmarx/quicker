@@ -478,7 +478,7 @@ napi_value decodeHeaders(napi_env env, napi_callback_info info) {
         napi_throw_error(env, NULL, "Decoder with given ID has not yet been initialized in 'decodeHeaders' call.");
     }
     
-    printf("decoderID: %u\nstreamID: %u\nheaderBuffer: %.*s\n", decoderID, streamID, (int) header_buffer_sz, (unsigned char*) header_buffer);
+    printf("Decoding QPack headers: \n\tdecoderID: %u\n\tstreamID: %u\n", decoderID, streamID);
 
     enum lsqpack_read_header_status read_status = lsqpack_dec_header_in(decoders[decoderID], header_buffer, streamID, header_buffer_sz, buffer, 1024, &hset, dec_buf, &dec_buf_sz);
     

@@ -7,14 +7,17 @@ import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 import { Http3BaseFrame, Http3FrameType } from "../frames/http3.baseframe";
 import { Http3QPackEncoder } from "../qpack/http3.qpackencoder";
 import { Http3QPackDecoder } from "../qpack/http3.qpackdecoder";
+import { QlogWrapper } from "../../../../utilities/logging/qlog.wrapper";
 
 export class Http3FrameParser {
     private encoder?: Http3QPackEncoder;
     private decoder?: Http3QPackDecoder;
+    private logger?: QlogWrapper;
     
-    public constructor(encoder?: Http3QPackEncoder, decoder?: Http3QPackDecoder) {
+    public constructor(encoder?: Http3QPackEncoder, decoder?: Http3QPackDecoder, logger?: QlogWrapper) {
         this.encoder = encoder;
         this.decoder = decoder;
+        this.logger = logger;
     }
     
     /**
@@ -51,13 +54,21 @@ export class Http3FrameParser {
 
             switch(frameTypeEnum) {
                 case Http3FrameType.DATA:
-                    frames.push(new Http3DataFrame(payload));
+                    const http3DataFrame: Http3DataFrame = Http3DataFrame.fromPayload(payload);
+                    frames.push(http3DataFrame);
+                    if (this.logger !== undefined) {
+                        this.logger.onHTTPFrame_Data(http3DataFrame, "RX");
+                    }
                     break;
                 case Http3FrameType.HEADERS:
                     if (this.encoder === undefined || this.decoder === undefined) {
                         throw new Http3Error(Http3ErrorCode.HTTP3_UNINITIALISED_DECODER, "HTTP/3 Frame parser encountered a header frame before decoder was initialised!");
                     }
-                    frames.push(Http3HeaderFrame.fromPayload(payload, streamID, this.encoder, this.decoder));
+                    const headerFrame: Http3HeaderFrame = Http3HeaderFrame.fromPayload(payload, streamID, this.encoder, this.decoder);
+                    frames.push(headerFrame);
+                    if (this.logger !== undefined) {
+                        this.logger.onHTTPFrame_Headers(headerFrame, "RX");
+                    }
                     break;
                 case Http3FrameType.PRIORITY:
                     frames.push(new Http3PriorityFrame(payload));
@@ -68,6 +79,9 @@ export class Http3FrameParser {
                 case Http3FrameType.SETTINGS:
                     const settingsFrame: Http3SettingsFrame = Http3SettingsFrame.fromPayload(payload);
                     frames.push(settingsFrame);
+                    if (this.logger !== undefined) {
+                        this.logger.onHTTPFrame_Settings(settingsFrame, "RX");
+                    }
                 case Http3FrameType.GOAWAY:
                     const goAwayFrame: Http3GoAwayFrame = Http3GoAwayFrame.fromPayload(payload);
                     frames.push(goAwayFrame);

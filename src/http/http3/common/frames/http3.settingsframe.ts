@@ -2,7 +2,7 @@ import { Http3BaseFrame, Http3FrameType } from "./http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
 import { VLIE, VLIEOffset } from "../../../../types/vlie";
 
-interface Http3Setting {
+export interface Http3Setting {
     // RESERVED: "0x1f * N + 0x21", Endpoints SHOULD include at least one such setting in their SETTINGS frame
     identifier: Bignum,
     value: Bignum,
@@ -45,6 +45,10 @@ export class Http3SettingsFrame extends Http3BaseFrame {
 
     public getFrameType(): Http3FrameType {
         return Http3FrameType.SETTINGS;
+    }
+    
+    public getSettings(): Http3Setting[] {
+        return this.settingsParameters;
     }
 
     private static parseParameters(buffer: Buffer, offset: number): [Http3Setting[], number] {

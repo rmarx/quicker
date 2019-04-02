@@ -6,6 +6,7 @@ import { Http3FrameParser } from "./parsers/http3.frame.parser";
 import { QuickerEvent } from "../../../quicker/quicker.event";
 import { Http3PriorityFrame, Http3SettingsFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "./frames";
 import { Bignum } from "../../../types/bignum";
+import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
 
 export enum Http3EndpointType {
     CLIENT,
@@ -25,11 +26,11 @@ export class Http3ReceivingControlStream extends EventEmitter {
     private endpointType: Http3EndpointType;
     private frameParser: Http3FrameParser;
     private bufferedData: Buffer;
-    
     private firstFrameHandled: boolean = false;
+    private logger: QlogWrapper;
     
     // Initial buffer contains data already buffered after the StreamType frame if there is any
-    public constructor(quicControlStream: QuicStream, endpointType: Http3EndpointType, frameParser: Http3FrameParser, initialBuffer?: Buffer) {
+    public constructor(quicControlStream: QuicStream, endpointType: Http3EndpointType, frameParser: Http3FrameParser, logger: QlogWrapper, initialBuffer?: Buffer) {
         super();
         if (quicControlStream.isUniStream() === false) {
             throw new Http3Error(Http3ErrorCode.HTTP3_INCORRECT_STREAMTYPE, "HTTP/3 Control streams can only be unidirectional.");
@@ -37,6 +38,7 @@ export class Http3ReceivingControlStream extends EventEmitter {
         this.quicControlStream = quicControlStream;
         this.endpointType = endpointType;
         this.frameParser = frameParser;
+        this.logger = logger;
         if (initialBuffer === undefined) {
             this.bufferedData = Buffer.alloc(0);
         } else {
@@ -52,7 +54,8 @@ export class Http3ReceivingControlStream extends EventEmitter {
         quicControlStream.on(QuickerEvent.STREAM_END, () => {
             this.parseCurrentBuffer();
             // TODO check if unparsed data leftover before ending stream
-            quicControlStream.getConnection().sendPackets(); // TODO we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
+            // quicControlStream.getConnection().sendPackets(); // TODO we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
+            quicControlStream.end();
         });
     }
     
@@ -95,6 +98,14 @@ export class Http3ReceivingControlStream extends EventEmitter {
             default:
                 // Frametype not handled by control stream
                 throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_FRAME)
+        }
+    }
+    
+    // Only servers can explicitly stop a connection 
+    // Clients can just stop sending requests to shutdown connection
+    public close() {
+        if (this.endpointType === Http3EndpointType.SERVER) {
+            this.quicControlStream.end();   
         }
     }
 }

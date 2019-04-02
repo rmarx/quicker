@@ -80,6 +80,10 @@ export class Http3Response {
         return this.filePath;
     }
     
+    public getHeaderFrame(): Http3HeaderFrame {
+        return this.headerFrame;
+    }
+    
     private parsePath(path: string): string {
         if (path.endsWith("/")) {
             return path + "index.html";

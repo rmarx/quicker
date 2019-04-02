@@ -1,4 +1,4 @@
-import { Http3HeaderFrame } from "./frames";
+import { Http3HeaderFrame, Http3DataFrame } from "./frames";
 import { Http3QPackEncoder } from "./qpack/http3.qpackencoder";
 import { Http3Header } from "./qpack/types/http3.header";
 import { Bignum } from "../../../types/bignum";
@@ -23,6 +23,14 @@ export class Http3Request {
     
     public getHeaderValue(property: string): string | undefined {
         return this.headerFrame.getHeaderValue(property);
+    }
+    
+    public getHeaderFrame(): Http3HeaderFrame {
+        return this.headerFrame;
+    }
+    
+    public getDataFrame(): Http3DataFrame {
+        return new Http3DataFrame(this.content);
     }
     
     public setHeader(property: string, value: string) {

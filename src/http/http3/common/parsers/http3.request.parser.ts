@@ -5,6 +5,7 @@ import { Http3DataFrame, Http3HeaderFrame } from "../frames";
 import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 import { Bignum } from "../../../../types/bignum";
 import { Http3QPackEncoder } from "../qpack/http3.qpackencoder";
+import { QlogWrapper } from "../../../../utilities/logging/qlog.wrapper";
 
 // Indicates next expected frametype
 enum Http3RequestParserState {

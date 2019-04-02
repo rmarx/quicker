@@ -14,6 +14,9 @@ import { MaxStreamFrame } from '../../frame/max.stream';
 import { MaxDataFrame } from '../../frame/max.data';
 import { QuicStream } from '../../quicker/quic.stream';
 import { StreamState } from '../../quicker/stream';
+import { Http3DataFrame, Http3HeaderFrame, Http3SettingsFrame } from '../../http/http3/common/frames';
+import { Http3Setting } from '../../http/http3/common/frames/http3.settingsframe';
+import { Http3StreamState } from '../../http/http3/common/types/http3.streamstate';
 
 /*
 Example usage: 
@@ -471,8 +474,10 @@ export class QlogWrapper{
     // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.OPENED, "GET")
     // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.OPENED, "CONTROL") 
     // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.OPENED, "QPACK_ENCODE")
+    // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.MODIFIED, "HALF_CLOSED")
     // e.g., onHTTPStreamStateChanged(stream.id, H3StreamState.CLOSED, "FIN")
-    public onHTTPStreamStateChanged(streamID:Bignum, state:string, trigger:string){
+    // TODO Potentially add stream direction? ("UNI"|"BIDI")
+    public onHTTPStreamStateChanged(streamID:Bignum, state:Http3StreamState, trigger:string){
 
         let evt:any = [
             123, 
@@ -481,15 +486,14 @@ export class QlogWrapper{
             trigger,
             {
                 id: streamID.toDecimalString(),
-                state: state
+                state,
             }
         ];
 
         this.logToFile(evt);
     }
 
-    // TODO: change frame to be the actual HTTP3 Data Frame class!
-    public onHTTPFrame_Data(frame:any, trigger:("TX"|"RX")){
+    public onHTTPFrame_Data(frame:Http3DataFrame, trigger:("TX"|"RX")){
 
         let evt:any = [
             123, 
@@ -497,16 +501,14 @@ export class QlogWrapper{
             "DATA_FRAME_NEW",
             trigger,
             {
-                // TODO: add frame info
-                payload_length: frame.payload.length
+                payload_length: frame.getPayloadLength(),
             }
         ];
 
         this.logToFile(evt);
     }
 
-    // TODO: change frame to be the actual HTTP3 Headers Frame class!
-    public onHTTPFrame_Headers(frame:any, trigger:("TX"|"RX")){
+    public onHTTPFrame_Headers(frame:Http3HeaderFrame, trigger:("TX"|"RX")){
 
         let evt:any = [
             123, 
@@ -514,11 +516,9 @@ export class QlogWrapper{
             "HEADERS_FRAME_NEW",
             trigger,
             {
-                // TODO: add frame info
-                payload_length: frame.payload.length,
-                // TODO: add all decoded qpack fields here:
+                payload_length: frame.getPayloadLength(),
                 fields: [
-                    ...frame.fields
+                    ...frame.getHeaders(),
                 ]
             }
         ];
@@ -527,16 +527,23 @@ export class QlogWrapper{
     }
 
     // TODO: change frame to be the actual HTTP3 Settings Frame class!
-    public onHTTPFrame_Settings(frame:any, trigger:("TX"|"RX")){
+    public onHTTPFrame_Settings(frame:Http3SettingsFrame, trigger:("TX"|"RX")){
 
+        const settings: Http3Setting[] = frame.getSettings();
+        const settingStrings: string[][] = settings.map((setting) => {
+            return [setting.identifier.toString(), setting.value.toString()]
+        });
+        
         let evt:any = [
             123, 
             "HTTP",
             "SETTINGS_FRAME_NEW",
             trigger,
             {
-                max_header_list_size: frame.maxHeaderListSize,
-                num_placeholders: frame.numPlaceholders
+                // TODO map identifiers to their respective string representations
+                // max_header_list_size: frame.maxHeaderListSize,
+                // num_placeholders: frame.numPlaceholders
+                ...settingStrings,
             }
         ];
 
