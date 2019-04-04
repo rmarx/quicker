@@ -188,6 +188,7 @@ export class Http3Server {
                     try {
                         const vlieOffset: VLIEOffset = VLIE.decode(bufferedData);
                         const streamTypeBignum: Bignum = vlieOffset.value;
+                        bufferedData = bufferedData.slice(vlieOffset.offset);
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
                             const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, state.getFrameParser(), logger, bufferedData.slice(vlieOffset.offset));
                             this.setupControlStreamEvents(controlStream);

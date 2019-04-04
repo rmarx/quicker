@@ -20,9 +20,9 @@ export class Http3HeaderFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        const encodedLength: Buffer = VLIE.encode(this.getPayloadLength());
         const frameType: Buffer = VLIE.encode(this.getFrameType());
         const payload: Buffer = this.getPayloadBuffer();
+        const encodedLength: Buffer = VLIE.encode(payload.byteLength);
 
         return Buffer.concat([encodedLength, frameType, payload]);
     }

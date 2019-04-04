@@ -32,17 +32,21 @@ export class Http3QPackEncoder {
     
     // Encoders given headers and returns encoded form
     public encodeHeaders(headers: Http3Header[], requestStreamID: Bignum): Buffer {
-        const [encodedHeaders, encodeStreamData] = qpackEncode({
+        const [encodedHeaders, encoderStreamData] = qpackEncode({
             encoderID: this.encoderID,
             headers,
             streamID: requestStreamID.toNumber(), // FIXME possibly bigger than num limit!
         });
         
-        if (encodeStreamData.byteLength > 0) {
-            this.encoderStream.write(encodeStreamData);
-        }
+        this.sendEncoderData(encoderStreamData);
         
         return encodedHeaders;
+    }
+    
+    public sendEncoderData(encoderData: Buffer) {
+        if (encoderData.byteLength > 0) {
+            this.encoderStream.write(encoderData);   
+        }
     }
     
     /**

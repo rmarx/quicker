@@ -28,6 +28,11 @@ export interface DecodeHeadersParam {
     headerBuffer: Buffer,
 }
 
+export interface DecoderEncoderStreamDataParam {
+    decoderID: number,
+    encoderData: Buffer,
+}
+
 function httpHeaderToString(header: Http3Header): string {
     return "Name: " + header.name + "\tValue: " + header.value + "\n";
 }
@@ -78,10 +83,22 @@ export function encodeHeaders(param: EncodeHeadersParam): [Buffer, Buffer] {
     return [headers, encoderData];
 }
 
-// TODO
 export function decodeHeaders(param: DecodeHeadersParam): [Http3Header[], Buffer] {
-    lsqpack.decodeHeaders(param);
-    return [[], Buffer.alloc(0)];
+    VerboseLogging.info("Decoding compressed headers. header_buffer: 0x" + param.headerBuffer.toString("hex"));
+    const [headers, decoderData]: [Http3Header[], Buffer] = lsqpack.decodeHeaders(param);
+    
+    for (const header of headers) {
+        VerboseLogging.info("Name: " + header.name + "\nValue: " + header.value + "\n");
+    }
+    
+    VerboseLogging.info("Decoderstream data: 0x" + decoderData.toString("hex"));
+
+    return [headers, decoderData];
+}
+
+export function decoderEncoderStreamData(param: DecoderEncoderStreamDataParam) {
+    VerboseLogging.info("Passing encoderstream data to decoder.\nDecoderID: " + param.decoderID + "\nEncoderstream data (hex): 0x" + param.encoderData.toString("hex"));
+    lsqpack.decoderEncoderStreamData(param);
 }
 
 export function deleteEncoder(encoderID: number): void {
