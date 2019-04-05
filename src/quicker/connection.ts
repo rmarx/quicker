@@ -28,16 +28,15 @@ import { StreamFrame } from '../frame/stream';
 import { MaxStreamIdFrame } from '../frame/max.stream.id';
 import { MaxStreamFrame } from '../frame/max.stream';
 import { MaxDataFrame } from '../frame/max.data';
-import { CongestionControl, CongestionControlEvents } from '../congestion-control/congestion.control';
 import { StreamManager, StreamManagerEvents, StreamFlowControlParameters } from './stream.manager';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { CryptoContext, EncryptionLevel, PacketNumberSpace, BufferedPacket } from '../crypto/crypto.context';
 import { RTTMeasurement } from '../loss-detection/rtt.measurement';
-import { QuicLossDetection, QuicLossDetectionEvents } from '../loss-detection/loss.detection.draft19';
+import { QuicLossDetection, QuicLossDetectionEvents, SentPacket } from '../loss-detection/loss.detection.draft19';
 import { QuicCongestionControl } from '../congestion-control/quic.congestion.control.draft19';
 import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
 import { PacketPipeline } from '../packet-pipeline/packet.pipeline';
-import { DEBUGFakeReorderPipe } from '../general-packet-output-pipes/debug.pipes';
+import { DEBUGFakeReorderPipe, DEBUGDropEveryXth, DEBUGIncreaseRTT } from '../general-packet-output-pipes/debug.pipes';
 import { SocketOutPipe } from '../general-packet-output-pipes/socket.out.pipe';
 
 export class Connection extends FlowControlledObject {
@@ -188,10 +187,16 @@ export class Connection extends FlowControlledObject {
         this.congestionControl = new QuicCongestionControl(this, [this.lossDet], this.lossDet.rttMeasurer);
         let fakeReorder = new DEBUGFakeReorderPipe(this);
         let outSocketPipe = new SocketOutPipe(this);
+        let debugDrop = new DEBUGDropEveryXth();
+        let debugRTT = new DEBUGIncreaseRTT();
 
         //order is important
         this.outgoingPacketPipeline.addPipe(this.congestionControl);
-        this.outgoingPacketPipeline.addPipe(fakeReorder);
+        //this.outgoingPacketPipeline.addPipe(fakeReorder);
+        this.outgoingPacketPipeline.addPipe(debugRTT);
+        //this.outgoingPacketPipeline.addPipe(debugDrop);
+
+
         this.outgoingPacketPipeline.addPipe(outSocketPipe);
     }
 
@@ -266,10 +271,10 @@ export class Connection extends FlowControlledObject {
             this.lossDet.on(QuicLossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
                 this.retransmitPacket(basePacket);
             });
-            this.lossDet.on(QuicLossDetectionEvents.PACKET_ACKED, (basePacket: BasePacket) => {
-                let ctx = this.getEncryptionContextByPacketType( basePacket.getPacketType() );
+            this.lossDet.on(QuicLossDetectionEvents.PACKET_ACKED, (packet: SentPacket) => {
+                let ctx = this.getEncryptionContextByPacketType( packet.packet.getPacketType() );
                 if(ctx !== undefined)
-                    ctx.getAckHandler().onPacketAcked(basePacket);
+                    ctx.getAckHandler().onPacketAcked(packet.packet);
             });
     }
 

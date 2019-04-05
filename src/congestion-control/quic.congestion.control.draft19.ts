@@ -39,8 +39,9 @@ export class QuicCongestionControl extends PacketPipe {
     private static kMinimumWindow : number = 2 * QuicCongestionControl.kMaxDatagramSize;
     /**
      * Factor by which the congestion window will change
+     * Due to the way Bignum seems to work, this will be the number the window is divided by, not multiplied
      */
-    private static kLossReductionFactor : number = 0.5;
+    private static kLossReductionFactor : number = 2;
     /**
      * Number of consecutive PTOs for persistent congestion to be established
      */
@@ -69,7 +70,7 @@ export class QuicCongestionControl extends PacketPipe {
      * @remarks Stores the highest packet number since QUIC monotonically increases packet numbers
      * TODO: double check if this is correct. PN spaces might prohibit this as a measure of time
      */
-    private recoveryStartTime : Bignum;
+    private recoveryStartTime : number;
     /**
      * Slow Start threashold
      */
@@ -101,7 +102,7 @@ export class QuicCongestionControl extends PacketPipe {
         this.ecnCeCounter = new Bignum(0);
         this.congestionWindow = new Bignum(QuicCongestionControl.kInitialWindow);
         this.bytesInFlight = new Bignum(0);
-        this.recoveryStartTime = new Bignum(0);
+        this.recoveryStartTime = 0;
         this.ssthresh = Bignum.infinity();
 
         //implementation specific init
@@ -114,7 +115,7 @@ export class QuicCongestionControl extends PacketPipe {
     
     private hookCongestionControlEvents(lossDetectionInstances: Array<QuicLossDetection>) {
         for( let lossDetection of lossDetectionInstances){
-            lossDetection.on(QuicLossDetectionEvents.PACKET_ACKED, (ackedPacket: BasePacket) => {
+            lossDetection.on(QuicLossDetectionEvents.PACKET_ACKED, (ackedPacket: SentPacket) => {
                 this.onPacketAckedCC(ackedPacket);
             });
             lossDetection.on(QuicLossDetectionEvents.PACKETS_LOST, (lostPackets: SentPacket[]) => {
@@ -128,10 +129,10 @@ export class QuicCongestionControl extends PacketPipe {
     
     /**
      * Checks if the system is in the recovery state.
-     * @param packetNumber packet number to check
+     * @param time send time of packet to check if it's in recovery
      */
-    public inRecovery(packetNumber: Bignum): boolean {
-        return packetNumber.lessThanOrEqual(this.recoveryStartTime);
+    public inRecovery(time: number): boolean {
+        return time <= this.recoveryStartTime;
     }
 
     /**
@@ -159,11 +160,12 @@ export class QuicCongestionControl extends PacketPipe {
      * When an ack for a packet has been received
      * @param ackedPacket the packet that has been ACKed
      */
-    private onPacketAckedCC(ackedPacket : BasePacket) {
-        var bytesAcked = ackedPacket.toBuffer(this.connection).byteLength;
+    private onPacketAckedCC(ackedPacket : SentPacket) {
+        let packet = ackedPacket.packet;
+        var bytesAcked = packet.toBuffer(this.connection).byteLength;
         this.setBytesInFlight(this.bytesInFlight.subtract(bytesAcked));
 
-        if(this.inRecovery(ackedPacket.getHeader().getPacketNumber().getValue())){
+        if(this.inRecovery(ackedPacket.time)){
             // No change in congestion window in recovery period
             return;
         }
@@ -190,16 +192,14 @@ export class QuicCongestionControl extends PacketPipe {
      * A congestion happened
      * @param sentTime packet number (and implicit the time) of the packet that caused the event
      */
-    private congestionEventHappened(sentTime : Bignum){
+    private congestionEventHappened(sentTime : number){
         // Start new congestion event if the sent time is larger
         // than the start time of the previous recovery epoch.
         if(!this.inRecovery(sentTime)){
-            //TODO: a way to get the largest packet number
-            // In the RFC the actual timestamp seems to be used
-            // but due to monotonically increasing packet numbers it's possible to use that instead
-            // or not since it has different packet number spaces?
-            //this.recoveryStartTime = Now();  <----------
-            let newval = this.congestionWindow.multiply(QuicCongestionControl.kLossReductionFactor);
+           
+            this.recoveryStartTime = Date.now();
+            let newval = this.congestionWindow.divide(QuicCongestionControl.kLossReductionFactor);
+            VerboseLogging.info("newval has become:" + newval.toDecimalString());
             this.setCWND(Bignum.max(newval, QuicCongestionControl.kMinimumWindow));
             this.ssthresh = this.congestionWindow;
         }
@@ -210,10 +210,12 @@ export class QuicCongestionControl extends PacketPipe {
      * @param ack AckFrame the ack frame that contained the congestion notification
      */
     private ProcessECN(ack : AckFrame){
+        /* TODO: this is commented out so that congestionEvent can actually use the time instead of the PN
+                Since ECN is not enabled as is, until then this won't be used anyway and hopefully time is extractable by then
         if(ack.getCEcount().greaterThan(this.ecnCeCounter)){
           this.ecnCeCounter = ack.getCEcount();
           this.congestionEventHappened(ack.getLargestAcknowledged())
-        }
+        }*/
     }
 
 
@@ -325,7 +327,7 @@ export class QuicCongestionControl extends PacketPipe {
 
         // Remove lost packets from bytesInFlight.
         this.setBytesInFlight(this.bytesInFlight.subtract(totalLostBytes));
-        this.congestionEventHappened(largestLostPNum);
+        this.congestionEventHappened(largestLostTime);
         this.sendPackets();
 
         if(this.inPersistentCongestion(largestLostTime, smallestLostTime)){
@@ -419,7 +421,6 @@ export class QuicCongestionControl extends PacketPipe {
 
         // NORMAL BEHAVIOUR
         VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
-        VerboseLogging.info("nextpipefunc" + this.debug);
         this.nextPipeFunc(packet);
     
         this.onPacketSentCC(packet);    
@@ -433,9 +434,10 @@ export class QuicCongestionControl extends PacketPipe {
         let oldVal = this.congestionWindow;
         this.congestionWindow = newVal;
 
-        //TODO: find a way to differntiate between these two
-        // to see if it's recovery we need a packet number
-        let congestionState = "Recovery or Avoidance"
+        let congestionState = "Avoidance";
+        if(this.inRecovery(Date.now())){
+            congestionState = "Recovery";
+        }
         if(this.inSlowStart()){
             congestionState = "Slow Start"
         }

@@ -289,13 +289,16 @@ export class QuicLossDetection extends EventEmitter {
         let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber().getValue();
         VerboseLogging.info(this.DEBUGname + " loss:onSentPacketAcked called for nr " + ackedPacketNumber.toNumber() + ", is retransmittable=" + sentPacket.isRetransmittable());
 
+
+        let packet : SentPacket | undefined= this.removeFromSentPackets( this.findPacketSpaceFromPacket(sentPacket), ackedPacketNumber );
+
         // TODO: move this to the end of this function? 
         // inform ack handler so it can update internal state, congestion control so it can update bytes-in-flight etc.
         // TODO: call ackhandler and congestion control directly instead of using events? makes code flow clearer 
-        if(sentPacket.isRetransmittable())
-            this.emit(QuicLossDetectionEvents.PACKET_ACKED, sentPacket);
+        if(sentPacket.isRetransmittable() && packet !== undefined)
+            this.emit(QuicLossDetectionEvents.PACKET_ACKED, packet);
         
-        this.removeFromSentPackets( this.findPacketSpaceFromPacket(sentPacket), ackedPacketNumber );
+        
     }
 
 
@@ -318,7 +321,9 @@ export class QuicLossDetection extends EventEmitter {
         if (this.sentPackets[space][packetNumber.toString('hex', 8)].packet.isHandshake()) {
             this.cryptoOutstanding--;
         }
+        let sentPacket =  this.sentPackets[space][packetNumber.toString('hex', 8)];
         delete this.sentPackets[space][packetNumber.toString('hex', 8)];
+        return sentPacket;
     }
 
 

@@ -353,8 +353,8 @@ export class QlogWrapper{
             trigger,
             {
                 stream_id: frame.getStreamID().toString(),
-                offset: frame.getOffset().toString(),
-                length: frame.getLength().toString(),
+                offset: frame.getOffset().toDecimalString(),
+                length: frame.getLength().toDecimalString(),
                 final_frame: frame.getFin()
             }
         ];
