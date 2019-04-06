@@ -42,6 +42,7 @@ export class Http3QPackDecoder {
     
     public sendDecoderData(decoderData: Buffer) {
         if (decoderData.byteLength > 0) {
+            this.logger.onQPACKDecoderInstruction(this.decoderStream.getStreamId(), "0x" + decoderData.toString("hex"), "TX");
             this.decoderStream.write(decoderData);
         }
     }
@@ -58,7 +59,7 @@ export class Http3QPackDecoder {
     public close() {
         deleteDecoder(this.decoderID);
         
-        this.logger.onHTTPStreamStateChanged(this.decoderStream.getStreamId(), Http3StreamState.CLOSED, "QPACK_DECODE")
+        this.logger.onHTTPStreamStateChanged(this.decoderStream.getStreamId(), Http3StreamState.CLOSED, "EXPLICIT_CLOSE");
         
         this.decoderStream.end();
         if (this.peerEncoderStream !== undefined) {
@@ -71,7 +72,7 @@ export class Http3QPackDecoder {
         if (this.peerEncoderStream !== undefined) {
             if (initialBuffer !== undefined && initialBuffer.byteLength > 0) {
                 VerboseLogging.info("Passing buffer with initial QPACK encoderstream data to decoder with ID <" + this.decoderID + ">.");
-                VerboseLogging.trace("INITIAL");
+                this.logger.onQPACKEncoderInstruction(this.peerEncoderStream.getStreamId(), "0x" + initialBuffer.toString("hex"), "RX");
                 decoderEncoderStreamData({
                     decoderID: this.decoderID,
                     encoderData: initialBuffer,
@@ -80,14 +81,18 @@ export class Http3QPackDecoder {
             this.peerEncoderStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (newData: Buffer) => {
                 // Consume data
                 VerboseLogging.info("Passing buffer with QPACK encoderstream data to decoder with ID <" + this.decoderID + ">.");
-                VerboseLogging.trace("DEBUG");
+                if (this.peerEncoderStream !== undefined) {
+                    this.logger.onQPACKEncoderInstruction(this.peerEncoderStream.getStreamId(), "0x" + newData.toString("hex"), "RX");
+                }
                 decoderEncoderStreamData({
                     decoderID: this.decoderID,
                     encoderData: newData,
                 });
             });
             this.peerEncoderStream.on(QuickerEvent.STREAM_END, () => {
-                // TODO
+                if (this.peerEncoderStream !== undefined) {
+                    this.logger.onHTTPStreamStateChanged(this.peerEncoderStream.getStreamId(), Http3StreamState.CLOSED, "PEER_CLOSED");   
+                }
                 this.close();
             });   
         }

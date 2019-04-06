@@ -33,6 +33,11 @@ export interface DecoderEncoderStreamDataParam {
     encoderData: Buffer,
 }
 
+export interface EncoderDecoderStreamDataParam {
+    encoderID: number,
+    decoderData: Buffer,
+}
+
 function httpHeaderToString(header: Http3Header): string {
     return "Name: " + header.name + "\tValue: " + header.value + "\n";
 }
@@ -96,9 +101,16 @@ export function decodeHeaders(param: DecodeHeadersParam): [Http3Header[], Buffer
     return [headers, decoderData];
 }
 
+// Feed encoderstream data to the decoder
 export function decoderEncoderStreamData(param: DecoderEncoderStreamDataParam) {
     VerboseLogging.info("Passing encoderstream data to decoder.\nDecoderID: " + param.decoderID + "\nEncoderstream data (hex): 0x" + param.encoderData.toString("hex"));
     lsqpack.decoderEncoderStreamData(param);
+}
+
+// Feed decoderstream data to the encoder
+export function encoderDecoderStreamData(param: EncoderDecoderStreamDataParam) {
+    VerboseLogging.info("Passing decoderstream data to encoder.\nEncoderID: " + param.encoderID + "\nDecoderstream data (hex): 0x" + param.decoderData.toString("hex"));
+    lsqpack.encoderDecoderStreamData(param);
 }
 
 export function deleteEncoder(encoderID: number): void {

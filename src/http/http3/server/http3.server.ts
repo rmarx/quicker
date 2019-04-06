@@ -93,6 +93,9 @@ export class Http3Server {
             };
             this.quickerServer = QuicServer.createServer(options);
         }
+        
+        this.quickerServer.on(QuickerEvent.NEW_STREAM, this.onNewStream);
+        this.quickerServer.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
     }
 
     public listen(port: number, host: string = '127.0.0.1') {
@@ -139,9 +142,6 @@ export class Http3Server {
             qpackDecoder,
             new Http3FrameParser(qpackEncoder, qpackDecoder, connection.getQlogger()),
         ));
-
-        this.quickerServer.on(QuickerEvent.NEW_STREAM, this.onNewStream);
-        this.quickerServer.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
         
         VerboseLogging.info("DEBUG: A new HTTP/3 client has connected!");
     }
@@ -176,7 +176,7 @@ export class Http3Server {
     
             quicStream.on(QuickerEvent.STREAM_END, () => {
                 this.handleRequest(quicStream, bufferedData);
-                //quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
+                quicStream.removeAllListeners();
             });
         } else {
             let streamType: Http3UniStreamType | undefined = undefined;
@@ -221,7 +221,7 @@ export class Http3Server {
                 if (streamType === undefined) {
                     throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_STREAM_END, "New HTTP/3 stream ended before streamtype could be decoded");
                 }
-                // quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
+                quicStream.removeAllListeners();
             });
         }
     }
@@ -250,20 +250,26 @@ export class Http3Server {
         const method: string | undefined = req.getHeaderValue(":method");
         
         if (requestPath !== undefined && method !== undefined && method === "GET") {
-            quicStream.getConnection().getQlogger().onHTTPGet(requestPath, "RX");
+            logger.onHTTPGet(requestPath, "RX");
         }
         
         if (requestPath === undefined || method === undefined) {
+            VerboseLogging.info("Received HTTP/3 request with no path and/or method");
             quicStream.end();
         } else {
             let methodHandled: boolean = false;
             // TODO implement other methods
             switch(method) {
                 case "GET":
+                    methodHandled = true;
                     if (this.handledGetPaths[requestPath] !== undefined) {
                         // Call user function to fill response
                         this.handledGetPaths[requestPath](req, res);
-                        methodHandled = true;
+                        VerboseLogging.info("Request was handled by the server. Responding to HTTP/3 Request.");
+                    } else {
+                        VerboseLogging.info("Requested path '" +  + "' was not handled. Responding with 404");
+                        res.setStatus(404);
+                        res.sendFile("notfound.html");
                     }
                     break;
                 default:
@@ -272,7 +278,6 @@ export class Http3Server {
 
             if (methodHandled) {
                 // Respond and close stream
-                VerboseLogging.debug("Handling HTTP/3 Request");
                 quicStream.end(res.toBuffer());
             }
             else {
@@ -284,12 +289,13 @@ export class Http3Server {
     }
 
     private async closeConnection(connectionID: string) {
+        VerboseLogging.info("Closing HTTP/3 connection with id <" + connectionID + ">");
         const state: ClientState | undefined = this.connectionStates.get(connectionID);
         
         if (state === undefined) {
             throw new Http3Error(Http3ErrorCode.HTTP3_UNTRACKED_CONNECTION, "Tried closing connection of an untracked connection on the server (no state found for this connection).\nConnectionID: <" + connectionID + ">");
         }
-        
+
         state.getQPackEncoder().close();
         state.getQPackDecoder().close();
         const sendingControlStream: Http3SendingControlStream = state.getSendingControlStream();
@@ -305,7 +311,7 @@ export class Http3Server {
     }
 
     private async onQuicServerError(error: Error) {
-        VerboseLogging.error("main:onError : " + error.message + " -- " + JSON.stringify(error) );
-        console.log(error.stack);
+        VerboseLogging.error("main:onError : " + error.message + " -- " + JSON.stringify(error));
+        console.error(error.stack);
     }
 }

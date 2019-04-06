@@ -574,7 +574,8 @@ export class QlogWrapper{
 
     // TODO: change frame to be the actual QPACK instruction Frame class!
     // TODO: potentially, split this over multiple methods, one for each qpack instruction
-    public onQPACKEncoderInstruction(instruction:any, trigger:string){
+    // FIXME: Currently just passing received stream of bytes as there are no frame handlers for QPACK
+    public onQPACKEncoderInstruction(streamID:Bignum , instruction:string, trigger:string){
 
         let evt:any = [
             123, 
@@ -583,12 +584,31 @@ export class QlogWrapper{
             trigger,
             {
                 // TODO: actually add necessary metadata here 
-                ...instruction
+                streamID: streamID.toDecimalString(),
+                instruction
             }
         ];
 
         this.logToFile(evt);
     }
 
-    // TODO: add something similar for DECODER instructions 
+    // TODO: change frame to be the actual QPACK instruction Frame class!
+    // TODO: potentially, split this over multiple methods, one for each qpack instruction
+    // FIXME: Currently just passing received stream of bytes as there are no frame handlers for QPACK
+    public onQPACKDecoderInstruction(streamID: Bignum, instruction:string, trigger:string){
+
+        let evt:any = [
+            123, 
+            "QPACK",
+            "DECODER_INSTRUCTION_NEW",
+            trigger,
+            {
+                // TODO: actually add necessary metadata here
+                streamID: streamID.toDecimalString(),
+                instruction
+            }
+        ];
+
+        this.logToFile(evt);
+    }
 }

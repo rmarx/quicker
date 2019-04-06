@@ -5,6 +5,7 @@ import { Http3QPackEncoder } from "./qpack/http3.qpackencoder";
 import { Http3QPackDecoder } from "./qpack/http3.qpackdecoder";
 import { Http3Header } from "./qpack/types/http3.header";
 import { Bignum } from "../../../types/bignum";
+import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
 
 export class Http3Response {
     private ready: boolean = false;
@@ -22,10 +23,10 @@ export class Http3Response {
 
         if (this.filePath !== undefined) {
             let absoluteFilePath = this.parsePath(resolve(__dirname) + "/../../../../public" + this.filePath);
-            console.debug("DEBUG: Filepath: ", absoluteFilePath);
             if (!existsSync(absoluteFilePath)) {
                 absoluteFilePath = resolve(__dirname) + "/../../../../public/notfound.html";
             }
+            VerboseLogging.info("Reading file: " + absoluteFilePath);
             
             const dataFrame: Http3DataFrame = new Http3DataFrame(readFileSync(absoluteFilePath));
             buffer = Buffer.concat([buffer, dataFrame.toBuffer()]);
@@ -62,6 +63,10 @@ export class Http3Response {
         // TODO Set content type header
         
         return true;
+    }
+    
+    public setStatus(status: number) {
+        this.setHeaderValue(":status", status.toString());
     }
     
     public setHeaderValue(property: string, value: string) {

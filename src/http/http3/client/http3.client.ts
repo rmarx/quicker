@@ -31,13 +31,15 @@ export class Http3Client extends EventEmitter {
 
     // For server side goaways
     private terminateConnection: boolean = false;
+    // When a client calls close no more new calls should be made
+    private isClosed: boolean = false;
     // Used to keep track of what requests will still be handled by a server after a goaway frame
     private lastStreamID: Bignum = new Bignum(0);
 
     private pendingRequestStreams: QuicStream[] = [];
 
     private http3FrameParser: Http3FrameParser;
-    
+
     private logger?: QlogWrapper;
 
     public constructor(hostname: string, port: number) {
@@ -49,7 +51,7 @@ export class Http3Client extends EventEmitter {
         this.quickerClient.on(QuickerEvent.CLIENT_CONNECTED, () => {
             this.logger = this.quickerClient.getConnection().getQlogger();
 
-            
+
             // Create control stream
             const controlStream: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
             this.sendingControlStream = new Http3SendingControlStream(EndpointType.Client, controlStream, this.logger);
@@ -73,7 +75,7 @@ export class Http3Client extends EventEmitter {
 
     private async onNewStream(quicStream: QuicStream) {
         const logger: QlogWrapper = quicStream.getConnection().getQlogger();
-        
+
         // Check what type of stream it is:
         //  Bidi -> Request stream
         //  Uni -> Control or push stream based on first frame
@@ -124,12 +126,15 @@ export class Http3Client extends EventEmitter {
                 if (streamType === undefined) {
                     throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_STREAM_END, "New HTTP/3 stream ended before streamtype could be decoded");
                 }
-                quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: THIS SHOULDN'T BE NEEDED!
+                quicStream.removeAllListeners();
             });
         }
     }
 
     public get(path: string) {
+        if (this.isClosed === true) {
+            throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
+        }
         if (this.terminateConnection === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_SERVER_CLOSED, "Can not send request, server has requested that the connection be closed");
         }
@@ -148,15 +153,15 @@ export class Http3Client extends EventEmitter {
         this.lastStreamID = stream.getStreamId();
         this.pendingRequestStreams.push(stream);
         VerboseLogging.info("Created new stream for HTTP/3 GET request. StreamID: " + stream.getStreamId());
-        
+
         if (this.logger !== undefined) {
             this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.OPENED, "GET");
             this.logger.onHTTPGet(path, "TX");
-            this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");    
+            this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");
         }
-        
+
         stream.end(req.toBuffer()); // Send request
-        
+
         if (this.logger !== undefined) {
             this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
         }
@@ -170,22 +175,27 @@ export class Http3Client extends EventEmitter {
             if (this.logger !== undefined) {
                 this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.CLOSED, "FIN");
             }
-            
+
             // Send out event that the response has been received
             this.emit(Http3ClientEvent.RESPONSE_RECEIVED, path, bufferedData)
 
             // Mark request as completed
-            this.pendingRequestStreams.filter((requestStream) => {
-                return requestStream !== stream;
+            this.pendingRequestStreams = this.pendingRequestStreams.filter((requestStream: QuicStream) => {
+                return requestStream.getStreamId() !== stream.getStreamId();
             });
 
             if (this.pendingRequestStreams.length === 0) {
                 this.emit(Http3ClientEvent.ALL_REQUESTS_FINISHED);
             }
+
+            stream.removeAllListeners();
         })
     }
 
     public close() {
+        // Don't allow new requests to be made
+        this.isClosed = true;
+
         // Wait for outbound requests to complete
         // TODO This will give problems if server doesn't respond to all requests. Use a timeout as alternative
         this.on(Http3ClientEvent.ALL_REQUESTS_FINISHED, () => {

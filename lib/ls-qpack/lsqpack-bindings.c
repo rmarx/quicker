@@ -47,16 +47,19 @@ napi_value testBindings(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'testBindings' call.");
+        return NULL;
     }
 
     if (argc != 1) {
         napi_throw_error(env, NULL, "Incorrect parameter count in 'testBindings' call. Expected 1 argument");
+        return NULL;
     }
 
     status = napi_get_value_string_utf8(env, argv[0], string_buf, 256, &copy_size);
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert passed argument to a string in 'testBindings' call.");
+        return NULL;
     }
 
     printf("You passed the following string to the native library: `%s`\n", string_buf);
@@ -65,6 +68,7 @@ napi_value testBindings(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert passed string back to napi_value in 'testBindings' call.");
+        return NULL;
     }
 
     return ret;
@@ -104,10 +108,12 @@ napi_value createEncoder(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'createEncoder' call.");
+        return NULL;
     }
 
     if (argc != 1) {
         napi_throw_error(env, NULL, "Incorrect parameter count in 'createEncoder' call. Expected 1 argument");
+        return NULL;
     }
 
     status = napi_get_named_property(env, argv[0], "max_table_size", &max_table_size_napi_value);
@@ -117,6 +123,7 @@ napi_value createEncoder(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all required parameters from parameter object in 'createEncoder' call.");
+        return NULL;
     }
 
     // Convert from napi_value to uint32s
@@ -127,6 +134,7 @@ napi_value createEncoder(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert all required paramters from parameter object to expected types in 'createEncoder' call.");
+        return NULL;
     }
 
     // Flags mark that encoder has been preinit and if the encoder belongs to a server or client
@@ -175,10 +183,12 @@ napi_value createDecoder(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'createDecoder' call.");
+        return NULL;
     }
 
     if (argc != 1) {
         napi_throw_error(env, NULL, "Incorrect parameter count in 'createDecoder' call. Expected 1 argument");
+        return NULL;
     }
 
     status |= napi_get_named_property(env, argv[0], "dyn_table_size", &dyn_table_size_napi_value);
@@ -186,6 +196,7 @@ napi_value createDecoder(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all required parameters from parameter object in 'createDecoder' call.");
+        return NULL;
     }
     
     // Convert from napi_value to uint32s
@@ -194,6 +205,7 @@ napi_value createDecoder(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert all required paramters from parameter object to expected types in 'createDecoder' call.");
+        return NULL;
     }
     
     struct lsqpack_dec * dec = malloc(sizeof(struct lsqpack_dec));
@@ -238,10 +250,12 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'encodeHeaders' call.");
+        return NULL;
     }
 
     if (argc != 1) {
         napi_throw_error(env, NULL, "Too many arguments for 'encodeHeaders' call.");
+        return NULL;
     }
 
     status = napi_get_named_property(env, argv[0], "encoderID", &properties[0]);
@@ -249,6 +263,7 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     status |= napi_get_named_property(env, argv[0], "headers", &properties[2]);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'encodeHeaders' call.");
+        return NULL;
     }
 
     status = napi_get_value_uint32(env, properties[0], &encoderID);
@@ -257,14 +272,17 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert values from parameter object to correct types in 'encodeHeaders' call.");
+        return NULL;
     }
 
     if (encoderID > MAX_ENCODERS) {
         napi_throw_error(env, NULL, "EncoderID is larger than maximum allowed encoderID initialized in 'encodeHeaders' call.");
+        return NULL;
     }
 
     if (encoders[encoderID] == NULL) {
         napi_throw_error(env, NULL, "Encoder with given ID has not yet been initialized in 'encodeHeaders' call.");
+        return NULL;
     }
 
     lsqpack_enc_start_header(encoders[encoderID], streamID, 0); // TODO find out what seqno is used for
@@ -286,12 +304,14 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve header object from header list in 'encodeHeaders' call.");
+            return NULL;
         }
 
         status = status | napi_get_named_property(env, headerNapi, "name", &headerProperty);
 
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headername from header object in 'encodeHeaders' call.");
+            return NULL;
         }
 
         status |= napi_get_value_string_utf8(env, headerProperty, NULL, 0, &headerPropertyLen);
@@ -301,12 +321,14 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headername from header object in 'encodeHeaders' call.");
+            return NULL;
         }
 
         status |= napi_get_named_property(env, headerNapi, "value", &headerProperty);
 
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headervalue from header object in 'encodeHeaders' call.");
+            return NULL;
         }
 
         status |= napi_get_value_string_utf8(env, headerProperty, NULL, 0, &headerPropertyLen);
@@ -316,6 +338,7 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
         if (status != napi_ok) {
             napi_throw_error(env, NULL, "Could not retrieve headervalue from header object in 'encodeHeaders' call.");
+            return NULL;
         }
 
         // FIXME non arbitrary values
@@ -352,6 +375,7 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert all properties of parameter object to required types in 'encodeHeaders' call.");
+        return NULL;
     }
 
     unsigned char header_data_prefix[1024 /*FIXME non arbitrary value*/];
@@ -359,10 +383,12 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
     if (prefix_sz == 0) {
         napi_throw_error(env, NULL, "Could not copy header prefix data into buffer: buffer too small. Call: 'encodeHeaders'");
+        return NULL;
     }
 
     if (prefix_sz < 0) {
         napi_throw_error(env, NULL, "Error transferring header prefix data into buffer in 'encodeHeaders' call");
+        return NULL;
     }
 
     printf("Prefix size: %lu\nTotal header size: %lu\nTotal encoder size: %lu\n", prefix_sz, total_header_sz, total_enc_sz);
@@ -385,6 +411,7 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not create buffer objects from headers or encoderdata in 'encodeHeaders' call.");
+        return NULL;
     }
     
     // [Headerblock, encoderdata]
@@ -392,6 +419,7 @@ napi_value encodeHeaders(napi_env env, napi_callback_info info) {
     
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not create array for return value in 'encodeHeaders' call.");
+        return NULL;
     }
     
     status = napi_set_element(env, ret, 0, header_buffer_napi_value);
@@ -447,15 +475,16 @@ napi_value decodeHeaders(napi_env env, napi_callback_info info) {
     struct lsqpack_header_set * hset = NULL;
     unsigned char dec_buf[LSQPACK_LONGEST_HACK];
     size_t dec_buf_sz;
-    const unsigned char * buffer[1024]; // FIXME arbitrary size
     
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'decodeHeaders' call.");
+        return NULL;
     }
 
     if (argc != 1) {
         napi_throw_error(env, NULL, "Too many arguments for 'decodeHeaders' call.");
+        return NULL;
     }
 
     status = napi_get_named_property(env, argv[0], "decoderID", &properties[0]);
@@ -463,6 +492,7 @@ napi_value decodeHeaders(napi_env env, napi_callback_info info) {
     status |= napi_get_named_property(env, argv[0], "headerBuffer", &properties[2]);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'decodeHeaders' call.");
+        return NULL;
     }
 
     status = napi_get_value_uint32(env, properties[0], &decoderID);
@@ -472,14 +502,17 @@ napi_value decodeHeaders(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert values from parameter object to correct types in 'decodeHeaders' call.");
+        return NULL;
     }
     
     if (decoderID > MAX_DECODERS) {
         napi_throw_error(env, NULL, "DecoderID is larger than maximum allowed decoderID initialized in 'decodeHeaders' call.");
+        return NULL;
     }
 
     if (decoders[decoderID] == NULL) {
         napi_throw_error(env, NULL, "Decoder with given ID has not yet been initialized in 'decodeHeaders' call.");
+        return NULL;
     }
     
     printf("Decoding QPack headers: \n\tdecoderID: %u\n\tstreamID: %u\n", decoderID, streamID);
@@ -497,10 +530,13 @@ napi_value decodeHeaders(napi_env env, napi_callback_info info) {
             printf("Decoder blocked\n");
             break;
         case LQRHS_ERROR:
-            lsqpack_dec_print_table(decoders[decoderID], stdout);
             napi_throw_error(env, NULL, "Decoding headers returned LQRHS_ERROR statuscode in 'decodeHeaders' call.");
             return NULL;
     }
+    
+    printf("\n\nPrinting decoder table...\n");
+    lsqpack_dec_print_table(decoders[decoderID], stdout);
+    printf("\n\n");
     
     if (hset != NULL) {
         // Push results into return value
@@ -566,16 +602,19 @@ napi_value decoderEncoderStreamData(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'decoderEncoderStreamData' call.");
+        return NULL;
     }
 
     if (argc != 1) {
         napi_throw_error(env, NULL, "Too many arguments for 'decoderEncoderStreamData' call.");
+        return NULL;
     }
 
     status = napi_get_named_property(env, argv[0], "decoderID", &properties[0]);
     status |= napi_get_named_property(env, argv[0], "encoderData", &properties[1]);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'decoderEncoderStreamData' call.");
+        return NULL;
     }
 
     status = napi_get_value_uint32(env, properties[0], &decoderID);
@@ -584,20 +623,91 @@ napi_value decoderEncoderStreamData(napi_env env, napi_callback_info info) {
 
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not convert values from parameter object to correct types in 'decoderEncoderStreamData' call.");
+        return NULL;
     }
     
     if (decoderID > MAX_DECODERS) {
         napi_throw_error(env, NULL, "DecoderID is larger than maximum allowed decoderID initialized in 'decoderEncoderStreamData' call.");
+        return NULL;
     }
 
     if (decoders[decoderID] == NULL) {
         napi_throw_error(env, NULL, "Decoder with given ID has not yet been initialized in 'decoderEncoderStreamData' call.");
+        return NULL;
     }
     
     int dec_enc_in_status = lsqpack_dec_enc_in(decoders[decoderID], encoder_data_buffer, encoder_data_buffer_sz);
     
     if (dec_enc_in_status < 0) {
         napi_throw_error(env, NULL, "Something went wrong processing encoder stream data in 'decoderEncoderStreamData' call");
+        return NULL;
+    }
+    
+    printf("\n\nPrinting decoder table after encoderstream data...\n");
+    lsqpack_dec_print_table(decoders[decoderID], stdout);
+    printf("\n\n");
+    
+    return NULL;
+}
+
+/**
+ * Feed the encoder data from the decoderstream
+ *  Args: Object
+    {
+        encoderID: number (unsigned),
+        decoderData: Buffer,
+    }
+*/
+napi_value encoderDecoderStreamData(napi_env env, napi_callback_info info) {
+    napi_status status;
+    napi_value argv[1];
+    napi_value properties[2]; // encoderID, decoderData
+    size_t argc = 1;
+    uint32_t encoderID;
+    void * decoder_data_buffer;
+    size_t decoder_data_buffer_sz;
+    
+    status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not extract arguments for 'encoderDecoderStreamData' call.");
+        return NULL;
+    }
+
+    if (argc != 1) {
+        napi_throw_error(env, NULL, "Too many arguments for 'encoderDecoderStreamData' call.");
+        return NULL;
+    }
+
+    status = napi_get_named_property(env, argv[0], "encoderID", &properties[0]);
+    status |= napi_get_named_property(env, argv[0], "decoderData", &properties[1]);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not retrieve all necessary properties from parameter object in 'encoderDecoderStreamData' call.");
+        return NULL;
+    }
+
+    status = napi_get_value_uint32(env, properties[0], &encoderID);
+    // FIXME? Warning: Use caution while using napi_get_buffer_info since the underlying data buffer's lifetime is not guaranteed if it's managed by the VM.
+    status |= napi_get_buffer_info(env, properties[1], &decoder_data_buffer, &decoder_data_buffer_sz);
+
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Could not convert values from parameter object to correct types in 'encoderDecoderStreamData' call.");
+        return NULL;
+    }
+    
+    if (encoderID > MAX_ENCODERS) {
+        napi_throw_error(env, NULL, "EncoderID is larger than maximum allowed encoderID initialized in 'encoderDecoderStreamData' call.");
+        return NULL;
+    }
+
+    if (encoders[encoderID] == NULL) {
+        napi_throw_error(env, NULL, "Encoder with given ID has not yet been initialized in 'encoderDecoderStreamData' call.");
+        return NULL;
+    }
+    
+    int enc_dec_in_status = lsqpack_enc_decoder_in(encoders[encoderID], decoder_data_buffer, decoder_data_buffer_sz);
+    
+    if (enc_dec_in_status < 0) {
+        napi_throw_error(env, NULL, "Something went wrong processing encoder stream data in 'encoderDecoderStreamData' call");
     }
     
     return NULL;
@@ -613,11 +723,13 @@ napi_value deleteEncoder(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'deleteEncoder' call. Expected arguments: encoderID: number");
+        return NULL;
     }
 
     status = napi_get_value_uint32(env, argv[0], &encoderID);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "EncoderID passed to deleteEncoder could not be converted to uint32.");
+        return NULL;
     }
 
     // Free the encoder
@@ -641,11 +753,13 @@ napi_value deleteDecoder(napi_env env, napi_callback_info info) {
     status = napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Could not extract arguments for 'deleteDecoder' call. Expected arguments: decoderID: number");
+        return NULL;
     }
 
     status = napi_get_value_uint32(env, argv[0], &decoderID);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "decoderID passed to deleteDecoder could not be converted to uint32.");
+        return NULL;
     }
 
     // Free the decoder
@@ -721,6 +835,16 @@ napi_value init(napi_env env, napi_value exports) {
     status = napi_set_named_property(env, exports, "decoderEncoderStreamData", result);
     if (status != napi_ok) {
         napi_throw_error(env, NULL, "Unable to add 'decoderEncoderStreamData' function to exports");
+    }
+    
+    status = napi_create_function(env, "encoderDecoderStreamData", NAPI_AUTO_LENGTH, encoderDecoderStreamData, NULL, &result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to wrap 'encoderDecoderStreamData' function");
+    }
+
+    status = napi_set_named_property(env, exports, "encoderDecoderStreamData", result);
+    if (status != napi_ok) {
+        napi_throw_error(env, NULL, "Unable to add 'encoderDecoderStreamData' function to exports");
     }
 
     status = napi_create_function(env, "deleteEncoder", NAPI_AUTO_LENGTH, deleteEncoder, NULL, &result);

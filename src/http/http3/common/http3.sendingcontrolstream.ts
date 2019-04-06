@@ -7,6 +7,7 @@ import { Http3GoAwayFrame } from "./frames";
 import { EndpointType } from "../../../types/endpoint.type";
 import { QuickerEvent } from "../../../quicker/quicker.event";
 import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
+import { Http3StreamState } from "./types/http3.streamstate";
 
 export class Http3SendingControlStream {
     private endpointType: EndpointType;
@@ -23,6 +24,7 @@ export class Http3SendingControlStream {
         
         // Close when other end closes
         quicStream.on(QuickerEvent.STREAM_END, () => {
+            logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.CLOSED, "PEER_CLOSED");
             quicStream.end();
         });
     }
