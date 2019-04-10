@@ -203,7 +203,7 @@ export class Http3Server {
                             state.getQPackEncoder().setPeerDecoderStream(quicStream, bufferedData);
                         } else {
                             quicStream.end();
-                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control stream or a push stream");
+                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control stream or a push stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                         }
                     } catch(error) {
                         // Do nothing if there was not enough data to decode the StreamType

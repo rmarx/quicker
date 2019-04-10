@@ -572,10 +572,7 @@ export class QlogWrapper{
     // QPACK
     //----------------------------------------
 
-    // TODO: change frame to be the actual QPACK instruction Frame class!
-    // TODO: potentially, split this over multiple methods, one for each qpack instruction
-    // FIXME: Currently just passing received stream of bytes as there are no frame handlers for QPACK
-    public onQPACKEncoderInstruction(streamID:Bignum , instruction:string, trigger:string){
+    public onQPACKEncoderInstruction(streamID:Bignum , instruction:Buffer, trigger:string){
 
         let evt:any = [
             123, 
@@ -583,32 +580,68 @@ export class QlogWrapper{
             "ENCODER_INSTRUCTION_NEW",
             trigger,
             {
-                // TODO: actually add necessary metadata here 
-                streamID: streamID.toDecimalString(),
-                instruction
+                stream_id: streamID.toDecimalString(),
+                length: instruction.byteLength,
+                raw: "0x" + instruction.toString("hex"),
+                guessed_instruction: this.guessQPACKEncoderInstruction(instruction),
             }
         ];
 
         this.logToFile(evt);
     }
 
-    // TODO: change frame to be the actual QPACK instruction Frame class!
-    // TODO: potentially, split this over multiple methods, one for each qpack instruction
-    // FIXME: Currently just passing received stream of bytes as there are no frame handlers for QPACK
-    public onQPACKDecoderInstruction(streamID: Bignum, instruction:string, trigger:string){
-
+    public onQPACKDecoderInstruction(streamID:Bignum, instruction:Buffer, trigger:string){
         let evt:any = [
             123, 
             "QPACK",
             "DECODER_INSTRUCTION_NEW",
             trigger,
             {
-                // TODO: actually add necessary metadata here
-                streamID: streamID.toDecimalString(),
-                instruction
+                stream_id: streamID.toDecimalString(),
+                length: instruction.byteLength,
+                raw: "0x" + instruction.toString("hex"),
+                guessed_instruction: this.guessQPACKDecoderInstruction(instruction),
             }
         ];
 
         this.logToFile(evt);
+    }
+
+    private guessQPACKEncoderInstruction(instruction:Buffer): string {
+        if (instruction.byteLength === 0) {
+            return "Can't guess for empty instruction";
+        }
+        const firstByte: number = instruction[0];
+        switch (firstByte & (128 | 64 | 32)) {
+            case 128:
+                return "Dynamic table: Insert With Name Reference";
+            case (128 | 64):
+                return "Static table: Insert With Name Reference";
+            case 64:
+                return "Insert Without Name Reference";
+            case 32:
+                return "Set Dynamic Table Capacity";
+            case 0:
+                return "Duplicate";
+            default:
+                return "Could not guess instruction";
+        }
+    }
+
+    private guessQPACKDecoderInstruction(instruction:Buffer): string {
+        if (instruction.byteLength === 0) {
+            return "Can't guess for empty instruction";
+        }
+        const firstByte: number = instruction[0];
+        switch (firstByte & (128 | 64)) {
+            case 128:
+                return "Header acknowledment"
+            case 64:
+                return "Stream cancellation";
+            case 0:
+                return "Insert Count Increment";
+            default:
+                return "Could not guess instruction";
+        }
     }
 }

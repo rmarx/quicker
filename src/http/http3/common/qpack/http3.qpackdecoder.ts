@@ -42,7 +42,7 @@ export class Http3QPackDecoder {
     
     public sendDecoderData(decoderData: Buffer) {
         if (decoderData.byteLength > 0) {
-            this.logger.onQPACKDecoderInstruction(this.decoderStream.getStreamId(), "0x" + decoderData.toString("hex"), "TX");
+            this.logger.onQPACKDecoderInstruction(this.decoderStream.getStreamId(), decoderData, "TX");
             this.decoderStream.write(decoderData);
         }
     }
@@ -72,7 +72,7 @@ export class Http3QPackDecoder {
         if (this.peerEncoderStream !== undefined) {
             if (initialBuffer !== undefined && initialBuffer.byteLength > 0) {
                 VerboseLogging.info("Passing buffer with initial QPACK encoderstream data to decoder with ID <" + this.decoderID + ">.");
-                this.logger.onQPACKEncoderInstruction(this.peerEncoderStream.getStreamId(), "0x" + initialBuffer.toString("hex"), "RX");
+                this.logger.onQPACKEncoderInstruction(this.peerEncoderStream.getStreamId(), initialBuffer, "RX");
                 decoderEncoderStreamData({
                     decoderID: this.decoderID,
                     encoderData: initialBuffer,
@@ -82,7 +82,7 @@ export class Http3QPackDecoder {
                 // Consume data
                 VerboseLogging.info("Passing buffer with QPACK encoderstream data to decoder with ID <" + this.decoderID + ">.");
                 if (this.peerEncoderStream !== undefined) {
-                    this.logger.onQPACKEncoderInstruction(this.peerEncoderStream.getStreamId(), "0x" + newData.toString("hex"), "RX");
+                    this.logger.onQPACKEncoderInstruction(this.peerEncoderStream.getStreamId(), newData, "RX");
                 }
                 decoderEncoderStreamData({
                     decoderID: this.decoderID,
