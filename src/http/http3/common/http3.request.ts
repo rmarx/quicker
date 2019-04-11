@@ -13,11 +13,8 @@ export class Http3Request {
     
     public toBuffer(): Buffer {        
         let buffer: Buffer = this.headerFrame.toBuffer();
+        buffer = Buffer.concat([buffer, this.content]);
 
-        if (this.content !== undefined) {
-            buffer = Buffer.concat([buffer, this.content]);
-        }
-        
         return buffer;
     }
     

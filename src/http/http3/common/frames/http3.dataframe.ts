@@ -11,7 +11,7 @@ export class Http3DataFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getPayloadLength());
+        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
         let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.payload.byteLength);
 
         encodedLength.copy(buffer);
@@ -29,7 +29,7 @@ export class Http3DataFrame extends Http3BaseFrame {
         return this.payload;
     }
 
-    public getPayloadLength(): number {
+    public getEncodedLength(): number {
         return this.payload.byteLength;
     }
 

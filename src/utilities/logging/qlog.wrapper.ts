@@ -501,7 +501,7 @@ export class QlogWrapper{
             "DATA_FRAME_NEW",
             trigger,
             {
-                payload_length: frame.getPayloadLength(),
+                payload_length: frame.getEncodedLength(),
             }
         ];
 
@@ -516,7 +516,7 @@ export class QlogWrapper{
             "HEADERS_FRAME_NEW",
             trigger,
             {
-                payload_length: frame.getPayloadLength(),
+                payload_length: frame.getEncodedLength(),
                 fields: [
                     ...frame.getHeaders(),
                 ]

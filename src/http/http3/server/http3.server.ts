@@ -160,7 +160,7 @@ export class Http3Server {
             throw new Http3Error(Http3ErrorCode.HTTP3_UNTRACKED_CONNECTION, "Received a new stream on the server from an untracked connection (no state found for this connection).\nConnectionID: <" + connectionID + ">\nStreamID <" + quicStream.getStreamId().toDecimalString() + ">");
         }
         state.setLastUsedStreamID(quicStream.getStreamId());
-
+        
         // Check what type of stream it is: 
         //  Bidi -> Request stream
         //  Uni -> Control or push stream based on first frame
@@ -178,7 +178,8 @@ export class Http3Server {
                 this.handleRequest(quicStream, bufferedData);
                 quicStream.removeAllListeners();
             });
-        } else {
+        } else if (quicStream.isUniStream()) {
+            const streamID: string = quicStream.getStreamId().toString();
             let streamType: Http3UniStreamType | undefined = undefined;
             let bufferedData: Buffer = Buffer.alloc(0);
 
@@ -190,20 +191,26 @@ export class Http3Server {
                         const streamTypeBignum: Bignum = vlieOffset.value;
                         bufferedData = bufferedData.slice(vlieOffset.offset);
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
+                            streamType = Http3UniStreamType.CONTROL;
                             const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, state.getFrameParser(), logger, bufferedData.slice(vlieOffset.offset));
                             this.setupControlStreamEvents(controlStream);
                             state.setReceivingControlStream(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
+                            streamType = Http3UniStreamType.PUSH;
                             // Server shouldn't receive push streams
                             quicStream.end();
+                            quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
                             throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
                         } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
+                            streamType = Http3UniStreamType.ENCODER;
                             state.getQPackDecoder().setPeerEncoderStream(quicStream, bufferedData);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.DECODER)) {
+                            streamType = Http3UniStreamType.DECODER;
                             state.getQPackEncoder().setPeerDecoderStream(quicStream, bufferedData);
                         } else {
                             quicStream.end();
-                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control stream or a push stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
+                            quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
+                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                         }
                     } catch(error) {
                         // Do nothing if there was not enough data to decode the StreamType
@@ -218,11 +225,14 @@ export class Http3Server {
     
             quicStream.on(QuickerEvent.STREAM_END, () => {
                 quicStream.end();
+                quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
                 if (streamType === undefined) {
                     throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_STREAM_END, "New HTTP/3 stream ended before streamtype could be decoded");
                 }
                 quicStream.removeAllListeners();
             });
+        } else {
+            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_STREAMTYPE, "Stream is neither unidirectional nor bidirectional. This should not be possible!");
         }
     }
     
@@ -256,6 +266,7 @@ export class Http3Server {
         if (requestPath === undefined || method === undefined) {
             VerboseLogging.info("Received HTTP/3 request with no path and/or method");
             quicStream.end();
+            quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         } else {
             let methodHandled: boolean = false;
             // TODO implement other methods
@@ -279,11 +290,13 @@ export class Http3Server {
             if (methodHandled) {
                 // Respond and close stream
                 quicStream.end(res.toBuffer());
+                quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
             }
             else {
                 // Close stream
                 VerboseLogging.warn("Received HTTP/3 request with method " + method + ". This method is currently not handled.");
                 quicStream.end();
+                quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
             }   
         }
     }

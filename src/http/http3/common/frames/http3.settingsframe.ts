@@ -22,8 +22,8 @@ export class Http3SettingsFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getPayloadLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.getPayloadLength());
+        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
+        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.getEncodedLength());
 
         encodedLength.copy(buffer);
         buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
@@ -32,7 +32,7 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         return buffer;
     }
 
-    public getPayloadLength(): number {
+    public getEncodedLength(): number {
         let length: number = 0;
 
         for (let param of this.settingsParameters) {

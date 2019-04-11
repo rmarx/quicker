@@ -16,7 +16,6 @@ import { EndpointType } from "../../../types/endpoint.type";
 import { Http3SettingsFrame, Http3PriorityFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "../common/frames";
 import { Http3QPackEncoder } from "../common/qpack/http3.qpackencoder";
 import { Http3QPackDecoder } from "../common/qpack/http3.qpackdecoder";
-import { Http3Header } from "../common/qpack/types/http3.header";
 import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
 import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
 import { Http3StreamState } from "../common/types/http3.streamstate";
@@ -102,13 +101,16 @@ export class Http3Client extends EventEmitter {
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
                             // Server shouldn't receive push streams
                             quicStream.end();
+                            quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
                             throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
                         } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
                             this.setupServerEncoderStream(quicStream, bufferedData);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.DECODER)) {
                             this.setupServerDecoderStream(quicStream, bufferedData);
                         } else {
-                            // TODO
+                            quicStream.end();
+                            quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
+                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                         }
                     } catch(error) {
                         // Do nothing if there was not enough data to decode the StreamType
@@ -123,6 +125,7 @@ export class Http3Client extends EventEmitter {
 
             quicStream.on(QuickerEvent.STREAM_END, () => {
                 quicStream.end();
+                quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
                 if (streamType === undefined) {
                     throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_STREAM_END, "New HTTP/3 stream ended before streamtype could be decoded");
                 }
@@ -161,6 +164,7 @@ export class Http3Client extends EventEmitter {
         }
 
         stream.end(req.toBuffer()); // Send request
+        stream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
 
         if (this.logger !== undefined) {
             this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");

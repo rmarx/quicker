@@ -21,7 +21,7 @@ export class Http3HeaderFrame extends Http3BaseFrame {
 
     public toBuffer(): Buffer {
         const frameType: Buffer = VLIE.encode(this.getFrameType());
-        const payload: Buffer = this.getPayloadBuffer();
+        const payload: Buffer = this.encode();
         const encodedLength: Buffer = VLIE.encode(payload.byteLength);
 
         return Buffer.concat([encodedLength, frameType, payload]);
@@ -44,8 +44,9 @@ export class Http3HeaderFrame extends Http3BaseFrame {
         return headerList;
     }
 
-    public getPayloadLength(): number {
-        return this.getPayloadBuffer().byteLength;
+    public getEncodedLength(): number {
+        // Use dryrun so encoder doesn't automatically transmit updates to decoder
+        return this.encode(true).byteLength;
     }
 
     public getFrameType(): Http3FrameType {
@@ -67,7 +68,8 @@ export class Http3HeaderFrame extends Http3BaseFrame {
         }
     }
 
-    private getPayloadBuffer(): Buffer {
-        return this.encoder.encodeHeaders(this.getHeaders(), this.requestStreamID);
+    // Dryrun can be enabled so the encoder doesn't automatically send encoder stream data to the decoder
+    private encode(dryrun: boolean = false): Buffer {
+        return this.encoder.encodeHeaders(this.getHeaders(), this.requestStreamID, dryrun);
     }
 }

@@ -20,7 +20,7 @@ export enum Http3FrameType {
 export abstract class Http3BaseFrame {
     public abstract toBuffer(): Buffer;
 
-    public abstract getPayloadLength(): number;
+    public abstract getEncodedLength(): number;
 
     /**
      * Returns the Http3FrameType value as an enum

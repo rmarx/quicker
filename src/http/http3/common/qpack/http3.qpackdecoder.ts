@@ -14,39 +14,46 @@ export class Http3QPackDecoder {
     private decoderStream: QuicStream;
     private decoderID: number;
     private logger: QlogWrapper;
-    
+
     // FIXME: Arbitrary values for dyntablesize and maxriskedstreams
     public constructor(decoderStream: QuicStream, logger: QlogWrapper, dynTableSize: number = 1024, maxRiskedStreams: number = 16) {
         this.decoderStream = decoderStream;
         this.logger = logger;
-        
+
         this.decoderStream.write(VLIE.encode(Http3UniStreamType.DECODER));
-        
+        this.decoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
+
+
         this.decoderID = createDecoder({
             dyn_table_size: dynTableSize,
             max_risked_streams: maxRiskedStreams,
         });
     }
-    
-    public decodeHeaders(encodedHeaders: Buffer, requestStreamID: Bignum): Http3Header[] {
+
+    // Decodes given headers and returns decoded form
+    // Dryrun can be enabled if the decoder should not automatically transmit updates to peer encoder
+    public decodeHeaders(encodedHeaders: Buffer, requestStreamID: Bignum, dryrun: boolean = false): Http3Header[] {
         const [headers, decoderStreamData]: [Http3Header[], Buffer] = qpackDecode({
             decoderID: this.decoderID,
             headerBuffer: encodedHeaders,
             streamID: requestStreamID.toNumber(), // FIXME possibly bigger than num limit!
         });
-        
-        this.sendDecoderData(decoderStreamData);
-        
+
+        if (dryrun === true) {
+            this.sendDecoderData(decoderStreamData);
+        }
+
         return headers;
     }
-    
+
     public sendDecoderData(decoderData: Buffer) {
         if (decoderData.byteLength > 0) {
             this.logger.onQPACKDecoderInstruction(this.decoderStream.getStreamId(), decoderData, "TX");
             this.decoderStream.write(decoderData);
+            this.decoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         }
     }
-    
+
     /**
      * Sets up the peer-initiated encoder stream which corresponds to this decoder
      * Initialbuffer can be passed if there was extra data buffered after the initial streamtype frame
@@ -55,19 +62,21 @@ export class Http3QPackDecoder {
         this.peerEncoderStream = peerEncoderStream;
         this.setupEncoderStreamEvents(initialBuffer);
     }
-    
+
     public close() {
         deleteDecoder(this.decoderID);
-        
+
         this.logger.onHTTPStreamStateChanged(this.decoderStream.getStreamId(), Http3StreamState.CLOSED, "EXPLICIT_CLOSE");
-        
+
         this.decoderStream.end();
+        this.decoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         if (this.peerEncoderStream !== undefined) {
             this.peerEncoderStream.removeAllListeners();
-            this.peerEncoderStream.end();   
+            this.peerEncoderStream.end();
+            this.peerEncoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         }
     }
-    
+
     private setupEncoderStreamEvents(initialBuffer?: Buffer) {
         if (this.peerEncoderStream !== undefined) {
             if (initialBuffer !== undefined && initialBuffer.byteLength > 0) {
@@ -91,10 +100,10 @@ export class Http3QPackDecoder {
             });
             this.peerEncoderStream.on(QuickerEvent.STREAM_END, () => {
                 if (this.peerEncoderStream !== undefined) {
-                    this.logger.onHTTPStreamStateChanged(this.peerEncoderStream.getStreamId(), Http3StreamState.CLOSED, "PEER_CLOSED");   
+                    this.logger.onHTTPStreamStateChanged(this.peerEncoderStream.getStreamId(), Http3StreamState.CLOSED, "PEER_CLOSED");
                 }
                 this.close();
-            });   
+            });
         }
     }
 }

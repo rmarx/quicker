@@ -21,6 +21,7 @@ export class Http3QPackEncoder {
         this.logger = logger;
 
         this.encoderStream.write(VLIE.encode(Http3UniStreamType.ENCODER));
+        this.encoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
 
         this.encoderID = createEncoder({
             // TODO get default params from settings file?
@@ -32,14 +33,17 @@ export class Http3QPackEncoder {
     }
 
     // Encoders given headers and returns encoded form
-    public encodeHeaders(headers: Http3Header[], requestStreamID: Bignum): Buffer {
+    // Dryrun can be enabled if the encoder should not automatically transmit updates to peer decoder
+    public encodeHeaders(headers: Http3Header[], requestStreamID: Bignum, dryrun: boolean = false): Buffer {
         const [encodedHeaders, encoderStreamData] = qpackEncode({
             encoderID: this.encoderID,
             headers,
             streamID: requestStreamID.toNumber(), // FIXME possibly bigger than num limit!
         });
 
-        this.sendEncoderData(encoderStreamData);
+        if (dryrun === false) {
+            this.sendEncoderData(encoderStreamData);
+        }
 
         return encodedHeaders;
     }
@@ -48,6 +52,7 @@ export class Http3QPackEncoder {
         if (encoderData.byteLength > 0) {
             this.logger.onQPACKEncoderInstruction(this.encoderStream.getStreamId(), encoderData, "TX");
             this.encoderStream.write(encoderData);
+            this.encoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         }
     }
 
@@ -66,10 +71,16 @@ export class Http3QPackEncoder {
         this.logger.onHTTPStreamStateChanged(this.encoderStream.getStreamId(), Http3StreamState.CLOSED, "EXPLICIT_CLOSE");
 
         this.encoderStream.end();
+        this.encoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         if (this.peerDecoderStream !== undefined) {
             this.peerDecoderStream.removeAllListeners();
             this.peerDecoderStream.end();
+            this.peerDecoderStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
         }
+    }
+    
+    public getEncoder(): QuicStream {
+        return this.encoderStream;
     }
 
     private setupDecoderStreamEvents(initialBuffer?: Buffer) {
