@@ -1,12 +1,11 @@
 import { Http3DepNodePQueue } from "./http3.priorityqueue";
-import { Http3RequestNode } from "./http3.requestnode";
-
 export class Http3PrioritisedElementNode {
     private parent: Http3PrioritisedElementNode | null;
     protected activeChildrenPQueue: Http3DepNodePQueue = new Http3DepNodePQueue([]);
     protected children: Http3PrioritisedElementNode[] = [];
     protected weight: number;
     protected pseudoTime: number = 0;
+    protected lastPseudoTime: number = 0;
 
     // Parent should be root by default
     public constructor(parent: Http3PrioritisedElementNode | null, weight: number = 16) {
@@ -19,19 +18,21 @@ export class Http3PrioritisedElementNode {
 
     // Do one (recursive) pass starting from this node
     public schedule() {
-        while (this.activeChildrenPQueue.size() > 0) {
-            const node: Http3PrioritisedElementNode | undefined = this.activeChildrenPQueue.pop();
-            if (node !== undefined) {
-                this.pseudoTime = node.pseudoTime;
-                node.schedule();
-                if (node.isActive()) {
-                    // K = 256 -> constant to compensate the lost bits by integer division (e.g., 256).
-                    // TODO bytessent is hardcoded to 100 as placeholders dont have a bytessent property
-                    node.pseudoTime = this.pseudoTime + 100 * 256 / node.weight;
-                    this.activeChildrenPQueue.push(node);
-                }
+        const child: Http3PrioritisedElementNode | undefined = this.activeChildrenPQueue.pop();
+        if (child !== undefined) {
+            this.lastPseudoTime = child.pseudoTime;
+            child.schedule();
+            if (child.isActive()) {
+                // K = 256 -> constant to compensate the lost bits by integer division (e.g., 256).
+                child.pseudoTime = this.lastPseudoTime + child.getBytesSent() * 256 / child.weight;
+                this.activeChildrenPQueue.push(child);
             }
         }
+    }
+
+    public getBytesSent(): number {
+        // TODO?
+        return 100;
     }
 
     // If node has active children, it is considered active
@@ -52,11 +53,15 @@ export class Http3PrioritisedElementNode {
     }
 
     public activateChild(child: Http3PrioritisedElementNode) {
+        if (this.activeChildrenPQueue.includes(child)) {
+            return;
+        }
+
         const childIndex: number = this.children.indexOf(child);
         if (childIndex !== -1) {
             // K = 256 -> constant to compensate the lost bits by integer division (e.g., 256).
             // TODO bytessent is hardcoded to 100 as placeholders dont have a bytessent property
-            child.pseudoTime = this.pseudoTime + 100 * 256 / child.weight;
+            child.pseudoTime = this.pseudoTime + child.getBytesSent() * 256 / child.weight;
             this.activeChildrenPQueue.push(child);
             if (this.parent !== null) {
                 this.parent.activateChild(this);

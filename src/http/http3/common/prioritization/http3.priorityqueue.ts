@@ -70,7 +70,7 @@ export class Http3DepNodePQueue {
         const leftChildIndex: number = (2*index)+1;
         const rightChildIndex: number = (2*index)+2;
         // If leaf: stop
-        if (leftChildIndex === this.heap.length) {
+        if (leftChildIndex >= this.heap.length) {
             return;
         }
         // If only left child exists

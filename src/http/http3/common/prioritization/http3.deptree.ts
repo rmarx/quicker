@@ -116,7 +116,14 @@ export class Http3DependencyTree {
         }
     }
 
-    // TODO Do one pass starting from root
+    public addData(streamID: Bignum, buffer: Buffer) {
+        const node: Http3RequestNode | undefined = this.requestStreams.get(streamID.toString());
+        if (node !== undefined) {
+            node.addData(buffer);
+        }
+    }
+
+    // Do one pass starting from root
     public schedule() {
         this.root.schedule();
     }

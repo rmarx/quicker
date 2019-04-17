@@ -1,6 +1,7 @@
 import { QuicStream } from "../../../../quicker/quic.stream";
 import { Bignum } from "../../../../types/bignum";
 import { Http3PrioritisedElementNode } from "./http3.prioritisedelementnode";
+import { Http3DataFrame } from "../frames";
 
 export class Http3RequestNode extends Http3PrioritisedElementNode {
     static readonly MAX_BYTES_SENT = 100;
@@ -17,13 +18,18 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
     public schedule() {
         // TODO possibly set a threshold minimum amount of data so that it doesn't send, for example, a single byte
         if (this.bufferedData.byteLength > 0) {
-            this.stream.write(this.popData(Http3RequestNode.MAX_BYTES_SENT));
+            const sendBuffer: Buffer = this.popData(Http3RequestNode.MAX_BYTES_SENT);
+            this.stream.write(sendBuffer);
             this.stream.getConnection().sendPackets(); // Force sending packets
-            this.bytesSent = Http3RequestNode.MAX_BYTES_SENT;
+            this.bytesSent = sendBuffer.byteLength;
         } else {
             // Schedule children
             super.schedule();
         }
+    }
+
+    public getBytesSent(): number {
+        return this.bytesSent;
     }
 
     public hasData(): boolean {
@@ -54,7 +60,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
             popped = this.bufferedData;
             this.bufferedData = Buffer.alloc(0);
         } else {
-            popped = this.bufferedData.slice(0, bytecount-1);
+            popped = this.bufferedData.slice(0, bytecount);
             this.bufferedData = this.bufferedData.slice(bytecount);
         }
         return popped;
