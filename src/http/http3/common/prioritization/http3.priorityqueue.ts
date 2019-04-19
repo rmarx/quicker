@@ -37,11 +37,11 @@ export class Http3DepNodePQueue {
     // TODO O(n) time complexity, preferably implement priority search queue
     // deletes first occurrence of the passed value, if it is in the heap
     public delete(node: Http3PrioritisedElementNode) {
-        const index: number | undefined = this.heap.findIndex((val) => {
+        const index: number = this.heap.findIndex((val) => {
             return val === node; // FIXME? Comparison between objects is probably slow?
         });
 
-        if (index !== undefined) {
+        if (index !== -1) {
             // Swap with rightmost leaf
             this.swap(index, this.heap.length-1);
             this.heap.pop();

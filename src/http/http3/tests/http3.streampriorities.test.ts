@@ -41,5 +41,3 @@ export class Http3StreamPriorityTester {
         });
     }
 }
-
-Http3StreamPriorityTester.execute();

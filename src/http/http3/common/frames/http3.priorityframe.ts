@@ -1,6 +1,7 @@
 import { Http3BaseFrame, Http3FrameType } from "./http3.baseframe";
 import { Bignum } from "../../../../types/bignum";
 import { VLIE, VLIEOffset } from "../../../../types/vlie";
+import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 
 export enum PrioritizedElementType {
     REQUEST_STREAM = 0x0,
@@ -21,11 +22,55 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     private elementDependencyType: ElementDependencyType = 0;
     private prioritizedElementID: Bignum | undefined; // VLIE
     private elementDependencyID: Bignum | undefined; // VLIE
-    private priorityWeight: number = 0; // Ranging from 0 - 255, add one to get value between 1 - 256
+    private weight: number; // Ranging from 0 - 255, add one to get value between 1 - 256
 
-    public constructor(payload: Buffer) {
+    public constructor(prioritizedElementType: PrioritizedElementType, elementDependencyType: ElementDependencyType, prioritizedElementID?: Bignum, elementDependencyID?: Bignum, weight: number = 16) {
         super();
-        this.parsePayload(payload);
+        if (prioritizedElementType !== PrioritizedElementType.CURRENT_STREAM && prioritizedElementID === undefined) {
+            // FIXME Maybe use other error?
+            throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Tried creating a HTTP/3 priority frame without a prioritizedElementID while PET was not of type CURRENT_STREAM");
+        }
+        if (elementDependencyType !== ElementDependencyType.ROOT && elementDependencyID === undefined) {
+            // FIXME Maybe use other error?
+            throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Tried creating a HTTP/3 priority frame without a elementDependencyID while EDT was not of type ROOT");
+        }
+        if (weight < 1 || weight > 256) {
+            // FIXME Maybe use other error?
+            throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Tried creating a HTTP/3 priority frame with an invalid weight. All weights should be between 1 and 256. Given weight: " + weight);
+        }
+        this.prioritizedElementType = prioritizedElementType;
+        this.elementDependencyType = elementDependencyType;
+        this.prioritizedElementID = prioritizedElementID;
+        this.elementDependencyID = elementDependencyID;
+        this.weight = weight - 1;
+    }
+
+    public static fromPayload(payload: Buffer): Http3PriorityFrame {
+        let offset = 0;
+        // First byte: 2 bits PET - 2 bits EDT - 4 bits empty
+        const types: number = payload.readUInt8(offset++);
+        const pet: PrioritizedElementType | undefined = Http3PriorityFrame.toPET(types >> 6);
+        const edt: ElementDependencyType | undefined = Http3PriorityFrame.toEDT((types & 0x30) >> 4);
+        let peid: Bignum | undefined;
+        let edid: Bignum | undefined;
+        if (pet === undefined || edt === undefined) {
+            // TODO: throw error?
+            throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Error while parsing HTTP/3 priority frame: PET or EDT fields were undefined");
+        }
+
+        if (Http3PriorityFrame.hasPEIDField(pet)) {
+            let vlieOffset: VLIEOffset = VLIE.decode(payload, offset);
+            peid = vlieOffset.value;
+            offset = vlieOffset.offset;
+        }
+        if (Http3PriorityFrame.hasEDIDField(edt)) {
+            let vlieOffset: VLIEOffset = VLIE.decode(payload, offset);
+            edid = vlieOffset.value;
+            offset = vlieOffset.offset;
+        }
+        const weight: number = payload.readUInt8(offset) + 1;
+
+        return new Http3PriorityFrame(pet, edt, peid, edid, weight);
     }
 
     public toBuffer(): Buffer {
@@ -63,7 +108,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         }
 
         // Priority weight
-        buffer.writeUInt8(this.priorityWeight, offset);
+        buffer.writeUInt8(this.weight, offset);
 
         return buffer;
     }
@@ -86,36 +131,59 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         return Http3FrameType.PRIORITY;
     }
 
-    // Parses payload and saves the data in the current object
-    private parsePayload(payload: Buffer) {
-        let offset = 0;
-        // First byte: 2 bits PET - 2 bits EDT - 4 bits empty
-        let types: number = payload.readUInt8(offset++);
-        let pet: PrioritizedElementType | undefined = this.toPET(types >> 6)
-        let edt: ElementDependencyType | undefined = this.toEDT((types & 0x30) >> 4)
-        if (pet === undefined || edt === undefined) {
-            // TODO: throw error?
-            return;
-        } else {
-            this.prioritizedElementType = pet;
-            this.elementDependencyType = edt;
-        }
+    // Add one to get weight from 1-256
+    public getWeight(): number {
+        return this.weight + 1;
+    }
 
-        if (this.hasPEIDField(this.prioritizedElementType)) {
-            let vlieOffset: VLIEOffset = VLIE.decode(payload, offset);
-            this.prioritizedElementID = vlieOffset.value;
-            offset = vlieOffset.offset;
+    public getPET(): PrioritizedElementType {
+        return this.prioritizedElementType;
+    }
+
+    public getPETString(): string {
+        switch (this.prioritizedElementType) {
+            case PrioritizedElementType.REQUEST_STREAM:
+                return "Request stream";
+            case PrioritizedElementType.PUSH_STREAM:
+                return "Push stream";
+            case PrioritizedElementType.PLACEHOLDER:
+                return "Placeholder";
+            case PrioritizedElementType.CURRENT_STREAM:
+                return "Current stream";
+            default:
+                return "Undefined";
         }
-        if (this.hasEDIDField(this.elementDependencyType)) {
-            let vlieOffset: VLIEOffset = VLIE.decode(payload, offset);
-            this.elementDependencyID = vlieOffset.value;
-            offset = vlieOffset.offset;
+    }
+
+    public getPEID(): Bignum | undefined {
+        return this.prioritizedElementID;
+    }
+
+    public getEDT(): ElementDependencyType {
+        return this.elementDependencyType;
+    }
+
+    public getEDTString(): string {
+        switch (this.elementDependencyType) {
+            case ElementDependencyType.REQUEST_STREAM:
+                return "Request stream";
+            case ElementDependencyType.PUSH_STREAM:
+                return "Push stream";
+            case ElementDependencyType.PLACEHOLDER:
+                return "Placeholder";
+            case ElementDependencyType.ROOT:
+                return "Root";
+            default:
+                return "Undefined";
         }
-        this.priorityWeight = payload.readUInt8(offset);
+    }
+
+    public getEDID(): Bignum | undefined {
+        return this.elementDependencyID;
     }
 
     // Converts a given number into the corresponding PET enum value of undefined if invalid
-    private toPET(type: number): PrioritizedElementType | undefined {
+    private static toPET(type: number): PrioritizedElementType | undefined {
         switch(type) {
             case PrioritizedElementType.REQUEST_STREAM:
                 return PrioritizedElementType.REQUEST_STREAM;
@@ -131,7 +199,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     }
 
     // Converts a given number into the corresponding EDT enum value of undefined if invalid
-    private toEDT(type: number): ElementDependencyType | undefined {
+    private static toEDT(type: number): ElementDependencyType | undefined {
         switch(type) {
             case ElementDependencyType.REQUEST_STREAM:
                 return ElementDependencyType.REQUEST_STREAM;
@@ -147,7 +215,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     }
 
     // Checks if there is a PEID field for the given PET
-    private hasPEIDField(pet: PrioritizedElementType): boolean {
+    private static hasPEIDField(pet: PrioritizedElementType): boolean {
         switch(pet) {
             case PrioritizedElementType.REQUEST_STREAM:
             case PrioritizedElementType.PUSH_STREAM:
@@ -160,7 +228,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     }
 
     // Checks if there is a EDID field for the given EDT
-    private hasEDIDField(pet: ElementDependencyType): boolean {
+    private static hasEDIDField(pet: ElementDependencyType): boolean {
         switch(pet) {
             case ElementDependencyType.REQUEST_STREAM:
             case ElementDependencyType.PUSH_STREAM:

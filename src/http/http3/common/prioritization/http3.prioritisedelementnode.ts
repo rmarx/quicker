@@ -1,5 +1,6 @@
 import { Http3DepNodePQueue } from "./http3.priorityqueue";
 export class Http3PrioritisedElementNode {
+    static readonly MAX_BYTES_SENT = 100;
     private parent: Http3PrioritisedElementNode | null;
     protected activeChildrenPQueue: Http3DepNodePQueue = new Http3DepNodePQueue([]);
     protected children: Http3PrioritisedElementNode[] = [];
@@ -32,7 +33,7 @@ export class Http3PrioritisedElementNode {
 
     public getBytesSent(): number {
         // TODO?
-        return 100;
+        return Http3PrioritisedElementNode.MAX_BYTES_SENT;
     }
 
     // If node has active children, it is considered active
@@ -48,7 +49,7 @@ export class Http3PrioritisedElementNode {
         this.activeChildrenPQueue.delete(child);
         // FIXME -> slow, swap out with specialised data structure
         this.children = this.children.filter((value) => {
-            return value === child;
+            return value !== child;
         });
     }
 
@@ -60,7 +61,7 @@ export class Http3PrioritisedElementNode {
         const childIndex: number = this.children.indexOf(child);
         if (childIndex !== -1) {
             // K = 256 -> constant to compensate the lost bits by integer division (e.g., 256).
-            // TODO bytessent is hardcoded to 100 as placeholders dont have a bytessent property
+            // TODO bytessent is hardcoded to MAX_BYTES_SENT as placeholders dont have a bytessent property
             child.pseudoTime = this.pseudoTime + child.getBytesSent() * 256 / child.weight;
             this.activeChildrenPQueue.push(child);
             if (this.parent !== null) {
@@ -80,6 +81,8 @@ export class Http3PrioritisedElementNode {
                     parent.activateChild(child);
                 }
             }
+            parent.removeChild(this);
+            this.parent = null;
         }
     }
 

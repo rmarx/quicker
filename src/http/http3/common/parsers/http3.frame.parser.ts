@@ -34,7 +34,7 @@ export class Http3FrameParser {
         // TODO catch error out of range and return all completely parsed frames and parsedOffset
         while(offset < buffer.byteLength) {
             // TODO Safety checks before parsing to make sure format is valid
-            let lengthVlie: VLIEOffset = VLIE.decode(buffer, bufferOffset);
+            let lengthVlie: VLIEOffset = VLIE.decode(buffer, offset);
             let length: Bignum = lengthVlie.value;
             offset = lengthVlie.offset;
 
@@ -71,7 +71,7 @@ export class Http3FrameParser {
                     }
                     break;
                 case Http3FrameType.PRIORITY:
-                    frames.push(new Http3PriorityFrame(payload));
+                    frames.push(Http3PriorityFrame.fromPayload(payload));
                     break;
                 case Http3FrameType.CANCEL_PUSH:
                     frames.push(new Http3CancelPushFrame(payload));

@@ -28,7 +28,7 @@ export class Http3ReceivingControlStream extends EventEmitter {
     private bufferedData: Buffer;
     private firstFrameHandled: boolean = false;
     private logger: QlogWrapper;
-    
+
     // Initial buffer contains data already buffered after the StreamType frame if there is any
     public constructor(quicControlStream: QuicStream, endpointType: Http3EndpointType, frameParser: Http3FrameParser, logger: QlogWrapper, initialBuffer?: Buffer) {
         super();
@@ -45,7 +45,7 @@ export class Http3ReceivingControlStream extends EventEmitter {
             this.bufferedData = initialBuffer;
             this.parseCurrentBuffer();
         }
-        
+
         quicControlStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
             this.bufferedData = Buffer.concat([this.bufferedData, data]);
             this.parseCurrentBuffer();
@@ -58,11 +58,15 @@ export class Http3ReceivingControlStream extends EventEmitter {
             quicControlStream.end();
         });
     }
-    
+
     public getStreamID(): Bignum {
         return this.quicControlStream.getStreamId();
     }
-    
+
+    public getStream(): QuicStream {
+        return this.quicControlStream;
+    }
+
     private parseCurrentBuffer() {
         const [frames, offset] = this.frameParser.parse(this.bufferedData, this.getStreamID());
         for (let frame of frames) {
@@ -77,7 +81,7 @@ export class Http3ReceivingControlStream extends EventEmitter {
         } else {
             this.firstFrameHandled = true;
         }
-        
+
         // Handle different types of frames differently
         switch(frame.getFrameType()) {
             case Http3FrameType.PRIORITY:
@@ -100,12 +104,12 @@ export class Http3ReceivingControlStream extends EventEmitter {
                 throw new Http3Error(Http3ErrorCode.HTTP3_UNEXPECTED_FRAME)
         }
     }
-    
-    // Only servers can explicitly stop a connection 
+
+    // Only servers can explicitly stop a connection
     // Clients can just stop sending requests to shutdown connection
     public close() {
         if (this.endpointType === Http3EndpointType.SERVER) {
-            this.quicControlStream.end();   
+            this.quicControlStream.end();
         }
     }
 }

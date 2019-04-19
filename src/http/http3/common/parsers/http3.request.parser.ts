@@ -1,6 +1,6 @@
 import { Http3Request } from "../http3.request";
 import { Http3FrameParser } from "./http3.frame.parser";
-import { Http3FrameType } from "../frames/http3.baseframe";
+import { Http3FrameType, Http3BaseFrame } from "../frames/http3.baseframe";
 import { Http3DataFrame, Http3HeaderFrame } from "../frames";
 import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 import { Bignum } from "../../../../types/bignum";
@@ -14,12 +14,11 @@ enum Http3RequestParserState {
     ENDED,
 }
 
-export function parseHttp3Message(buffer: Buffer, requestStreamID: Bignum, http3FrameParser: Http3FrameParser, encoder: Http3QPackEncoder, offset: number = 0): Http3Request {
+export function parseHttp3Message(frames: Http3BaseFrame[], requestStreamID: Bignum, encoder: Http3QPackEncoder): Http3Request {
     let state: Http3RequestParserState = Http3RequestParserState.HEADER;
     let request: Http3Request = new Http3Request(requestStreamID, encoder);
-    const [http3Frames, _] = http3FrameParser.parse(buffer, requestStreamID, offset);
     
-    for (let frame of http3Frames) {
+    for (let frame of frames) {
         if (state === Http3RequestParserState.HEADER && frame.getFrameType() === Http3FrameType.HEADERS) {
             // TODO parse header
             const headerFrame: Http3HeaderFrame = frame as Http3HeaderFrame;

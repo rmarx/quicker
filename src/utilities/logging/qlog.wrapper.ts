@@ -14,9 +14,11 @@ import { MaxStreamFrame } from '../../frame/max.stream';
 import { MaxDataFrame } from '../../frame/max.data';
 import { QuicStream } from '../../quicker/quic.stream';
 import { StreamState } from '../../quicker/stream';
-import { Http3DataFrame, Http3HeaderFrame, Http3SettingsFrame } from '../../http/http3/common/frames';
+import { Http3DataFrame, Http3HeaderFrame, Http3SettingsFrame, Http3PriorityFrame } from '../../http/http3/common/frames';
 import { Http3Setting } from '../../http/http3/common/frames/http3.settingsframe';
 import { Http3StreamState } from '../../http/http3/common/types/http3.streamstate';
+import { Http3PrioritisedElementNode } from '../../http/http3/common/prioritization/http3.prioritisedelementnode';
+import { Http3RequestNode } from '../../http/http3/common/prioritization/http3.requestnode';
 
 /*
 Example usage: 
@@ -550,13 +552,76 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
+    public onHTTPFrame_Priority(frame:Http3PriorityFrame, trigger:("TX"|"RX")) {
+        const PEID: Bignum | undefined = frame.getPEID();
+        const PEIDString: string | undefined = PEID === undefined ? undefined : PEID.toString();
+        const EDID: Bignum | undefined = frame.getPEID();
+        const EDIDString: string | undefined = EDID === undefined ? undefined : EDID.toString();
+
+        let evt:any = [
+            123,
+            "HTTP",
+            "PRIORITY_FRAME_NEW",
+            trigger,
+            {
+                PET: frame.getPETString,
+                PEID: PEIDString,
+                EDT: frame.getEDTString,
+                EDID: EDIDString,
+                weight: frame.getWeight(),
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // TRIGGERS: ["NEW", "REMOVED", "MOVED"]
+    public onHTTPDepTreeChange(node:Http3PrioritisedElementNode, type:("Placeholder"|"Stream"), trigger:("NEW"|"REMOVED"|"MOVED")) {
+        let streamID: string | undefined;
+
+        if (node instanceof(Http3RequestNode)) {
+            streamID = node.getStreamID().toString();
+        }
+
+        let evt:any = [
+            123,
+            "HTTP",
+            "DEPENDENCY_TREE_CHANGE",
+            trigger,
+            {
+                type,
+                streamID,
+                weight: node.getWeight(),
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // FIXME This should probably be removed later, mostly here for debugging of prioritisation
+    public onHTTPDataChunk(streamID:Bignum, byteLength:number, weight:number, trigger:("TX"|"RX")) {
+        let evt:any = [
+            123,
+            "HTTP",
+            "DATA_CHUNK_TX",
+            trigger,
+            {
+                stream_id: streamID.toString(),
+                byte_length: byteLength,
+                weight,
+            }
+        ]
+        
+        this.logToFile(evt);
+    }
+    
     // this is a more high-level log message that makes it easier to just follow HTTP level stuff without having to parse HEADERS
     // for a typical GET, you would log this first, then the HEADERS frame (as it was constructed)
     // TODO: is this something we really want to do? isn't this too high-level? 
     public onHTTPGet(uri:string, trigger:("TX"|"RX")){
 
         let evt:any = [
-            123, 
+            123,
             "HTTP",
             "GET",
             trigger,

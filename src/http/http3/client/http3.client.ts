@@ -13,15 +13,18 @@ import { Http3ReceivingControlStream as Http3ReceivingControlStream, Http3Endpoi
 import { Http3SendingControlStream } from "../common/http3.sendingcontrolstream";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
 import { EndpointType } from "../../../types/endpoint.type";
-import { Http3SettingsFrame, Http3PriorityFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame } from "../common/frames";
+import { Http3SettingsFrame, Http3PriorityFrame, Http3CancelPushFrame, Http3GoAwayFrame, Http3MaxPushIDFrame, PrioritizedElementType, ElementDependencyType } from "../common/frames";
 import { Http3QPackEncoder } from "../common/qpack/http3.qpackencoder";
 import { Http3QPackDecoder } from "../common/qpack/http3.qpackdecoder";
 import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
 import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
 import { Http3StreamState } from "../common/types/http3.streamstate";
+import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
+    private dependencyTree: Http3DependencyTree;
+    private scheduleTimer?: NodeJS.Timer;
     private sendingControlStream?: Http3SendingControlStream; // Client initiated
     private receivingControlStream?: Http3ReceivingControlStream; // Server initiated
 
@@ -45,6 +48,7 @@ export class Http3Client extends EventEmitter {
         super();
         this.onNewStream = this.onNewStream.bind(this);
         this.quickerClient = Client.connect(hostname, port);
+        this.dependencyTree = new Http3DependencyTree();
         this.http3FrameParser = new Http3FrameParser();
 
         this.quickerClient.on(QuickerEvent.CLIENT_CONNECTED, () => {
@@ -67,6 +71,16 @@ export class Http3Client extends EventEmitter {
             this.http3FrameParser.setDecoder(this.clientQPackDecoder);
 
             this.emit(Http3ClientEvent.CLIENT_CONNECTED);
+
+            // Schedule 30 chunks of 100 bytes every 1ms
+            // TODO tweak numbers
+            // TODO Listen to congestion control events instead
+            this.scheduleTimer = setInterval(() => {
+                // for (let i = 0; i < 30; ++i) {
+                //     this.dependencyTree.schedule();
+                // }
+                this.dependencyTree.schedule();
+            }, 100);
         });
 
         this.quickerClient.on(QuickerEvent.NEW_STREAM, this.onNewStream);
@@ -134,7 +148,7 @@ export class Http3Client extends EventEmitter {
         }
     }
 
-    public get(path: string) {
+    public get(path: string, weight: number = 16) {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -147,6 +161,10 @@ export class Http3Client extends EventEmitter {
         if (this.clientQPackDecoder === undefined) {
             throw new Http3Error(Http3ErrorCode.HTTP3_UNINITIALISED_DECODER);
         }
+        if (weight < 1 || weight > 256) {
+            // TODO create appropriate error
+            throw new Error("HTTP/3 stream weights should have a value between 1 and 256!");
+        }
 
         const stream: QuicStream = this.quickerClient.createStream(StreamType.ClientBidi);
         const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
@@ -157,18 +175,22 @@ export class Http3Client extends EventEmitter {
         this.pendingRequestStreams.push(stream);
         VerboseLogging.info("Created new stream for HTTP/3 GET request. StreamID: " + stream.getStreamId());
 
+        // TODO move logging to deptree because not all data will be sent instantly
         if (this.logger !== undefined) {
             this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.OPENED, "GET");
             this.logger.onHTTPGet(path, "TX");
             this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");
         }
 
-        stream.end(req.toBuffer()); // Send request
-        stream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-
+        this.dependencyTree.addRequestStreamToRoot(stream, weight);
+        // TODO frame should only be pushed on stream if not default values
+        const priorityFrame: Http3PriorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
         if (this.logger !== undefined) {
-            this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
+            this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
         }
+        this.dependencyTree.addData(stream.getStreamId(), priorityFrame.toBuffer());
+        this.dependencyTree.addData(stream.getStreamId(), req.toBuffer());
+        this.dependencyTree.finishStream(stream.getStreamId());
 
         let bufferedData: Buffer = new Buffer(0);
 
@@ -203,13 +225,18 @@ export class Http3Client extends EventEmitter {
         // Wait for outbound requests to complete
         // TODO This will give problems if server doesn't respond to all requests. Use a timeout as alternative
         this.on(Http3ClientEvent.ALL_REQUESTS_FINISHED, () => {
+            if (this.scheduleTimer !== undefined) {
+                clearInterval(this.scheduleTimer);
+            }
+
             this.quickerClient.close();
         });
     }
 
     private setupControlStreamEvents(controlStream: Http3ReceivingControlStream) {
         controlStream.on(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, (frame: Http3PriorityFrame) => {
-            // TODO
+            this.quickerClient.getConnection().getQlogger().onHTTPFrame_Priority(frame, "RX");
+            this.dependencyTree.handlePriorityFrame(frame, controlStream.getStreamID());
             VerboseLogging.info("HTTP/3: priority frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
         controlStream.on(Http3ControlStreamEvent.HTTP3_CANCEL_PUSH_FRAME, (frame: Http3CancelPushFrame) => {
