@@ -17,6 +17,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         super(packetType,header);
         this.frames = frames;
         this.retransmittableCheck(frames);
+        this.containsCryptoFramesCheck(frames);
     }
 
     public getFrames(): BaseFrame[] {
@@ -83,6 +84,16 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         this.retransmittable = retransmittable;
         this.ackOnly = ackOnly;
         this.paddingOnly = paddingOnly;
+    }
+
+    private containsCryptoFramesCheck(frames : BaseFrame[]) : void{
+        let crypto = false;
+        frames.forEach((BaseFrame : BaseFrame) => {
+            if(BaseFrame.getType() == FrameType.CRYPTO){
+                crypto = true;
+            }
+        })
+        this.containsCrypto = crypto;
     }
 
     public containsValidFrames(): boolean {

@@ -2,7 +2,7 @@ import { Bignum } from "../types/bignum";
 import { BasePacket } from "../packet/base.packet";
 import { Connection, ConnectionEvent } from "../quicker/connection";
 import { QuicLossDetection, QuicLossDetectionEvents, SentPacket } from "../loss-detection/loss.detection.draft19";
-import {PacketType} from '../packet/base.packet';
+import { PacketType } from '../packet/base.packet';
 import { VerboseLogging } from "../utilities/logging/verbose.logging"
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 import { AckFrame } from "../frame/ack";
@@ -67,8 +67,6 @@ export class QuicCongestionControl extends PacketPipe {
     private congestionWindow : Bignum;
     /**
      * The time when a loss is detected. (and thus entered recovery)
-     * @remarks Stores the highest packet number since QUIC monotonically increases packet numbers
-     * TODO: double check if this is correct. PN spaces might prohibit this as a measure of time
      */
     private recoveryStartTime : number;
     /**
@@ -124,6 +122,9 @@ export class QuicCongestionControl extends PacketPipe {
             lossDetection.on(QuicLossDetectionEvents.ECN_ACK, (frame : AckFrame) => {
                 this.ProcessECN(frame);
             });
+            lossDetection.on(QuicLossDetectionEvents.PACKET_SENT, (packet : BasePacket) => {
+                this.onPacketSentCC(packet);
+            });
         }
     }
     
@@ -151,7 +152,7 @@ export class QuicCongestionControl extends PacketPipe {
         //if the packets contains non-ack frames
         if( !sentPacket.isAckOnly()){
             var bytesSent = sentPacket.toBuffer(this.connection).byteLength;
-            this.setBytesInFlight(this.bytesInFlight.add(bytesSent));
+            this.setBytesInFlight(this.bytesInFlight.add(bytesSent), "PACKET_TX", {"packet_num" : sentPacket.getHeader().getPacketNumber().getValue().toDecimalString(), "added" : bytesSent, "packettype": sentPacket.getPacketType()});
         }
     }
 
@@ -163,7 +164,7 @@ export class QuicCongestionControl extends PacketPipe {
     private onPacketAckedCC(ackedPacket : SentPacket) {
         let packet = ackedPacket.packet;
         var bytesAcked = packet.toBuffer(this.connection).byteLength;
-        this.setBytesInFlight(this.bytesInFlight.subtract(bytesAcked));
+        this.setBytesInFlight(this.bytesInFlight.subtract(bytesAcked), "ACK_RX", {"packet_num" : ackedPacket.packet.getHeader().getPacketNumber().getValue().toDecimalString(), "subtracted" : bytesAcked, "packettype": ackedPacket.packet.getPacketType()});
 
         if(this.inRecovery(ackedPacket.time)){
             // No change in congestion window in recovery period
@@ -326,7 +327,7 @@ export class QuicCongestionControl extends PacketPipe {
         });
 
         // Remove lost packets from bytesInFlight.
-        this.setBytesInFlight(this.bytesInFlight.subtract(totalLostBytes));
+        this.setBytesInFlight(this.bytesInFlight.subtract(totalLostBytes), "PACKET_lOST", {"smallestPacketNum" : smallestLostPNum, "largestPacketNum" : largestLostPNum, "subtracted" : totalLostBytes.toDecimalString()});
         this.congestionEventHappened(largestLostTime);
         this.sendPackets();
 
@@ -419,11 +420,10 @@ export class QuicCongestionControl extends PacketPipe {
     private sendSingularPacket(packet : BasePacket){
         let pktNumber = packet.getHeader().getPacketNumber();
 
-        // NORMAL BEHAVIOUR
-        VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+
+        VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " from type " + packet.getPacketType() );
         this.nextPipeFunc(packet);
-    
-        this.onPacketSentCC(packet);    
+       
         this.connection.packetHasBeenSent(packet);
                  
     }
@@ -445,8 +445,8 @@ export class QuicCongestionControl extends PacketPipe {
     }
 
 
-    private setBytesInFlight(newVal : Bignum){
+    private setBytesInFlight(newVal : Bignum, trigger : string, additionalData : Object = {}){
         this.bytesInFlight = newVal;
-        this.connection.getQlogger().onBytesInFlightUpdate(this.bytesInFlight, this.congestionWindow);
+        this.connection.getQlogger().onBytesInFlightUpdate(this.bytesInFlight, this.congestionWindow, trigger, additionalData);
     }
 }

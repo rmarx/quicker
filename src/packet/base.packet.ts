@@ -12,6 +12,7 @@ export abstract class BasePacket {
     protected retransmittable: boolean;
     protected ackOnly: boolean;
     protected paddingOnly: boolean;
+    protected containsCrypto : boolean;
 
     public constructor(packetType: PacketType, header: BaseHeader) {
         this.packetType = packetType;
@@ -19,6 +20,7 @@ export abstract class BasePacket {
         this.retransmittable = false;
         this.ackOnly = true;
         this.paddingOnly = true;
+        this.containsCrypto = false;
     }
 
 
@@ -38,6 +40,10 @@ export abstract class BasePacket {
 
     public isHandshake(): boolean {
         return (this.packetType === PacketType.Initial || this.packetType === PacketType.Handshake);
+    }
+
+    public containsCryptoFrames() : boolean{
+        return this.containsCrypto;
     }
 
     /**

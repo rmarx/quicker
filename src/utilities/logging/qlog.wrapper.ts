@@ -420,7 +420,7 @@ export class QlogWrapper{
 
     // TODO: maybe currentCWND is not needed here? separate event? would just be included here to easily calculate available_cwnd value from bytes_in_flight
     // changed currentCWND and bytesinflight to string so bignum can be displayed
-    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger:string = "PACKET_TX"){
+    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger:string = "PACKET_TX", metadata : Object){
 
         let evt:any = [
             123, 
@@ -430,7 +430,8 @@ export class QlogWrapper{
             {
                 bytes_in_flight: bytesInFlight.toDecimalString(),
                 current_CWND : currentCWND.toDecimalString(),
-                available_cwnd : currentCWND.subtract(bytesInFlight).toDecimalString()
+                available_cwnd : currentCWND.subtract(bytesInFlight).toDecimalString(),
+                ...metadata
             }
         ];
 
