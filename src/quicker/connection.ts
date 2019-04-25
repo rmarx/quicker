@@ -36,8 +36,9 @@ import { QuicLossDetection, QuicLossDetectionEvents, SentPacket } from '../loss-
 import { QuicCongestionControl } from '../congestion-control/quic.congestion.control.draft19';
 import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
 import { PacketPipeline } from '../packet-pipeline/packet.pipeline';
-import { DEBUGFakeReorderPipe, DEBUGDropEveryXth, DEBUGIncreaseRTT } from '../general-packet-output-pipes/debug.pipes';
+import { DEBUGFakeReorderPipe, DEBUGDropEveryXth, DEBUGIncreaseRTT, DEBUGPersistentCongestionAfterX } from '../general-packet-output-pipes/debug.pipes';
 import { SocketOutPipe } from '../general-packet-output-pipes/socket.out.pipe';
+import { CubicCongestionControl } from '../congestion-control/cubic.congestion.control';
 
 export class Connection extends FlowControlledObject {
 
@@ -187,13 +188,13 @@ export class Connection extends FlowControlledObject {
         this.congestionControl = new QuicCongestionControl(this, [this.lossDet], this.lossDet.rttMeasurer);
         let fakeReorder = new DEBUGFakeReorderPipe(this);
         let outSocketPipe = new SocketOutPipe(this);
-        let debugDrop = new DEBUGDropEveryXth();
+        let debugDrop = new DEBUGPersistentCongestionAfterX();
         let debugRTT = new DEBUGIncreaseRTT();
 
         //order is important
         this.outgoingPacketPipeline.addPipe(this.congestionControl);
         //this.outgoingPacketPipeline.addPipe(fakeReorder);
-        this.outgoingPacketPipeline.addPipe(debugRTT);
+        //this.outgoingPacketPipeline.addPipe(debugRTT);
         //this.outgoingPacketPipeline.addPipe(debugDrop);
 
 
@@ -271,11 +272,21 @@ export class Connection extends FlowControlledObject {
             this.lossDet.on(QuicLossDetectionEvents.RETRANSMIT_PACKET, (basePacket: BasePacket) => {
                 this.retransmitPacket(basePacket);
             });
-            this.lossDet.on(QuicLossDetectionEvents.PACKET_ACKED, (packet: SentPacket) => {
-                let ctx = this.getEncryptionContextByPacketType( packet.packet.getPacketType() );
-                if(ctx !== undefined)
-                    ctx.getAckHandler().onPacketAcked(packet.packet);
-            });
+
+            this.lossDet.on(QuicLossDetectionEvents.PACKETS_LOST, (packets : SentPacket[]) => {
+                packets.forEach((element : SentPacket) => {
+                    //TODO: check if this is correct way of handling retransmit of lostpacket, at the moment when packets get detected to be lost, they do not seem to be retransmitted from within lossdetection
+                    this.retransmitPacket(element.packet);
+                });
+            })
+    }
+
+    //TODO: should the loss detection notify the connection that a new packet was acked?
+    //
+    public lossDetectionNewPacketAcked(packet : BasePacket){
+        let ctx = this.getEncryptionContextByPacketType( packet.getPacketType() );
+        if(ctx !== undefined)
+            ctx.getAckHandler().onPacketAcked(packet);
     }
 
     private hookQuicTLSEvents() {

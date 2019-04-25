@@ -21,7 +21,10 @@ export interface SentPacket {
     // Milliseconds sinds epoch
     time: number, // time at which this packet is sent locally, used to calculate RTT
     // Does the packet contain frames that are retransmittable
-    isRetransmittable: boolean
+    isRetransmittable: boolean,
+    //Counts towards bytes in flight of congestion control
+    // This excludes only ACK only packets while isRetransmittable excludes ACKs and PADDING only packets
+    inFlight : boolean
 };
 
 /**
@@ -47,7 +50,7 @@ export class QuicLossDetection extends EventEmitter {
     // Maximum reordering in time before time threshold loss detection considers a packet lost.  Specified as an RTT multiplier
     public static readonly kTimeThreshold: number = 9.0 / 8.0;
     // Timer granularity.  In ms
-    public static readonly kGranularity : number = 50;
+    public static readonly kGranularity : number = 200;
     // The default RTT used before an RTT sample is taken. In ms.
     public static readonly kInitialRTT: number = 100;
     //kpacketnumberspace
@@ -81,6 +84,7 @@ export class QuicLossDetection extends EventEmitter {
     private cryptoOutstanding: number;
 
     //TODO: change this from public
+    //currently is used by congestion controller to calculate persistent congestion
     public rttMeasurer: RTTMeasurement;
 
     private connection : Connection;
@@ -165,32 +169,35 @@ export class QuicLossDetection extends EventEmitter {
         var sentPacket: SentPacket = {
             packet: basePacket,
             time: currentTime,
-            isRetransmittable: basePacket.isRetransmittable()
+            isRetransmittable: basePacket.isRetransmittable(),
+            inFlight : basePacket.countsTowardsInFlight()
         };
         
-        //TODO add check for in_flight
-        if (basePacket.containsCryptoFrames()) {
-            VerboseLogging.info("Increasing cryptooutstanding for packetnum " + packetNumber.toDecimalString() + " from space " + space + "   outstanding = " + this.cryptoOutstanding)
-            this.cryptoOutstanding++;
-            this.timeOfLastSentCryptoPacket = currentTime;
-        }
-        if (basePacket.isRetransmittable()) {
-            this.ackElicitingPacketsOutstanding++;
-            this.timeOfLastSentAckElicitingPacket = currentTime;
-        }
-        this.emit(QuicLossDetectionEvents.PACKET_SENT, basePacket)
-        this.setLossDetectionAlarm();
 
-        let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
-        if( packet !== undefined ){
-            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
-            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        }
-        else{
-            VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
+        if(sentPacket.inFlight){
+            if (basePacket.containsCryptoFrames()) {
+                VerboseLogging.info("Increasing cryptooutstanding for packetnum " + packetNumber.toDecimalString() + " from space " + space + "   outstanding = " + this.cryptoOutstanding)
+                this.cryptoOutstanding++;
+                this.timeOfLastSentCryptoPacket = currentTime;
+            }
+            if (basePacket.isRetransmittable()) {
+                this.ackElicitingPacketsOutstanding++;
+                this.timeOfLastSentAckElicitingPacket = currentTime;
+            }
+            this.emit(QuicLossDetectionEvents.PACKET_SENT, basePacket)
+            this.setLossDetectionAlarm();
 
-            this.sentPackets[space][packetNumber.toString('hex', 8)] = sentPacket;
+            let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
+            if( packet !== undefined ){
+                VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+                VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
+                VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            }
+            else{
+                VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
+
+                this.sentPackets[space][packetNumber.toString('hex', 8)] = sentPacket;
+            }
         }
     }
 
@@ -298,10 +305,10 @@ export class QuicLossDetection extends EventEmitter {
 
         let packet : SentPacket | undefined= this.removeFromSentPackets( this.findPacketSpaceFromPacket(sentPacket), ackedPacketNumber );
 
-        // TODO: move this to the end of this function? 
-        // inform ack handler so it can update internal state, congestion control so it can update bytes-in-flight etc.
-        // TODO: call ackhandler and congestion control directly instead of using events? makes code flow clearer 
-        if(sentPacket.isRetransmittable() && packet !== undefined)
+
+        //TODO: loss detection should probably not be the one to notify connection for new acks?
+        this.connection.lossDetectionNewPacketAcked(sentPacket);
+        if(packet !== undefined && packet.inFlight)
             this.emit(QuicLossDetectionEvents.PACKET_ACKED, packet);
         
         
@@ -336,7 +343,7 @@ export class QuicLossDetection extends EventEmitter {
 
 
     /**
-     * Returns the earliest loss_time and the packet number space it's from
+     * Returns the earliest loss_time and the packet number space its from
      */
     private getEarliestLossTime(){
         let time : number = this.lossTime[kPacketNumberSpace.Initial];
@@ -454,7 +461,6 @@ export class QuicLossDetection extends EventEmitter {
         let lostSendTime : number = (new Date()).getTime() - lossDelay;
 
         // packets with packet number before this are lost
-        // TODO: check this for pn spaces?
         let lostPN : Bignum = this.largestAckedPacket[space].subtract(QuicLossDetection.kPacketThreshold);
 
 
@@ -466,12 +472,11 @@ export class QuicLossDetection extends EventEmitter {
             var unacked = this.sentPackets[space][key];
             if(unacked.time <= lostSendTime || unacked.packet.getHeader().getPacketNumber().getValue().lessThanOrEqual(lostPN)){
                 this.removeFromSentPackets(space, unackedPacketNumber);
-                //TODO: check for
-                //if(unacked.inFlight){
-                VerboseLogging.info("LossDetecion: packet " + unacked.packet.getHeader().getPacketNumber().getValue() + " was deemded lost");
-                lostPackets.push(unacked);
-                this.connection.getQlogger().onPacketLost(unacked.packet.getHeader().getPacketNumber().getValue());
-                //}
+                if(unacked.inFlight){
+                    VerboseLogging.info("LossDetecion: packet " + unacked.packet.getHeader().getPacketNumber().getValue() + " was deemded lost");
+                    lostPackets.push(unacked);
+                    this.connection.getQlogger().onPacketLost(unacked.packet.getHeader().getPacketNumber().getValue());
+                }
             }
             else{ 
                 // set the lossTime for the time threshold loss detection
@@ -491,6 +496,7 @@ export class QuicLossDetection extends EventEmitter {
             this.emit(QuicLossDetectionEvents.PACKETS_LOST, lostPackets);
             lostPackets.forEach((lostPacket: SentPacket) => {
                 var sentPacket = this.sentPackets[space][lostPacket.packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
+                //originally, the crypto packets outstanding got substracted here, but since these should only be detected lost by cryptoretransmission, they should be subtracted at acknowledgment of the retransmit
             });
         }
     }

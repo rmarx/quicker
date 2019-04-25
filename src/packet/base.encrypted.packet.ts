@@ -84,6 +84,7 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         this.retransmittable = retransmittable;
         this.ackOnly = ackOnly;
         this.paddingOnly = paddingOnly;
+        this.inFlight = retransmittable || paddingOnly;
     }
 
     private containsCryptoFramesCheck(frames : BaseFrame[]) : void{

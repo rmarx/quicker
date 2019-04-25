@@ -13,6 +13,9 @@ export abstract class BasePacket {
     protected ackOnly: boolean;
     protected paddingOnly: boolean;
     protected containsCrypto : boolean;
+    //counts towards bytes in flight of congestioncontrol
+    // for ack only frames this will be false
+    protected inFlight : boolean;
 
     public constructor(packetType: PacketType, header: BaseHeader) {
         this.packetType = packetType;
@@ -21,6 +24,7 @@ export abstract class BasePacket {
         this.ackOnly = true;
         this.paddingOnly = true;
         this.containsCrypto = false;
+        this.inFlight = false;
     }
 
 
@@ -51,6 +55,10 @@ export abstract class BasePacket {
      */
     public isRetransmittable(): boolean {
         return this.retransmittable;
+    }
+
+    public countsTowardsInFlight() : boolean{
+        return this.inFlight;
     }
 
     public isAckOnly(): boolean {
