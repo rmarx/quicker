@@ -8,7 +8,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
         console.log("HTTP3 RESPONSE ON PATH '" + path + "':\n" + responseData.toString("utf8"));
     });
     client.get("/", 16);
-    client.get("low_priority", 1)
+    client.get("low_priority", 1);
     client.get("high_priority", 64);
     // setTimeout(() => {
     //     client.get("late_request");

@@ -10,7 +10,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
     private bufferedData: Buffer = Buffer.alloc(0);
     private stream: QuicStream;
     private bytesSent: number = 0;
-    private allDataReceived: boolean = false; // Set to true if all data has been received and stream can be closed
+    private allDataBuffered: boolean = false; // Set to true if all data has been received and stream can be closed
 
     // Parent should be root by default
     public constructor(stream: QuicStream, parent: Http3PrioritisedElementNode, weight: number = 16) {
@@ -23,7 +23,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
         // But make sure all buffers are emptied eventually
         if (this.bufferedData.byteLength > 0) {
             const sendBuffer: Buffer = this.popData(Http3RequestNode.MAX_BYTES_SENT);
-            if (this.allDataReceived === true && this.bufferedData.byteLength === 0) {
+            if (this.allDataBuffered === true && this.bufferedData.byteLength === 0) {
                 this.stream.end(sendBuffer);
             } else {
                 this.stream.write(sendBuffer);
@@ -32,7 +32,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
             this.bytesSent = sendBuffer.byteLength;
             this.stream.getConnection().getQlogger().onHTTPDataChunk(this.stream.getStreamId(), this.bytesSent, this.weight, "TX");
             VerboseLogging.info("Scheduled " + this.bytesSent + " bytes to be sent on stream " + this.stream.getStreamId().toString());
-            if (this.allDataReceived === true && this.bufferedData.byteLength === 0) {
+            if (this.allDataBuffered === true && this.bufferedData.byteLength === 0) {
                 // this.stream.end();
                 // this.stream.getConnection().sendPackets(); // Force sending packets
                 this.stream.getConnection().getQlogger().onHTTPStreamStateChanged(this.stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
@@ -56,7 +56,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
     // Set done to true if this was last data
     // Can only add data if stream has not yet been marked as finished
     public addData(newData: Buffer, done: boolean = false) {
-        if (this.allDataReceived === true) {
+        if (this.allDataBuffered === true) {
             // TODO implement appropriate error
             throw new Error("Can not add new data to request node if it has already been marked as finished");
         }
@@ -67,14 +67,14 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
                 parent.activateChild(this);
             }
         }
-        this.allDataReceived = done;
+        this.allDataBuffered = done;
     }
 
     // Blocks new data from being passed to the stream
     // When all currently buffered data has been transmitted, stream will be closed and
     // children of this node will be passed to this node's parent
     public finish() {
-        this.allDataReceived = true;
+        this.allDataBuffered = true;
         if (this.bufferedData.byteLength === 0) {
             this.stream.end();
             this.removeSelf();

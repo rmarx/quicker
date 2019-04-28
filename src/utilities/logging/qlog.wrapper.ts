@@ -603,7 +603,7 @@ export class QlogWrapper{
         let evt:any = [
             123,
             "HTTP",
-            "DATA_CHUNK_TX",
+            "DATA_CHUNK",
             trigger,
             {
                 stream_id: streamID.toString(),

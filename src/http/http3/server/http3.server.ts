@@ -211,6 +211,7 @@ export class Http3Server {
             quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
                 bufferedData = Buffer.concat([bufferedData, data]);
                 const [frames, offset]: [Http3BaseFrame[], number] = state.getFrameParser().parse(bufferedData, quicStream.getStreamId());
+                // TODO priority frame should only be used if no other priority frames have arrived on the control stream for this request stream
                 if (frames.length > 0 && frames[0].getFrameType() === Http3FrameType.PRIORITY) {
                     state.getDependencyTree().handlePriorityFrame(frames[0] as Http3PriorityFrame, quicStream.getStreamId());
                     quicStream.getConnection().getQlogger().onHTTPFrame_Priority(frames[0] as Http3PriorityFrame, "RX");
