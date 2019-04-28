@@ -148,7 +148,8 @@ export class Http3Client extends EventEmitter {
         }
     }
 
-    public get(path: string, weight: number = 16) {
+    // Returns streamID of requeststream
+    public get(path: string, weight: number = 16, dependencyStreamID?: Bignum): Bignum {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -182,9 +183,16 @@ export class Http3Client extends EventEmitter {
             this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");
         }
 
-        this.dependencyTree.addRequestStreamToRoot(stream, weight);
+        let priorityFrame: Http3PriorityFrame;
+        if (dependencyStreamID === undefined) {
+            this.dependencyTree.addRequestStreamToRoot(stream, weight);
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
+        } else {
+            this.dependencyTree.addRequestStreamToRequest(stream, dependencyStreamID, weight);
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.REQUEST_STREAM, stream.getStreamId(), dependencyStreamID, weight);
+        }
         // TODO frame should only be pushed on stream if not default values
-        const priorityFrame: Http3PriorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
+
         if (this.logger !== undefined) {
             this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
         }
@@ -215,7 +223,9 @@ export class Http3Client extends EventEmitter {
             }
 
             stream.removeAllListeners();
-        })
+        });
+
+        return stream.getStreamId();
     }
 
     public close() {
