@@ -203,7 +203,7 @@ export class QlogWrapper{
                 //data.dcid = (<LongHeader>header).getDestConnectionID().toString();
             }
             else{
-                data.header.packet_size = (<ShortHeader> header).toBuffer().byteLength;
+                data.header.packet_size = packet.getSize();
                 //data.spinbit = ((<ShortHeader>header).getSpinBit()) ? 1 : 0;
                 //data.dcid = (<ShortHeader>header).getDestConnectionID().toString();
             }
