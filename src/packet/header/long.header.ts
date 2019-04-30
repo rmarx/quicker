@@ -5,6 +5,9 @@ import { Constants } from "../../utilities/constants";
 import { VLIE } from "../../crypto/vlie";
 import { VersionValidation } from "../../utilities/validation/version.validation";
 import { Connection } from "../../quicker/connection";
+import { VerboseLogging } from "../../utilities/logging/verbose.logging";
+import { QuicError } from "../../utilities/errors/connection.error";
+import { ConnectionErrorCodes } from "../../utilities/errors/quic.codes";
 
 export class LongHeader extends BaseHeader {
     private version: Version;
@@ -25,7 +28,7 @@ export class LongHeader extends BaseHeader {
      * @param version 
      */
     public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: PacketNumber, payloadLength: Bignum, version: Version, payloadLengthBuffer?: Buffer) {
-        super(HeaderType.LongHeader, type, packetNumber);
+        super(HeaderType.LongHeader, type);
         this.version = version;
         this.destConnectionID = destConnectionID;
         this.srcConnectionID = srcConnectionID;
@@ -107,8 +110,42 @@ export class LongHeader extends BaseHeader {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
 
-        var type = 0x80 + this.getPacketType();
-        buf.writeUInt8(type, offset++);
+        // draft-20
+        // |1|1|T T|X X X X|
+        // TT is the type, see LongHeaderType
+        let firstByte = 0xC0 + (this.getPacketType() << 4); // 0xCO = 1100 0000
+
+        // |X X X X|
+        // R = reserved = must be 0
+        // P = packet number length, always 2 bits, filled in later
+        // initial, 0RTT, handshake: R R P P
+        // retry: ODCIL 
+        if( this.getPacketType() !== LongHeaderType.Retry ){
+            /* packet number length, encoded
+            as an unsigned, two-bit integer that is one less than the length
+            of the packet number field in bytes.  That is, the length of the
+            packet number field is the value of this field, plus one.  These
+            bits are protected using header protection
+            */
+            // TODO: not entirely sure about the logic... do we still need to do the truncating here or not? 
+            // normally, the this.packetNumber should already be the truncated version, right?
+            // but, for some reason, we still do getLeastSignificantBytes(1) in the original code...
+            let pnLength = this.truncatedPacketNumber!.getValue().getByteLength(); 
+
+            VerboseLogging.info("LongHeader:toBuffer : pnLength is " + pnLength + " // " + this.truncatedPacketNumber!.getValue().toNumber());
+            if( pnLength > 4 ){
+                VerboseLogging.error("LongHeader:toBuffer : packet number length is larger than 4 bytes, not supported");
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "packet number too long");
+            }
+            else
+                firstByte += pnLength - 1; // last two bits, so normal + is enough
+        }   
+        else{
+            VerboseLogging.error("LongHeader:toBuffer : making a Retry packet, isn't supported yet! (ODCIL length in first byte)");
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Retry could not be constructed");
+        }
+
+        buf.writeUInt8(firstByte, offset++);
 
         offset += this.getVersion().toBuffer().copy(buf, offset);
 
@@ -136,7 +173,7 @@ export class LongHeader extends BaseHeader {
         var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
         offset += payloadLengthBuffer.copy(buf, offset);
 
-        offset += this.getPacketNumber().getLeastSignificantBytes(1).copy(buf, offset);
+        offset += this.getPacketNumber()!.getLeastSignificantBytes(1).copy(buf, offset);
 
         return buf; 
     }
@@ -147,8 +184,38 @@ export class LongHeader extends BaseHeader {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
 
-        var type = 0x80 + this.getPacketType();
-        buf.writeUInt8(type, offset++);
+        // draft-20 
+        // |1|1|T T|X X X X|
+        // TT is the type, see LongHeaderType
+        let firstByte = 0xC0 + (this.getPacketType() << 4); // 0xCO = 1100 0000
+
+        // |X X X X|
+        // R = reserved = must be 0
+        // P = packet number length, always 2 bits, filled in later
+        // initial, 0RTT, handshake: R R P P
+        // retry: ODCIL 
+        if( this.getPacketType() !== LongHeaderType.Retry ){
+            /* packet number length, encoded
+            as an unsigned, two-bit integer that is one less than the length
+            of the packet number field in bytes.  That is, the length of the
+            packet number field is the value of this field, plus one.  These
+            bits are protected using header protection
+            */
+            let pnLength = VLIE.getBytesNeededPn(this.getPacketNumber()!.getValue()); 
+            VerboseLogging.info("LongHeader:toBuffer : pnLength is " + pnLength + " // " + this.getPacketNumber()!.getValue().toNumber());
+            if( pnLength > 4 ){
+                VerboseLogging.error("LongHeader:toBuffer : packet number length is larger than 4 bytes, not supported : " + pnLength);
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "packet number too long " + pnLength);
+            }
+            else
+                firstByte += pnLength - 1; // last two bits, so normal + is enough
+        }   
+        else{
+            VerboseLogging.error("LongHeader:toBuffer : making a Retry packet, isn't supported yet! (ODCIL length in first byte)");
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Retry could not be constructed");
+        }
+
+        buf.writeUInt8(firstByte, offset++);
 
         offset += this.getVersion().toBuffer().copy(buf, offset);
 
@@ -169,7 +236,7 @@ export class LongHeader extends BaseHeader {
         var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
         offset += payloadLengthBuffer.copy(buf, offset);
 
-        var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes(1));
+        var pn = new Bignum(this.getPacketNumber()!.getLeastSignificantBytes(1));
         var encodedPn = VLIE.encodePn(pn);
         if (this.getPacketType() === LongHeaderType.Protected0RTT) {
             var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
@@ -208,10 +275,10 @@ export class LongHeader extends BaseHeader {
     }
 }
 
-// hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.4 and 4.5 
+// hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.2
 export enum LongHeaderType {
-    Initial = 0x7F,
-    Retry = 0x7E,
-    Handshake = 0x7D,
-    Protected0RTT = 0x7C
+    Initial = 0x0,
+    Protected0RTT = 0x1,
+    Handshake = 0x3,
+    Retry = 0x3
 }

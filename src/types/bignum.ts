@@ -85,12 +85,30 @@ export class Bignum {
     public and(num: number): Bignum;
     public and(num: Bignum): Bignum;
     public and(num: any): Bignum {
-        var bn = new Bignum(0);
+        let bn = new Bignum(0);
         if (num instanceof Bignum) {
             bn.bignum = this.bignum.and(num.bignum);
         } else {
             bn.bignum = this.bignum.and(new BN(num));
         }
+        return bn;
+    }
+
+    public or(num: number): Bignum;
+    public or(num: Bignum): Bignum;
+    public or(num: any): Bignum {
+        let bn = new Bignum(0);
+        if (num instanceof Bignum) {
+            bn.bignum = this.bignum.or(num.bignum);
+        } else {
+            bn.bignum = this.bignum.or(new BN(num));
+        }
+        return bn;
+    }
+
+    public notn(bitwidth: number): Bignum {
+        let bn = new Bignum(0);
+        bn.bignum = this.bignum.notn(bitwidth);
         return bn;
     }
 

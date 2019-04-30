@@ -5,6 +5,7 @@ import { QuicError } from "../../utilities/errors/connection.error";
 import { Connection } from "../../quicker/connection";
 import { VLIE } from "../../crypto/vlie";
 import { Constants } from "../../utilities/constants";
+import { VerboseLogging } from "../../utilities/logging/verbose.logging";
 
 // QUIC defines two types of header formats: Long and Short
 // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4
@@ -22,15 +23,15 @@ export abstract class BaseHeader {
 
     private headerType: HeaderType;
     private packetType: number;
-    private packetNumber!: PacketNumber;
+    private packetNumber: PacketNumber | undefined;
+    protected truncatedPacketNumber: PacketNumber | undefined;
     private parsedBuffer!: Buffer;
 
-    public constructor(headerType: HeaderType, type: number, packetNumber: (PacketNumber | undefined)) {
+    public constructor(headerType: HeaderType, type: number) {
         this.headerType = headerType;
         this.packetType = type;
-        if (packetNumber !== undefined) {
-            this.packetNumber = packetNumber;
-        }
+        this.packetNumber = undefined;
+        this.truncatedPacketNumber = undefined;
     }
 
     abstract toBuffer(): Buffer;
@@ -45,20 +46,27 @@ export abstract class BaseHeader {
         this.packetType = type;
     }
 
-    public getPacketNumber(): PacketNumber {
+    public getPacketNumber(): PacketNumber | undefined {
         return this.packetNumber;
     }
 
-    public setPacketNumber(packetNumber: PacketNumber) {
-        this.packetNumber = packetNumber;
+    public setPacketNumber(fullPacketNumber: PacketNumber, largestAcknowledgedPacketNumber: PacketNumber) {
+        this.packetNumber = fullPacketNumber;
+        this.truncatedPacketNumber = fullPacketNumber.truncate( largestAcknowledgedPacketNumber );
+
+        VerboseLogging.info("BaseHeader:setPacketNumber: " + fullPacketNumber.getValue().toDecimalString() + " // " + this.truncatedPacketNumber!.getValue().toDecimalString() + "@ " + this.truncatedPacketNumber!.getValue().getByteLength() );
     }
+
+
+    
+    
 
 
     public getPacketNumberSize(): number {
         if (this.packetNumber === undefined || this.packetNumber.getValue().equals(-1)) {
             return 4;
         }
-        return 2**VLIE.getBytesNeededPn(new Bignum(this.getPacketNumber().getLeastSignificantBytes()));
+        return 2**VLIE.getBytesNeededPn(new Bignum(this.getPacketNumber()!.getLeastSignificantBytes()));
     }
 
     public getHeaderType() {
