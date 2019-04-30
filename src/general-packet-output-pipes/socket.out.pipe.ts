@@ -1,6 +1,8 @@
 import { Connection, RemoteInformation } from "../quicker/connection";
 import { PacketPipe } from "../packet-pipeline/packet.pipe.interface";
 import { BasePacket } from "../packet/base.packet";
+import { VerboseLogging } from "../utilities/logging/verbose.logging";
+import { logTimeSince } from "../utilities/debug/time.debug";
 
 
 
@@ -23,6 +25,7 @@ export class SocketOutPipe extends PacketPipe{
     public packetIn(packet: BasePacket) {
         let remote : RemoteInformation = this.connection.getRemoteInformation()
         this.connection.getSocket().send(packet.toBuffer(this.connection), remote.port, remote.address);
+        logTimeSince("put packet in socket", "packetnum: " + packet.getHeader().getPacketNumber().toString())
     }
 
 

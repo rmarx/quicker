@@ -19,6 +19,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { BufferedPacket } from '../crypto/crypto.context';
+import { logTimeSince } from '../utilities/debug/time.debug';
 
 export class Client extends Endpoint {
 
@@ -65,6 +66,7 @@ export class Client extends Endpoint {
     
             socket.on(QuickerEvent.ERROR, (err) => { this.handleError(this.connection, err) });
             socket.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg) });
+            socket.on("error", (err: Error) => {VerboseLogging.error("SOMETHING WENT WRONG WITH THE SOCKET: " + err.message)})
 
             onSocketReady();
         }
@@ -162,7 +164,7 @@ export class Client extends Endpoint {
             
         VerboseLogging.trace("client:onMessage: message length in bytes: " + msg.byteLength);
         VerboseLogging.trace("client:onMessage: raw message from the wire : " + msg.toString('hex'));
-
+        
         try {
             this.connection.checkConnectionState();
             this.connection.resetIdleAlarm();
@@ -181,6 +183,7 @@ export class Client extends Endpoint {
             headerOffsets.forEach((headerOffset: HeaderOffset) => {
                 let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(this.connection, headerOffset, msg, EndpointType.Server);
                 if( fullHeaderOffset ){
+                    logTimeSince("client: onmessage", "packetnum is: " + fullHeaderOffset.header.getPacketNumber().toString())
                     var packetOffset: PacketOffset = this.packetParser.parse(this.connection, fullHeaderOffset, msg, EndpointType.Server);
                     this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
                 }

@@ -186,10 +186,9 @@ export class Connection extends FlowControlledObject {
     private initializeOutgoingPacketsPipeline(){
         this.outgoingPacketPipeline = new PacketPipeline();
         this.congestionControl = new QuicCongestionControl(this, [this.lossDet], this.lossDet.rttMeasurer);
-        let fakeReorder = new DEBUGFakeReorderPipe(this);
+
         let outSocketPipe = new SocketOutPipe(this);
-        let debugDrop = new DEBUGPersistentCongestionAfterX();
-        let debugRTT = new DEBUGIncreaseRTT();
+
 
         //order is important
         this.outgoingPacketPipeline.addPipe(this.congestionControl);

@@ -7,6 +7,7 @@ import { Connection, ConnectionEvent } from '../quicker/connection';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { RTTMeasurement } from './rtt.measurement';
 import { EncryptionLevel } from '../crypto/crypto.context';
+import { logTimeSince } from '../utilities/debug/time.debug';
 
 // SentPackets type:
 // Key is the value of the packet number toString
@@ -157,6 +158,7 @@ export class QuicLossDetection extends EventEmitter {
      * @param basePacket The packet that is being sent. From this packet, the packetnumber and the number of bytes sent can be derived.
      */
     public onPacketSent(basePacket: BasePacket): void {
+        logTimeSince("loss-det: onpacketsent", "packetnum: " + basePacket.getHeader().getPacketNumber().toString());
         let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromPacket(basePacket);
         if(space === undefined){
             VerboseLogging.error("LossDetection: Did not find packet number space, not adding to sentpackets! packetnumber: " + basePacket.getHeader().getPacketNumber().getValue().toDecimalString());
@@ -212,7 +214,7 @@ export class QuicLossDetection extends EventEmitter {
 
          // check if we have not yet received an ACK for the largest acknowledge packet (then it would have been removed from this.sentPackets)
          // we could receive a duplicate ACK here, for which we don't want to update our RTT estimates
-         if( largestAcknowledgedPacket !== undefined &&largestAcknowledgedPacket.isRetransmittable){
+         if( largestAcknowledgedPacket !== undefined && largestAcknowledgedPacket.isRetransmittable){
              this.rttMeasurer.updateRTT(ackFrame, largestAcknowledgedPacket);
         }
         else
@@ -231,17 +233,17 @@ export class QuicLossDetection extends EventEmitter {
         if(space === undefined){
             return;
         }
-        VerboseLogging.info(this.DEBUGname + " Loss:onAckReceived AckFrame from space " + space + " is acking " + ackFrame.determineAckedPacketNumbers().map((val, idx, arr) => val.toNumber()).join(","));
+        // VerboseLogging.info(this.DEBUGname + " Loss:onAckReceived AckFrame from space " + space + " is acking " + ackFrame.determineAckedPacketNumbers().map((val, idx, arr) => val.toNumber()).join(","));
         this.largestAckedPacket[space] = Bignum.max( ackFrame.getLargestAcknowledged(), this.largestAckedPacket[space]);
-
+        
         this.updateRtt(ackFrame);
-
+        
         // Process ECN information if present.	
         //TODO: fill this in when detecting ecn in acks is possible.
-       /* if (ACK frame contains ECN information){	
+        /* if (ACK frame contains ECN information){	
             this.emit(LossDetectionEvents.ECN_ACK, ackFrame)
         }*/
-
+        
         this.determineNewlyAckedPackets(ackFrame).forEach((sentPacket: BasePacket) => {
             this.onSentPacketAcked(sentPacket);
         });
@@ -298,7 +300,7 @@ export class QuicLossDetection extends EventEmitter {
      * @param sentPacket A reference to one of the sentPackets that is being acked in a received ACK frame
      */
     private onSentPacketAcked(sentPacket: BasePacket): void {
-
+        logTimeSince("lossdetection: onSentPacketAcked", "packetnum: " + sentPacket.getHeader().getPacketNumber().toString());
         let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber().getValue();
         VerboseLogging.info(this.DEBUGname + " loss:onSentPacketAcked called for nr " + ackedPacketNumber.toNumber() + " with packettype " + sentPacket.getPacketType() + ", is retransmittable=" + sentPacket.isRetransmittable());
 

@@ -32,6 +32,7 @@ import { RetryPacket } from '../../packet/packet/retry';
 import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';
 import { VerboseLogging } from '../logging/verbose.logging';
 import { AckFrame } from '../../frame/ack';
+import { logTimeSince } from '../debug/time.debug';
 
 export class PacketHandler {
 
@@ -44,6 +45,7 @@ export class PacketHandler {
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         connection.getQlogger().onPacketRX(packet);
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
+        logTimeSince("packethandler: handle", "packetnumber is " + packet.getHeader().getPacketNumber().toString());
 
         this.onPacketReceived(connection, packet, receivedTime);
 

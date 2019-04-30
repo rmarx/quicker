@@ -21,6 +21,7 @@ import { ConnectionManager, ConnectionManagerEvents } from './connection.manager
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { Bignum } from '../types/bignum';
 import { EncryptionLevel, BufferedPacket } from '../crypto/crypto.context';
+import { logTimeSince } from '../utilities/debug/time.debug';
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
@@ -65,6 +66,7 @@ export class Server extends Endpoint {
         VerboseLogging.info("Server:init: Creating a socket of type " + socketType + " @ " + this.hostname);
         server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo, undefined) });
         server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.handleClose() });
+        server.on("error", (err: Error) => {VerboseLogging.error("SOMETHING WENT WRONG WITH THE SOCKET: " + err.message)})
         server.bind(this.port, this.hostname);
         if (socketType === "udp4") {
             this.serverSockets["IPv4"] = server;
@@ -94,15 +96,15 @@ export class Server extends Endpoint {
     private onMessage(msg: Buffer, rinfo: RemoteInfo | undefined, receivingConnection: Connection | undefined): any {
         this.DEBUGmessageCounter++;
         let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
-        
+        let timebefore = Date.now()
         VerboseLogging.debug("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
 
-        VerboseLogging.trace("server:onMessage: message length in bytes: " + msg.byteLength);
-        VerboseLogging.trace("server:onMessage: raw message from the wire : " + msg.toString('hex'));
+        VerboseLogging.info("server:onMessage: message length in bytes: " + msg.byteLength);
+        VerboseLogging.info("server:onMessage: raw message from the wire : " + msg.toString('hex'));
         
         let receivedTime = Time.now();
         let headerOffsets:HeaderOffset[]|undefined = undefined;
-
+        
         try {
             headerOffsets = this.headerParser.parse(msg);
         } catch(err) {
@@ -117,21 +119,23 @@ export class Server extends Endpoint {
             let connection: Connection | undefined = undefined;
             try {
                 if( receivingConnection )
-                    connection = receivingConnection;
+                connection = receivingConnection;
                 else
-                    connection = this.connectionManager.getConnection(headerOffset, rinfo!);
-
+                connection = this.connectionManager.getConnection(headerOffset, rinfo!);
+                
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
-
+                
                 let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
                 if( fullHeaderOffset ){
+                    VerboseLogging.info("time diff " + (Date.now() - timebefore));
+                    logTimeSince("server: onmessage", "packetnumber is " + fullHeaderOffset.header.getPacketNumber().toString())
                     let packetOffset: PacketOffset = this.packetParser.parse(connection, fullHeaderOffset, msg, EndpointType.Client);
                     this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
                 }
                 else
-                    VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");
-
+                VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");
+                
                 connection.startIdleAlarm();
             } 
             catch (err) {

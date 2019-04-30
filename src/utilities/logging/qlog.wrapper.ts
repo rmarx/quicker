@@ -60,18 +60,18 @@ export class QlogWrapper{
             qlog_version: "0.1",
             description: description,
             // simple endpoint output file has only a single connection here 
-            connections: [
+            traces: [
                 {
                     vantagepoint: vantagePoint,
                     connectionid: connectionID,
                     starttime: "" + this.startTime, // json has limited precision for numbers, so wrap timestamp as a string
                     metadata: "", // TODO: potentially also fill this one in here? 
-                    fields: [
+                    event_fields: [
                         "time",
-                        "category",
-                        "type",
-                        "trigger",
-                        "data"
+                        "CATEGORY",
+                        "EVENT_TYPE",
+                        "TRIGGER",
+                        "DATA"
                     ],
                     events: [
 
@@ -152,7 +152,7 @@ export class QlogWrapper{
         let evt:any = [
             123, 
             qlog.EventCategory.TRANSPORT,
-            "PACKET_TX",//qlog.TransportEventType.TRANSPORT_PACKET_TX,
+            "PACKET_SENT",//qlog.TransportEventType.TRANSPORT_PACKET_TX,
             trigger,
             this.packetToQlog( packet )
         ];
@@ -183,7 +183,7 @@ export class QlogWrapper{
 
         // TODO: add option to log full hexadecimal packet (allows replaying)
         // TODO: probably do this as a different event type maybe? easier to filter afterwards? 
-        let data:any = {};
+        let data:any = {header : {}};
 
         let header = packet.getHeader();
 
@@ -194,15 +194,16 @@ export class QlogWrapper{
             data.message = "TODO: support other header types " + HeaderType[header.getHeaderType()];
         }
         else{
-            data.packet_number = packet.getHeader().getPacketNumber().getValue().toDecimalString();
+            data.header.packet_number = packet.getHeader().getPacketNumber().getValue().toDecimalString();
 
             if( header.getHeaderType() === HeaderType.LongHeader ){
-                data.version = (<LongHeader>header).getVersion().getValue().toString();
-                data.payload_length = (<LongHeader>header).getPayloadLength().toDecimalString();
+                data.header.version = (<LongHeader>header).getVersion().getValue().toString();
+                data.header.packet_size = (<LongHeader>header).getPayloadLength().toDecimalString();
                 //data.scid = (<LongHeader>header).getSrcConnectionID().toString();
                 //data.dcid = (<LongHeader>header).getDestConnectionID().toString();
             }
             else{
+                data.header.packet_size = (<ShortHeader> header).toBuffer().byteLength;
                 //data.spinbit = ((<ShortHeader>header).getSpinBit()) ? 1 : 0;
                 //data.dcid = (<ShortHeader>header).getDestConnectionID().toString();
             }
@@ -314,7 +315,7 @@ export class QlogWrapper{
     // let's keep it as a pure frame log for now and revisit later
     // probably :for frames that have simple side-effects this is enough. For more complex side-effects (e.g., ACK): add additional events
     // TODO: trigger doubles here as RX/TX determiner... is this ok? 
-    onFrame_MaxStreamData(frame:MaxStreamFrame, trigger:("PACKET_RX"|"PACKET_TX")){
+    onFrame_MaxStreamData(frame:MaxStreamFrame, trigger:("PACKET_RECEIVED"|"PACKET_SENT")){
 
         let evt:any = [
             123, 
@@ -330,7 +331,7 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
-    onFrame_MaxData(frame:MaxDataFrame, trigger:("PACKET_RX"|"PACKET_TX")){
+    onFrame_MaxData(frame:MaxDataFrame, trigger:("PACKET_RECEIVED"|"PACKET_SENT")){
 
         let evt:any = [
             123, 
@@ -345,7 +346,7 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
-    onFrame_Stream(frame:StreamFrame, trigger:("PACKET_RX"|"PACKET_TX")){
+    onFrame_Stream(frame:StreamFrame, trigger:("PACKET_RECEIVED"|"PACKET_SENT")){
         let evt:any = [
             123, 
             qlog.EventCategory.TRANSPORT,
@@ -374,7 +375,9 @@ export class QlogWrapper{
             "PACKET_LOST",
             trigger,
             {
-                nr: packetNumber.toDecimalString()
+                header:{
+                    nr: packetNumber.toDecimalString()
+                }
             }
         ];
 
@@ -386,7 +389,7 @@ export class QlogWrapper{
         let evt:any = [
             123, 
             qlog.EventCategory.RECOVERY,
-            qlog.RecoveryEventType.RTT_UPDATE,
+            "METRIC_UPDATE",
             trigger,
             {
                 latest: latestRTT,
@@ -406,7 +409,7 @@ export class QlogWrapper{
         let evt:any = [
             123, 
             qlog.EventCategory.RECOVERY,
-            qlog.RecoveryEventType.CWND_UPDATE,
+            "METRIC_UPDATE",
             trigger,
             {
                 phase: ccPhase,
@@ -420,25 +423,27 @@ export class QlogWrapper{
 
     // TODO: maybe currentCWND is not needed here? separate event? would just be included here to easily calculate available_cwnd value from bytes_in_flight
     // changed currentCWND and bytesinflight to string so bignum can be displayed
-    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger:string = "PACKET_TX", metadata : Object){
+    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger: ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST") = "PACKET_SENT", metadata : Object){
 
         let evt:any = [
             123, 
             qlog.EventCategory.RECOVERY,
-            qlog.RecoveryEventType.BYTES_IN_FLIGHT_UPDATE,
+            "METRIC_UPDATE",
             trigger,
             {
                 bytes_in_flight: bytesInFlight.toDecimalString(),
                 current_CWND : currentCWND.toDecimalString(),
                 available_cwnd : currentCWND.subtract(bytesInFlight).toDecimalString(),
-                ...metadata
+                metadata:{
+                    ...metadata
+                }
             }
         ];
 
         this.logToFile(evt);
     }
 
-    public onLossDetectionArmed(alarmType:string, lastSentHandshakeTimestamp:Date, alarmDuration:number, trigger:string = "PACKET_TX"){
+    public onLossDetectionArmed(alarmType:string, lastSentHandshakeTimestamp:Date, alarmDuration:number, trigger:string = "PACKET_SENT"){
 
         let evt:any = [
             123, 

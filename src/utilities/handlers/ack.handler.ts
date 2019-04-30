@@ -208,6 +208,7 @@ export class AckHandler {
             ackBlocks.push(ackBlock);
         }
 
+        VerboseLogging.info("GENERATING ACK FRAME FOR PACKETNUM " + latestPacketNumber.toString())
         let ackFrame = FrameFactory.createAckFrame(false, latestPacketNumber, new Bignum(ackDelay), new Bignum(ackBlockCount), firstAckBlock, ackBlocks);
 
         if( Constants.DEBUG_fakeECN ){
