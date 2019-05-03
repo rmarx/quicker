@@ -23,9 +23,10 @@ import { Http3StreamState } from "../common/types/http3.streamstate";
 import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
 import { Http3PriorityFrame } from "../common/frames";
+import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme } from "../common/prioritization/schemes/index"
 
 class ClientState {
-    private dependencyTree: Http3DependencyTree;
+    private prioritiser: Http3PriorityScheme;
     private scheduleTimer: NodeJS.Timer;
     private sendingControlStream: Http3SendingControlStream;
     private receivingControlStream?: Http3ReceivingControlStream;
@@ -35,7 +36,8 @@ class ClientState {
     private frameParser: Http3FrameParser;
 
     public constructor(sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
-        this.dependencyTree = new Http3DependencyTree();
+        // TODO make scheme swappable
+        this.prioritiser = new Http3ParallelPlusScheme();
         this.sendingControlStream = sendingControlStream;
         this.receivingControlStream = receivingControlStream;
         this.lastUsedStreamID = lastUsedStreamID;
@@ -50,12 +52,12 @@ class ClientState {
             // for (let i = 0; i < 30; ++i) {
             //     this.dependencyTree.schedule();
             // }
-            this.dependencyTree.schedule();
+            this.prioritiser.schedule();
         }, 100);
     }
 
-    public getDependencyTree(): Http3DependencyTree {
-        return this.dependencyTree;
+    public getPrioritiser(): Http3PriorityScheme {
+        return this.prioritiser;
     }
 
     public stopScheduler() {
@@ -182,7 +184,8 @@ export class Http3Server {
 
         controlStream.on(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, (frame: Http3PriorityFrame) => {
             logger.onHTTPFrame_Priority(frame, "RX");
-            state.getDependencyTree().handlePriorityFrame(frame, controlStream.getStreamID());
+            // FIXME temporarily ignoring received priority frames to test prioritisation schemes
+            // state.getPrioritiser().handlePriorityFrame(frame, controlStream.getStreamID());
             VerboseLogging.info("HTTP/3: priority frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
     }
@@ -206,15 +209,15 @@ export class Http3Server {
             // Handle as a request stream
             let bufferedData: Buffer = Buffer.alloc(0);
             let bufferedFrames: Http3BaseFrame[] = [];
-            state.getDependencyTree().addRequestStreamToRoot(quicStream);
 
             quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
                 bufferedData = Buffer.concat([bufferedData, data]);
                 const [frames, offset]: [Http3BaseFrame[], number] = state.getFrameParser().parse(bufferedData, quicStream.getStreamId());
                 // TODO priority frame should only be used if no other priority frames have arrived on the control stream for this request stream
                 if (frames.length > 0 && frames[0].getFrameType() === Http3FrameType.PRIORITY) {
-                    state.getDependencyTree().handlePriorityFrame(frames[0] as Http3PriorityFrame, quicStream.getStreamId());
-                    quicStream.getConnection().getQlogger().onHTTPFrame_Priority(frames[0] as Http3PriorityFrame, "RX");
+                    // FIXME Ignore priority frames while using server-side priority scheme -> Make this dynamic instead of commenting out the code
+                    // state.getPrioritiser().handlePriorityFrame(frames[0] as Http3PriorityFrame, quicStream.getStreamId());
+                    // quicStream.getConnection().getQlogger().onHTTPFrame_Priority(frames[0] as Http3PriorityFrame, "RX");
                     frames.splice(0, 1);
                 }
                 bufferedFrames = bufferedFrames.concat(frames);
@@ -310,7 +313,7 @@ export class Http3Server {
 
         if (requestPath === undefined || method === undefined) {
             VerboseLogging.info("Received HTTP/3 request with no path and/or method");
-            state.getDependencyTree().finishStream(quicStream.getStreamId());
+            state.getPrioritiser().finishStream(quicStream.getStreamId());
         } else {
             let methodHandled: boolean = false;
             // TODO implement other methods
@@ -333,13 +336,16 @@ export class Http3Server {
 
             if (methodHandled) {
                 // Respond and close stream
-                state.getDependencyTree().addData(quicStream.getStreamId(), res.toBuffer());
-                state.getDependencyTree().finishStream(quicStream.getStreamId());
+                const fileExtension: string = res.getFileExtension().split(".")[1];
+                // TODO Should not be here if no scheme is used, stream should be added to tree the moment it is opened in that case
+                state.getPrioritiser().addStream(quicStream, fileExtension);
+                state.getPrioritiser().addData(quicStream.getStreamId(), res.toBuffer());
+                state.getPrioritiser().finishStream(quicStream.getStreamId());
             }
             else {
                 // Close stream
                 VerboseLogging.warn("Received HTTP/3 request with method " + method + ". This method is currently not handled.");
-                state.getDependencyTree().finishStream(quicStream.getStreamId());
+                state.getPrioritiser().finishStream(quicStream.getStreamId());
             }
         }
     }

@@ -9,7 +9,17 @@ server.listen(4433, "127.0.0.1");
 console.log("HTTP/3 server listening on port 4433");
 
 server.get(`/`, getRoot);
+server.get(`/script.js`, getJS);
+server.get(`/image.jpg`, getImage);
 
 async function getRoot(req: Http3Request, res: Http3Response) {
     res.sendFile("/");
+}
+
+async function getJS(req: Http3Request, res: Http3Response) {
+    res.sendFile("/script.js");
+}
+
+async function getImage(req: Http3Request, res: Http3Response) {
+    res.sendFile("/image.jpg");
 }

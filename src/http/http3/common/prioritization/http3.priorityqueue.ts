@@ -29,6 +29,10 @@ export class Http3DepNodePQueue {
         }
     }
 
+    public clear() {
+        this.heap = [];
+    }
+
     // TODO O(n) time complexity, preferably implement priority search queue
     public includes(node: Http3PrioritisedElementNode) {
         return this.heap.indexOf(node) !== -1;

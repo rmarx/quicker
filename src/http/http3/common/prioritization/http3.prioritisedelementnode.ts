@@ -1,5 +1,9 @@
 import { Http3DepNodePQueue } from "./http3.priorityqueue";
-export class Http3PrioritisedElementNode {
+import { EventEmitter } from "events";
+import { Http3NodeEvent } from "./http3.nodeevent";
+import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
+
+export class Http3PrioritisedElementNode extends EventEmitter {
     static readonly MAX_BYTES_SENT = 100;
     private parent: Http3PrioritisedElementNode | null;
     protected activeChildrenPQueue: Http3DepNodePQueue = new Http3DepNodePQueue([]);
@@ -10,10 +14,11 @@ export class Http3PrioritisedElementNode {
 
     // Parent should be root by default
     public constructor(parent: Http3PrioritisedElementNode | null, weight: number = 16) {
+        super();
         this.parent = parent;
         this.weight = weight;
         if (this.parent !== null) {
-            this.parent.addChild(this);
+            this.parent.children.push(this);
         }
     }
 
@@ -41,11 +46,12 @@ export class Http3PrioritisedElementNode {
         return this.activeChildrenPQueue.size() > 0;
     }
 
-    public addChild(child: Http3PrioritisedElementNode) {
-        this.children.push(child);
+    public hasChild(child: Http3PrioritisedElementNode): boolean {
+        // FIXME -> slow, swap out with specialised data structure
+        return this.children.indexOf(child) >= 0;
     }
 
-    public removeChild(child: Http3PrioritisedElementNode) {
+    private removeChild(child: Http3PrioritisedElementNode) {
         this.activeChildrenPQueue.delete(child);
         // FIXME -> slow, swap out with specialised data structure
         this.children = this.children.filter((value) => {
@@ -58,8 +64,7 @@ export class Http3PrioritisedElementNode {
             return;
         }
 
-        const childIndex: number = this.children.indexOf(child);
-        if (childIndex !== -1) {
+        if (this.hasChild(child) === true) {
             // K = 256 -> constant to compensate the lost bits by integer division (e.g., 256).
             // TODO bytessent is hardcoded to MAX_BYTES_SENT as placeholders dont have a bytessent property
             child.pseudoTime = this.pseudoTime + child.getBytesSent() * 256 / child.weight;
@@ -70,17 +75,44 @@ export class Http3PrioritisedElementNode {
         }
     }
 
+    public passChildren(targetNode: Http3PrioritisedElementNode) {
+        for (const child of this.children) {
+            if (child !== targetNode) {
+                child.setParent(targetNode);
+            }
+        }
+        this.children = [];
+        this.activeChildrenPQueue.clear();
+    }
+
+    // Moves all children to the node's parent, if it exists
+    // If the node has no parent, all children are kept
+    // Returns true if succesful, false if not
+    public moveChildrenUp(): boolean {
+        const parent: Http3PrioritisedElementNode | null = this.getParent();
+        if (parent !== null) {
+            this.passChildren(parent);
+            return true;
+        }
+        return false;
+    }
+
+    // Adds the child as an exclusive child of this node
+    // All previously attached children will be set as children of the new child
+    public addExclusiveChild(child: Http3PrioritisedElementNode) {
+        this.passChildren(child);
+        child.setParent(this);
+    }
+
     // Removes itself from the tree, passing children to its parent
     // Active children will remain active
     public removeSelf() {
+        // Emit a node removed event so listeners know when a node is removed from the tree and which node that was
+        this.emit(Http3NodeEvent.NODE_REMOVED, this);
+        this.moveChildrenUp();
+
         const parent: Http3PrioritisedElementNode | null = this.getParent();
         if (parent !== null) {
-            for (const child of this.children) {
-                parent.addChild(child);
-                if (this.activeChildrenPQueue.includes(child)) {
-                    parent.activateChild(child);
-                }
-            }
             parent.removeChild(this);
             this.parent = null;
         }
@@ -90,12 +122,18 @@ export class Http3PrioritisedElementNode {
         return this.parent;
     }
 
+    // Changes the parent of the node
+    // The node is added as a child of the parent and the parent of this node is set
+    // If this node is active, it will be pushed into the active queue of the new parent
     public setParent(parent: Http3PrioritisedElementNode) {
         if (this.parent !== null) {
             this.parent.removeChild(this);
         }
         this.parent = parent;
-        this.parent.addChild(this);
+        this.parent.children.push(this);
+        if (this.isActive() === true) {
+            parent.activateChild(this);
+        }
     }
 
     public getWeight(): number {

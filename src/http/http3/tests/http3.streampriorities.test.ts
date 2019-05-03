@@ -24,9 +24,9 @@ export class Http3StreamPriorityTester {
             stream3Data.fill('4');
 
             const deptree: Http3DependencyTree = new Http3DependencyTree();
-            deptree.addPlaceholderToRoot(0, 4);
-            deptree.addRequestStreamToPlaceholder(stream1, 0, 2);
-            deptree.addRequestStreamToPlaceholder(stream2, 0, 2);
+            const placeholderID: number = deptree.addPlaceholderToRoot(4);
+            deptree.addRequestStreamToPlaceholder(stream1, placeholderID, 2);
+            deptree.addRequestStreamToPlaceholder(stream2, placeholderID, 2);
             deptree.addRequestStreamToRoot(stream3, 2);
             deptree.addRequestStreamToRoot(stream4, 8);
 
