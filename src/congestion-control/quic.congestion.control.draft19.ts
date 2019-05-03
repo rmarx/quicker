@@ -228,24 +228,6 @@ export class QuicCongestionControl extends PacketPipe {
     // window does not reference the congestion window, but just the congestion period window created by largestlosttime - congestion period
     private isWindowLost(largestLostTime : number, smallestLostTime : number, congestionPeriod : number){
 /**
-     * first idea was to use lastackedpacket (known from onpackedackedCC function)
-     * TODO: doublecheck
-     *      would there be situations where basing this on the last acked and not the last-sent time acked would cause problems?
-     *      for example, if there are packets in the window [unacked unacked unacked... unacked acked unacked](third to last one is biggest lost) the window might not be big enough according to
-     *      persistent congestion, while technically it would be in persistent congestion   
-     *      
-     *      this might possibly pose a real issue since inPersistentCongestion gets called when there is a loss (which can be due to max reorder threshold)
-     *      in the case where the window is as follows [unacked unacked unacked... unacked acked unacked]
-     *      InPersistentCongestion() will take the largestlostpacket (which is the third to last packet in the window)
-     *      and try to detect if the window is lost using lastAckedPacket in the current implementation, the isWindowLost() will not only see a smaller lost-block
-     *      but possibly even a negative one.
-     * 
-     * 
-     *      other solution is when going through the array of lostpackets received from lossdetection, also look for the smallest(longest time ago) lost
-     *      all calculations using time, not pn
-     *      [unacked  unacked unacked acked unacked]
-     *        ^smallest        ^largest
-     *      
      *      if smallest is smaller than or equal to [largest - congestion_period] then it's in persistent congestion (??)
      *      
      *      what the quinn implementation does is: 
@@ -257,7 +239,10 @@ export class QuicCongestionControl extends PacketPipe {
      *                                              decent measure of where the left edge of the window is.
      *                                              this would also work in following situation [unacked acked unacked unacked ...unacked acked ...]
      *                                                                                           ^smallestlost                      ^largestlost
-     *                                              
+     *      This might pose issue if [unacked unacked ..... acked unacked unacked acked unacked] where there is a single acked packet in the middle of a huge series drop
+     *      does this count as persistent congestion? 
+     *  
+     *      also issue when two random packets were dropped far enough away from each other
      */
 
         // quinn : rust implementation version
@@ -440,6 +425,7 @@ export class QuicCongestionControl extends PacketPipe {
 
 
         let congestionState = "Avoidance";
+        //Todo: change this, date.now() will never give in recovery...
         if(this.inRecovery(Date.now())){
             congestionState = "Recovery";
         }

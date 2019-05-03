@@ -174,6 +174,18 @@ export class QuicLossDetection extends EventEmitter {
             isRetransmittable: basePacket.isRetransmittable(),
             inFlight : basePacket.countsTowardsInFlight()
         };
+
+        let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
+        if( packet !== undefined ){
+            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
+            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        }
+        else{
+            VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
+
+            this.sentPackets[space][packetNumber.toString('hex', 8)] = sentPacket;
+        }
         
 
         if(sentPacket.inFlight){
@@ -189,17 +201,7 @@ export class QuicLossDetection extends EventEmitter {
             this.emit(QuicLossDetectionEvents.PACKET_SENT, basePacket)
             this.setLossDetectionAlarm();
 
-            let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
-            if( packet !== undefined ){
-                VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-                VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
-                VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            }
-            else{
-                VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
 
-                this.sentPackets[space][packetNumber.toString('hex', 8)] = sentPacket;
-            }
         }
     }
 
@@ -402,8 +404,7 @@ export class QuicLossDetection extends EventEmitter {
             alarmType = "CryptoRetransmission";
         } else {
             // PTO alarm
-           alarmDuration = this.rttMeasurer.smoothedRtt + this.rttMeasurer.rttVar * 4 + this.rttMeasurer.maxAckDelay;
-           alarmDuration = Math.max(alarmDuration, QuicLossDetection.kGranularity);
+           alarmDuration = this.rttMeasurer.smoothedRtt + Math.max(QuicLossDetection.kGranularity ,this.rttMeasurer.rttVar * 4) + this.rttMeasurer.maxAckDelay;
            alarmDuration = alarmDuration * Math.pow(2, this.ptoCount);
            alarmType = "PTOTimeout";
         }
