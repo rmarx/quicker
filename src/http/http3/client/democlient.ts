@@ -10,10 +10,10 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
     });
     const rootRequest: Bignum = client.get("/", 16);
     client.get("/script.js", 1, rootRequest);
-    client.get("/image.jpg", 4, rootRequest);
-    client.get("/high_priority.png", 64, rootRequest); // Returns notfound.html
-    // setTimeout(() => {
-    //     client.get("late_request");
-    //     client.close();
-    // }, 1000);
+    client.get("/QUIC_lowres.png", 4, rootRequest);
+    // client.get("/high_priority.png", 64, rootRequest); // Returns notfound.html
+    setTimeout(() => {
+        client.get("/high_priority.png"); // Returns notfound.html
+        client.close();
+    }, 1000);
 });

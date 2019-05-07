@@ -23,7 +23,7 @@ import { Http3StreamState } from "../common/types/http3.streamstate";
 import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
 import { Http3PriorityFrame } from "../common/frames";
-import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme } from "../common/prioritization/schemes/index"
+import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
 
 class ClientState {
     private prioritiser: Http3PriorityScheme;
@@ -36,8 +36,8 @@ class ClientState {
     private frameParser: Http3FrameParser;
 
     public constructor(sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
-        // TODO make scheme swappable
-        this.prioritiser = new Http3ParallelPlusScheme();
+        // TODO make scheme easily swappable without changing actual server code
+        this.prioritiser = new Http3SerialPlusScheme();
         this.sendingControlStream = sendingControlStream;
         this.receivingControlStream = receivingControlStream;
         this.lastUsedStreamID = lastUsedStreamID;
@@ -45,7 +45,7 @@ class ClientState {
         this.qpackDecoder = qpackDecoder;
         this.frameParser = frameParser;
 
-        // Schedule 30 chunks of 100 bytes every 1ms
+        // Schedule 30 chunks of 100 bytes every 10ms
         // TODO tweak numbers
         // TODO Listen to congestion control events instead
         this.scheduleTimer = setInterval(() => {
@@ -53,7 +53,7 @@ class ClientState {
             //     this.dependencyTree.schedule();
             // }
             this.prioritiser.schedule();
-        }, 100);
+        }, 10);
     }
 
     public getPrioritiser(): Http3PriorityScheme {
@@ -217,7 +217,7 @@ export class Http3Server {
                 if (frames.length > 0 && frames[0].getFrameType() === Http3FrameType.PRIORITY) {
                     // FIXME Ignore priority frames while using server-side priority scheme -> Make this dynamic instead of commenting out the code
                     // state.getPrioritiser().handlePriorityFrame(frames[0] as Http3PriorityFrame, quicStream.getStreamId());
-                    // quicStream.getConnection().getQlogger().onHTTPFrame_Priority(frames[0] as Http3PriorityFrame, "RX");
+                    quicStream.getConnection().getQlogger().onHTTPFrame_Priority(frames[0] as Http3PriorityFrame, "RX");
                     frames.splice(0, 1);
                 }
                 bufferedFrames = bufferedFrames.concat(frames);
@@ -308,7 +308,7 @@ export class Http3Server {
         const method: string | undefined = req.getHeaderValue(":method");
 
         if (requestPath !== undefined && method !== undefined && method === "GET") {
-            logger.onHTTPGet(requestPath, "RX");
+            logger.onHTTPGet(requestPath, quicStream.getStreamId(), "RX");
         }
 
         if (requestPath === undefined || method === undefined) {

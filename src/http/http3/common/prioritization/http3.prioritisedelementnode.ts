@@ -1,7 +1,6 @@
 import { Http3DepNodePQueue } from "./http3.priorityqueue";
 import { EventEmitter } from "events";
 import { Http3NodeEvent } from "./http3.nodeevent";
-import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
 
 export class Http3PrioritisedElementNode extends EventEmitter {
     static readonly MAX_BYTES_SENT = 100;

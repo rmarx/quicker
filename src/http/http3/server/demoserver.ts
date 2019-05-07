@@ -11,6 +11,8 @@ console.log("HTTP/3 server listening on port 4433");
 server.get(`/`, getRoot);
 server.get(`/script.js`, getJS);
 server.get(`/image.jpg`, getImage);
+server.get(`/QUIC.png`, getQUICImage);
+server.get(`/QUIC_lowres.png`, getQUICImageLowRes);
 
 async function getRoot(req: Http3Request, res: Http3Response) {
     res.sendFile("/");
@@ -22,4 +24,12 @@ async function getJS(req: Http3Request, res: Http3Response) {
 
 async function getImage(req: Http3Request, res: Http3Response) {
     res.sendFile("/image.jpg");
+}
+
+async function getQUICImage(req: Http3Request, res: Http3Response) {
+    res.sendFile("/QUIC.png");
+}
+
+async function getQUICImageLowRes(req: Http3Request, res: Http3Response) {
+    res.sendFile("/QUIC_lowres.png");
 }

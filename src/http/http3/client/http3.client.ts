@@ -179,7 +179,7 @@ export class Http3Client extends EventEmitter {
         // TODO move logging to deptree because not all data will be sent instantly
         if (this.logger !== undefined) {
             this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.OPENED, "GET");
-            this.logger.onHTTPGet(path, "TX");
+            this.logger.onHTTPGet(path, stream.getStreamId(), "TX");
             this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");
         }
 

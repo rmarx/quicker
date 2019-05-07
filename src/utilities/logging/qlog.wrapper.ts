@@ -618,7 +618,7 @@ export class QlogWrapper{
     // this is a more high-level log message that makes it easier to just follow HTTP level stuff without having to parse HEADERS
     // for a typical GET, you would log this first, then the HEADERS frame (as it was constructed)
     // TODO: is this something we really want to do? isn't this too high-level? 
-    public onHTTPGet(uri:string, trigger:("TX"|"RX")){
+    public onHTTPGet(uri:string, streamID: Bignum, trigger:("TX"|"RX")){
 
         let evt:any = [
             123,
@@ -626,7 +626,8 @@ export class QlogWrapper{
             "GET",
             trigger,
             {
-                uri: uri
+                uri: uri,
+                stream_id: streamID.toString(),
             }
         ];
 
