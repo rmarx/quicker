@@ -18,7 +18,7 @@ import { logTimeSince } from "../utilities/debug/time.debug";
  * Variable name changes will try to be made only for clarity or code style.
  */
 
-export class QuicCongestionControl extends PacketPipe {
+export class QuicCongestionControl extends PacketPipe { 
     
     /////////////////////////////////
     // CONSTANTS
@@ -152,7 +152,7 @@ export class QuicCongestionControl extends PacketPipe {
     private onPacketSentCC(sentPacket : BasePacket){
         //if the packets contains non-ack frames
         if( !sentPacket.isAckOnly()){
-            var bytesSent = sentPacket.toBuffer(this.connection).byteLength;
+            var bytesSent = sentPacket.getSerializedSizeInBytes();
             this.setBytesInFlight(this.bytesInFlight.add(bytesSent), "PACKET_SENT", {"packet_num" : sentPacket.getHeader().getPacketNumber().getValue().toDecimalString(), "added" : bytesSent, "packettype": sentPacket.getPacketType()});
         }
     }
@@ -164,7 +164,7 @@ export class QuicCongestionControl extends PacketPipe {
      */
     private onPacketAckedCC(ackedPacket : SentPacket) {
         let packet = ackedPacket.packet;
-        var bytesAcked = packet.toBuffer(this.connection).byteLength;
+        var bytesAcked = packet.getSerializedSizeInBytes();
         this.setBytesInFlight(this.bytesInFlight.subtract(bytesAcked), "ACK_RECEIVED", {"packet_num" : ackedPacket.packet.getHeader().getPacketNumber().getValue().toDecimalString(), "subtracted" : bytesAcked, "packettype": ackedPacket.packet.getPacketType()});
 
         if(this.inRecovery(ackedPacket.time)){
@@ -310,7 +310,7 @@ export class QuicCongestionControl extends PacketPipe {
             if (lostPacket.packet.isAckOnly())
                 return;
 
-            var packetByteSize = lostPacket.packet.toBuffer(this.connection).byteLength;
+            var packetByteSize = lostPacket.packet.getSerializedSizeInBytes();
             totalLostBytes = totalLostBytes.add(packetByteSize);
 
             //find last/largest lost packet
@@ -344,7 +344,7 @@ export class QuicCongestionControl extends PacketPipe {
      * @param packet packet to enter the congestion control
      */
     public packetIn(packet: BasePacket) {
-        logTimeSince("congestioncontrol: packetin:", "packetnumber is " + packet.getHeader().getPacketNumber().toString());
+        logTimeSince("congestioncontrol: packetin:", "packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
         this.packetsQueue.push(packet);
         this.sendPackets();
     }

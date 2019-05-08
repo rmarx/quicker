@@ -45,7 +45,7 @@ export class PacketHandler {
     public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
         connection.getQlogger().onPacketRX(packet);
         PacketLogging.getInstance().logIncomingPacket(connection, packet);
-        logTimeSince("packethandler: handle", "packetnumber is " + packet.getHeader().getPacketNumber().toString());
+        logTimeSince("packethandler: handle", "packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
 
         this.onPacketReceived(connection, packet, receivedTime);
 

@@ -84,7 +84,7 @@ export class StreamManager extends EventEmitter {
         this.addStream(stream);
 
         VerboseLogging.info("StreamManager:initializeStream : starting stream " + streamId.toNumber() );
-        console.trace("StreamManager:initializeStream");
+        //console.trace("StreamManager:initializeStream");
 
         this.applyDefaultFlowControlLimits(stream);
 

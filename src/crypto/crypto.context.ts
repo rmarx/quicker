@@ -4,7 +4,6 @@ import { PacketNumber } from '../packet/header/header.properties';
 import { AckHandler } from '../utilities/handlers/ack.handler';
 import { Bignum } from '../types/bignum';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
-import { LossDetection } from '../loss-detection/loss.detection';
 import { HeaderOffset } from '../utilities/parsers/header.parser';
 import { Connection } from '../quicker/connection';
 import { QuicLossDetection } from '../loss-detection/loss.detection.draft19';

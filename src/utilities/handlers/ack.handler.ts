@@ -17,6 +17,7 @@ import { FrameFactory } from '../factories/frame.factory';
 
 
 interface ReceivedPacket {
+    packetNumber: Bignum,
     time: Time, // TODO: REFACTOR: replace with timestamp instead of Time Object to reduce memory? 
     ackOnly: boolean // TODO: potentially even use MSB of timestamp to encode ack or not? (highly unlikely server will run for years on end)
 }
@@ -25,7 +26,7 @@ export class AckHandler {
 
     public DEBUGname = "";
 
-    private receivedPackets: { [key: string]: ReceivedPacket };
+    private receivedPackets: { [key: string]: ReceivedPacket | undefined };
     private largestPacketNumber!: Bignum;
     private alarm: Alarm;
     private ackablePacketsSinceLastAckFrameSent: number = 0; // count of ACK-able packets we have received since the last time we've sent an ACK frame
@@ -45,6 +46,8 @@ export class AckHandler {
         if (sentPacketIn.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
+
+
 
         // conceptually:
         // - We ourselves send acknowledgements for packets we receive from the other endpoint
@@ -76,18 +79,19 @@ export class AckHandler {
         let sentPacket = <BaseEncryptedPacket>sentPacketIn;
 
         sentPacket.getFrames().forEach((frame: BaseFrame) => {
+
             if (frame.getType() === FrameType.ACK) {
                 let ackFrame = <AckFrame>frame;
                 let packetNumbers = ackFrame.determineAckedPacketNumbers();
-                VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Sent Packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber() + " was acked by peer and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => val.toNumber())).join(",") );
+                VerboseLogging.debug(this.DEBUGname + " ackHandler:onPacketAcked Sent Packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber() + " was acked by peer and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => val.toNumber())).join(",") );
 
                 packetNumbers.forEach((packetNumber: Bignum) => {
-                    if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
-                        delete this.receivedPackets[packetNumber.toString('hex', 8)];
-                        VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Received packet " + packetNumber.toNumber() + " is now removed from 'list of things to ack'" );
+                    if (this.receivedPackets[packetNumber.hash()] !== undefined) {
+                        delete this.receivedPackets[packetNumber.hash()];
+                        VerboseLogging.debug(this.DEBUGname + " ackHandler:onPacketAcked Received packet " + packetNumber.toNumber() + " is now removed from 'list of things to ack'" );
                     }
                     else{
-                        VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Packet " + packetNumber.toNumber() + " was no longer in this.receivedPackets, previously acked?");
+                        //VerboseLogging.warn(this.DEBUGname + " ackHandler:onPacketAcked Packet " + packetNumber.toNumber() + " was no longer in this.receivedPackets, previously acked?");
                     }
                 });
             }
@@ -99,13 +103,14 @@ export class AckHandler {
         if (packet.getPacketType() === PacketType.VersionNegotiation) {
             return;
         }
+
         var header = packet.getHeader();
         var pn = header.getPacketNumber().getValue();
         if (this.largestPacketNumber === undefined ||  pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
         }
         
-        this.receivedPackets[pn.toString('hex', 8)] = {time: time, ackOnly: packet.isAckOnly()};
+        this.receivedPackets[pn.hash()] = { packetNumber: pn, time: time, ackOnly: packet.isAckOnly()};
 
         VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : added packet " + pn.toNumber() + ", ackOnly=" + packet.isAckOnly() );
 
@@ -155,17 +160,26 @@ export class AckHandler {
 
         // TODO: optimize: store largestPacketNumber timing separately so we don't need to do hashmap lookup
         // in that case, we can simply remove the timing from the hashmap alltogether? 
-        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.toString('hex', 8)].time).format(TimeFormat.MicroSeconds);
+        var ackDelay = Time.now(this.receivedPackets[this.largestPacketNumber.hash()]!.time).format(TimeFormat.MicroSeconds);
         ackDelay = ackDelay / (2 ** ackDelayExponent);
 
         var packetnumbers: Bignum[] = [];
-        Object.keys(this.receivedPackets).forEach((key) => packetnumbers.push(new Bignum(Buffer.from(key, 'hex'))));
+        Object.keys(this.receivedPackets).forEach( (key) => {
+            packetnumbers.push( this.receivedPackets[key]!.packetNumber );
+        });
+
+        /*
         packetnumbers.sort((a: Bignum, b: Bignum) => {
             return a.compare(b);
         });
         packetnumbers.reverse();
+        */
+        packetnumbers.sort((a: Bignum, b: Bignum) => {
+            return b.compare(a); // want a reverse sorted list, biggest numbers on top 
+        });
+
         var latestPacketNumber = this.largestPacketNumber;
-        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.toString('hex', 8)];
+        var largestAckedTime = this.receivedPackets[this.largestPacketNumber.hash()];
 
         var ackBlockCount = 0;
         var blocks = [];
@@ -177,13 +191,13 @@ export class AckHandler {
         for( let n = 0; n < packetnumbers.length; ++n )
             numberString += "" + packetnumbers[n].toNumber() + ",";
 
-        VerboseLogging.info(this.DEBUGname + " AckHandler:getAckFrame : This ACK frame will contain " + packetnumbers.length + " acked packets, with numbers : " + numberString);
+        VerboseLogging.error(this.DEBUGname + " AckHandler:getAckFrame : This ACK frame will contain " + packetnumbers.length + " acked packets, with numbers : " + numberString);
         
-
+        let bnOne = new Bignum(1);
         for (var i = 1; i < packetnumbers.length; i++) {
             var bn = packetnumbers[i - 1].subtract(packetnumbers[i]);
             //VerboseLogging.warn("ACK_BLOCK calc: " + packetnumbers[i - 1].toNumber() + " - " + packetnumbers[i].toNumber() + " = " + bn.toNumber() );
-            if (bn.compare(new Bignum(1)) !== 0) {
+            if (bn.compare(bnOne) !== 0) {
                 // spec says "The number of packets in the gap is one higher than the encoded value of the Gap Field."
                 // our previous code here was: gaps.push(bn.subtract(1).toNumber());
                 // BUT: this is erroneous! because bn is NOT the gap size, but 1 more than the gap size
@@ -248,8 +262,8 @@ export class AckHandler {
 
     /*
     private removePacket(packetNumber: Bignum): void {
-        if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
-            delete this.receivedPackets[packetNumber.toString('hex', 8)];
+        if (this.receivedPackets[packetNumber.hash()] !== undefined) {
+            delete this.receivedPackets[packetNumber.hash()];
         }
     }
     */

@@ -9,6 +9,8 @@ export class Bignum {
     private bignum: BN;
     private byteSize: number | undefined;
 
+    private _hash?:string;
+
     /**
      * @param buf buffer containing the number
      * @param byteSize bytesize, default calculated by Bignum class
@@ -24,6 +26,21 @@ export class Bignum {
             this.byteSize = byteSize;
             this.bignum = new BN(obj);
         }
+
+        this._hash = undefined;
+    }
+
+    public hash():string{
+
+        if( this._hash == undefined ){
+            this.setByteLength(8);
+            this._hash = this.bignum.toString(16, 16);
+            
+            //.toBuffer('be', bSize).toString(encoding);//this.toString('hex', 8);
+            //console.error("HASH", this.toString(), this._hash);
+        }
+
+        return this._hash;
     }
 
     /**

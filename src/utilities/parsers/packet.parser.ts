@@ -67,7 +67,7 @@ export class PacketParser {
         }
         var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>packetOffset.packet;
         if (!baseEncryptedPacket.containsValidFrames()) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet #" + baseEncryptedPacket.getHeader().getPacketNumber().toString() + " of type " + PacketType[baseEncryptedPacket.getPacketType()] );
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet #" + baseEncryptedPacket.getHeader().getPacketNumber().getValue().toDecimalString() + " of type " + PacketType[baseEncryptedPacket.getPacketType()] );
         }
         return packetOffset;
     }

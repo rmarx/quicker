@@ -13,7 +13,7 @@ export class Constants {
     ];
 
     public static readonly LOG_TYPE = "stdout";
-    public static          LOG_LEVEL = 'debug';
+    public static          LOG_LEVEL =  'debug';//'warn'; //
     public static          LOG_FILE_NAME  = 'server.log';
     public static readonly LOG_LARGE_BUFFER_DATA = true;
     public static readonly MAX_LOG_FILE_SIZE = 20971520; 
@@ -59,7 +59,7 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
-    public static readonly DEFAULT_MAX_DATA = 50 * 1024;
+    public static readonly DEFAULT_MAX_DATA = 1000 * 1024;
     public static readonly DEFAULT_ACK_EXPONENT = 3;
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;
     public static readonly MAX_PACKET_SIZE = 1252;

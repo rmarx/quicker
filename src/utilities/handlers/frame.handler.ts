@@ -147,21 +147,26 @@ export class FrameHandler {
         if (connection.getSendAllowance().lessThan(maxDataFrame.getMaxData())) {
             connection.setSendAllowance(maxDataFrame.getMaxData());
         }
+        else
+            VerboseLogging.error("FrameHandler:handleMaxDataFrame : received MAX_DATA allowance lower than what we already had! " + maxDataFrame.getMaxData().toDecimalString() + " <= " + connection.getSendAllowance().toDecimalString() );
     }
 
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
-        var streamId = maxDataStreamFrame.getStreamId();
+        let streamId = maxDataStreamFrame.getStreamId();
         if (Stream.isReceiveOnly(connection.getEndpointType(), streamId)) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
         if (Stream.isSendOnly(connection.getEndpointType(), streamId) && !connection.getStreamManager().hasStream(streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
         }
 
-        var stream = connection.getStreamManager().getStream(maxDataStreamFrame.getStreamId());
+        let stream = connection.getStreamManager().getStream(maxDataStreamFrame.getStreamId());
         if (stream.getSendAllowance().lessThan(maxDataStreamFrame.getMaxData())) {
             stream.setSendAllowance(maxDataStreamFrame.getMaxData());
             stream.setBlockedSent(false);
+        }
+        else{
+            VerboseLogging.error("FrameHandler:handleMaxStreamDataFrame : received MAX_STREAM_DATA allowance lower than what we already had! " + maxDataStreamFrame.getMaxData().toDecimalString() + " <= " + stream.getSendAllowance().toDecimalString() );
         }
     }
 

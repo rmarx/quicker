@@ -235,6 +235,7 @@ export class FrameParser {
             ackBlocks.push(new AckBlock(gap.value, block.value));
         }
 
+        largestAcknowledged.value.setByteLength(8); // needed to get a proper hash for lookuptable. TODO: make this cleaner! 
         let frame = FrameFactory.createAckFrame(containsECNinfo, largestAcknowledged.value, ackDelay.value, ackBlockCount.value, firstAckBlock.value, ackBlocks);
 
         if( containsECNinfo ){

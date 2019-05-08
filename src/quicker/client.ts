@@ -183,7 +183,7 @@ export class Client extends Endpoint {
             headerOffsets.forEach((headerOffset: HeaderOffset) => {
                 let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(this.connection, headerOffset, msg, EndpointType.Server);
                 if( fullHeaderOffset ){
-                    logTimeSince("client: onmessage", "packetnum is: " + fullHeaderOffset.header.getPacketNumber().toString())
+                    logTimeSince("client: onmessage", "packetnum is: " + fullHeaderOffset.header.getPacketNumber().getValue().toDecimalString())
                     var packetOffset: PacketOffset = this.packetParser.parse(this.connection, fullHeaderOffset, msg, EndpointType.Server);
                     this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
                 }
