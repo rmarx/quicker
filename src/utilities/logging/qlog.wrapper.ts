@@ -1,4 +1,4 @@
-import { Logger, getLogger } from 'log4js';
+import { Logger, getLogger, levels } from 'log4js';
 import {Constants} from '../constants';
 import { VerboseLogging } from './verbose.logging';
 
@@ -54,7 +54,7 @@ export class QlogWrapper{
         this.logger.addContext("ID", connectionID + "_" + vantagePoint); // so we can split logs based on the connectionID, see VerboseLogging:ctor
         this.logger.level = Constants.LOG_LEVEL; 
 
-        this.startTime = (new Date()).getTime();
+        this.startTime = Date.now();
 
         let qlogPreamble:any = {
             qlog_version: "0.1",
@@ -93,7 +93,7 @@ export class QlogWrapper{
         this.logger.debug(preambleString);
     }
 
-    public close(){
+    public close(){ 
         // NOTE: log4js isn't really setup to write data when the log files are closing
         // this will lead to incomplete valid .json files (As we don't close the array of events properly)
         // calling this close() method alleviates that.
@@ -105,7 +105,13 @@ export class QlogWrapper{
 
     // FIXME: make this of type qlog.IEventTuple instead of any (but also allow a more general setup that can bypass this if absolutely needed)
     private logToFile(evt:any[]){
-        evt[0] = ((new Date()).getTime() - this.startTime); // we store the delta, which is small enough, shouldn't need a string
+        let logLevel = levels.getLevel( this.logger.level );
+        if( logLevel.isGreaterThanOrEqualTo(levels.INFO) ){
+            // prevent doing all serializations here if we're not going to actually log it
+            return;
+        }
+
+        evt[0] = (Date.now() - this.startTime); // we store the delta, which is small enough, shouldn't need a string
         this.logger.debug( "                " + JSON.stringify(evt) + ",");
     }
 
@@ -131,7 +137,12 @@ export class QlogWrapper{
     }
 
     public onPacketTX(packet:BasePacket, trigger:qlog.TransporEventTrigger = qlog.TransporEventTrigger.LINE){
-        
+        let logLevel = levels.getLevel( this.logger.level );
+        if( logLevel.isGreaterThanOrEqualTo(levels.INFO) ){
+            // prevent doing all serializations here if we're not going to actually log it
+            return;
+        }
+
         // TODO: this logic is probably best done somewhere else, but for now it's easiest to keep it isolated here until we know the best way to log this 
         let connIDs = this.extractConnectionIDs(packet.getHeader());
         if( connIDs.src && connIDs.src != this.currentSrcConnID ){
@@ -161,6 +172,12 @@ export class QlogWrapper{
     }
 
     public onPacketRX(packet:BasePacket, trigger:qlog.TransporEventTrigger = qlog.TransporEventTrigger.LINE){
+        let logLevel = levels.getLevel( this.logger.level );
+        if( logLevel.isGreaterThanOrEqualTo(levels.INFO) ){
+            // prevent doing all serializations here if we're not going to actually log it
+            return;
+        }
+
         let evt:any = [
             123, 
             qlog.EventCategory.TRANSPORT,
@@ -443,7 +460,7 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
-    public onLossDetectionArmed(alarmType:string, lastSentHandshakeTimestamp:Date, alarmDuration:number, trigger:string = "PACKET_SENT"){
+    public onLossDetectionArmed(alarmType:string, lastSentHandshakeTimestamp:number, alarmDuration:number, trigger:string = "PACKET_SENT"){
 
         let evt:any = [
             123, 
@@ -452,7 +469,7 @@ export class QlogWrapper{
             trigger,
             {
                 type: alarmType,
-                last_handshake: lastSentHandshakeTimestamp.getMilliseconds(),
+                last_handshake: lastSentHandshakeTimestamp,
                 duration: alarmDuration
             }
         ];

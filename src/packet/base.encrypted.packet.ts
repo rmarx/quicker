@@ -37,6 +37,8 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         headerBuffer.copy(buffer, offset);
         offset += headerBuffer.byteLength;
         dataBuffer.copy(buffer, offset);
+
+        this.serializedSizeInBytes = buffer.byteLength;
         
         return buffer;
     }

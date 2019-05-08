@@ -158,14 +158,14 @@ export class QuicLossDetection extends EventEmitter {
      * @param basePacket The packet that is being sent. From this packet, the packetnumber and the number of bytes sent can be derived.
      */
     public onPacketSent(basePacket: BasePacket): void {
-        logTimeSince("loss-det: onpacketsent", "packetnum: " + basePacket.getHeader().getPacketNumber().toString());
+        logTimeSince("loss-det: onpacketsent", "packetnum: " + basePacket.getHeader().getPacketNumber().getValue().toDecimalString());
         let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromPacket(basePacket);
         if(space === undefined){
             VerboseLogging.error("LossDetection: Did not find packet number space, not adding to sentpackets! packetnumber: " + basePacket.getHeader().getPacketNumber().getValue().toDecimalString());
             return;
         }
         
-        var currentTime = (new Date()).getTime();
+        var currentTime = Date.now();
         var packetNumber = basePacket.getHeader().getPacketNumber().getValue();
 
         var sentPacket: SentPacket = {
@@ -175,17 +175,7 @@ export class QuicLossDetection extends EventEmitter {
             inFlight : basePacket.countsTowardsInFlight()
         };
 
-        let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
-        if( packet !== undefined ){
-            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
-            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        }
-        else{
-            VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
-
-            this.sentPackets[space][packetNumber.toString('hex', 8)] = sentPacket;
-        }
+        //VerboseLogging.error("lossDetection:onPacketSent : PN "+ packetNumber.toDecimalString() +" put in buffer with timestamp " + sentPacket.time);
         
 
         if(sentPacket.inFlight){
@@ -200,8 +190,18 @@ export class QuicLossDetection extends EventEmitter {
             }
             this.emit(QuicLossDetectionEvents.PACKET_SENT, basePacket)
             this.setLossDetectionAlarm();
+        }
+        
+        let packet = this.sentPackets[space][packetNumber.hash()];
+        if( packet !== undefined ){
+            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
+            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        }
+        else{
+            VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
 
-
+            this.sentPackets[space][packetNumber.hash()] = sentPacket;
         }
     }
 
@@ -212,7 +212,10 @@ export class QuicLossDetection extends EventEmitter {
         if( space === undefined ){
             return;
         }
-        let largestAcknowledgedPacket : SentPacket = this.sentPackets[space][ackFrame.getLargestAcknowledged().toString('hex', 8)];
+
+        let largestAcknowledgedPacket : SentPacket = this.sentPackets[space][ackFrame.getLargestAcknowledged().hash()];
+
+        VerboseLogging.info(this.DEBUGname + " LossDetection:updateRtt : updating for pnSpace " + kPacketNumberSpace[space] + " // " + ackFrame.getLargestAcknowledged().toDecimalString() + ", time = " + ( largestAcknowledgedPacket !== undefined ? largestAcknowledgedPacket.time : "UNKNOWN") );
 
          // check if we have not yet received an ACK for the largest acknowledge packet (then it would have been removed from this.sentPackets)
          // we could receive a duplicate ACK here, for which we don't want to update our RTT estimates
@@ -266,24 +269,32 @@ export class QuicLossDetection extends EventEmitter {
     private determineNewlyAckedPackets(receivedAckFrame: AckFrame): BasePacket[] {
         var ackedPackets: BasePacket[] = [];
         var ackedPacketnumbers = receivedAckFrame.determineAckedPacketNumbers();
-        VerboseLogging.info("Loss: Received ackframe for:" + ackedPacketnumbers.toString());
+        VerboseLogging.warn("Loss: Received ackframe for:" + ackedPacketnumbers.toString());
+
+        let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromAckFrame(receivedAckFrame);
+        if(space === undefined){
+            VerboseLogging.error("error, undefined numberspace");
+            return ackedPackets;
+        }
 
         ackedPacketnumbers.forEach((packetnumber: Bignum) => {
-            //VerboseLogging.info("Loss:determineNewlyAckedPackets : looking for sent packet " + packetnumber.toNumber());
-            let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromAckFrame(receivedAckFrame);
-            if(space == undefined){
-                VerboseLogging.error("error, undefined numberspace");
-                return;
-            }
-            let foundPacket = this.sentPackets[space][packetnumber.toString('hex', 8)];
+
+            //VerboseLogging.debug("Loss:determineNewlyAckedPackets : looking for sent packet " + packetnumber.toNumber() + " // " + Object.keys(this.sentPackets[space!]).length );
+            let foundPacket = this.sentPackets[space!][packetnumber.hash()];
             if (foundPacket !== undefined) {
-                //VerboseLogging.info("Loss:determineNewlyAckedPackets : Was found " + packetnumber.toNumber());
+                //VerboseLogging.debug("Loss:determineNewlyAckedPackets : Was found " + packetnumber.toNumber());
                 ackedPackets.push( foundPacket.packet );
             }
-            //else{
-                //console.log("Loss:determineNewlyAckedPackets : COULD NOT FIND, WAS ACKED EARLIER? " + packetnumber.toNumber() + " // " + Object.keys(this.sentPackets).length);
-                //console.log(this.sentPackets);
-            //}
+            else{
+                VerboseLogging.trace("Loss:determineNewlyAckedPackets : COULD NOT FIND, WAS ACKED EARLIER? " + packetnumber.toNumber() + " // " + Object.keys(this.sentPackets[space!]).length);
+                /*
+                let keys = "";
+                for( let key of Object.keys(this.sentPackets[space!]) ){
+                    keys += " - " + key;
+                }
+                VerboseLogging.error ("KEYS : " + keys + " // " + packetnumber.hash());
+                */
+            }
 
         });
 
@@ -302,10 +313,8 @@ export class QuicLossDetection extends EventEmitter {
      * @param sentPacket A reference to one of the sentPackets that is being acked in a received ACK frame
      */
     private onSentPacketAcked(sentPacket: BasePacket): void {
-        logTimeSince("lossdetection: onSentPacketAcked", "packetnum: " + sentPacket.getHeader().getPacketNumber().toString());
+        logTimeSince("lossdetection: onSentPacketAcked", "packetnum: " + sentPacket.getHeader().getPacketNumber().getValue().toDecimalString());
         let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber().getValue();
-        VerboseLogging.info(this.DEBUGname + " loss:onSentPacketAcked called for nr " + ackedPacketNumber.toNumber() + " with packettype " + sentPacket.getPacketType() + ", is retransmittable=" + sentPacket.isRetransmittable());
-
 
         let packet : SentPacket | undefined= this.removeFromSentPackets( this.findPacketSpaceFromPacket(sentPacket), ackedPacketNumber );
 
@@ -326,22 +335,23 @@ export class QuicLossDetection extends EventEmitter {
             VerboseLogging.warn(this.DEBUGname + " LossDetection: Trying to remove packet from undefined packet space ");
             return;
         }
-        let packet = this.sentPackets[space][packetNumber.toString('hex', 8)];
-        if( !packet ){
-            VerboseLogging.error("LossDetection:removeFromSentPackets : packet not in sentPackets " + packetNumber.toString('hex', 8) + ". SHOULD NOT HAPPEN! added this because it crashes our server, no idea yet what causes it");
+        let sentPacket = this.sentPackets[space][packetNumber.hash()];
+        if( !sentPacket ){
+            VerboseLogging.error("LossDetection:removeFromSentPackets : packet not in sentPackets " + packetNumber.hash() + ". SHOULD NOT HAPPEN! added this because it crashes our server, no idea yet what causes it");
             return;
         }
 
-        if (this.sentPackets[space][packetNumber.toString('hex', 8)].packet.isRetransmittable()) {
+        if (sentPacket.packet.isRetransmittable()) {
             this.ackElicitingPacketsOutstanding--;
         }
-        if (this.sentPackets[space][packetNumber.toString('hex', 8)].packet.containsCryptoFrames()) {
+        if (sentPacket.packet.containsCryptoFrames()) {
             VerboseLogging.info("Decreasing cryptooutstanding for packetnum " + packetNumber.toDecimalString() + " from space " + space + "   outstanding = " + this.cryptoOutstanding)
             this.cryptoOutstanding--;
         }
-        let sentPacket =  this.sentPackets[space][packetNumber.toString('hex', 8)];
-        VerboseLogging.info("LossDetection: Removing packet " + packetNumber.toDecimalString() + "from sentPackets, in space: " + space + " and type " + sentPacket.packet.getPacketType())
-        delete this.sentPackets[space][packetNumber.toString('hex', 8)];
+
+        VerboseLogging.debug("LossDetection: Removing packet " + packetNumber.toDecimalString() + "from sentPackets, in space: " + space + " and type " + sentPacket.packet.getPacketType())
+        delete this.sentPackets[space][packetNumber.hash()];
+
         return sentPacket;
     }
 
@@ -417,7 +427,7 @@ export class QuicLossDetection extends EventEmitter {
         });
         this.lossDetectionAlarm.start(alarmDuration);
         //TODO: get last handshake date?
-        this.connection.getQlogger().onLossDetectionArmed(alarmType, new Date(0), alarmDuration);
+        this.connection.getQlogger().onLossDetectionArmed(alarmType, Date.now(), alarmDuration);
         
     }
 
@@ -461,24 +471,29 @@ export class QuicLossDetection extends EventEmitter {
         let lossDelay : number = QuicLossDetection.kTimeThreshold * Math.max(this.rttMeasurer.latestRtt, this.rttMeasurer.smoothedRtt);
 
         //packets send before this time are deemed lost
-        let lostSendTime : number = (new Date()).getTime() - lossDelay;
+        let lostSendTime : number = Date.now() - lossDelay;
 
         // packets with packet number before this are lost
         let lostPN : Bignum = this.largestAckedPacket[space].subtract(QuicLossDetection.kPacketThreshold);
 
+        
 
         Object.keys(this.sentPackets[space]).forEach((key:string) => {
-            var unackedPacketNumber = new Bignum(Buffer.from(key, 'hex'));
-            if(unackedPacketNumber > this.largestAckedPacket[space])
+            let unacked = this.sentPackets[space][key];
+            let unackedPacketNumber:Bignum = unacked.packet.getHeader().getPacketNumber().getValue();
+
+            if( unackedPacketNumber.greaterThanOrEqual(this.largestAckedPacket[space]) )
                 return;
             
-            var unacked = this.sentPackets[space][key];
-            if(unacked.time <= lostSendTime || unacked.packet.getHeader().getPacketNumber().getValue().lessThanOrEqual(lostPN)){
+            if(unacked.time <= lostSendTime || unackedPacketNumber.lessThanOrEqual(lostPN)){
+
                 this.removeFromSentPackets(space, unackedPacketNumber);
+
                 if(unacked.inFlight){
-                    VerboseLogging.info("LossDetecion: packet " + unacked.packet.getHeader().getPacketNumber().getValue() + " was deemded lost");
                     lostPackets.push(unacked);
-                    this.connection.getQlogger().onPacketLost(unacked.packet.getHeader().getPacketNumber().getValue());
+
+                    VerboseLogging.info("LossDetecion: packet " + unackedPacketNumber + " was deemded lost");
+                    this.connection.getQlogger().onPacketLost(unackedPacketNumber);
                 }
             }
             else{ 
@@ -497,10 +512,12 @@ export class QuicLossDetection extends EventEmitter {
         // let it decide whether to retransmit immediately.
         if (lostPackets.length > 0) {
             this.emit(QuicLossDetectionEvents.PACKETS_LOST, lostPackets);
+            /*
             lostPackets.forEach((lostPacket: SentPacket) => {
-                var sentPacket = this.sentPackets[space][lostPacket.packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
+                var sentPacket = this.sentPackets[space][lostPacket.packet.getHeader().getPacketNumber().getValue().hash()];
                 //originally, the crypto packets outstanding got substracted here, but since these should only be detected lost by cryptoretransmission, they should be subtracted at acknowledgment of the retransmit
             });
+            */
         }
     }
 

@@ -20,7 +20,9 @@ export interface SentPacket {
     // Milliseconds sinds epoch
     time: number, // time at which this packet is sent locally, used to calculate RTT
     // Does the packet contain frames that are retransmittable
-    isRetransmittable: boolean
+    isRetransmittable: boolean,
+
+    inFlight : boolean
 };
 
 
@@ -106,7 +108,8 @@ export class QuicLossDetection extends EventEmitter {
         var sentPacket: SentPacket = {
             packet: basePacket,
             time: currentTime,
-            isRetransmittable: basePacket.isRetransmittable()
+            isRetransmittable: basePacket.isRetransmittable(),
+            inFlight: true
         };
         
         //TODO should be in_flight , draft-17 has isretransmittable/ack eliciting
@@ -227,7 +230,7 @@ export class QuicLossDetection extends EventEmitter {
     private onSentPacketAcked(sentPacket: BasePacket): void {
 
         let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber().getValue();
-        VerboseLogging.info(this.DEBUGname + " loss:onSentPacketAcked called for nr " + ackedPacketNumber.toNumber() + ", is retransmittable=" + this.sentPackets[ackedPacketNumber.toString('hex', 8)].packet.isRetransmittable());
+        VerboseLogging.error(this.DEBUGname + " loss:onSentPacketAcked called for nr " + ackedPacketNumber.toNumber() + ", is retransmittable=" + this.sentPackets[ackedPacketNumber.toString('hex', 8)].packet.isRetransmittable());
 
         // TODO: move this to the end of this function? 
         // inform ack handler so it can update internal state, congestion control so it can update bytes-in-flight etc.

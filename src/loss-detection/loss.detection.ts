@@ -20,7 +20,8 @@ export interface SentPacket {
     // Milliseconds sinds epoch
     time: number, // time at which this packet is sent locally, used to calculate RTT
     // Does the packet contain frames that are retransmittable
-    isRetransmittable: boolean
+    isRetransmittable: boolean,
+    inFlight: boolean
 };
 
 
@@ -141,7 +142,8 @@ export class LossDetection extends EventEmitter {
         var sentPacket: SentPacket = {
             packet: basePacket,
             time: currentTime,
-            isRetransmittable: basePacket.isRetransmittable()
+            isRetransmittable: basePacket.isRetransmittable(),
+            inFlight: false
         };
         if (basePacket.isRetransmittable()) {
             this.retransmittablePacketsOutstanding++;

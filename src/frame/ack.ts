@@ -154,7 +154,7 @@ export class AckFrame extends BaseFrame {
             packetnumbers.push(x);
         }
 
-        var ackBlock: AckBlock | undefined = this.getAckBlocks().shift();;
+        var ackBlock: AckBlock | undefined = this.getAckBlocks().shift();
         while (ackBlock !== undefined) {
             for (var j = 0; j < ackBlock.getGap().toNumber(); j++) {
                 x = x.subtract(1);

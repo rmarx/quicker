@@ -129,9 +129,9 @@ export class Server extends Endpoint {
                 let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
                 if( fullHeaderOffset ){
                     VerboseLogging.info("time diff " + (Date.now() - timebefore));
-                    logTimeSince("server: onmessage", "packetnumber is " + fullHeaderOffset.header.getPacketNumber().toString())
+                    logTimeSince("server: onmessage", "packetnumber is " + fullHeaderOffset.header.getPacketNumber().getValue().toDecimalString());
                     let packetOffset: PacketOffset = this.packetParser.parse(connection, fullHeaderOffset, msg, EndpointType.Client);
-                    this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+                    setImmediate( () => { this.packetHandler.handle(connection!, packetOffset.packet, receivedTime); });
                 }
                 else
                 VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");

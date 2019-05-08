@@ -2,7 +2,7 @@ import { Bignum } from '../types/bignum';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { AckFrame } from '../frame/ack';
 import { BasePacket } from '../packet/base.packet';
-import { SentPacket } from './loss.detection';
+import { SentPacket } from '../loss-detection/loss.detection.draft19';
 import { BN } from 'bn.js';
 import { Connection } from '../quicker/connection';
 import { Constants } from '../utilities/constants';
@@ -46,7 +46,10 @@ export class RTTMeasurement{
 
     public updateRTT(receivedAckFrame: AckFrame, largestAcknowledgedPacket:SentPacket){
 
-        this.latestRtt =  (new Date().getTime()) - largestAcknowledgedPacket.time; //new Bignum(new Date().getTime()).subtract(largestAcknowledgedPacket.time);
+        VerboseLogging.info("RTTMeasurement:checking time " + largestAcknowledgedPacket.time + " -> new latestrtt : " + ((new Date().getTime()) - largestAcknowledgedPacket.time) + " // old latest: " + this.latestRtt );
+        //console.trace("RTTMeasurement Called from");
+
+        this.latestRtt =  (Date.now()) - largestAcknowledgedPacket.time; //new Bignum(new Date().getTime()).subtract(largestAcknowledgedPacket.time);
 
         this.minRtt = Math.min( this.minRtt, this.latestRtt );//Bignum.min(this.minRtt, this.latestRtt);
 
@@ -103,5 +106,11 @@ export class RTTMeasurement{
         }
         
         this.connection.getQlogger().onRTTUpdate(this.latestRtt, this.minRtt, this.smoothedRtt, this.rttVar,this.maxAckDelay);
+
+
+        if( this.latestRtt > 5000 ){
+            VerboseLogging.error("RTT is higher than 5s, should NOT happen! " + this.latestRtt);
+            process.exit(666);
+        }
     }
 }

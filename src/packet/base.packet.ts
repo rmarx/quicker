@@ -9,6 +9,9 @@ export abstract class BasePacket {
     private header: BaseHeader;
     private packetType: PacketType;
 
+    protected serializedSizeInBytes: number;
+    protected serialized?:Buffer;
+
     protected retransmittable: boolean;
     protected ackOnly: boolean;
     protected paddingOnly: boolean;
@@ -25,6 +28,8 @@ export abstract class BasePacket {
         this.paddingOnly = true;
         this.containsCrypto = false;
         this.inFlight = false;
+
+        this.serializedSizeInBytes = -1;
     }
 
 
@@ -48,6 +53,16 @@ export abstract class BasePacket {
 
     public containsCryptoFrames() : boolean{
         return this.containsCrypto;
+    }
+
+    public getSerializedSizeInBytes(){
+        if( this.serializedSizeInBytes > -1 ){
+            return this.serializedSizeInBytes;
+        }
+        else{
+            console.error("BasePacket:getSerializedSizeInBytes : not cached yet! call buffer() before this!");
+            return 0;
+        }
     }
 
     /**

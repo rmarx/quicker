@@ -23,7 +23,7 @@ import { StopSendingFrame } from '../../frame/stop.sending';
 import { AckFrame, AckBlock } from '../../frame/ack';
 import { CryptoFrame } from '../../frame/crypto';
 import { StreamFrame } from '../../frame/stream';
-import { configure, getLogger, Logger } from 'log4js';
+import { configure, getLogger, Logger, levels } from 'log4js';
 import { TransportParameterType } from '../../crypto/transport.parameters';
 import { HeaderType, BaseHeader } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
@@ -65,6 +65,12 @@ export class PacketLogging {
     }
 
     public logIncomingPacket(connection: Connection, basePacket: BasePacket) {
+        let logLevel = levels.getLevel( this.startOutput.level );
+        if( logLevel.isGreaterThanOrEqualTo(levels.WARN) ){
+            // prevent doing all serializations here if we're not going to actually log it
+            return;
+        }
+
         var log = this.logPackets(connection, basePacket, "RX", ConsoleColor.FgCyan);
         this.startOutput.info("\n" + log);
 
@@ -92,6 +98,12 @@ export class PacketLogging {
     }
 
     public logOutgoingPacket(connection: Connection, basePacket: BasePacket) {
+        let logLevel = levels.getLevel( this.startOutput.level );
+        if( logLevel.isGreaterThanOrEqualTo(levels.WARN) ){
+            // prevent doing all serializations here if we're not going to actually log it
+            return;
+        }
+
         var log = this.logPackets(connection, basePacket, "TX", ConsoleColor.FgRed);
         this.startOutput.info("\n" + log);
         
