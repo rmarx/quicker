@@ -409,10 +409,11 @@ export class QlogWrapper{
             "METRIC_UPDATE",
             trigger,
             {
-                latest: latestRTT,
-                min: minRTT,
-                smoothed: smoothedRTT,
-                variance: variance,
+                metric: "RTT",
+                latest_rtt: latestRTT,
+                min_rtt: minRTT,
+                smoothed_rtt: smoothedRTT,
+                rtt_variance: variance,
                 max_ack_delay: maxAckDelay
             }
         ];
@@ -429,6 +430,7 @@ export class QlogWrapper{
             "METRIC_UPDATE",
             trigger,
             {
+                metric: "congestion window",
                 phase: ccPhase,
                 new: currentCWND,
                 old: oldCWND
@@ -448,8 +450,9 @@ export class QlogWrapper{
             "METRIC_UPDATE",
             trigger,
             {
+                metric: "bytes in flight",
                 bytes_in_flight: bytesInFlight.toDecimalString(),
-                current_CWND : currentCWND.toDecimalString(),
+                cwnd : currentCWND.toDecimalString(),
                 available_cwnd : currentCWND.subtract(bytesInFlight).toDecimalString(),
                 metadata:{
                     ...metadata
