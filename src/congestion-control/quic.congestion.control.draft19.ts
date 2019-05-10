@@ -243,6 +243,7 @@ export class QuicCongestionControl extends PacketPipe {
      *      does this count as persistent congestion? 
      *  
      *      also issue when two random packets were dropped far enough away from each other
+     //TODO: change onPacketsLost to pass the two furthest away packets with a full block of lost data inbetween, somehow
      */
 
         // quinn : rust implementation version
@@ -353,9 +354,12 @@ export class QuicCongestionControl extends PacketPipe {
     private checkIdleConnection(){
         //TODO: check if this causes no unintentional resets of the congestion window
         // or if this test even passes at all due to the current placed this.sendPackets() setup
-        if(this.packetsQueue.length == 0 && this.bytesInFlight.equals(0)){
-            this.setCWND(new Bignum(QuicCongestionControl.kInitialWindow));
-        }
+        
+        //this does cause a reset at the very end of a transmission, commented
+
+        //if(this.packetsQueue.length == 0 && this.bytesInFlight.equals(0)){
+        //    this.setCWND(new Bignum(QuicCongestionControl.kInitialWindow));
+        //}
     }
 
 

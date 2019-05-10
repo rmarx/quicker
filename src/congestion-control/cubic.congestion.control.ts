@@ -67,26 +67,24 @@ export class CubicCongestionControl extends PacketPipe {
      */
     private recoveryStartTime : number;
     /**
-     * Slow Start threashold
+     * Slow Start threshold
      */
     private ssthresh : number;
     /**
-     * 
+     * the previous maximum
      */
     private WlastMax !: number;
     /**
-     * 
+     * the time (since computer-time epoch) at which the current congestion avoidance epoch started
      */
     private epochStart !: number;
     /**
-     * TODO: not sure what this is
-     * i assume the point where the cwind started? 
+    * the point where the cubic graph will be flat (wlastmax in normal situations(?))
      */
     private originPoint !: number;
     /**
      * minimum delay
      * minimum RTT is already calculated in the rtt measurement, so will probably be using that
-     * 
      */
     private dMin !: number;
     /**
@@ -104,7 +102,7 @@ export class CubicCongestionControl extends PacketPipe {
      */
     private ackCnt !: number;
     /**
-     * 
+     * count of when to increase the cwnd
      */
     private cwndCnt : number = 0;
 
@@ -241,16 +239,22 @@ export class CubicCongestionControl extends PacketPipe {
                 this.originPoint = this.WlastMax;
             }
             else{
+                //set originpoint to the current congestion window
+                // since the cwnd is above the lastmax at the start of an epoch, start probing from the current window
+                // and time until hitting lastmax is 0 since we are past lastmax
                 this.K = 0;
                 this.originPoint = this.congestionWindow;
             }
             this.ackCnt = 1;
             this.Wtcp = this.congestionWindow;
         }
-        //the time of the supposed next ack
+        //time since last loss event
+        //since we are trying to calculate T + RTT add minRTT
         let t = Date.now() + this.RTTMeasurer.minRtt - this.epochStart;
-        let Wt = CubicCongestionControl.CUBICParameter * Math.pow(t - this.K, 3);
-        let target = this.originPoint + Wt;
+        // differenceToWmax can be negative
+        let differenceToWmax = CubicCongestionControl.CUBICParameter * Math.pow(t - this.K, 3);
+        // the target for the next round trip
+        let target = this.originPoint + differenceToWmax;
 
         let count = 0;
 
@@ -298,7 +302,7 @@ export class CubicCongestionControl extends PacketPipe {
             this.ssthresh = this.congestionWindow;
         }
         this.epochStart = 0;
-        //if a loss happened before it reached the last max, there is a good possibility that is a new sender on the network
+        //if a loss happened before it reached the last max, there is a good possibility that there is a new sender on the network
         //make extra space
         if(this.congestionWindow < this.WlastMax && CubicCongestionControl.fastConvergence){
             this.WlastMax = this.congestionWindow * ((2-CubicCongestionControl.kLossReductionFactor) / 2);
@@ -383,23 +387,12 @@ export class CubicCongestionControl extends PacketPipe {
     }
 
 
-    private checkIdleConnection(){
-        //TODO: check if this causes no unintentional resets of the congestion window
-        // or if this test even passes at all due to the current placed this.sendPackets() setup
-        if(this.packetsQueue.length == 0 && this.bytesInFlight.equals(0)){
-            this.setCWND(CubicCongestionControl.kInitialWindow);
-        }
-    }
-
-
-
     //TODO REFACTOR:
     // having this.sendpackets() in random places doesn't really make sense to me?
     // find out reason why this is and change it, will probably lead to cleaner system
     private sendPackets(){
         // TODO: doublecheck if some packets need to be excluded from blocking by CC/pacer
         // update, PTO packets need to not be blocked
-        this.checkIdleConnection();
         while (this.bytesInFlight.lessThan(this.congestionWindow * CubicCongestionControl.kMaxDatagramSize) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {

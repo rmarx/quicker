@@ -432,8 +432,8 @@ export class QlogWrapper{
             {
                 metric: "congestion window",
                 phase: ccPhase,
-                new: currentCWND,
-                old: oldCWND
+                cwnd: currentCWND,
+                old_cwnd: oldCWND
             }
         ];
 
@@ -452,7 +452,7 @@ export class QlogWrapper{
             {
                 metric: "bytes in flight",
                 bytes_in_flight: bytesInFlight.toDecimalString(),
-                cwnd : currentCWND.toDecimalString(),
+                current_cwnd : currentCWND.toDecimalString(),
                 available_cwnd : currentCWND.subtract(bytesInFlight).toDecimalString(),
                 metadata:{
                     ...metadata
