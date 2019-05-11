@@ -2,6 +2,7 @@ import { VLIE } from '../crypto/vlie';
 import { Bignum } from '../types/bignum';
 import { BaseFrame, FrameType } from './base.frame';
 import { EncryptionLevel } from '../crypto/crypto.context';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 
 /*
@@ -150,16 +151,19 @@ export class AckFrame extends BaseFrame {
         var x = this.getLargestAcknowledged();
         packetnumbers.push(x);
         for (var i = 0; i < this.getFirstAckBlock().toNumber(); i++) {
+
             x = x.subtract(1);
             packetnumbers.push(x);
         }
 
         var ackBlock: AckBlock | undefined = this.getAckBlocks().shift();
         while (ackBlock !== undefined) {
-            for (var j = 0; j < ackBlock.getGap().toNumber(); j++) {
+            //-1 because a gap of 0 still implies the current x is not acked
+            for (var j = -1; j < ackBlock.getGap().toNumber(); j++) {
                 x = x.subtract(1);
             }
-            for (var j = 0; j < ackBlock.getBlock().toNumber(); j++) {
+            //-1 because a block of 0 still implies the current x is acked
+            for (var j = -1; j < ackBlock.getBlock().toNumber(); j++) {
                 x = x.subtract(1);
                 packetnumbers.push(x);
             }
