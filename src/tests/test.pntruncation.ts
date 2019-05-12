@@ -49,6 +49,10 @@ export class TestPNTruncation  {
 
         // inspired by some quicly tests:
         // https://github.com/h2o/quicly/blob/ce9726b1aad3067f5b6a2886435eb5a70494607b/t/test.c#L311
+        // and mvfst tests
+        // https://github.com/facebookincubator/mvfst/blob/master/quic/codec/test/PacketNumberTest.cpp
+
+        let results = [];
 
         // edge cases to test for decoding to the "closest" packet number (taken from quicly tests)
         let result0 = TestPNTruncation.undoOnly(        [0xc0],                                             [0xc0],                     [0x1, 0x39] );
@@ -65,9 +69,41 @@ export class TestPNTruncation  {
         let result6 = TestPNTruncation.truncateAndUndo( [0xAF, 0xBF, 0xCF, 0xDF, 0xEF, 0xFF, 0x0F],         [0x0F],                     [0xAF, 0xBF, 0xCF, 0xDF, 0xEF, 0xFF, 0x00] );
         let result7 = TestPNTruncation.truncateAndUndo( [0xAF, 0xBF, 0xCF, 0xDF, 0xEF, 0xFF, 0x0F],         [0xEF, 0xFF, 0x0F],         [0xAF, 0xBF, 0xCF, 0xDF, 0xE0, 0x00, 0x00] );
         let result8 = TestPNTruncation.truncateAndUndo( [0xAF, 0xBF, 0xCF, 0xDF, 0xEF, 0xFF, 0x0F],         [0xDF, 0xEF, 0xFF, 0x0F],   [0xAF, 0xBF, 0xCF, 0xDF, 0x00, 0x00, 0x00] );
+
+        // full cases (taken from mvfst tests)
+        // 1 byte
+        results.push( TestPNTruncation.undoOnly(        [0xaa, 0x82, 0xf2, 0x94],                           [0x94],                     [0xaa, 0x82, 0xf3, 0x0e] ));
+        results.push( TestPNTruncation.undoOnly(        [0xaa, 0x83, 0x00, 0x01],                           [0x01],                     [0xaa, 0x82, 0xff, 0xff] ));
+        results.push( TestPNTruncation.undoOnly(        [0xaa, 0x83, 0x00, 0x01],                           [0x01],                     [0xaa, 0x82, 0xff, 0xfe] ));
+
+        // 2 bytes
+        results.push( TestPNTruncation.undoOnly(        [0xaa, 0x83, 0x1f, 0x94],                           [0x1f, 0x94],               [0xaa, 0x82, 0xf3, 0x0e] ));
+        results.push( TestPNTruncation.undoOnly(        [0x90, 0x00],                                       [0x90, 0x00],               [0x1,  0x00, 0x00] ));
+        results.push( TestPNTruncation.undoOnly(        [0x1,  0x80, 0x00],                                 [0x80, 0x00],               [0x1,  0x00, 0x00] ));
+        results.push( TestPNTruncation.undoOnly(        [0x1,  0x80, 0x00],                                 [0x80, 0x00],               [0xff, 0xff] ));
+
+        results.push( TestPNTruncation.undoOnly(        [0xf1, 0xff, 0xff],                                 [0xff, 0xff],               [0xf2, 0x00, 0x00] ));
+        results.push( TestPNTruncation.undoOnly(        [0x1,  0x00, 0x00, 0x00],                           [0x00, 0x00],               [0x0,  0xff, 0xf0, 0x0f] ));
+        results.push( TestPNTruncation.undoOnly(        [0x01, 0x0f],                                       [0x01, 0x0f],               [0x00, 0x1f] ));
+        results.push( TestPNTruncation.undoOnly(        [0x00, 0x0f],                                       [0x00, 0x0f],               [0x00, 0x1f] ));
+
+        results.push( TestPNTruncation.undoOnly(        [0x0f, 0xff],                                       [0x0f, 0xff],               [0x00, 0x01] ));
+        results.push( TestPNTruncation.undoOnly(        [0x00, 0x02],                                       [0x00, 0x02],               [0x00, 0x01] ));
+        results.push( TestPNTruncation.undoOnly(        [0x1, 0x00, 0x01],                                  [0x00, 0x01],               [0x1,  0x00, 0x00] ));
+        results.push( TestPNTruncation.undoOnly(        [0xaa, 0x83, 0x09, 0xb3],                           [0x9,  0xb3],               [0xaa, 0x82, 0xf3, 0x0e] ));
+        results.push( TestPNTruncation.undoOnly(        [0xa8, 0x2f, 0x9b, 0x32],                           [0x9b, 0x32],               [0xa8, 0x2f, 0x30, 0xea] ));
+
+        // 4 bytes
+        results.push( TestPNTruncation.undoOnly(        [0x01, 0x00, 0x94, 0xf3, 0x0e],                     [0x00, 0x94, 0xf3, 0x0e],   [0xaa, 0x82, 0xf3, 0x0e] ));
+        results.push( TestPNTruncation.undoOnly(        [0xbd, 0x00, 0x00, 0x00, 0x00],                     [0x00, 0x00, 0x00, 0x00],   [0xbc, 0xaa, 0x82, 0xf3, 0x0e] ));
+        results.push( TestPNTruncation.undoOnly(        [0xbc, 0xaa, 0x82, 0xf3, 0x0f],                     [0xaa, 0x82, 0xf3, 0x0f],   [0xbc, 0xaa, 0x82, 0xf3, 0x0e] ));
         
         // TODO: add edge cases for 64-bit and 3 and 4 byte truncated values!
+        let result = true;
+        for( let entry of results ){
+            result = result && entry;
+        }
 
-        return result0 && result1 && result2 && result3 && result4 && result5 && result6 && result7 && result8;
+        return result0 && result1 && result2 && result3 && result4 && result5 && result6 && result7 && result8 && result;
     }
 }

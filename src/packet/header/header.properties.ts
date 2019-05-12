@@ -186,8 +186,8 @@ export class PacketNumber extends BaseProperty {
         */
         
         if( this.getValue().lessThan(largestAcknowledgedPacketNumber.getValue()) ){
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Cannot truncate to a higher packet number!");
-        }
+            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "Cannot truncate to a higher packet number! " + this.getValue() + " <= " + largestAcknowledgedPacketNumber.getValue());
+        } 
 
         // for an explanation of the algorithm, look at :restoreFromTruncate
         // this approach was inspired by the Quinn implementation
