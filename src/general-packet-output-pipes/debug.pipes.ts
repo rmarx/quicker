@@ -178,8 +178,45 @@ export class DEBUGIncreaseRTT extends PacketPipe{
       * @param packet 
       */
      public packetIn(packet: BasePacket) {
-        setTimeout(() => { 
+
+            setTimeout(() => { 
+                this.nextPipeFunc(packet);
+            }, this.waitMS);
+    }
+}
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+export class DEBUGSingleDropServerOnly extends PacketPipe{
+
+    private packetCountX : number = 25;
+    private count : number;
+    private connection: Connection;
+
+    constructor(connection: Connection){
+        super();
+        this.count = 0;
+        this.connection = connection;
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        this.count = this.count + 1;
+        if(this.connection.getEndpointType() === EndpointType.Client){
             this.nextPipeFunc(packet);
-        }, this.waitMS);
-     }
+        }
+        else if(this.count < this.packetCountX || this.count > this.packetCountX){
+            this.nextPipeFunc(packet);
+        }
+        else{
+            //caching the size......
+            packet.toBuffer(this.connection);
+            VerboseLogging.warn("DROPPING PACKET BY DEBUGSingleDropServerOnly, SHOULD NOT BE ENABLED OUTSIDE DEBUGGING")
+        }
+    }
 }

@@ -393,7 +393,7 @@ export class QlogWrapper{
             trigger,
             {
                 header:{
-                    nr: packetNumber.toDecimalString()
+                    "packet_number": packetNumber.toDecimalString()
                 }
             }
         ];

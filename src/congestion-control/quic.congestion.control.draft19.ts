@@ -169,7 +169,6 @@ export class QuicCongestionControl extends PacketPipe {
 
         if(this.inRecovery(ackedPacket.time)){
             // No change in congestion window in recovery period
-            return;
         }
         /** TODO how to detect if app limited
          * else if(isAppLimited()){
