@@ -98,18 +98,21 @@ export class Server extends Endpoint {
         VerboseLogging.debug("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
 
         VerboseLogging.trace("server:onMessage: message length in bytes: " + msg.byteLength);
-        VerboseLogging.trace("server:onMessage: raw message from the wire : " + msg.toString('hex'));
+        VerboseLogging.info("server:onMessage: raw message from the wire : " + msg.toString('hex'));
         
         let receivedTime = Time.now();
         let headerOffsets:HeaderOffset[]|undefined = undefined;
 
-        try {
+        //try {
             headerOffsets = this.headerParser.parse(msg);
-        } catch(err) {
-            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + JSON.stringify(rinfo) );
+        //} 
+        /*catch(err) {
+            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + JSON.stringify(rinfo) + " // " + err );
+            console.trace("Server:onMessage");
             // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
+        */
 
         VerboseLogging.trace("Server:onMessage: Message contains " + headerOffsets.length + " independent packets (we think)");
         

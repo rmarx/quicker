@@ -192,7 +192,7 @@ export class QlogWrapper{
             data.message = "TODO: support other header types " + HeaderType[header.getHeaderType()];
         }
         else{
-            data.packet_number = packet.getHeader().getPacketNumber().getValue().toDecimalString();
+            data.packet_number = packet.getHeader().getPacketNumber()!.getValue().toDecimalString();
 
             if( header.getHeaderType() === HeaderType.LongHeader ){
                 data.version = (<LongHeader>header).getVersion().getValue().toString();

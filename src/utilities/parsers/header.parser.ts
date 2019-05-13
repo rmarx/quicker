@@ -78,11 +78,11 @@ export class HeaderParser {
     }
 
     /** 
-    * https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.1
+    * https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.2
        0                   1                   2                   3
        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
        +-+-+-+-+-+-+-+-+
-       |1|   Type (7)  |
+        |1|1|T T|X X X X|
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
        |                         Version (32)                          |
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -92,49 +92,50 @@ export class HeaderParser {
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
        |                 Source Connection ID (0/32..144)            ...
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-       |                       Payload Length (i)                    ...
-       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-       |                       Packet Number (32)                      |
-       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-       |                          Payload (*)                        ...
-       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    */
-    /**
-     *  Method to parse the Long header of a packet
-     * 
-     * @param buf packet buffer
-     */
     private parseLongHeader(buf: Buffer, offset: number): HeaderOffset {
         var startOffset = offset; // measured in bytes
-        var type = (buf.readUInt8(offset++) - 0x80); // 0x80 to negate header type, see :parseHeader
+        var firstByte = (buf.readUInt8(offset++) - 0xC0); // -0xC0 to remove first 2 bytes (otherwhise, bitwise operators are wonky in JS)
+
+        let type = firstByte >> 4; // with the highest 2 bits removed above, we just drop the 4 rightmost ones to just keep the 2 type bits
 
         VerboseLogging.debug("HeaderParser:parseLongHeader: type " + type + " // " + LongHeaderType[type] );
 
-        var version = new Version(buf.slice(offset, offset + 4)); // version is 4 bytes
+        if( type === LongHeaderType.Retry ){
+            VerboseLogging.error("headerParser:parseLongHeader : parsing a Retry packet, isn't supported yet! (ODCIL length in first byte)");
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Retry could not be parsed, not supported yet");
+        }
+
+        // lower 4 bits are : RESERVED RESERVED PNLENGTH PNLENGTH
+        let pnLength = firstByte & 0b00000011;
+        pnLength += 1; // is always encoded as 1 less than the actual count, since a PN cannot be 0 bytes long
+
+        let version = new Version(buf.slice(offset, offset + 4)); // version is 4 bytes
         offset += 4;
 
         if (VersionValidation.IsVersionNegotationFlag(version)) {
             return this.parseVersionNegotiationHeader(buf, offset, type);
         }
 
-        var conLengths = buf.readUInt8(offset++); // single byte containing both ConnectionID lengths DCIL and SCIL 
+        let conLengths = buf.readUInt8(offset++); // single byte containing both ConnectionID lengths DCIL and SCIL 
         // VERIFY TODO: connectionIDs can be empty if the other party can choose them freely
-        var destLength = conLengths >> 4; // the 4 leftmost bits are the DCIL 
-        destLength = destLength === 0 ? destLength : destLength + 3;
-        var srcLength = conLengths & 0xF; // 0xF = 0b1111, so we keep just the 4 rightmost bits 
-        srcLength = srcLength === 0 ? srcLength : srcLength + 3;
-
-        // NOTE for above: we want to encode variable lengths for the Connection IDs of 4 to 18 bytes
+        // connection-id length encoding: we want to encode variable lengths for the Connection IDs of 4 to 18 bytes
         // to save space, we cram this info into 4 bits. Normally, they can only hold 0-15 as values, but because minimum length is 4, we can just do +3 to get the real value
+        let dcil = conLengths >> 4; // drop the 4 rightmost bits 
+        dcil = dcil === 0 ? dcil : dcil + 3;
+        let scil = conLengths & 0b00001111;  
+        scil = scil === 0 ? scil : scil + 3;
 
-        var destConnectionID = new ConnectionID(buf.slice(offset, offset + destLength), destLength);
-        offset += destLength;
-        var srcConnectionID = new ConnectionID(buf.slice(offset, offset + srcLength), srcLength);
-        offset += srcLength;
 
-        let tokenLength:Bignum = new Bignum(0);
+        let destConnectionID = new ConnectionID(buf.slice(offset, offset + dcil), dcil);
+        offset += dcil;
+        let srcConnectionID = new ConnectionID(buf.slice(offset, offset + scil), scil);
+        offset += scil;
+
         let tokens:Buffer|undefined = undefined;
         if( type == LongHeaderType.Initial ){
+
+            let tokenLength:Bignum = new Bignum(0);
             // draft-13 added a token in the Initial packet, after the SCID
             // https://tools.ietf.org/html/draft-ietf-quic-transport-13#section-4.4.1
             // TODO: FIXME: actually add these to LongHeader packet, now just done for quick parsing fixing
@@ -153,19 +154,19 @@ export class HeaderParser {
             }
         }
 
-        // a version negotation packet does NOT include packet number or payload
-        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3 
-        // REFACTOR TODO: version neg is NOT a long header packet according to the spec, so we should switch earlier for cleanliness 
-        // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.3
-        var vlieOffset = VLIE.decode(buf, offset);
-        var payloadLength = vlieOffset.value;
-        var payloadLengthBuffer = Buffer.alloc(vlieOffset.offset - offset);
-        buf.copy(payloadLengthBuffer, 0, offset, vlieOffset.offset);
-        offset = vlieOffset.offset;
-        var packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
-        offset += 4; // offset is now ready, right before the actual payload, which is processed elsewhere 
+        let payloadLengthV = VLIE.decode(buf, offset);
+        var payloadLength = payloadLengthV.value;
+        var payloadLengthBuffer = Buffer.alloc(payloadLengthV.offset - offset);
+        buf.copy(payloadLengthBuffer, 0, offset, payloadLengthV.offset);
+        offset = payloadLengthV.offset;
 
-        var header = new LongHeader(type, destConnectionID, srcConnectionID, packetNumber, payloadLength, version, payloadLengthBuffer);
+        var truncatedPacketNumber = new PacketNumber(buf.slice(offset, offset + pnLength));
+        offset += pnLength; // offset is now ready, right before the actual payload, which is processed elsewhere 
+
+        console.trace("Payload length ", payloadLength.toNumber() );
+
+        var header = new LongHeader(type, destConnectionID, srcConnectionID, payloadLength, version, payloadLengthBuffer);
+        header.setTruncatedPacketNumber( truncatedPacketNumber, new PacketNumber(new Bignum(0)) ); // FIXME: properly pass largestAcked here!!!
         if( tokens )
             header.setInitialTokens(tokens); // also sets initial length 
 
@@ -252,10 +253,11 @@ export class HeaderParser {
         var destConnectionID = new ConnectionID(destConIDBuffer, destLen);
         offset += destLen;
 
-        var packetNumber = new PacketNumber(buf.slice(offset, offset + 4));
+        var truncatedPacketNumber = new PacketNumber(buf.slice(offset, offset + 4));
         offset = offset + 4;
 
-        var header = new ShortHeader(type, destConnectionID, packetNumber, keyPhaseBit, spinBit)
+        var header = new ShortHeader(type, destConnectionID, keyPhaseBit, spinBit);
+        header.setTruncatedPacketNumber( truncatedPacketNumber, new PacketNumber(new Bignum(0)) ); // FIXME: properly pass largestAcked here!!! 
         var parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
 

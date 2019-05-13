@@ -31,6 +31,8 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         var dataBuffer = this.getFramesBuffer(connection, this.getHeader());
         var headerBuffer = this.getHeader().toPNEBuffer(connection, Buffer.concat([unencryptedHeader,dataBuffer]));
 
+        console.trace("unencryptedHeader", unencryptedHeader.toString('hex') );
+
         var buffer = Buffer.alloc(headerBuffer.byteLength + dataBuffer.byteLength);
         var offset = 0;
         headerBuffer.copy(buffer, offset);

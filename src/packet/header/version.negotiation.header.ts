@@ -16,7 +16,7 @@ export class VersionNegotiationHeader extends BaseHeader {
     // NOTE: the actual versions are added as payload to the VNEG packet, not as part of the "header" here 
     public constructor(destConnectionID: ConnectionID, srcConnectionID: ConnectionID) {
         // VNEG packet type is a random 7-bit number 
-        super(HeaderType.VersionNegotiationHeader, Math.floor((Math.random() * 128)), undefined);
+        super(HeaderType.VersionNegotiationHeader, Math.floor((Math.random() * 128)));
         this.destConnectionID = destConnectionID;
         this.srcConnectionID = srcConnectionID;
     }

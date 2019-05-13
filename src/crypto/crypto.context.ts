@@ -94,7 +94,7 @@ export class PacketNumberSpace{
     private highestReceivedNumber:PacketNumber|undefined; 
 
     public constructor(){
-        this.sendingNumber = new PacketNumber(-1);
+        this.sendingNumber = new PacketNumber( new Bignum(-1) );
     }
 
     // it should never be needed to get the current PacketNumber outside of debugging

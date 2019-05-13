@@ -27,7 +27,7 @@ export class LongHeader extends BaseHeader {
      * @param packetNumber 
      * @param version 
      */
-    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, packetNumber: PacketNumber, payloadLength: Bignum, version: Version, payloadLengthBuffer?: Buffer) {
+    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, payloadLength: Bignum, version: Version, payloadLengthBuffer?: Buffer) {
         super(HeaderType.LongHeader, type);
         this.version = version;
         this.destConnectionID = destConnectionID;
@@ -127,9 +127,6 @@ export class LongHeader extends BaseHeader {
             packet number field is the value of this field, plus one.  These
             bits are protected using header protection
             */
-            // TODO: not entirely sure about the logic... do we still need to do the truncating here or not? 
-            // normally, the this.packetNumber should already be the truncated version, right?
-            // but, for some reason, we still do getLeastSignificantBytes(1) in the original code...
             let pnLength = this.truncatedPacketNumber!.getValue().getByteLength(); 
 
             VerboseLogging.info("LongHeader:toBuffer : pnLength is " + pnLength + " // " + this.truncatedPacketNumber!.getValue().toNumber());
@@ -170,10 +167,12 @@ export class LongHeader extends BaseHeader {
         */
 
 
-        var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
+        var payloadLengthBuffer = VLIE.encode(this.payloadLength);//.add(1));
         offset += payloadLengthBuffer.copy(buf, offset);
 
-        offset += this.getPacketNumber()!.getLeastSignificantBytes(1).copy(buf, offset);
+        offset += this.getTruncatedPacketNumber()!.toBuffer().copy(buf, offset);
+        
+        //this.getPacketNumber()!.getLeastSignificantBytes(1).copy(buf, offset);
 
         return buf; 
     }
@@ -201,7 +200,7 @@ export class LongHeader extends BaseHeader {
             packet number field is the value of this field, plus one.  These
             bits are protected using header protection
             */
-            let pnLength = VLIE.getBytesNeededPn(this.getPacketNumber()!.getValue()); 
+            let pnLength = this.getTruncatedPacketNumber()!.getValue().getByteLength();
             VerboseLogging.info("LongHeader:toBuffer : pnLength is " + pnLength + " // " + this.getPacketNumber()!.getValue().toNumber());
             if( pnLength > 4 ){
                 VerboseLogging.error("LongHeader:toBuffer : packet number length is larger than 4 bytes, not supported : " + pnLength);
@@ -233,11 +232,10 @@ export class LongHeader extends BaseHeader {
         }
 
 
-        var payloadLengthBuffer = VLIE.encode(this.payloadLength.add(1));
+        var payloadLengthBuffer = VLIE.encode(this.payloadLength);//.add(1));
         offset += payloadLengthBuffer.copy(buf, offset);
 
-        var pn = new Bignum(this.getPacketNumber()!.getLeastSignificantBytes(1));
-        var encodedPn = VLIE.encodePn(pn);
+        let encodedPn = this.getTruncatedPacketNumber()!.toBuffer();
         if (this.getPacketType() === LongHeaderType.Protected0RTT) {
             var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
         }
@@ -253,32 +251,32 @@ export class LongHeader extends BaseHeader {
 
     public getSize(): number {
         // one byte for type, four bytes for version, one byte for connection ID lengths
-        var size = 6;
-        size += this.destConnectionID.getLength();
-        size += this.srcConnectionID.getLength();
+        let byteSize = 6;
+        byteSize += this.destConnectionID.getLength();
+        byteSize += this.srcConnectionID.getLength();
         
         if (this.getPacketNumber() === undefined) {
-            size += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
+            byteSize += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;
         } else {
-            size += this.getPacketNumberSize();
+            byteSize += this.getTruncatedPacketNumber()!.getValue().getByteLength();
         }
 
         // TODO: PROPERLY add tokens here
         if( this.getPacketType() == LongHeaderType.Initial )
-            size += VLIE.encode(this.initialTokenLength).byteLength;
+            byteSize += VLIE.encode(this.initialTokenLength).byteLength;
 
         if (this.payloadLength !== undefined) {
-            size += VLIE.encode(this.payloadLength).byteLength;
+            byteSize += VLIE.encode(this.payloadLength).byteLength;
         }
         
-        return size;
+        return byteSize;
     }
 }
 
 // hardcoded defined at https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.2
 export enum LongHeaderType {
-    Initial = 0x0,
-    Protected0RTT = 0x1,
-    Handshake = 0x3,
-    Retry = 0x3
+    Initial         = 0x0,
+    Protected0RTT   = 0x1,
+    Handshake       = 0x2,
+    Retry           = 0x3
 }

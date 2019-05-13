@@ -11,6 +11,7 @@ import { VerboseLogging } from "../utilities/logging/verbose.logging"
 import { CryptoContext, EncryptionLevel, PacketNumberSpace } from '../crypto/crypto.context';
 import { HeaderType } from "../packet/header/base.header";
 import { EndpointType } from "../types/endpoint.type";
+import { PacketNumber } from "../packet/header/header.properties";
 
 
 export class CongestionControl extends EventEmitter {
@@ -99,7 +100,7 @@ export class CongestionControl extends EventEmitter {
         var packetByteSize = ackedPacket.toBuffer(this.connection).byteLength;
         // Remove from bytesInFlight.
         this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
-        if (this.inRecovery(ackedPacket.getHeader().getPacketNumber().getValue())) {
+        if (this.inRecovery(ackedPacket.getHeader().getPacketNumber()!.getValue())) {
             // Do not increase congestion window in recovery period.
             return;
         }
@@ -122,8 +123,8 @@ export class CongestionControl extends EventEmitter {
             var packetByteSize = lostPacket.toBuffer(this.connection).byteLength;
             // Remove lost packets from bytesInFlight.
             this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
-            if (lostPacket.getHeader().getPacketNumber().getValue().greaterThan(largestLost)) {
-                largestLost = lostPacket.getHeader().getPacketNumber().getValue();
+            if (lostPacket.getHeader().getPacketNumber()!.getValue().greaterThan(largestLost)) {
+                largestLost = lostPacket.getHeader().getPacketNumber()!.getValue();
             }
         });
         // Start a new recovery epoch if the lost packet is larger
@@ -158,7 +159,7 @@ export class CongestionControl extends EventEmitter {
                 if( ctx ){ // VNEG and retry packets have no packet numbers
                     let pnSpace:PacketNumberSpace = ctx.getPacketNumberSpace();
 
-                    packet.getHeader().setPacketNumber( pnSpace.getNext() ); 
+                    packet.getHeader().setPacketNumber( pnSpace.getNext(), new PacketNumber( new Bignum(0)) ); // FIXME: actually use largestAcked : pnSpace.getHighestAckedPacket 
 
                     let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
                     let DEBUGrxNumber = -1;

@@ -228,6 +228,7 @@ export class PacketNumber extends BaseProperty {
         }
     }
 
+    /*
     public getMostSignificantBytes(size: number = 4): Buffer {
         size = size > 8 ? 8 : size;
         var buf = Buffer.alloc(size);
@@ -241,7 +242,9 @@ export class PacketNumber extends BaseProperty {
         this.getProperty().toBuffer(8).copy(buf, 0, 8 - size, 8);
         return buf;
     }
+    */
 
+    /*
     // due to packet number encoding (helps save some bits), we have to use previously received packet number values to reconstruct the real packet number at the edge cases
     // see draft-13#4.8 and Appendix A "Sample Packet Number Decoding Algorithm"
     public adjustNumber(packetNumber: PacketNumber, size: number) {
@@ -257,6 +260,7 @@ export class PacketNumber extends BaseProperty {
         next = next.add(maskedResult);
         return next;
     }
+    */
 }
 
 

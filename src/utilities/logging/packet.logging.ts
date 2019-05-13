@@ -135,7 +135,7 @@ export class PacketLogging {
         }
         log = this.logConnectionIds(log, header);
         if (basePacket.getPacketType() !== PacketType.VersionNegotiation) {
-            log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber().getValue().toDecimalString() + ConsoleColor.Reset;
+            log += color + "\n" + this.getSpaces(6) + " PKN: " + basePacket.getHeader().getPacketNumber()!.getValue().toDecimalString() + ConsoleColor.Reset;
         }
 
         if (header.getHeaderType() === HeaderType.LongHeader) {

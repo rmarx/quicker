@@ -117,7 +117,11 @@ export class AEAD {
             var iv = this.clearTextServerIv;
         }
         var nonce = this.calculateNonce(header, iv).toBuffer();
-        return this._encrypt(Constants.DEFAULT_AEAD_GCM, key, nonce, header.toBuffer(), payload);
+        console.trace("cleartextEncrypt ", header.getPacketNumber()!.getValue(), key, nonce.toString('hex'), header.toBuffer().toString('hex'));
+        let encryptedPayload = this._encrypt(Constants.DEFAULT_AEAD_GCM, key, nonce, header.toBuffer(), payload);
+
+        console.trace("encryptedPayload ", encryptedPayload.toString('hex'));
+        return encryptedPayload;
     }
 
     /**
@@ -138,7 +142,12 @@ export class AEAD {
             var key = this.clearTextServerKey;
             var iv = this.clearTextServerIv;
         }
+
+
         var nonce = this.calculateNonce(header, iv).toBuffer();
+        console.trace("cleartextDecrypt ", header.getPacketNumber()!.getValue(), key, nonce.toString('hex'), header.getParsedBuffer().toString('hex'));
+        console.trace("encryptedPayload ", encryptedPayload.toString('hex'));
+
         return this._decrypt(Constants.DEFAULT_AEAD_GCM, key, nonce, header.getParsedBuffer(), encryptedPayload);
     }
 
@@ -609,7 +618,7 @@ export class AEAD {
     }
 
     private calculateNonce(header: BaseHeader, iv: Buffer): Bignum {
-        var pnb = header.getPacketNumber().getValue();
+        var pnb = header.getPacketNumber()!.getValue();
         var ivb = new Bignum(iv, iv.byteLength);
         ivb = ivb.xor(pnb);
         return ivb;

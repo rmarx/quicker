@@ -41,13 +41,14 @@ export class HeaderHandler {
 
         var payload = msg.slice(headerOffset.offset);
         var fullPayload = Buffer.concat([header.getParsedBuffer(), payload]);
-        var pne = Buffer.alloc(4);
+        //var pne = //Buffer.alloc( header.getTruncatedPacketNumber()!.getValue().getByteLength() ); //Buffer.alloc(4);
+        let pne = header.getTruncatedPacketNumber()!.toBuffer();
         
-        let actualPacketType:PacketType = PacketType.Initial;
+        let actualPacketType:PacketType = PacketType.UNKNOWN;
         let decryptedPn:Buffer|undefined = undefined;
 
 
-        header.getParsedBuffer().copy(pne, 0, header.getParsedBuffer().byteLength - 4);
+        //header.getParsedBuffer().copy(pne, 0, header.getParsedBuffer().byteLength - 4);
         if (header.getHeaderType() === HeaderType.LongHeader) {
             var longHeader = <LongHeader>header;
 
@@ -75,9 +76,13 @@ export class HeaderHandler {
                     decryptedPn = connection.getAEAD().protectedHandshakePnDecrypt(pne, header, fullPayload, encryptingEndpoint);
                 }
             } 
-            else {    
+            else if( longHeader.getPacketType() === LongHeaderType.Initial ) {    
                 actualPacketType = PacketType.Initial; // we can always decrypt initial packets, since we can just generate keys for them
                 decryptedPn = connection.getAEAD().clearTextPnDecrypt(connection.getInitialDestConnectionID(), pne, header, fullPayload, encryptingEndpoint);
+            }
+            else{
+                VerboseLogging.error("HeaderHandler:handle unknown packetType " + longHeader.getPacketType() );
+                return undefined;
             }
         } else {
             actualPacketType = PacketType.Protected1RTT;
@@ -97,6 +102,9 @@ export class HeaderHandler {
             return undefined;
         }
 
+        /*
+        // CHANGED FOR draft-20 branch (and before...) : PN length is now not VLIE but in the first byte, so not need for this kind of swizzling
+
         // we first decrypted the PN, now we have the cleartext
         // however, that is then also encoded to save space in a kind-of-but-not-really VLIE scheme
         // so we need to decode the cleartext to get the actual value 
@@ -107,6 +115,15 @@ export class HeaderHandler {
         // the Associated Data (for AEAD decryption of the payload) expects the DECRYPTED pn, not the DECODED pn (we had a bug about that here before)
         // however, we only add the part of the DECRYPTED pn that actually contains the PN, for which we need to DECODE it first (decrypted is always 4 bytes, but can be 1, 2 or 4 in decoded reality)
         header.setParsedBuffer(Buffer.concat([header.getParsedBuffer().slice(0, header.getParsedBuffer().byteLength - 4), decryptedPn.slice(0, decodedPn.offset)]));
+        */
+
+
+       console.trace("unencryptedHeader 1", header.getParsedBuffer().toString('hex') );
+
+        header.setParsedBuffer(Buffer.concat([header.getParsedBuffer().slice(0, header.getParsedBuffer().byteLength - decryptedPn.byteLength), decryptedPn])); 
+        header.setTruncatedPacketNumber( new PacketNumber( new Bignum(decryptedPn) ), new PacketNumber(new Bignum(0)) ); // FIXME: properly use the largest Acked value here! 
+
+        console.trace("unencryptedHeader 2", header.getParsedBuffer().toString('hex') );
 
         let ctx = connection.getEncryptionContextByPacketType( actualPacketType );
         let highestCurrentPacketNumber = false;
@@ -116,33 +133,30 @@ export class HeaderHandler {
 
             // adjust remote packet number
             if (pnSpace.getHighestReceivedNumber() === undefined) {
-                pnSpace.setHighestReceivedNumber(header.getPacketNumber());
+                pnSpace.setHighestReceivedNumber(header.getPacketNumber()!);
                 highestCurrentPacketNumber = true;
             } 
             else {
                 let highestReceivedNumber = pnSpace.getHighestReceivedNumber() as PacketNumber;
                 DEBUGpreviousHighest = highestReceivedNumber.getValue().toNumber();
 
-                var adjustedNumber = highestReceivedNumber.adjustNumber(header.getPacketNumber(), header.getPacketNumberSize());
-                if (highestReceivedNumber.getValue().lessThan(adjustedNumber)) {
-                    pnSpace.setHighestReceivedNumber( new PacketNumber(adjustedNumber) );
+                if (highestReceivedNumber.getValue().lessThan(header.getPacketNumber()!.getValue())) {
+                    pnSpace.setHighestReceivedNumber( header.getPacketNumber()! );
                     highestCurrentPacketNumber = true;
                 }
                 else
-                    VerboseLogging.error("HeaderHandler:handle : packetnr was smaller than previous highest received: RE-ORDERING not yet supported! TODO! " + adjustedNumber.toNumber() + " <= " + highestReceivedNumber.getValue().toNumber() );
-
-                // adjust the packet number in the header
-                header.getPacketNumber().setValue(adjustedNumber);
+                    VerboseLogging.error("HeaderHandler:handle : packetnr was smaller than previous highest received: RE-ORDERING not yet supported! TODO! " + header.getPacketNumber()!.getValue().toNumber() + " <= " + highestReceivedNumber.getValue().toNumber() );
             }
 
             VerboseLogging.info("HeaderHandler:handle : PN space \"" + PacketType[ actualPacketType ] + "\" RX went from " + DEBUGpreviousHighest + " -> " + pnSpace.getHighestReceivedNumber()!.getValue().toNumber() + " (TX = " + pnSpace.DEBUGgetCurrent() + ")" );
         }
 
         // custom handlers for long and short headers
-        if (header.getHeaderType() === HeaderType.LongHeader) {
-            var lh = <LongHeader>header;
-            lh.setPayloadLength(lh.getPayloadLength().subtract(decodedPn.offset));
-        } else if(header.getHeaderType() === HeaderType.ShortHeader){
+        //if (header.getHeaderType() === HeaderType.LongHeader) {
+            //var lh = <LongHeader>header;
+            //lh.setPayloadLength(lh.getPayloadLength().subtract(decodedPn.offset));
+        //} else 
+        if(header.getHeaderType() === HeaderType.ShortHeader){
             var sh = <ShortHeader>header; 
             this.handleShortHeader(connection, sh, highestCurrentPacketNumber);
         }

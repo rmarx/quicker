@@ -50,23 +50,22 @@ export abstract class BaseHeader {
         return this.packetNumber;
     }
 
-    public setPacketNumber(fullPacketNumber: PacketNumber, largestAcknowledgedPacketNumber: PacketNumber) {
+    public setPacketNumber(fullPacketNumber: PacketNumber, largestAcknowledgedPacketNumber: PacketNumber):void {
         this.packetNumber = fullPacketNumber;
         this.truncatedPacketNumber = fullPacketNumber.truncate( largestAcknowledgedPacketNumber );
 
         VerboseLogging.info("BaseHeader:setPacketNumber: " + fullPacketNumber.getValue().toDecimalString() + " // " + this.truncatedPacketNumber!.getValue().toDecimalString() + "@ " + this.truncatedPacketNumber!.getValue().getByteLength() );
     }
 
+    public getTruncatedPacketNumber(): PacketNumber | undefined {
+        return this.truncatedPacketNumber;
+    }
 
-    
-    
+    public setTruncatedPacketNumber(truncatedPacketNumber: PacketNumber, largestAcknowledgedPacketNumber: PacketNumber):void {
+        this.truncatedPacketNumber = truncatedPacketNumber;
+        this.packetNumber = truncatedPacketNumber.restoreFromTruncate( largestAcknowledgedPacketNumber );
 
-
-    public getPacketNumberSize(): number {
-        if (this.packetNumber === undefined || this.packetNumber.getValue().equals(-1)) {
-            return 4;
-        }
-        return 2**VLIE.getBytesNeededPn(new Bignum(this.getPacketNumber()!.getLeastSignificantBytes()));
+        VerboseLogging.info("BaseHeader:setTruncatedPacketNumber: " + truncatedPacketNumber.getValue().toDecimalString() + " // " + this.packetNumber!.getValue().toDecimalString() + "@ " + this.packetNumber!.getValue().getByteLength() );
     }
 
     public getHeaderType() {

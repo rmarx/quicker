@@ -19,6 +19,7 @@ export class VLIE {
         return VLIE.encodeNumber(number);
     }
 
+    /*
     static encodePn(bignum: Bignum): Buffer;
     static encodePn(num: number): Buffer;
     public static encodePn(number: any): Buffer {
@@ -27,6 +28,7 @@ export class VLIE {
         }
         return VLIE.encodePnNumber(number);
     }
+    */
     
 
     /**
@@ -44,6 +46,7 @@ export class VLIE {
         return this.decodeBuffer(Buffer.from(str, 'hex'), 0).value;
     }
 
+    /*
     public static decodePn(buffer: Buffer, offset: number = 0): VLIEOffset {
 
         // pnSize is encoded in the first 1-2 bits
@@ -75,6 +78,7 @@ export class VLIE {
             offset: offset
         };
     }
+    */
 
     private static encodeBignum(bignum: Bignum): Buffer {
         var count = this.getBytesNeeded(bignum);
@@ -113,6 +117,7 @@ export class VLIE {
         };
     }
 
+    /*
     private static encodePnBignum(bignum: Bignum): Buffer {
         var count = this.getBytesNeededPn(bignum);
         if (count === 0) {
@@ -135,6 +140,7 @@ export class VLIE {
     private static encodePnNumber(num: number): Buffer {
         return this.encodePnBignum(new Bignum(num));
     }
+    */
 
     private static getBytesNeeded(bignum: Bignum): number {
         if(bignum.getBitLength() <= 6) {
@@ -149,6 +155,7 @@ export class VLIE {
         return 3;
     }
 
+    /*
     public static getBytesNeededPn(bignum: Bignum): number {
         // getBytesNeeded would return 2 when size is bit
         // However, for PNE, only 1 bit is needed to indicate that the size is 1 byte
@@ -157,6 +164,7 @@ export class VLIE {
         }
         return this.getBytesNeeded(bignum);
     }
+    */
 }
 
 export interface VLIEOffset {

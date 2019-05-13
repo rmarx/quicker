@@ -63,11 +63,11 @@ export class PacketParser {
                 break;
             default:
                 // Unknown packet type
-                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid packet type");
+                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid packet type " + longheader.getPacketType() );
         }
         var baseEncryptedPacket: BaseEncryptedPacket = <BaseEncryptedPacket>packetOffset.packet;
         if (!baseEncryptedPacket.containsValidFrames()) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet #" + baseEncryptedPacket.getHeader().getPacketNumber().toString() + " of type " + PacketType[baseEncryptedPacket.getPacketType()] );
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "invalid frames in packet #" + baseEncryptedPacket.getHeader().getPacketNumber()!.toString() + " of type " + PacketType[baseEncryptedPacket.getPacketType()] );
         }
         return packetOffset;
     }

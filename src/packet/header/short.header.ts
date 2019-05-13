@@ -15,8 +15,8 @@ export class ShortHeader extends BaseHeader {
     private spinBit: boolean;
     private destConnectionID: ConnectionID;
 
-    public constructor(type: number, destConnectionID: ConnectionID, packetNumber: PacketNumber, keyPhaseBit: boolean, spinBit: boolean) {
-        super(HeaderType.ShortHeader, type, packetNumber);
+    public constructor(type: number, destConnectionID: ConnectionID, keyPhaseBit: boolean, spinBit: boolean) {
+        super(HeaderType.ShortHeader, type);
         this.keyPhaseBit = keyPhaseBit;
         this.spinBit = spinBit;
         this.destConnectionID = destConnectionID;
@@ -50,9 +50,8 @@ export class ShortHeader extends BaseHeader {
         var connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
-        this.getPacketNumber().getLeastSignificantBytes();
-        var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes(this.getPacketNumberSize()));
-        VLIE.encodePn(pn).copy(buffer, offset);
+        var pn = this.getTruncatedPacketNumber()!.getValue();
+        pn.toBuffer().copy(buffer, offset);
         return buffer;
     }
 
@@ -64,9 +63,8 @@ export class ShortHeader extends BaseHeader {
         var connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
-        var pn = new Bignum(this.getPacketNumber().getLeastSignificantBytes());
-        var encodedPn = VLIE.encodePn(pn);
-        var encryptedPnBuffer = connection.getAEAD().protected1RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
+        var pn = this.getTruncatedPacketNumber()!.getValue();
+        var encryptedPnBuffer = connection.getAEAD().protected1RTTPnEncrypt(pn.toBuffer(), this, payload, connection.getEndpointType());
         encryptedPnBuffer.copy(buffer, offset);
         return buffer;
     }
@@ -91,7 +89,7 @@ export class ShortHeader extends BaseHeader {
 
     public getSize(): number {
         var size = 1 + this.getDestConnectionID().getLength();
-        size += this.getPacketNumberSize();
+        size += this.getTruncatedPacketNumber()!.getValue().getByteLength();
         return size;
     }
 }

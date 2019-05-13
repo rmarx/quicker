@@ -62,5 +62,6 @@ export enum PacketType {
     Handshake,
     VersionNegotiation,
     Protected0RTT,
-    Protected1RTT
+    Protected1RTT,
+    UNKNOWN
 }

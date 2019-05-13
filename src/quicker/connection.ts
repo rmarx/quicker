@@ -607,7 +607,7 @@ export class Connection extends FlowControlledObject {
     }
 
     private retransmitPacket(packet: BasePacket) {
-        VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber().getValue().toNumber() );
+        VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber()!.getValue().toNumber() );
 
         VerboseLogging.error("Connection:retransmitPacket : cannot retransmit because no proper logic to know which PN space to select yet! Doing nothing!");
         if(1 == 1) return;
@@ -790,7 +790,7 @@ export class Connection extends FlowControlledObject {
             if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND) {
                 this.closeSentCount++;
                 var closePacket = this.getClosePacket();
-                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext());
+                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), this.context1RTT.getPacketNumberSpace().getHighestReceivedNumber()!);
                 this.qlogger.onPacketTX( closePacket );
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
                 this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);

@@ -79,7 +79,7 @@ export class AckHandler {
             if (frame.getType() === FrameType.ACK) {
                 let ackFrame = <AckFrame>frame;
                 let packetNumbers = ackFrame.determineAckedPacketNumbers();
-                VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Sent Packet " + sentPacket.getHeader().getPacketNumber().getValue().toNumber() + " was acked by peer and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => val.toNumber())).join(",") );
+                VerboseLogging.info(this.DEBUGname + " ackHandler:onPacketAcked Sent Packet " + sentPacket.getHeader().getPacketNumber()!.getValue().toNumber() + " was acked by peer and contained ACKs for received packets " + (packetNumbers.map((val, idx, arr) => val.toNumber())).join(",") );
 
                 packetNumbers.forEach((packetNumber: Bignum) => {
                     if (this.receivedPackets[packetNumber.toString('hex', 8)] !== undefined) {
@@ -100,7 +100,7 @@ export class AckHandler {
             return;
         }
         var header = packet.getHeader();
-        var pn = header.getPacketNumber().getValue();
+        var pn = header.getPacketNumber()!.getValue();
         if (this.largestPacketNumber === undefined ||  pn.greaterThan(this.largestPacketNumber)) {
             this.largestPacketNumber = pn;
         }

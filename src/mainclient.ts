@@ -25,8 +25,8 @@ Constants.LOG_FILE_NAME = "client.log";
 
 //console.log("AEAD cleartext result: ", TestAeaedCleartextVector.execute() );
 //console.log("LSQUIC cleartext decode result: ", TestLsquicCleartextDecode.execute() );
-console.log("PN truncation test : ", TestPNTruncation.execute() );
-process.exit(666);
+//console.log("PN truncation test : ", TestPNTruncation.execute() );
+//process.exit(666);
 
 
 VerboseLogging.info("QUICker client connecting to " + host + ":" + port);

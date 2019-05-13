@@ -135,7 +135,7 @@ export class LossDetection extends EventEmitter {
      */
     public onPacketSent(basePacket: BasePacket): void {
         var currentTime = (new Date()).getTime();
-        var packetNumber = basePacket.getHeader().getPacketNumber().getValue();
+        var packetNumber = basePacket.getHeader().getPacketNumber()!.getValue();
         this.largestSentPacket = packetNumber;
 
         var sentPacket: SentPacket = {
@@ -242,7 +242,7 @@ export class LossDetection extends EventEmitter {
      */
     private onSentPacketAcked(sentPacket: BasePacket): void {
 
-        let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber().getValue();
+        let ackedPacketNumber: Bignum = sentPacket.getHeader().getPacketNumber()!.getValue();
         VerboseLogging.info(this.DEBUGname + " loss:onSentPacketAcked called for nr " + ackedPacketNumber.toNumber() + ", is retransmittable=" + this.sentPackets[ackedPacketNumber.toString('hex', 8)].packet.isRetransmittable());
 
         // TODO: move this to the end of this function? 
@@ -391,7 +391,7 @@ export class LossDetection extends EventEmitter {
         if (lostPackets.length > 0) {
             this.emit(LossDetectionEvents.PACKETS_LOST, lostPackets);
             lostPackets.forEach((packet: BasePacket) => {
-                var sentPacket = this.sentPackets[packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
+                var sentPacket = this.sentPackets[packet.getHeader().getPacketNumber()!.getValue().toString('hex', 8)];
                 if (sentPacket !== undefined && sentPacket.packet.isHandshake()) {
                     this.handshakeOutstanding--;
                 }
@@ -411,7 +411,7 @@ export class LossDetection extends EventEmitter {
                 var delta = this.largestAckedPacket.subtract(unackedPacketNumber);
                 if (timeSinceSent > delayUntilLost || delta.greaterThan(this.reorderingTreshold)) {
                     //delete this.sentPackets[unacked.packet.getHeader().getPacketNumber().getValue().toString('hex', 8)];
-                    this.removeFromSentPackets(unacked.packet.getHeader().getPacketNumber().getValue());
+                    this.removeFromSentPackets(unacked.packet.getHeader().getPacketNumber()!.getValue());
                     if (unacked.packet.isRetransmittable()) {
                         lostPackets.push(unacked.packet);
                     }
@@ -443,7 +443,7 @@ export class LossDetection extends EventEmitter {
             if (this.sentPackets[keys[i]].packet.isRetransmittable()) {
                 
                 this.retransmitPacket(this.sentPackets[keys[i]]);
-                this.removeFromSentPackets( this.sentPackets[keys[i]].packet.getHeader().getPacketNumber().getValue() );
+                this.removeFromSentPackets( this.sentPackets[keys[i]].packet.getHeader().getPacketNumber()!.getValue() );
                 //delete this.sentPackets[keys[i]];
                 
                 sendCount++;
@@ -460,7 +460,7 @@ export class LossDetection extends EventEmitter {
             if (this.sentPackets[key].packet.isHandshake()) {
                 //delete this.sentPackets[key];
                 this.retransmitPacket(this.sentPackets[key]);
-                this.removeFromSentPackets( this.sentPackets[key].packet.getHeader().getPacketNumber().getValue() );
+                this.removeFromSentPackets( this.sentPackets[key].packet.getHeader().getPacketNumber()!.getValue() );
             }
         });
     }
