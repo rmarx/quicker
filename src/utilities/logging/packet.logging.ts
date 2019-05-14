@@ -202,7 +202,7 @@ export class PacketLogging {
                 var paddingFrame: PaddingFrame = <PaddingFrame>baseFrame;
                 log += this.logPaddingFrame(paddingFrame, color);
                 break;
-            case FrameType.RST_STREAM:
+            case FrameType.RESET_STREAM:
                 var rstStreamFrame: RstStreamFrame = <RstStreamFrame>baseFrame;
                 log += this.logRstStreamFrame(rstStreamFrame, color);
                 break;
@@ -222,22 +222,24 @@ export class PacketLogging {
                 var maxStreamFrame: MaxStreamFrame = <MaxStreamFrame>baseFrame;
                 log += this.logMaxStreamFrame(maxStreamFrame, color);
                 break;
-            case FrameType.MAX_STREAM_ID:
+            case FrameType.MAX_STREAMS_BIDI:
+            case FrameType.MAX_STREAMS_UNI:
                 var maxStreamIdFrame: MaxStreamIdFrame = <MaxStreamIdFrame>baseFrame;
                 log += this.logMaxStreamIdFrame(maxStreamIdFrame, color);
                 break;
             case FrameType.PING:
                 // nothing to log
                 break;
-            case FrameType.BLOCKED:
+            case FrameType.DATA_BLOCKED:
                 var blockedFrame: BlockedFrame = <BlockedFrame>baseFrame;
                 log += this.logBlockedFrame(blockedFrame, color);
                 break;
-            case FrameType.STREAM_BLOCKED:
+            case FrameType.STREAM_DATA_BLOCKED:
                 var streamBlockedFrame: StreamBlockedFrame = <StreamBlockedFrame>baseFrame;
                 log += this.logStreamBlockedFrame(streamBlockedFrame, color);
                 break;
-            case FrameType.STREAM_ID_BLOCKED:
+            case FrameType.STREAMS_BLOCKED_BIDI:
+            case FrameType.STREAMS_BLOCKED_UNI:
                 var streamIdBlockedFrame: StreamIdBlockedFrame = <StreamIdBlockedFrame>baseFrame;
                 log += this.logStreamIdBlockedFrame(streamIdBlockedFrame, color);
                 break;

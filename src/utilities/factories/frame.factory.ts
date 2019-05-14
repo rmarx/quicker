@@ -18,6 +18,7 @@ import { NewConnectionIdFrame } from '../../frame/new.connection.id';
 import { StopSendingFrame } from '../../frame/stop.sending';
 import { PathChallengeFrame, PathResponseFrame } from '../../frame/path';
 import { CryptoFrame } from '../../frame/crypto';
+import { FrameType } from '../../frame/base.frame';
 
 
 export class FrameFactory {
@@ -46,8 +47,8 @@ export class FrameFactory {
         return new BlockedFrame(remoteOffset);
     }
 
-    public static createStreamIdBlockedFrame(streamId: Bignum): StreamIdBlockedFrame {
-        return new StreamIdBlockedFrame(streamId);
+    public static createStreamIdBlockedFrame(type:FrameType.STREAMS_BLOCKED_BIDI|FrameType.STREAMS_BLOCKED_UNI, streamId: Bignum): StreamIdBlockedFrame {
+        return new StreamIdBlockedFrame(type, streamId);
     }
 
     public static createMaxStreamDataFrame(streamId: Bignum, newMaxStreamData: Bignum): MaxStreamFrame {
@@ -58,8 +59,8 @@ export class FrameFactory {
         return new MaxDataFrame(newMaxData);
     }
 
-    public static createMaxStreamIdFrame(newMaxData: Bignum): MaxStreamIdFrame {
-        return new MaxStreamIdFrame(newMaxData);
+    public static createMaxStreamIdFrame(type:FrameType.MAX_STREAMS_BIDI|FrameType.MAX_STREAMS_UNI, newMaxData: Bignum): MaxStreamIdFrame {
+        return new MaxStreamIdFrame(type, newMaxData);
     }
 
     public static createPingFrame(): PingFrame {

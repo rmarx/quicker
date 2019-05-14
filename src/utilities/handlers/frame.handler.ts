@@ -43,7 +43,7 @@ export class FrameHandler {
         switch (frame.getType()) {
             case FrameType.PADDING:
                 break;
-            case FrameType.RST_STREAM:
+            case FrameType.RESET_STREAM:
                 var rstStreamFrame = <RstStreamFrame>frame;
                 this.handleRstStreamFrame(connection, rstStreamFrame);
                 break;
@@ -63,7 +63,8 @@ export class FrameHandler {
                 var maxDataStreamFrame = <MaxStreamFrame>frame;
                 this.handleMaxStreamDataFrame(connection, maxDataStreamFrame);
                 break;
-            case FrameType.MAX_STREAM_ID:
+            case FrameType.MAX_STREAMS_BIDI:
+            case FrameType.MAX_STREAMS_UNI: // TODO: handle these two cases separately!
                 var maxStreamIdFrame = <MaxStreamIdFrame>frame;
                 this.handleMaxStreamIdFrame(connection, maxStreamIdFrame);
                 break;
@@ -71,15 +72,16 @@ export class FrameHandler {
                 var pingFrame = <PingFrame>frame;
                 this.handlePingFrame(connection, pingFrame);
                 break;
-            case FrameType.BLOCKED:
+            case FrameType.DATA_BLOCKED:
                 var blockedFrame = <BlockedFrame>frame;
                 this.handleBlockedFrame(connection, blockedFrame);
                 break;
-            case FrameType.STREAM_BLOCKED:
+            case FrameType.STREAM_DATA_BLOCKED:
                 var streamBlocked = <StreamBlockedFrame>frame;
                 this.handleStreamBlockedFrame(connection, streamBlocked);
                 break;
-            case FrameType.STREAM_ID_BLOCKED:
+            case FrameType.STREAMS_BLOCKED_BIDI:
+            case FrameType.STREAMS_BLOCKED_UNI: // TODO: handle these two cases separately!
                 var streamIdBlocked = <StreamIdBlockedFrame>frame;
                 this.handleStreamIdBlockedFrame(connection, streamIdBlocked);
                 break;

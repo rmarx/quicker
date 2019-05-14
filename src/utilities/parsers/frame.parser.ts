@@ -49,7 +49,7 @@ export class FrameParser {
         switch (type) {
             case FrameType.PADDING:
                 return this.parsePadding(buffer, offset);
-            case FrameType.RST_STREAM:
+            case FrameType.RESET_STREAM:
                 return this.parseRstStream(buffer, offset);
             case FrameType.CONNECTION_CLOSE:
                 return this.parseClose(FrameType.CONNECTION_CLOSE, buffer, offset);
@@ -59,16 +59,18 @@ export class FrameParser {
                 return this.parseMaxData(buffer, offset);
             case FrameType.MAX_STREAM_DATA:
                 return this.parseMaxStreamData(buffer, offset);
-            case FrameType.MAX_STREAM_ID:
-                return this.parseMaxStreamId(buffer, offset);
+            case FrameType.MAX_STREAMS_BIDI:
+            case FrameType.MAX_STREAMS_UNI:
+                return this.parseMaxStreamId(type, buffer, offset);
             case FrameType.PING:
                 return this.parsePing(buffer, offset);
-            case FrameType.BLOCKED:
+            case FrameType.DATA_BLOCKED:
                 return this.parseBlocked(buffer, offset);
-            case FrameType.STREAM_BLOCKED:
+            case FrameType.STREAM_DATA_BLOCKED:
                 return this.parseStreamBlocked(buffer, offset);
-            case FrameType.STREAM_ID_BLOCKED:
-                return this.parseStreamIdBlocked(buffer, offset);
+            case FrameType.STREAMS_BLOCKED_BIDI:
+            case FrameType.STREAMS_BLOCKED_UNI:
+                return this.parseStreamIdBlocked(type, buffer, offset);
             case FrameType.NEW_CONNECTION_ID:
                 return this.parseNewConnectionId(buffer, offset);
             case FrameType.STOP_SENDING:
@@ -154,10 +156,10 @@ export class FrameParser {
 
     }
 
-    private parseMaxStreamId(buffer: Buffer, offset: number): FrameOffset {
+    private parseMaxStreamId(type:FrameType.MAX_STREAMS_BIDI|FrameType.MAX_STREAMS_UNI, buffer: Buffer, offset: number): FrameOffset {
         var maxStreamID = VLIE.decode(buffer, offset);
         return {
-            frame: FrameFactory.createMaxStreamIdFrame(maxStreamID.value),
+            frame: FrameFactory.createMaxStreamIdFrame(type, maxStreamID.value),
             offset: maxStreamID.offset
         };
     }
@@ -186,10 +188,10 @@ export class FrameParser {
         };
     }
 
-    private parseStreamIdBlocked(buffer: Buffer, offset: number): FrameOffset {
+    private parseStreamIdBlocked(type:FrameType.STREAMS_BLOCKED_BIDI|FrameType.STREAMS_BLOCKED_UNI, buffer: Buffer, offset: number): FrameOffset {
         var streamID = VLIE.decode(buffer, offset);
         return {
-            frame: FrameFactory.createStreamIdBlockedFrame(streamID.value),
+            frame: FrameFactory.createStreamIdBlockedFrame(type, streamID.value),
             offset: streamID.offset
         };
     }

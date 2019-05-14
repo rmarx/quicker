@@ -646,7 +646,8 @@ export class Connection extends FlowControlledObject {
 
     private retransmitFrame(frame: BaseFrame) {
         switch (frame.getType()) {
-            case FrameType.MAX_STREAM_ID:
+            case FrameType.MAX_STREAMS_BIDI:
+            case FrameType.MAX_STREAMS_UNI:
                 var streamID = (<MaxStreamIdFrame>frame).getMaxStreamId();
                 // Check if not a bigger maxStreamID frame has been sent
                 if (Stream.isUniStreamId(streamID) && this.localMaxStreamUni.greaterThan(streamID)) {

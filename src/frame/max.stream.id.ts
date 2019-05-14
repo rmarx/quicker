@@ -6,8 +6,8 @@ import {VLIE} from '../crypto/vlie';
 export class MaxStreamIdFrame extends BaseFrame {
     private maxStreamID: Bignum
 
-	public constructor(maxStreamID: Bignum) {
-        super(FrameType.MAX_STREAM_ID, true);
+	public constructor(type:FrameType.MAX_STREAMS_BIDI|FrameType.MAX_STREAMS_UNI, maxStreamID: Bignum) {
+        super(type, true);
         this.maxStreamID = maxStreamID;
 	}
     

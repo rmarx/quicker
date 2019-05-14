@@ -9,7 +9,7 @@ export class StreamBlockedFrame extends BaseFrame {
     private blockedOffset: Bignum;
 
 	public constructor(streamID: Bignum, blockedOffset: Bignum) {
-        super(FrameType.STREAM_BLOCKED, true);
+        super(FrameType.STREAM_DATA_BLOCKED, true);
         this.streamID = streamID;
         this.blockedOffset = blockedOffset;
     }

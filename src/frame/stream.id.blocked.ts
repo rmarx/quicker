@@ -6,8 +6,8 @@ import {VLIE} from '../crypto/vlie';
 export class StreamIdBlockedFrame extends BaseFrame {
     private streamID: Bignum;
 
-	public constructor(streamID: Bignum) {
-        super(FrameType.STREAM_ID_BLOCKED, true);
+	public constructor(type:FrameType.STREAMS_BLOCKED_BIDI|FrameType.STREAMS_BLOCKED_UNI, streamID: Bignum) {
+        super(type, true);
         this.streamID = streamID;
     }
     

@@ -437,19 +437,22 @@ export class FlowControl {
                 return;
             }
             var newStreamId = undefined;
+            let streamType:FrameType = FrameType.UNKNOWN;
             if (Stream.isUniStreamId(streamId)) {
                 if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamUni().multiply(4))) {
                     newStreamId = this.connection.getLocalMaxStreamUni().add(Constants.MAX_STREAM_ID_INCREMENT);
                     this.connection.setLocalMaxStreamUni(newStreamId);
+                    streamType = FrameType.MAX_STREAMS_UNI;
                 }
             } else {
                 if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamBidi().multiply(4))) {
                     newStreamId = this.connection.getLocalMaxStreamBidi().add(Constants.MAX_STREAM_ID_INCREMENT);
                     this.connection.setLocalMaxStreamBidi(newStreamId);
+                    streamType = FrameType.MAX_STREAMS_BIDI;
                 }
             }
-            if (newStreamId !== undefined) {
-                frames.push(FrameFactory.createMaxStreamIdFrame(newStreamId));
+            if (newStreamId !== undefined && streamType !== FrameType.UNKNOWN) {
+                frames.push(FrameFactory.createMaxStreamIdFrame(streamType, newStreamId));
             }
         });
 
@@ -479,9 +482,9 @@ export class FlowControl {
     private addRemoteStreamIdBlocked(stream: Stream): BaseFrame {
         var streamId = stream.getStreamID();
         if (Stream.isUniStreamId(streamId)) {
-            return FrameFactory.createStreamIdBlockedFrame(this.connection.getRemoteMaxStreamUni());
+            return FrameFactory.createStreamIdBlockedFrame(FrameType.STREAMS_BLOCKED_UNI, this.connection.getRemoteMaxStreamUni());
         } else { 
-            return FrameFactory.createStreamIdBlockedFrame(this.connection.getRemoteMaxStreamBidi());
+            return FrameFactory.createStreamIdBlockedFrame(FrameType.STREAMS_BLOCKED_BIDI, this.connection.getRemoteMaxStreamBidi());
         }
     }
 }
