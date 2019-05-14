@@ -14,7 +14,7 @@ import {RetryPacket} from '../../packet/packet/retry';
 import {BaseFrame} from '../../frame/base.frame';
 import {HandshakePacket} from '../../packet/packet/handshake';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
-import { ShortHeader, ShortHeaderType } from '../../packet/header/short.header';
+import { ShortHeader } from '../../packet/header/short.header';
 import { TransportParameterType } from '../../crypto/transport.parameters';
 import { EndpointType } from '../../types/endpoint.type';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
@@ -123,7 +123,7 @@ export class PacketFactory {
      * @param frames 
      */
     public static createShortHeaderPacket(connection: Connection, frames: BaseFrame[]): ShortHeaderPacket {
-        var header = new ShortHeader(ShortHeaderType.FourOctet, connection.getDestConnectionID(), false, connection.getSpinBit());
+        var header = new ShortHeader(connection.getDestConnectionID(), false, connection.getSpinBit());
         return new ShortHeaderPacket(header, frames);
     }
 }

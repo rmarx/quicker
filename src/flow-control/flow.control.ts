@@ -22,7 +22,7 @@ import { CryptoStream } from '../crypto/crypto.stream';
 import { EncryptionLevel } from '../crypto/crypto.context';
 import { EndpointType } from '../types/endpoint.type';
 import { Time, TimeFormat } from '../types/time';
-import { ShortHeaderType, ShortHeader } from '../packet/header/short.header';
+import { ShortHeader } from '../packet/header/short.header';
 import { AckHandler } from '../utilities/handlers/ack.handler';
 import { PacketNumber } from '../packet/header/header.properties';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
@@ -80,7 +80,10 @@ export class FlowControl {
             var maxPayloadSize = new Bignum(Constants.INITIAL_MIN_SIZE);
         } else {
             if (this.shortHeaderSize === undefined) {
-                this.shortHeaderSize = new ShortHeader(ShortHeaderType.FourOctet, this.connection.getDestConnectionID(), false, this.connection.getSpinBit()).getSize();
+                // TODO: this always leaves 2-3 bytes on the table if the packet number is smaller than the max of 4 bytes!
+                let shortHeaderMax = new ShortHeader(this.connection.getDestConnectionID(), false, this.connection.getSpinBit());
+                shortHeaderMax.setPacketNumber( new PacketNumber( new Bignum(0x0fffffff) ), new PacketNumber(new Bignum(0)) );
+                this.shortHeaderSize = shortHeaderMax.getSize();
             }
             var maxPayloadSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - this.shortHeaderSize);
         }

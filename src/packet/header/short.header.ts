@@ -3,20 +3,19 @@ import { ConnectionID, PacketNumber } from './header.properties';
 import { Connection } from '../../quicker/connection';
 import { Bignum } from '../../types/bignum';
 import { VLIE } from '../../crypto/vlie';
+import { VerboseLogging } from '../../utilities/logging/verbose.logging';
+import { QuicError } from '../../utilities/errors/connection.error';
+import { ConnectionErrorCodes } from '../../utilities/errors/quic.codes';
 
 
-/**             0                   [1- (1 - 18)]                       *                       *
- *   +----------------------------------------------------------------------------------------------------+
- *   |0|K|1|1|0|type(3)| [dest connection ID (0/32/.../144)] | packet nr (8/16/32) |  Protected Payload(*)|
- *   +----------------------------------------------------------------------------------------------------+
- */
+
 export class ShortHeader extends BaseHeader {
     private keyPhaseBit: boolean;
     private spinBit: boolean;
     private destConnectionID: ConnectionID;
 
-    public constructor(type: number, destConnectionID: ConnectionID, keyPhaseBit: boolean, spinBit: boolean) {
-        super(HeaderType.ShortHeader, type);
+    public constructor(destConnectionID: ConnectionID, keyPhaseBit: boolean, spinBit: boolean) {
+        super(HeaderType.ShortHeader, 0);
         this.keyPhaseBit = keyPhaseBit;
         this.spinBit = spinBit;
         this.destConnectionID = destConnectionID;
@@ -42,60 +41,77 @@ export class ShortHeader extends BaseHeader {
         return this.spinBit;
     }
 
+        /** 
+     * https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.3  
+         0                   1                   2                   3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        +-+-+-+-+-+-+-+-+
+        |0|1|S|R|R|K|P P|
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                Destination Connection ID (0..144)           ...
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                     Packet Number (8/16/24/32)              ...
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        |                     Protected Payload (*)                   ...
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
+
     public toBuffer(): Buffer {
-        var size = this.getSize();
-        var buffer = Buffer.alloc(size);
-        var offset = 0;
-        buffer.writeUInt8(this.getType(), offset++);
-        var connectionID = this.getDestConnectionID();
+        let size = this.getSize();
+        let buffer = Buffer.alloc(size);
+        let offset = 0;
+
+        buffer.writeUInt8(this.getFirstByte(), offset++);
+
+        let connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
-        var pn = this.getTruncatedPacketNumber()!.getValue();
+
+        let pn = this.getTruncatedPacketNumber()!.getValue();
         pn.toBuffer().copy(buffer, offset);
+
         return buffer;
     }
 
     public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
-        var size = this.getSize();
-        var buffer = Buffer.alloc(size);
-        var offset = 0;
-        buffer.writeUInt8(this.getType(), offset++);
-        var connectionID = this.getDestConnectionID();
+        let size = this.getSize();
+        let buffer = Buffer.alloc(size);
+        let offset = 0;
+
+        buffer.writeUInt8(this.getFirstByte(), offset++);
+
+        let connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
         offset += connectionID.getLength();
-        var pn = this.getTruncatedPacketNumber()!.getValue();
-        var encryptedPnBuffer = connection.getAEAD().protected1RTTPnEncrypt(pn.toBuffer(), this, payload, connection.getEndpointType());
+
+        let pn = this.getTruncatedPacketNumber()!.getValue();
+        let encryptedPnBuffer = connection.getAEAD().protected1RTTPnEncrypt(pn.toBuffer(), this, payload, connection.getEndpointType());
         encryptedPnBuffer.copy(buffer, offset);
+
         return buffer;
     }
 
-    private getType(): number {
-        var type = this.getPacketType();
-        if (this.keyPhaseBit) {
-            type += 0x40;
-        }
-        // Since Draft-11: Third bit:  The third bit (0x20) of octet 0 is set to 1.
-        type += 0x20;
-        // Since Draft-10: Fourth bit:  The fourth bit (0x10) of octet 0 is set to 1.
-        type += 0x10;
-        
-        // Since Draft-11: Sixth bit:  The sixth bit (0x04) is reserved for spinbit.
-        if (this.spinBit) {
-            type += 0x04;
-        }
+    private getFirstByte(): number {
+        let output = 0b01000000;
 
-        return type;
+        output = this.spinBit       ? output & 0x20 : output;
+        output = this.keyPhaseBit   ? output & 0x04 : output;
+
+        let pnLength = this.truncatedPacketNumber!.getValue().getByteLength(); 
+
+        VerboseLogging.info("ShortHeader:getFirstByte : pnLength is " + pnLength + " // " + this.truncatedPacketNumber!.getValue().toNumber());
+        if( pnLength > 4 ){
+            VerboseLogging.error("ShortHeader:getFirstByte : packet number length is larger than 4 bytes, not supported");
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "packet number too long");
+        }
+        else
+            output += pnLength - 1; // last two bits, so normal + is enough
+
+        return output;
     }
 
     public getSize(): number {
-        var size = 1 + this.getDestConnectionID().getLength();
+        let size = 1 + this.getDestConnectionID().getLength();
         size += this.getTruncatedPacketNumber()!.getValue().getByteLength();
         return size;
     }
-}
-
-export enum ShortHeaderType {
-    OneOctet = 0x0,
-    TwoOctet = 0x1,
-    FourOctet = 0x2
 }

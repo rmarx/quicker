@@ -1,7 +1,7 @@
 import { BasePacket, PacketType } from "../../packet/base.packet";
 import { BaseHeader, HeaderType } from "../../packet/header/base.header";
 import { LongHeader, LongHeaderType } from "../../packet/header/long.header";
-import { ShortHeader, ShortHeaderType } from "../../packet/header/short.header";
+import { ShortHeader } from "../../packet/header/short.header";
 import { Constants } from "../constants";
 import { ConnectionID, PacketNumber, Version } from '../../packet/header/header.properties';
 import { QuicError } from "../errors/connection.error";
@@ -67,7 +67,6 @@ export class HeaderParser {
 
         // The most significant bit (0x80) of octet 0 (the first octet) is set to 1 for long headers.
         // (0x80 = 0b10000000)
-        // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.1
         var type = buf.readUInt8(offset);
 
         if ((type & 0x80) === 0x80) {
@@ -79,8 +78,8 @@ export class HeaderParser {
 
     /** 
     * https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.2
-       0                   1                   2                   3
-       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+        0                   1                   2                   3
+        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
        +-+-+-+-+-+-+-+-+
         |1|1|T T|X X X X|
        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -199,44 +198,37 @@ export class HeaderParser {
     }
 
     /** 
-     * https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.2    
-        0                   1                   2                   3
-        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+     * https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.3  
+         0                   1                   2                   3
+         0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
         +-+-+-+-+-+-+-+-+
-        |0|K|1|1|0|R R R|
+        |0|1|S|R|R|K|P P|
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         |                Destination Connection ID (0..144)           ...
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        |                      Packet Number (8/16/32)                ...
+        |                     Packet Number (8/16/24/32)              ...
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         |                     Protected Payload (*)                   ...
-        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ */
-    /**
-     *  Method to parse the short header of a packet
-     * 
-     * @param buf packet buffer
-     */
+        +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
     private parseShortHeader(buf: Buffer, offset: number): HeaderOffset {
-        var startOffset = offset; // measured in bytes
+        let startOffset = offset; // measured in bytes
 
-        var type = buf.readUInt8(offset++);
+        let firstByte = (buf.readUInt8(offset++) - 0x40); // -0x40 : remove the 0x01 at the start 
 
-        var keyPhaseBit: boolean = (type & 0x40) === 0x40;    // 2nd bit, 0x40 = 0b0100 0000 // K
-        // NOTE: these bits are currently just placeholders 
-        var thirdBitCheck: boolean = (type & 0x20) === 0x20;  // 3rd bit, 0x20 = 0b0010 0000
-        var fourthBitCheck: boolean = (type & 0x10) === 0x10; // 4th bit, 0x10 = 0b0001 0000
-        var fifthBitCheck: boolean = (type & 0x08) === 0x08;  // 5th bit, 0x08 = 0b0000 1000 // google QUIC demux bit, MUST be 0 for iQUIC
-        var spinBit: boolean = (type & 0x04) === 0x04;        // 6th, 7th and 8th bit reserved for experimentation 
+        // 3 = 0x20 = spinbit
+        // 4 and 5 = 0x18 = reserved
+        // 6 = 0x04 = keyphase
+        // 7 and 8 = 0x03 = pn length
 
-        if (!thirdBitCheck || !fourthBitCheck || fifthBitCheck) {
-            if (thirdBitCheck)
-                VerboseLogging.error("HeaderParser:parseShortHeader : third bit must be 1");
-            if (fourthBitCheck)
-                VerboseLogging.error("HeaderParser:parseShortHeader : fourth bit must be 1");
-            if (!fifthBitCheck)
-                VerboseLogging.error("HeaderParser:parseShortHeader : fifth bit must be 0");
-            //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
-        }
+        let spinBit:boolean     = (firstByte & 0x20) === 0x20; // 0x20 = 0b0010 0000
+        let reserved1:boolean   = (firstByte & 0x10) === 0x10; // 0x10 = 0b0001 0000
+        let reserved2:boolean   = (firstByte & 0x08) === 0x08; // 0x08 = 0b0000 1000
+        let keyPhaseBit:boolean = (firstByte & 0x04) === 0x04; // 0x08 = 0b0000 0100
+
+        let pnLength:number     = firstByte & 0b00000011;
+        pnLength += 1;  // is always encoded as 1 less than the actual count, since a PN cannot be 0 bytes long
+
+        // TODO: check that reserved1 and reserved2 are both 0 AFTER removing header protection
 
 
         // The destination connection ID is either length 0 or between 4 and 18 bytes long
@@ -246,19 +238,20 @@ export class HeaderParser {
         // For now, we just include an 8-bit length up-front and then decode the rest based on that (see ConnectionID:randomConnectionID)
         // REFACTOR TODO: we currently do not support a 0-length connection ID with our scheme! 
         // REFACTOR TODO: use something like ConnectionID.fromBuffer() here, so that custom logic is isolated in one area 
-        var destLen = buf.readUInt8(offset);
-        var destConIDBuffer = Buffer.alloc(destLen);
-        buf.copy(destConIDBuffer, 0, offset, offset + destLen);
+        let dcil = buf.readUInt8(offset);
+        let destConIDBuffer = Buffer.alloc(dcil);
+        buf.copy(destConIDBuffer, 0, offset, offset + dcil);
 
-        var destConnectionID = new ConnectionID(destConIDBuffer, destLen);
-        offset += destLen;
+        let destConnectionID = new ConnectionID(destConIDBuffer, dcil);
+        offset += dcil;
 
-        var truncatedPacketNumber = new PacketNumber(buf.slice(offset, offset + 4));
-        offset = offset + 4;
+        let truncatedPacketNumber = new PacketNumber(buf.slice(offset, offset + pnLength));
+        offset = offset + pnLength;
 
-        var header = new ShortHeader(type, destConnectionID, keyPhaseBit, spinBit);
+        let header = new ShortHeader(destConnectionID, keyPhaseBit, spinBit);
         header.setTruncatedPacketNumber( truncatedPacketNumber, new PacketNumber(new Bignum(0)) ); // FIXME: properly pass largestAcked here!!! 
-        var parsedBuffer = buf.slice(startOffset, offset);
+
+        let parsedBuffer = buf.slice(startOffset, offset);
         header.setParsedBuffer(parsedBuffer);
 
         return { header: header, offset: offset };
