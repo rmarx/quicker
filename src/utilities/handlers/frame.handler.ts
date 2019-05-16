@@ -22,7 +22,7 @@ import {Bignum} from '../../types/bignum';
 import {HandshakeState} from '../../crypto/qtls';
 import {EncryptionLevel} from '../../crypto/crypto.context';
 import {EndpointType} from '../../types/endpoint.type';
-import {TransportParameters, TransportParameterType} from '../../crypto/transport.parameters';
+import {TransportParameters, TransportParameterId} from '../../crypto/transport.parameters';
 import {BasePacket} from '../../packet/base.packet';
 import { FrameFactory } from '../factories/frame.factory';
 import { Constants } from '../constants';

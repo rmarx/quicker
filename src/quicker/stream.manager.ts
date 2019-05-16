@@ -1,5 +1,5 @@
 import { Stream, StreamType } from "./stream";
-import { TransportParameters, TransportParameterType } from "../crypto/transport.parameters";
+import { TransportParameters, TransportParameterId } from "../crypto/transport.parameters";
 import { Bignum } from "../types/bignum";
 import { EndpointType } from "../types/endpoint.type";
 import { EventEmitter } from "events";

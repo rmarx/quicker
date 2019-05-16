@@ -2,7 +2,7 @@ import { FrameHandler } from './frame.handler';
 import { Version, ConnectionID } from '../../packet/header/header.properties';
 import { PacketLogging } from '../logging/packet.logging';
 import { BaseEncryptedPacket } from '../../packet/base.encrypted.packet';
-import { TransportParameterType } from '../../crypto/transport.parameters';
+import { TransportParameterId } from '../../crypto/transport.parameters';
 import { BaseFrame, FrameType } from '../../frame/base.frame';
 import { Connection } from '../../quicker/connection';
 import { BasePacket, PacketType } from '../../packet/base.packet';

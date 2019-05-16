@@ -15,7 +15,7 @@ import { MaxDataFrame } from '../frame/max.data';
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { ShortHeaderPacket } from '../packet/packet/short.header.packet';
 import { logMethod } from '../utilities/decorators/log.decorator';
-import { TransportParameterType } from '../crypto/transport.parameters';
+import { TransportParameterId } from '../crypto/transport.parameters';
 import { Constants } from '../utilities/constants';
 import { HandshakeState } from '../crypto/qtls';
 import { CryptoStream } from '../crypto/crypto.stream';
@@ -85,7 +85,7 @@ export class FlowControl {
                 shortHeaderMax.setPacketNumber( new PacketNumber( new Bignum(0x0fffffff) ), new PacketNumber(new Bignum(0)) );
                 this.shortHeaderSize = shortHeaderMax.getSize();
             }
-            var maxPayloadSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterType.MAX_PACKET_SIZE) - this.shortHeaderSize);
+            var maxPayloadSize = new Bignum(this.connection.getRemoteTransportParameter(TransportParameterId.MAX_PACKET_SIZE) - this.shortHeaderSize);
         }
         
         var frames = this.getFrames(maxPayloadSize);
@@ -439,14 +439,14 @@ export class FlowControl {
             var newStreamId = undefined;
             let streamType:FrameType = FrameType.UNKNOWN;
             if (Stream.isUniStreamId(streamId)) {
-                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamUni().multiply(4))) {
-                    newStreamId = this.connection.getLocalMaxStreamUni().add(Constants.MAX_STREAM_ID_INCREMENT);
+                if (streamId.add(Constants.DEFAULT_MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamUni().multiply(4))) {
+                    newStreamId = this.connection.getLocalMaxStreamUni().add(Constants.DEFAULT_MAX_STREAM_ID_INCREMENT);
                     this.connection.setLocalMaxStreamUni(newStreamId);
                     streamType = FrameType.MAX_STREAMS_UNI;
                 }
             } else {
-                if (streamId.add(Constants.MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamBidi().multiply(4))) {
-                    newStreamId = this.connection.getLocalMaxStreamBidi().add(Constants.MAX_STREAM_ID_INCREMENT);
+                if (streamId.add(Constants.DEFAULT_MAX_STREAM_ID_BUFFER_SPACE).greaterThanOrEqual(this.connection.getLocalMaxStreamBidi().multiply(4))) {
+                    newStreamId = this.connection.getLocalMaxStreamBidi().add(Constants.DEFAULT_MAX_STREAM_ID_INCREMENT);
                     this.connection.setLocalMaxStreamBidi(newStreamId);
                     streamType = FrameType.MAX_STREAMS_BIDI;
                 }

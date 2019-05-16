@@ -4,7 +4,7 @@ import { HandshakeValidation } from '../utilities/validation/handshake.validatio
 import { Bignum } from '../types/bignum';
 import { Constants } from '../utilities/constants';
 import { Connection } from '../quicker/connection';
-import { TransportParameters, TransportParameterType } from './transport.parameters';
+import { TransportParameters, TransportParameterId } from './transport.parameters';
 import { QuicTLS } from "qtls_wrap";
 import { Cipher } from './cipher';
 import { EventEmitter } from 'events';
@@ -89,7 +89,7 @@ export class QTLS extends EventEmitter{
         }
         if (this.options.transportparameters !== undefined) {
             this.emit(QuicTLSEvents.REMOTE_TRANSPORTPARAM_AVAILABLE, TransportParameters.fromBuffer(this.isServer, this.options.transportparameters));
-            this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, TransportParameters.getDefaultTransportParameters(this.isServer, this.connection.getVersion()));
+            this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, TransportParameters.getDefaultTransportParameters(this.isServer));
         }
         // for the client, we create this in getClientInitial, see comments there 
         if (this.isServer) {
@@ -277,12 +277,14 @@ export class QTLS extends EventEmitter{
     }
 
     private setLocalTransportParameters() {
-        this.transportParameters = TransportParameters.getDefaultTransportParameters(this.isServer,this.connection.getVersion());
+        this.transportParameters = TransportParameters.getDefaultTransportParameters(this.isServer);
+        /*
         var version = this.connection.getVersion();
         if (this.connection.getEndpointType() === EndpointType.Client) {
             version = this.connection.getInitialVersion();
         }
-        var transportParams = this.transportParameters.toExtensionDataBuffer(this.handshakeState, version);
+        */
+        var transportParams = this.transportParameters.toExtensionDataBuffer(this.handshakeState);
         this.qtlsHelper.setTransportParameters(transportParams);
         this.emit(QuicTLSEvents.LOCAL_TRANSPORTPARAM_AVAILABLE, this.transportParameters);
     }

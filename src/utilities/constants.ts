@@ -4,6 +4,7 @@ export class Constants {
 
     public static DEBUG_fakeECN = false;
     public static DEBUG_fakeReorder = false;
+    public static DEBUG_greaseTransportParameters = true;
 
     /**
      * Supported versions
@@ -58,13 +59,15 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
     public static readonly DEFAULT_MAX_DATA = 50 * 1024;
-    public static readonly DEFAULT_ACK_EXPONENT = 3;
+    public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
+    public static readonly DEFAULT_MAX_ACK_DELAY = 25; // ms
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;
-    public static readonly MAX_PACKET_SIZE = 1252;
-    public static readonly DISABLE_MIGRATION = false;
+    public static readonly DEFAULT_MAX_PACKET_SIZE = 65527;
+    public static readonly DEFAULT_DISABLE_MIGRATION = false;
+    public static readonly DEFAULT_ACTIVE_CONNECTION_ID_LIMIT = 0;
 
-    public static readonly MAX_STREAM_ID_INCREMENT = 100;
-    public static readonly MAX_STREAM_ID_BUFFER_SPACE = 28;
+    public static readonly DEFAULT_MAX_STREAM_ID_INCREMENT = 100;
+    public static readonly DEFAULT_MAX_STREAM_ID_BUFFER_SPACE = 28;
 
     /**
      * Initial packet must be at least 1200 octets

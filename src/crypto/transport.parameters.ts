@@ -2,32 +2,66 @@ import { Constants } from '../utilities/constants';
 import { EndpointType } from '../types/endpoint.type';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
-import { Version } from '../packet/header/header.properties';
+import { Version, ConnectionID } from '../packet/header/header.properties';
 import { HandshakeState } from './qtls';
 import { Bignum } from '../types/bignum';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
+import { VLIE } from './vlie';
 
 
-// hardcoded, in this order, at https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.1
-// TODO: section 6.4.4 mentions 3 more version negotation validation parameters, but doesn't explain this in detail... should add these though? 
-// https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.4
-// code example in #6.4 adds these as uint32 before all the rest? still not very clear... 
-// for more inspiration: https://github.com/NTAP/quant/blob/master/lib/src/tls.c#L400
-// apparently, the whole <4..2^8-4> syntax is not well defined (asked Lars Eggert on slack) and subject to interpretation... *head desk*
-export enum TransportParameterType {
-    INITIAL_MAX_STREAM_DATA_BIDI_LOCAL = 0x00,  // max data we are willing to receive from our peer on streams that we ourselves opened
-    INITIAL_MAX_DATA = 0x01,                    // max data in-flight for the full connection
-    INITIAL_MAX_BIDI_STREAMS = 0x02,    // maximum amount of bi-directional streams that can be opened
-    IDLE_TIMEOUT = 0x03,                // amount of seconds to wait before closing the connection if nothing is received
-    PREFERRED_ADDRESS = 0x04,           // server address to switch to after completing handshake // UPDATE-12 TODO: actually use this in the implementation somewhere 
-    MAX_PACKET_SIZE = 0x05,             // maximum total packet size (at UDP level)
-    STATELESS_RESET_TOKEN = 0x06,       // token to be used in the case of a stateless reset 
-    ACK_DELAY_EXPONENT = 0x07,          // congestion control tweaking parameter, see congestion/ack handling logic 
-    INITIAL_MAX_UNI_STREAMS = 0x08,     // maximum amount of uni-directional streams that can be opened
-    DISABLE_MIGRATION = 0x09,           // boolean to disable migration-related features
-    INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0a, // max data we are willing to receive from our peer on streams that they opened 
-    INITIAL_MAX_STREAM_DATA_UNI = 0x0b, // max data we are willing to receive from our peer on streams that they opened 
-    MAX_ACK_DELAY = 0x0c,               // maximum amount of MILLIseconds this endpoint will delay sending acks  
-    ORIGINAL_CONNECTION_ID = 0x0d       // The original connection id from the INITIAL packet, only used when sending RETRY packet 
+// hardcoded, in this order, at https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-18.1
+export enum TransportParameterId {
+
+    ORIGINAL_CONNECTION_ID              = 0x0000, // The original connection id from the INITIAL packet, only used when sending RETRY packet 
+    IDLE_TIMEOUT                        = 0x0001, // amount of seconds to wait before closing the connection if nothing is received
+    STATELESS_RESET_TOKEN               = 0x0002, // token to be used in the case of a stateless reset 
+    MAX_PACKET_SIZE                     = 0x0003, // maximum total packet size (at UDP level)
+    INITIAL_MAX_DATA                    = 0x0004, // max data in-flight for the full connection
+
+    INITIAL_MAX_STREAM_DATA_BIDI_LOCAL  = 0x0005, // max data we are willing to receive from our peer on streams that we ourselves opened
+    INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = 0x0006, // max data we are willing to receive from our peer on streams that they opened 
+    INITIAL_MAX_STREAM_DATA_UNI         = 0x0007, // max data we are willing to receive from our peer on streams that they opened 
+
+
+    INITIAL_MAX_STREAMS_BIDI            = 0x0008, // maximum amount of bi-directional streams that can be opened
+    INITIAL_MAX_STREAMS_UNI             = 0x0009, // maximum amount of uni-directional streams that can be opened
+
+    ACK_DELAY_EXPONENT                  = 0x000a, // congestion control tweaking parameter, see congestion/ack handling logic 
+    MAX_ACK_DELAY                       = 0x000b, // maximum amount of MILLIseconds this endpoint will delay sending acks
+
+    DISABLE_MIGRATION                   = 0x000c, // boolean to disable migration-related features
+    PREFERRED_ADDRESS                   = 0x000d, // server address to switch to after completing handshake // UPDATE-12 TODO: actually use this in the implementation somewhere 
+    ACTIVE_CONNECTION_ID_LIMIT          = 0x000e  // The maximum number of connection IDs from the peer that an endpoint is willing to store
+}
+
+enum TransportParameterType{
+    ConnectionID = "ConnectionID",
+    uint64       = "uint64",
+    Buffer       = "Buffer",
+    boolean      = "boolean"
+}
+
+enum TransportParameterTypeLookup{
+    ORIGINAL_CONNECTION_ID              = TransportParameterType.ConnectionID,
+    IDLE_TIMEOUT                        = TransportParameterType.uint64,
+    STATELESS_RESET_TOKEN               = TransportParameterType.Buffer,
+    MAX_PACKET_SIZE                     = TransportParameterType.uint64,
+    INITIAL_MAX_DATA                    = TransportParameterType.uint64,
+
+    INITIAL_MAX_STREAM_DATA_BIDI_LOCAL  = TransportParameterType.uint64,
+    INITIAL_MAX_STREAM_DATA_BIDI_REMOTE = TransportParameterType.uint64,
+    INITIAL_MAX_STREAM_DATA_UNI         = TransportParameterType.uint64,
+
+
+    INITIAL_MAX_STREAMS_BIDI            = TransportParameterType.uint64,
+    INITIAL_MAX_STREAMS_UNI             = TransportParameterType.uint64,
+
+    ACK_DELAY_EXPONENT                  = TransportParameterType.uint64,
+    MAX_ACK_DELAY                       = TransportParameterType.uint64,
+
+    DISABLE_MIGRATION                   = TransportParameterType.boolean,
+    PREFERRED_ADDRESS                   = TransportParameterType.Buffer,
+    ACTIVE_CONNECTION_ID_LIMIT          = TransportParameterType.uint64,
 }
 
 /**
@@ -38,6 +72,7 @@ export class TransportParameters {
 
     private isServer: boolean;
 
+    /*
     private maxStreamDataBidiLocal: number;
     private maxStreamDataBidiRemote: number;
     private maxStreamDataUni: number;
@@ -50,146 +85,220 @@ export class TransportParameters {
     private ackDelayExponent!: number;
 
     private disableMigration!: boolean;
+    private activeConnIDLimit!: number;
+    */
 
-    private version!: Version;
+    // these are the known/supported Transport Parameters, listed in TransportParameterId
+    private tps:Map<TransportParameterId, ConnectionID|number|boolean|Buffer> = new Map<TransportParameterId, ConnectionID|number|boolean|Buffer>();
 
-    public constructor(isServer: boolean, maxStreamData: number, maxData: number, idleTimeout: number, version: Version) {
+    // these are unknown TPs
+    // when sending, this is used for greasing the TPs
+    // when receiving, this stores the received TPs that were of an unknown type (not really needed, just handy for debugging)
+    private unknownTps:Map<number, Buffer> = new Map<number, Buffer>();
+
+
+    protected constructor(isServer: boolean) {
         this.isServer = isServer;
-        this.maxStreamDataBidiLocal = maxStreamData; // TODO: allow individual setting of these parameters if we do this via the ctor
-        this.maxStreamDataBidiRemote = maxStreamData;
-        this.maxStreamDataUni = maxStreamData;
-        this.maxData = maxData;
-        this.idleTimeout = idleTimeout;
-        this.version = version;
     }
 
     // REFACTOR TODO: most of these values have a minimum and maximum allowed value: check for these here! 
     // see https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.4.1
-    public setTransportParameter(type: TransportParameterType, value: any): void {
-        switch (type) {
-            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
-                this.maxStreamDataBidiLocal = value;
-                break;
-            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE:
-                this.maxStreamDataBidiRemote = value;
-                break;
-            case TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI:
-                this.maxStreamDataUni = value;
-                break;
-            case TransportParameterType.INITIAL_MAX_DATA:
-                this.maxData = value;
-                break;
-            case TransportParameterType.STATELESS_RESET_TOKEN:
-                this.statelessResetToken = value;
-                break;
-            case TransportParameterType.IDLE_TIMEOUT:
-                this.idleTimeout = value;
-                break;
-            case TransportParameterType.INITIAL_MAX_BIDI_STREAMS:
-                this.maxStreamIdBidi = value;
-                break;
-            case TransportParameterType.INITIAL_MAX_UNI_STREAMS:
-                this.maxStreamIdUni = value;
-                break;
-            case TransportParameterType.MAX_PACKET_SIZE:
-                this.maxPacketSize = value;
-                break;
-            case TransportParameterType.ACK_DELAY_EXPONENT:
-                this.ackDelayExponent = value;
-                break;
-            case TransportParameterType.DISABLE_MIGRATION:
-                this.disableMigration = value;
-                break;
-        }
+    public setTransportParameter(type: TransportParameterId, value: any): void {
+        this.tps.set( type, value );
+        // TODO: validate minima and maxima (e.g., MAX_PACKET_SIZE cannot be less than 1200 etc.)
+        // TODO: need to then also handle what happens if there is an invalid value here! 
     }
 
-    public getTransportParameter(type: TransportParameterType): any {
-        switch (type) {
-            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
-                return this.maxStreamDataBidiLocal;
-            case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE:
-                return this.maxStreamDataBidiRemote;
-            case TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI:
-                return this.maxStreamDataUni;
-            case TransportParameterType.INITIAL_MAX_DATA:
-                return this.maxData;
-            case TransportParameterType.STATELESS_RESET_TOKEN:
-                return this.statelessResetToken;
-            case TransportParameterType.IDLE_TIMEOUT:
-                return this.idleTimeout;
-            case TransportParameterType.INITIAL_MAX_BIDI_STREAMS:
-                return this.maxStreamIdBidi;
-            case TransportParameterType.INITIAL_MAX_UNI_STREAMS:
-                return this.maxStreamIdUni;
-            case TransportParameterType.MAX_PACKET_SIZE:
-                return this.maxPacketSize === undefined ? Constants.MAX_PACKET_SIZE : this.maxPacketSize;
-            case TransportParameterType.ACK_DELAY_EXPONENT:
-                return this.ackDelayExponent === undefined ? Constants.DEFAULT_ACK_EXPONENT : this.ackDelayExponent;
-            case TransportParameterType.DISABLE_MIGRATION:
-                return this.disableMigration;
+    public getTransportParameter(type: TransportParameterId): any {
+        if( this.tps.has(type) ){
+            return this.tps.get(type);
         }
-        return undefined;
-    }
+        else{
+            // Default values depend on the parameter 
+            // only some have values that are not 0 or false or empty
+            switch( type ){
+                case TransportParameterId.MAX_PACKET_SIZE:
+                    return Constants.DEFAULT_MAX_PACKET_SIZE;
+                case TransportParameterId.ACK_DELAY_EXPONENT:
+                    return Constants.DEFAULT_ACK_DELAY_EXPONENT;
+                case TransportParameterId.MAX_ACK_DELAY:
+                    return Constants.DEFAULT_MAX_ACK_DELAY;
+            }
 
-    public getVersion(): Version {
-        return this.version;
+            switch( TransportParameterTypeLookup[type] ){
+                case TransportParameterType.uint64:
+                    return 0;
+                case TransportParameterType.boolean:
+                    return false;
+                case TransportParameterType.ConnectionID:
+                case TransportParameterType.Buffer:
+                    return undefined;
+            }
+        }
     }
 
     private getTransportParametersBuffer(): Buffer {
-        var buffer = Buffer.alloc(this.getBufferSize());
-        var offset = 0;
-        var bufferOffset: BufferOffset = {
+ 
+        // we need to pre-alloc a buffer but don't know how large stuff is going to be
+        // so, we pre-alloc enough to be sure to fit everything
+        // this wastes a bit of space, but *should* be faster
+
+        let maxSize = 2; // full length is pre-pended as uint16
+        for( let entry of this.tps.entries() ){
+            maxSize += 4; // 2 bytes for type, 2 bytes for length for each entry
+
+            // entry[0] is an integer
+            // TransportParameterType has integer keys, but TransportParameterInternalTypeLookup does NOT!
+            // so, transform to the string key, so we can look it up in TransportParameterInternalTypeLookup
+            let idString = TransportParameterId[entry[0]];
+            let tpType = (<any>TransportParameterTypeLookup)[idString] as TransportParameterType;
+            VerboseLogging.trace("TransportParameters:getTransportParametersBuffer : adding maxsize for " + entry[0] + " // " + TransportParameterId[entry[0]] + " -> " + tpType);
+
+            if( tpType === TransportParameterType.uint64 )
+                maxSize += 8; // varints in QUIC are a maximum of 8 bytes long
+            else if( tpType === TransportParameterType.Buffer )
+                maxSize += (entry[1] as Buffer).byteLength;
+            else if( tpType === TransportParameterType.ConnectionID )
+                maxSize += 18; // connectionIDs are a max of 18 bytes long in QUIC
+            else // boolean
+                maxSize += 0; // zero-length encoded, no actual value present
+        }
+
+        for( let entry of this.unknownTps.entries() ){
+            VerboseLogging.trace("TransportParameters:getTransportParametersBuffer : adding maxsize for greased " + entry[0] );
+            maxSize += 4; // 2 bytes for type, 2 bytes for length for each entry
+            maxSize += entry[1].byteLength;
+        }
+
+        VerboseLogging.trace("TransportParameters:getTransportParametersBuffer : calculated MaxSize is " + maxSize + " bytes");
+
+        let buffer = Buffer.alloc(maxSize);
+        let bufferOffset: BufferOffset = {
             buffer: buffer,
-            offset: offset
+            offset: 0
         };
-        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL, bufferOffset, this.maxStreamDataBidiLocal);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE, bufferOffset, this.maxStreamDataBidiRemote);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI, bufferOffset, this.maxStreamDataUni);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_DATA, bufferOffset, this.maxData);
-        bufferOffset = this.writeTransportParameter(TransportParameterType.IDLE_TIMEOUT, bufferOffset, this.idleTimeout);
-        if (this.isServer) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, bufferOffset, this.statelessResetToken);
+
+        // placeholder for the total length, which we overwrite at the end
+        bufferOffset.offset = bufferOffset.buffer.writeUInt16BE(0xbeef, bufferOffset.offset);
+
+        // cannot just iterate over TypeScript enum apparently
+        // it saves our TransportParameterType as an Object with first all the numbers as keys, with associated strings
+        // then the strings are also added as keys, with the numbers as values
+        // in our Map, it chooses the numbers as keys, since we reference them by string names
+        // some very dirty <any> casting allows us to do the .has() as expected
+        // see also https://blog.oio.de/2014/02/28/typescript-accessing-enum-values-via-a-string/
+
+        for (let tpIdString in TransportParameterId ) {
+
+            // tpIdString is the string (e.g., "IDLE_TIMEOUT"), tpIdNumber is the number (e.g., 0x0001)
+            // this.tps is indexed on the NUMBERS, but TransportParameterTypeLookup requires the string
+            let tpIdNumber:TransportParameterId = ((<any>TransportParameterId)[tpIdString] as TransportParameterId);
+
+            // only include explicitly set parameters
+            if ( !this.tps.has(tpIdNumber) ){ // will only return true if it was set before + if tptype is one of the string keys returning an int (since this.tps indexes on ints)
+                continue;
+            }
+
+            let tpType:TransportParameterType = (<any>TransportParameterTypeLookup)[tpIdString] as TransportParameterType;
+            VerboseLogging.info("getTransportParametersBuffer: encoding " + TransportParameterId[tpIdNumber] + " with internal type " + TransportParameterType[tpType] );
+
+            switch( tpType ){
+                case TransportParameterType.uint64:
+                    // yes, as you might have noticed, the length is doubly encoded here: once in 2 bytes before the value, then as a varint as well
+                    // I asked Marten Seemann (https://github.com/quicwg/base-drafts/issues/1608) about this and he says:
+                    // - the 2 bytes up-front are needed so we can skip unknown TPs
+                    // - we do not use the 2 bytes to indicate the varint length, because we want to prevent a second varint encoding for consistency
+                    // So we are stuck with encoding the length twice. There seems to have been quite a bit of discussion about this, none of it on the github issues though
+                    let encodedBuffer = VLIE.encode( this.tps.get(tpIdNumber) as number );
+
+                    bufferOffset = this.writeIdAndLength(tpIdNumber, bufferOffset.buffer, bufferOffset.offset, encodedBuffer.byteLength);
+                    bufferOffset.offset += encodedBuffer.copy( bufferOffset.buffer, bufferOffset.offset );
+                break;
+
+                case TransportParameterType.boolean:
+                    // booleans are zero-length: if they are there, their value is implied to be true
+                    bufferOffset = this.writeIdAndLength(tpIdNumber, bufferOffset.buffer, bufferOffset.offset, 0);
+                break;
+
+                case TransportParameterType.Buffer:
+                    let bufval = this.tps.get(tpIdNumber) as Buffer;
+                    bufferOffset = this.writeIdAndLength(tpIdNumber, bufferOffset.buffer, bufferOffset.offset, bufval.byteLength);
+                    bufferOffset.offset += bufval.copy(bufferOffset.buffer, bufferOffset.offset);
+                break;
+
+                case TransportParameterType.ConnectionID:
+                    let cid = this.tps.get(tpIdNumber) as ConnectionID;
+                    let cidval = cid.toBuffer();
+
+                    bufferOffset = this.writeIdAndLength(tpIdNumber, bufferOffset.buffer, bufferOffset.offset, cidval.byteLength);
+                    bufferOffset.offset += cidval.copy(bufferOffset.buffer, bufferOffset.offset);
+                break;
+            }
+
+            //VerboseLogging.trace("getTransportParametersBuffer: output is now " + bufferOffset.buffer.toString('hex', 0, bufferOffset.offset) );
         }
-        if (this.maxStreamIdBidi !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, bufferOffset, this.maxStreamIdBidi);
+
+        for( let entry of this.unknownTps ){
+            VerboseLogging.info("getTransportParametersBuffer: encoding greased TP : " + entry[0] );
+
+            bufferOffset = this.writeIdAndLength(entry[0], bufferOffset.buffer, bufferOffset.offset, entry[1].byteLength);
+            bufferOffset.offset += entry[1].copy(bufferOffset.buffer, bufferOffset.offset);
+
+            //VerboseLogging.trace("getTransportParametersBuffer: output is now " + bufferOffset.buffer.toString('hex', 0, bufferOffset.offset) );
         }
-        if (this.maxStreamIdUni !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, bufferOffset, this.maxStreamIdUni);
-        }
-        if (this.maxPacketSize !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.MAX_PACKET_SIZE, bufferOffset, this.maxPacketSize);
-        }
-        if (this.ackDelayExponent !== undefined) {
-            bufferOffset = this.writeTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, bufferOffset, this.ackDelayExponent);
-        }
-        if( this.disableMigration ){
-            bufferOffset = this.writeZeroLengthTransportParameter(TransportParameterType.DISABLE_MIGRATION, bufferOffset);
-        }
-        return bufferOffset.buffer;
+
+        let totalLength = bufferOffset.offset - 2; // -2 because the length placeholder is also included in the buffer
+        bufferOffset.buffer.writeUInt16BE(totalLength, 0);
+
+        // now we know the correct size, create new memory and move correct size into that
+        let outputBuffer = Buffer.alloc( bufferOffset.offset );
+        bufferOffset.buffer.copy(outputBuffer, 0, 0, bufferOffset.offset); 
+
+        VerboseLogging.trace("getTransportParametersBuffer: finalOutput is " + outputBuffer.toString('hex') );
+
+        delete bufferOffset.buffer; // shouldn't be needed, but let's make sure, shall we? 
+
+        return outputBuffer;
     }
 
-    /**
-     * Builds a buffer from the transport parameters AND the negotiated version
-     *  --> Is the same buffer as the extensionDataBuffer, except that the first four bytes also contain the version
-     *  this buffer is used to perform session resumption by the client
-     *  function is thus used for application side
-     */
+
+    private writeIdAndLength(id: number, targetBuffer: Buffer, targetOffset: number, tpValueByteLength: number): BufferOffset {
+        targetBuffer.writeUInt16BE(id, targetOffset);
+        targetOffset += 2;
+        targetBuffer.writeUInt16BE(tpValueByteLength, targetOffset);
+        targetOffset += 2;
+        return {
+            buffer: targetBuffer,
+            offset: targetOffset
+        }
+    }
+
+    /*
+    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: number): BufferOffset;
+    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: Buffer): BufferOffset;
+    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: any): BufferOffset {
+        bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, this.getTransportParameterTypeByteSize(type));
+        if (value instanceof Buffer) {
+            value.copy(bufferOffset.buffer, bufferOffset.offset);
+        } else {
+            bufferOffset.buffer.writeUIntBE(value, bufferOffset.offset, this.getTransportParameterTypeByteSize(type));
+        }
+        bufferOffset.offset += this.getTransportParameterTypeByteSize(type);
+        return bufferOffset;
+    }
+    */
+
     public toBuffer(): Buffer {
-        var transportParameterersBuffer = this.getTransportParametersBuffer();
-        var buf = Buffer.alloc(transportParameterersBuffer.byteLength + 4);
-        buf.write(this.version.toString(), 0, 4, 'hex');
-        transportParameterersBuffer.copy(buf, 4);
-        return buf;
+        //var transportParameterersBuffer = this.getTransportParametersBuffer();
+        //var buf = Buffer.alloc(transportParameterersBuffer.byteLength);
+        //buf.write(this.version.toString(), 0, 4, 'hex');
+        //transportParameterersBuffer.copy(buf, 4);
+        return this.getTransportParametersBuffer();
     }
 
-    /**
-     * Builds a buffer from the transport parameters and the necessary version parts which are mandatory 
-     *      (initial version for the client| negotiated version + supported version for the server)
-     *  this buffer is used to pass to C++ side to send it to the other endpoint
-     *  function is thus used for internal use only.
-     */
-    public toExtensionDataBuffer(handshakeState: HandshakeState, version: Version): Buffer {
-        var transportParamBuffer = this.getTransportParametersBuffer();
+    public toExtensionDataBuffer(handshakeState: HandshakeState): Buffer {
+        return this.getTransportParametersBuffer();
+        /*
         var transportExt = Buffer.alloc(this.getExtensionDataSize(transportParamBuffer, handshakeState));
         var offset = 0;
         if (this.isServer) {
@@ -209,38 +318,18 @@ export class TransportParameters {
         offset += 2;
         transportParamBuffer.copy(transportExt, offset);
         return transportExt;
+        */
     }
 
-    private writeTypeAndLength(type: TransportParameterType, buffer: Buffer, offset: number, length: number): BufferOffset {
-        buffer.writeUInt16BE(type, offset);
-        offset += 2;
-        buffer.writeUInt16BE(length, offset);
-        offset += 2;
-        return {
-            buffer: buffer,
-            offset: offset
-        }
-    }
-
-    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: number): BufferOffset;
-    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: Buffer): BufferOffset;
-    private writeTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset, value: any): BufferOffset {
-        bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, this.getTransportParameterTypeByteSize(type));
-        if (value instanceof Buffer) {
-            value.copy(bufferOffset.buffer, bufferOffset.offset);
-        } else {
-            bufferOffset.buffer.writeUIntBE(value, bufferOffset.offset, this.getTransportParameterTypeByteSize(type));
-        }
-        bufferOffset.offset += this.getTransportParameterTypeByteSize(type);
-        return bufferOffset;
-    }
-
+    /*
     private writeZeroLengthTransportParameter(type: TransportParameterType, bufferOffset: BufferOffset){
         // zero-length = boolean : if the parameter is present, value is automatically 1, so length is 0
         bufferOffset = this.writeTypeAndLength(type, bufferOffset.buffer, bufferOffset.offset, 0);
         return bufferOffset;
     }
+    */
 
+    /*
     private getBufferSize(): number {
         var size = 0;
         // max stream data parameters: 2 byte for type, 2 byte for length and 4 byte for value
@@ -253,11 +342,11 @@ export class TransportParameters {
         size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.IDLE_TIMEOUT);
         if (this.maxStreamIdBidi !== undefined) {
             // max stream id for bidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_BIDI_STREAMS);
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAMS_BIDI);
         }
         if (this.maxStreamIdUni !== undefined) {
             // max stream id for unidirectional streams: 2 byte for type,2 byte for length and 2 byte for value
-            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_UNI_STREAMS);
+            size += 2 + 2 + this.getTransportParameterTypeByteSize(TransportParameterType.INITIAL_MAX_STREAMS_UNI);
         }
         if (this.maxPacketSize !== undefined) {
             // max size for a packet: 2 byte for type, 2 byte for length and 2 byte for value
@@ -278,57 +367,127 @@ export class TransportParameters {
         }
         return size;
     }
+    */
 
     /**
      * Rebuild transport parameters from a buffer object which is obtained from the other endpoint and received from C++ side.
      *  function is for internal use.
      */
-    public static fromExtensionBuffer(isServer: boolean, buffer: Buffer, version: Version): TransportParameters {
-        var values: { [index: number]: any; } = [];
-        var offset = 0;
-        var transportParameters = new TransportParameters(isServer, 0, 0, 0, version);
+    public static fromExtensionBuffer(isServer: boolean, buffer: Buffer): TransportParameters {
+
+        VerboseLogging.trace("TransportParameters:fromExtensionBuffer : " + buffer.toString("hex"));
+
+        //let values: { [index: number]: any; } = [];
+        let offset = 0;
+        let transportParameters = TransportParameters.getEmptyTransportParameters(isServer);
+
+        let totalLength = buffer.readUInt16BE(0);
+        offset += 2;
+
+        if( totalLength != (buffer.byteLength - 2) ){
+            VerboseLogging.warn("TransportParameters:fromExtensionBuffer : buffer length != length field in the TPs! " + buffer.byteLength + " != " + totalLength);
+        }
+
         while (offset < buffer.byteLength) {
-            var type = buffer.readUInt16BE(offset);
+            let tpIdNumber = buffer.readUInt16BE(offset);
             offset += 2;
-            var len = buffer.readUInt16BE(offset);
+            let valueLength = buffer.readUInt16BE(offset);
             offset += 2;
+
+            let validTp:boolean = TransportParameterId[tpIdNumber] !== undefined;
+            if( validTp ){
+                
+                let tpIdString:TransportParameterId = ((<any>TransportParameterId)[tpIdNumber] as TransportParameterId);
+                let tpType:TransportParameterType = (<any>TransportParameterTypeLookup)[tpIdString] as TransportParameterType;
+                VerboseLogging.info("fromExtensionBuffer: decoding " + TransportParameterId[tpIdNumber] + " with internal type " + TransportParameterType[tpType] );
+    
+                if( transportParameters.tps.has(tpIdNumber) ){
+                    VerboseLogging.error("fromExtensionBuffer: decoding : Duplicate TP detected " + TransportParameterId[tpIdNumber] + ". This MUST result in connection closure, but we don't do that yet!");
+                }
+
+                switch( tpType ){
+                    case TransportParameterType.uint64:
+                    
+                        let decodedVarint = VLIE.decode(buffer, offset);
+                        let tpValue = decodedVarint.value;
+
+                        if( decodedVarint.offset - offset != valueLength )
+                            VerboseLogging.warn("fromExtensionBuffer : VLIE length was not the same as prepended length! " + (decodedVarint.offset - offset) + " != " + valueLength );
+
+                        offset = decodedVarint.offset;
+    
+                        VerboseLogging.trace("fromExtensionBuffer: adding uint64 " + TransportParameterId[tpIdNumber] + " = " + tpValue.toNumber());
+                        transportParameters.tps.set( tpIdNumber, tpValue.toNumber() ); // FIXME: add support for Bignums (not just do everything as number!)
+                    break;
+    
+                    case TransportParameterType.boolean:
+                        VerboseLogging.trace("fromExtensionBuffer: adding boolean " + TransportParameterId[tpIdNumber] + " = " + true);
+                        transportParameters.tps.set( tpIdNumber, true );
+                    break;
+    
+                    case TransportParameterType.Buffer:
+                        let tpBufValue = Buffer.alloc(valueLength);
+                        buffer.copy( tpBufValue, 0, offset, offset + valueLength );
+                        offset = offset + valueLength;
+
+                        VerboseLogging.trace("fromExtensionBuffer: adding buffer " + TransportParameterId[tpIdNumber] + " = " + tpBufValue.toString('hex'));
+                        transportParameters.tps.set( tpIdNumber, tpBufValue );
+                    break;
+    
+                    case TransportParameterType.ConnectionID:
+                        let tpCidValue = Buffer.alloc(valueLength);
+                        buffer.copy( tpCidValue, 0, offset, offset + valueLength );
+                        offset = offset + valueLength;
+
+                        VerboseLogging.trace("fromExtensionBuffer: adding ConnectionID " + TransportParameterId[tpIdNumber] + " = " + tpCidValue.toString('hex'));
+                        let cid = new ConnectionID( tpCidValue, valueLength );
+                        transportParameters.tps.set( tpIdNumber, cid );
+                    break;
+                }
+            }
+            // invalid tp id: unknown tp, save it in separate Map
+            else{
+                let tpValue = Buffer.alloc(valueLength);
+                buffer.copy( tpValue, 0, offset, offset + valueLength );
+                offset = offset + valueLength;
+
+                VerboseLogging.info("fromExtensionBuffer: Unknown TP : " + tpIdNumber + " = " + tpValue.toString('hex'));
+                transportParameters.unknownTps.set( tpIdNumber, tpValue );
+            }
+        }
+            /*
             var value = undefined;
-            if (len > 4) {
-                value = Buffer.alloc(len);
-                buffer.copy(value, 0, offset, offset + len);
-            } else if( len > 0 ) {
-                value = buffer.readUIntBE(offset, len);
+            if (valueLength > 4) {
+                value = Buffer.alloc(valueLength);
+                buffer.copy(value, 0, offset, offset + valueLength);
+            } else if( valueLength > 0 ) {
+                value = buffer.readUIntBE(offset, valueLength);
             }
             else{
                 value = true; // 0-length transport parameters are booleans: if they're present, their value is true
             }
-            offset += len;
-            if (type in values) {
-                throw new QuicError(ConnectionErrorCodes.TRANSPORT_PARAMETER_ERROR, "Dual transport parameter defined " + type);
+            offset += valueLength;
+            if (tpId in values) {
+                throw new QuicError(ConnectionErrorCodes.TRANSPORT_PARAMETER_ERROR, "Dual transport parameter defined " + tpId);
             }
-            values[type] = value;
+            values[tpId] = value;
         }
         for (let key in values) {
             // Ignore unknown transport parameters
-            if (key in TransportParameterType) {
+            if (key in TransportParameterId) {
                 transportParameters.setTransportParameter(Number(key), values[key]);
             } else {
             }
         }
+        */
         return transportParameters;
     }
 
-    /**
-     * Rebuild transport parameters from a buffer object (passed to the client).
-     *  The first 4 bytes contain the negotiated version and the rest is the same as the extensionBuffer
-     *  This function must be used for application 
-     */
     public static fromBuffer(isServer: boolean, buffer: Buffer): TransportParameters {
-        var version = new Version(Buffer.from(buffer.readUInt32BE(0).toString(16), 'hex'));
-        var tpBuffer = buffer.slice(4);
-        return TransportParameters.fromExtensionBuffer(isServer, tpBuffer, version);
+        return TransportParameters.fromExtensionBuffer(isServer, buffer);
     }
 
+    /*
     private getTransportParameterTypeByteSize(type: TransportParameterType): number {
         switch (type) {
             case TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL:
@@ -337,7 +496,7 @@ export class TransportParameters {
                 return 4;
             case TransportParameterType.INITIAL_MAX_DATA:
                 return 4;
-            case TransportParameterType.INITIAL_MAX_BIDI_STREAMS:
+            case TransportParameterType.INITIAL_MAX_STREAMS_BIDI:
                 return 2;
             case TransportParameterType.IDLE_TIMEOUT:
                 return 2;
@@ -349,39 +508,92 @@ export class TransportParameters {
                 return 16;
             case TransportParameterType.ACK_DELAY_EXPONENT:
                 return 1;
-            case TransportParameterType.INITIAL_MAX_UNI_STREAMS:
+            case TransportParameterType.INITIAL_MAX_STREAMS_UNI:
                 return 2;
             case TransportParameterType.DISABLE_MIGRATION:
                 return 0;
         }
         return 0;
     }
+    */
 
-    /**
-     * Method to get transport parameters with default values, which are set in the constants file
-     * @param isServer 
-     * @param version 
-     */
-    public static getDefaultTransportParameters(isServer: boolean, version: Version): TransportParameters {
-        let transportParameters = new TransportParameters(isServer, Constants.DEFAULT_MAX_STREAM_DATA, Constants.DEFAULT_MAX_DATA, Constants.DEFAULT_IDLE_TIMEOUT, version);
+    public static getEmptyTransportParameters(isServer: boolean): TransportParameters {
+        return new TransportParameters(isServer);
+    }
+    
+    public static getDefaultTransportParameters(isServer: boolean): TransportParameters {
+        let transportParameters = new TransportParameters(isServer);
 
-        transportParameters.setTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT, Constants.DEFAULT_ACK_EXPONENT);
-        transportParameters.setTransportParameter(TransportParameterType.DISABLE_MIGRATION, Constants.DISABLE_MIGRATION);
+        // TODO: does it make sense to set some of these if they are the default values mentioned in the spec?
+        // they only take up space... 
+        transportParameters.setTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL,     Constants.DEFAULT_MAX_STREAM_DATA ); 
+        transportParameters.setTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE,    Constants.DEFAULT_MAX_STREAM_DATA ); 
+        transportParameters.setTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_UNI,            Constants.DEFAULT_MAX_STREAM_DATA ); 
+        transportParameters.setTransportParameter( TransportParameterId.INITIAL_MAX_DATA,                       Constants.DEFAULT_MAX_DATA ); 
+        transportParameters.setTransportParameter( TransportParameterId.IDLE_TIMEOUT,                           Constants.DEFAULT_IDLE_TIMEOUT ); 
+
+        transportParameters.setTransportParameter(TransportParameterId.ACK_DELAY_EXPONENT,                      Constants.DEFAULT_ACK_DELAY_EXPONENT);
+        transportParameters.setTransportParameter(TransportParameterId.MAX_ACK_DELAY,                           Constants.DEFAULT_MAX_ACK_DELAY);
+        transportParameters.setTransportParameter(TransportParameterId.ACTIVE_CONNECTION_ID_LIMIT,              Constants.DEFAULT_ACTIVE_CONNECTION_ID_LIMIT);
+        
+        if( Constants.DEFAULT_DISABLE_MIGRATION )
+            transportParameters.setTransportParameter(TransportParameterId.DISABLE_MIGRATION,                   Constants.DEFAULT_DISABLE_MIGRATION);
+
         if (isServer) {
-            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
-            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
+            transportParameters.setTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_BIDI,            Constants.DEFAULT_MAX_STREAM_CLIENT_BIDI);
+            transportParameters.setTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_UNI,             Constants.DEFAULT_MAX_STREAM_CLIENT_UNI);
             // TODO: better to calculate this value
-            transportParameters.setTransportParameter(TransportParameterType.STATELESS_RESET_TOKEN, Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
+            transportParameters.setTransportParameter(TransportParameterId.STATELESS_RESET_TOKEN,               Bignum.random('ffffffffffffffffffffffffffffffff', 16).toBuffer());
         } else {
-            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
-            transportParameters.setTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS, Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
+            transportParameters.setTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_BIDI,            Constants.DEFAULT_MAX_STREAM_SERVER_BIDI);
+            transportParameters.setTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_UNI,             Constants.DEFAULT_MAX_STREAM_SERVER_UNI);
         }
+
+        if( Constants.DEBUG_greaseTransportParameters ){
+            transportParameters.unknownTps.set( 0xffff, Buffer.from([0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xff]));
+            transportParameters.unknownTps.set( 0x1234, Buffer.from([0xde, 0xad, 0xbe, 0xef]));
+            transportParameters.unknownTps.set( 0xea5e, Buffer.from([0xea, 0x5e]));
+        }
+
         return transportParameters;
+    }
+
+    public toJSONstring(prettyPrint:boolean = false){
+
+        let known:any = {};
+        let unknown:any = {};
+
+        for( let entry of this.tps.entries() ){
+
+            let idString = TransportParameterId[entry[0]];
+            let tpType = (<any>TransportParameterTypeLookup)[idString] as TransportParameterType;
+
+            if( tpType === TransportParameterType.uint64 )
+                known[ idString ] = "" + entry[1];
+            else if( tpType === TransportParameterType.Buffer )
+                known[ idString ] = "" + (entry[1] as Buffer).toString('hex');
+            else if( tpType === TransportParameterType.ConnectionID )
+                known[ idString ] = "" + (entry[1] as ConnectionID).toBuffer().toString('hex');
+            else // boolean
+                known[ idString ] = "" + (entry[1] as boolean);
+        }
+
+        for( let entry of this.unknownTps.entries() ){
+            unknown[ entry[0] ] = entry[1].toString('hex');
+        }
+
+        return JSON.stringify( 
+        {
+            known: known,
+            unknown: unknown
+        }, 
+        null, prettyPrint ? 4  : 0 );
     }
 
     /**
      * Calculate the size of the buffer which is passed to C++ for openssl
      */
+    /*
     private getExtensionDataSize(transportParamBuffer: Buffer, handshakeState: HandshakeState): number {
         if (this.isServer) {
             if (handshakeState === HandshakeState.HANDSHAKE) {
@@ -391,6 +603,7 @@ export class TransportParameters {
         }
         return transportParamBuffer.byteLength + 6;
     }
+    */
 }
 
 export interface BufferOffset {

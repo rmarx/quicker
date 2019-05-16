@@ -6,7 +6,7 @@ import { Bignum } from '../../types/bignum';
 import { BasePacket, PacketType } from '../../packet/base.packet';
 import { AckFrame, AckBlock } from '../../frame/ack';
 import { TimeFormat, Time } from '../../types/time';
-import { TransportParameterType } from '../../crypto/transport.parameters';
+import { TransportParameterId } from '../../crypto/transport.parameters';
 import { Alarm, AlarmEvent } from '../../types/alarm';
 import { PacketFactory } from '../factories/packet.factory';
 import { BaseFrame, FrameType } from '../../frame/base.frame';
@@ -148,9 +148,9 @@ export class AckHandler {
         */
 
         if (connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-            var ackDelayExponent: number = connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+            var ackDelayExponent: number = connection.getRemoteTransportParameter(TransportParameterId.ACK_DELAY_EXPONENT);
         } else {
-            var ackDelayExponent: number = Constants.DEFAULT_ACK_EXPONENT;
+            var ackDelayExponent: number = Constants.DEFAULT_ACK_DELAY_EXPONENT;
         }
 
         // TODO: optimize: store largestPacketNumber timing separately so we don't need to do hashmap lookup

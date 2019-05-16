@@ -24,7 +24,7 @@ import { AckFrame, AckBlock } from '../../frame/ack';
 import { CryptoFrame } from '../../frame/crypto';
 import { StreamFrame } from '../../frame/stream';
 import { configure, getLogger, Logger } from 'log4js';
-import { TransportParameterType } from '../../crypto/transport.parameters';
+import { TransportParameterId } from '../../crypto/transport.parameters';
 import { HeaderType, BaseHeader } from '../../packet/header/base.header';
 import { LongHeader } from '../../packet/header/long.header';
 import { VersionNegotiationPacket } from '../../packet/packet/version.negotiation';
@@ -358,7 +358,7 @@ export class PacketLogging {
 
     private logAckFrame(connection: Connection, ackFrame: AckFrame, color: ConsoleColor): string {
         var log = "";
-        var ackDelayExponent = connection.getLocalTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+        var ackDelayExponent = connection.getLocalTransportParameter(TransportParameterId.ACK_DELAY_EXPONENT);
         var ackDelay = ackFrame.getAckDelay().toNumber() * (2 ** ackDelayExponent);
 
         log += this.getSpaces(4) + "largest acknowledged=" + ackFrame.getLargestAcknowledged().toDecimalString() + "\n";

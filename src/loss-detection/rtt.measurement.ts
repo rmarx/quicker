@@ -6,7 +6,7 @@ import { SentPacket } from './loss.detection';
 import { BN } from 'bn.js';
 import { Connection } from '../quicker/connection';
 import { Constants } from '../utilities/constants';
-import { TransportParameterType } from '../crypto/transport.parameters';
+import { TransportParameterId } from '../crypto/transport.parameters';
 import { HandshakeState } from '../crypto/qtls';
 
 // we extracted this from LossDetection to make it share-able across 
@@ -53,12 +53,12 @@ export class RTTMeasurement{
 
 
         let ackDelay = receivedAckFrame.getAckDelay().toNumber();
-        let ackDelayExponent = Constants.DEFAULT_ACK_EXPONENT;
+        let ackDelayExponent = Constants.DEFAULT_ACK_DELAY_EXPONENT;
         // the ackDelay is an encoded value, using the ack_delay_exponent, so we need to "decode" it 
         // it's a received ACK frame, so it was encoded with the remote's exponent
         // TODO: REFACTOR: this is extremely dirty, shouldn't need to know this here 
         if (this.connection.getQuicTLS().getHandshakeState() === HandshakeState.COMPLETED) {
-            ackDelayExponent = this.connection.getRemoteTransportParameter(TransportParameterType.ACK_DELAY_EXPONENT);
+            ackDelayExponent = this.connection.getRemoteTransportParameter(TransportParameterId.ACK_DELAY_EXPONENT);
         }
 
         ackDelay = ackDelay * (2 ** ackDelayExponent);

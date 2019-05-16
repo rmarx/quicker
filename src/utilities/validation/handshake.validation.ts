@@ -11,6 +11,7 @@ export class HandshakeValidation {
      * TODO: add validation
      */
     public static validateExtensionData(isServer: boolean, extensionData: Buffer): TransportParameters {
+        /*
         var offset = 0;
         if (isServer) {
             var version = extensionData.readUInt32BE(offset);
@@ -29,7 +30,8 @@ export class HandshakeValidation {
         offset += 2;
         var transportParamBuffer = Buffer.alloc(length);
         extensionData.copy(transportParamBuffer, 0, offset);
-        var transportParameters: TransportParameters = TransportParameters.fromExtensionBuffer(isServer, transportParamBuffer, new Version(Buffer.from(version.toString(16), 'hex')));
+        */
+        let transportParameters: TransportParameters = TransportParameters.fromExtensionBuffer(isServer, extensionData);
         
         return transportParameters;
     }

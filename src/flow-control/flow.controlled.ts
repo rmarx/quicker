@@ -1,5 +1,5 @@
 import {EndpointType} from '../types/endpoint.type';
-import {TransportParameterType} from '../crypto/transport.parameters';
+import {TransportParameterId} from '../crypto/transport.parameters';
 import {Bignum} from '../types/bignum';
 import { EventEmitter } from 'events';
 import { logMethod } from '../utilities/decorators/log.decorator';

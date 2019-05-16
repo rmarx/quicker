@@ -1,5 +1,5 @@
 import { Alarm, AlarmEvent } from '../types/alarm';
-import { TransportParameterType } from '../crypto/transport.parameters';
+import { TransportParameterId } from '../crypto/transport.parameters';
 import { AEAD } from '../crypto/aead';
 import { QTLS, HandshakeState, QuicTLSEvents } from '../crypto/qtls';
 import { ConnectionID, PacketNumber, Version } from '../packet/header/header.properties';
@@ -109,6 +109,10 @@ export class Connection extends FlowControlledObject {
             else
                 this.version = new Version(Buffer.from(Constants.getActiveVersion(), "hex"));
         }
+        
+        // TODO: make this opt-in, as logging has overhead
+        // make a dummy qlogger that has the same methods, but which just don't do anything
+        this.qlogger = new QlogWrapper( this.initialDestConnectionID.toString(), this.endpointType, "Qlog from " + (new Date().toString()) );
 
         // Create QuicTLS Object
         this.qtls = new QTLS(endpointType === EndpointType.Server, options, this);
@@ -124,16 +128,15 @@ export class Connection extends FlowControlledObject {
         
 
         if (this.endpointType === EndpointType.Client) {
+            /*
             // Check if remote transport parameters exists (only happens when session resumption is used) and contains a version which is still supported by the client
             if (this.remoteTransportParameters !== undefined && (Constants.SUPPORTED_VERSIONS.indexOf(this.remoteTransportParameters.getVersion().toString()) !== -1)) {
                 this.version = this.remoteTransportParameters.getVersion();
             }
+            */
             this.initialVersion = this.version;
         }
 
-        // TODO: make this opt-in, as logging has overhead
-        // make a dummy qlogger that has the same methods, but which just don't do anything
-        this.qlogger = new QlogWrapper( this.initialDestConnectionID.toString(), this.endpointType, "Qlog from " + (new Date().toString()) );
 
         this.qlogger.onPathUpdate( remoteInfo.family, this.socket.address().address, this.socket.address().port, remoteInfo.address, remoteInfo.port );
     }
@@ -341,11 +344,11 @@ export class Connection extends FlowControlledObject {
         return this.streamManager;
     }
 
-    public getLocalTransportParameter(type: TransportParameterType): any {
+    public getLocalTransportParameter(type: TransportParameterId): any {
         return this.localTransportParameters.getTransportParameter(type);
     }
 
-    public setLocalTransportParameter(type: TransportParameterType, value: any): void {
+    public setLocalTransportParameter(type: TransportParameterId, value: any): void {
         this.localTransportParameters.setTransportParameter(type, value);
     }
 
@@ -426,29 +429,30 @@ export class Connection extends FlowControlledObject {
     }
 
     public setLocalTransportParameters(transportParameters: TransportParameters): void {
-        VerboseLogging.info("Connection:setLocalTransportParameters : " + JSON.stringify( transportParameters, null, 4 ) );
+        VerboseLogging.info("Connection:setLocalTransportParameters : " + transportParameters.toJSONstring(true) );
+        this.getQlogger().onLocalTransportParametersChange( transportParameters );
 
         this.localTransportParameters = transportParameters;
-        this.setReceiveAllowance(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_DATA));
-        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS) * 4);
-        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS) * 4);
+        this.setReceiveAllowance(transportParameters.getTransportParameter(TransportParameterId.INITIAL_MAX_DATA));
+        this.setLocalMaxStreamUni(transportParameters.getTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_UNI) * 4);
+        this.setLocalMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_BIDI) * 4);
         
         let streamManager:StreamManager = this.getStreamManager();
         let flowControl:StreamFlowControlParameters = streamManager.getFlowControlParameters();
-        flowControl.receive_our_bidi   = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL );
-        flowControl.receive_their_bidi = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE );
-        flowControl.receive_their_uni  = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI );
+        flowControl.receive_our_bidi   = transportParameters.getTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL );
+        flowControl.receive_their_bidi = transportParameters.getTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE );
+        flowControl.receive_their_uni  = transportParameters.getTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_UNI );
 
         streamManager.getStreams().forEach((stream: Stream) => {
             streamManager.applyDefaultFlowControlLimits( stream );
         });
     }
 
-    public getRemoteTransportParameter(type: TransportParameterType): any {
+    public getRemoteTransportParameter(type: TransportParameterId): any {
         return this.remoteTransportParameters.getTransportParameter(type);
     }
 
-    public setRemoteTransportParameter(type: TransportParameterType, value: any): void {
+    public setRemoteTransportParameter(type: TransportParameterId, value: any): void {
         this.remoteTransportParameters.setTransportParameter(type, value);
     }
 
@@ -457,18 +461,19 @@ export class Connection extends FlowControlledObject {
     }
 
     public setRemoteTransportParameters(transportParameters: TransportParameters): void {
-        VerboseLogging.info("Connection:setRemoteTransportParameters : " + JSON.stringify( transportParameters, null, 4 ) );
+        VerboseLogging.info("Connection:setRemoteTransportParameters : " + transportParameters.toJSONstring(true) );
+        this.getQlogger().onRemoteTransportParametersChange( transportParameters );
         
         this.remoteTransportParameters = transportParameters;
-        this.setSendAllowance(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_DATA));
-        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_UNI_STREAMS) * 4);
-        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterType.INITIAL_MAX_BIDI_STREAMS) * 4);
+        this.setSendAllowance(transportParameters.getTransportParameter(TransportParameterId.INITIAL_MAX_DATA));
+        this.setRemoteMaxStreamUni(transportParameters.getTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_UNI) * 4);
+        this.setRemoteMaxStreamBidi(transportParameters.getTransportParameter(TransportParameterId.INITIAL_MAX_STREAMS_BIDI) * 4);
         
         let streamManager:StreamManager = this.getStreamManager();
         let flowControl:StreamFlowControlParameters = streamManager.getFlowControlParameters();
-        flowControl.send_their_bidi = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL );
-        flowControl.send_our_bidi   = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE );
-        flowControl.send_our_uni    = transportParameters.getTransportParameter( TransportParameterType.INITIAL_MAX_STREAM_DATA_UNI );
+        flowControl.send_their_bidi = transportParameters.getTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_BIDI_LOCAL );
+        flowControl.send_our_bidi   = transportParameters.getTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_BIDI_REMOTE );
+        flowControl.send_our_uni    = transportParameters.getTransportParameter( TransportParameterId.INITIAL_MAX_STREAM_DATA_UNI );
 
         streamManager.getStreams().forEach((stream: Stream) => {
             streamManager.applyDefaultFlowControlLimits( stream );
@@ -531,7 +536,7 @@ export class Connection extends FlowControlledObject {
             VerboseLogging.error("Connection:getEncryptionContextByPacketType : unsupported PacketType : " + PacketType[packetType] );
             return undefined;
         }
-    }
+    } 
 
     public getEncryptionContext(level:EncryptionLevel): CryptoContext | undefined{
         if( level == EncryptionLevel.INITIAL )
@@ -818,7 +823,7 @@ export class Connection extends FlowControlledObject {
     }
 
     public startIdleAlarm(): void {
-        var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterType.IDLE_TIMEOUT);
+        var time = this.localTransportParameters === undefined ? Constants.DEFAULT_IDLE_TIMEOUT : this.getLocalTransportParameter(TransportParameterId.IDLE_TIMEOUT);
         this.idleTimeoutAlarm.on(AlarmEvent.TIMEOUT, () => {
             this.state = ConnectionState.Draining;
             this.closeRequested();

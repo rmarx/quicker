@@ -15,7 +15,7 @@ import {BaseFrame} from '../../frame/base.frame';
 import {HandshakePacket} from '../../packet/packet/handshake';
 import { ShortHeaderPacket } from '../../packet/packet/short.header.packet';
 import { ShortHeader } from '../../packet/header/short.header';
-import { TransportParameterType } from '../../crypto/transport.parameters';
+import { TransportParameterId } from '../../crypto/transport.parameters';
 import { EndpointType } from '../../types/endpoint.type';
 import { Protected0RTTPacket } from '../../packet/packet/protected.0rtt';
 import { VersionNegotiationHeader } from '../../packet/header/version.negotiation.header';

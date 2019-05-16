@@ -14,6 +14,7 @@ import { MaxStreamFrame } from '../../frame/max.stream';
 import { MaxDataFrame } from '../../frame/max.data';
 import { QuicStream } from '../../quicker/quic.stream';
 import { StreamState } from '../../quicker/stream';
+import { TransportParameters } from '../../crypto/transport.parameters';
 
 /*
 Example usage: 
@@ -295,6 +296,38 @@ export class QlogWrapper{
             {
                 id: streamID.toDecimalString(),
                 state: stateString
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onLocalTransportParametersChange(tps:TransportParameters){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.TRANSPORT,
+            "TRANSPORT_PARAMETERS_UPDATE",
+            "DEFAULT",
+            {
+                type: "local",
+                transport_parameters: tps.toJSONstring()
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onRemoteTransportParametersChange(tps:TransportParameters){
+
+        let evt:any = [
+            123, 
+            qlog.EventCategory.TRANSPORT,
+            "TRANSPORT_PARAMETERS_UPDATE",
+            "DEFAULT",
+            {
+                type: "remote",
+                transport_parameters: tps.toJSONstring()
             }
         ];
 

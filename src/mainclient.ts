@@ -9,6 +9,7 @@ import { TestAeaedCleartextVector } from "./tests/test.aead.cleartext.vector";
 import { TestLsquicCleartextDecode } from "./tests/test.lsquic.cleartext.decode";
 import { VerboseLogging } from "./utilities/logging/verbose.logging";
 import { TestPNTruncation } from "./tests/test.pntruncation";
+import { TestTransportParameters } from "./tests/test.transportparameters";
 
 
 
@@ -26,6 +27,7 @@ Constants.LOG_FILE_NAME = "client.log";
 //console.log("AEAD cleartext result: ", TestAeaedCleartextVector.execute() );
 //console.log("LSQUIC cleartext decode result: ", TestLsquicCleartextDecode.execute() );
 //console.log("PN truncation test : ", TestPNTruncation.execute() );
+//console.log("Transport Parameter test : ", TestTransportParameters.execute() );
 //process.exit(666);
 
 
