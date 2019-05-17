@@ -6,7 +6,7 @@ import { Connection } from "../../../quicker/connection";
 import { QuicStream } from "../../../quicker/quic.stream";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
 import { readFileSync } from "fs";
-import { parseHttp3Message } from "../common/parsers/http3.request.parser";
+import { parseHttp3Message } from "../common/parsers/http3.message.parser";
 import { StreamType } from "../../../quicker/stream";
 import { Http3UniStreamType } from "../common/frames/streamtypes/http3.unistreamtypeframe";
 import { Http3ReceivingControlStream, Http3EndpointType, Http3ControlStreamEvent } from "../common/http3.receivingcontrolstream";
@@ -24,6 +24,7 @@ import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
 import { Http3PriorityFrame } from "../common/frames";
 import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
+import { Http3Message } from "../common/http3.message";
 
 class ClientState {
     private prioritiser: Http3PriorityScheme;
@@ -151,15 +152,15 @@ export class Http3Server {
         // Create control stream to client on connect
         const controlQuicStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
         const controlHttp3Stream: Http3SendingControlStream = new Http3SendingControlStream(EndpointType.Server, controlQuicStream, connection.getQlogger());
-        connection.getQlogger().onHTTPStreamStateChanged(controlQuicStream.getStreamId(), Http3StreamState.OPENED, "CONTROL");
+        connection.getQlogger().onHTTPStreamStateChanged(controlQuicStream.getStreamId(), Http3StreamState.LOCALLY_OPENED, "CONTROL");
 
         // QPack streams
         const qpackEncoderStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
         const qpackEncoder: Http3QPackEncoder = new Http3QPackEncoder(qpackEncoderStream, true, connection.getQlogger());
-        connection.getQlogger().onHTTPStreamStateChanged(qpackEncoderStream.getStreamId(), Http3StreamState.OPENED, "QPACK_ENCODE");
+        connection.getQlogger().onHTTPStreamStateChanged(qpackEncoderStream.getStreamId(), Http3StreamState.LOCALLY_OPENED, "QPACK_ENCODE");
         const qpackDecoderStream: QuicStream = this.quickerServer.createStream(connection, StreamType.ServerUni);
         const qpackDecoder: Http3QPackDecoder = new Http3QPackDecoder(qpackDecoderStream, connection.getQlogger());
-        connection.getQlogger().onHTTPStreamStateChanged(qpackDecoderStream.getStreamId(), Http3StreamState.OPENED, "QPACK_DECODE");
+        connection.getQlogger().onHTTPStreamStateChanged(qpackDecoderStream.getStreamId(), Http3StreamState.LOCALLY_OPENED, "QPACK_DECODE");
 
         this.connectionStates.set(connection.getSrcConnectionID().toString(), new ClientState(
             controlHttp3Stream,
@@ -253,9 +254,11 @@ export class Http3Server {
                         } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
                             streamType = Http3UniStreamType.ENCODER;
                             state.getQPackDecoder().setPeerEncoderStream(quicStream, bufferedData);
+                            logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.REMOTELY_OPENED, "QPACK_ENCODE");
                         } else if (streamTypeBignum.equals(Http3UniStreamType.DECODER)) {
                             streamType = Http3UniStreamType.DECODER;
                             state.getQPackEncoder().setPeerDecoderStream(quicStream, bufferedData);
+                            logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.REMOTELY_OPENED, "QPACK_DECODE");
                         } else {
                             quicStream.end();
                             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
@@ -302,7 +305,7 @@ export class Http3Server {
         const encoder: Http3QPackEncoder = state.getQPackEncoder();
         const decoder: Http3QPackDecoder = state.getQPackDecoder();
 
-        let req: Http3Request = parseHttp3Message(bufferedFrames, quicStream.getStreamId(), encoder);
+        let req: Http3Request = parseHttp3Message(bufferedFrames).toRequest(quicStream.getStreamId(), encoder);
         let res: Http3Response = new Http3Response([], quicStream.getStreamId(), encoder, decoder);
         const requestPath: string | undefined = req.getHeaderValue(":path");
         const method: string | undefined = req.getHeaderValue(":method");
@@ -316,6 +319,8 @@ export class Http3Server {
             state.getPrioritiser().finishStream(quicStream.getStreamId());
         } else {
             let methodHandled: boolean = false;
+            res.setHeaderValue(":method", method);
+            res.setHeaderValue(":path", requestPath);
             // TODO implement other methods
             switch(method) {
                 case "GET":

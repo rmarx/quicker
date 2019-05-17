@@ -42,6 +42,8 @@ export class Http3QPackEncoder {
         });
 
         if (dryrun === false) {
+            // FIXME TX as trigger is not really useful
+            this.logger.onQPACKEncode(encodedHeaders, headers, "TX");
             this.sendEncoderData(encoderStreamData);
         }
 

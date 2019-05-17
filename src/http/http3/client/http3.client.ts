@@ -20,6 +20,9 @@ import { Http3FrameParser } from "../common/parsers/http3.frame.parser";
 import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
 import { Http3StreamState } from "../common/types/http3.streamstate";
 import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
+import { Http3BaseFrame } from "../common/frames/http3.baseframe";
+import { parseHttp3Message } from "../common/parsers/http3.message.parser";
+import { Http3Message } from "../common/http3.message";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
@@ -58,13 +61,13 @@ export class Http3Client extends EventEmitter {
             // Create control stream
             const controlStream: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
             this.sendingControlStream = new Http3SendingControlStream(EndpointType.Client, controlStream, this.logger);
-            this.logger.onHTTPStreamStateChanged(controlStream.getStreamId(), Http3StreamState.OPENED, "CONTROL");
+            this.logger.onHTTPStreamStateChanged(controlStream.getStreamId(), Http3StreamState.LOCALLY_OPENED, "CONTROL");
 
             // Create encoder and decoder stream for QPack
             const clientQPackEncoder: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
-            this.logger.onHTTPStreamStateChanged(clientQPackEncoder.getStreamId(), Http3StreamState.OPENED, "QPACK_ENCODE");
+            this.logger.onHTTPStreamStateChanged(clientQPackEncoder.getStreamId(), Http3StreamState.LOCALLY_OPENED, "QPACK_ENCODE");
             const clientQPackDecoder: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
-            this.logger.onHTTPStreamStateChanged(clientQPackDecoder.getStreamId(), Http3StreamState.OPENED, "QPACK_DECODE");
+            this.logger.onHTTPStreamStateChanged(clientQPackDecoder.getStreamId(), Http3StreamState.LOCALLY_OPENED, "QPACK_DECODE");
             this.clientQPackEncoder = new Http3QPackEncoder(clientQPackEncoder, false, this.logger);
             this.clientQPackDecoder = new Http3QPackDecoder(clientQPackDecoder, this.logger);
             this.http3FrameParser.setEncoder(this.clientQPackEncoder);
@@ -110,17 +113,23 @@ export class Http3Client extends EventEmitter {
                         const streamTypeBignum: Bignum = vlieOffset.value;
                         bufferedData = bufferedData.slice(vlieOffset.offset);
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
+                            streamType = Http3UniStreamType.CONTROL;
                             const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, logger, bufferedData.slice(vlieOffset.offset));
                             this.setupControlStreamEvents(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
+                            streamType = Http3UniStreamType.PUSH;
                             // Server shouldn't receive push streams
                             quicStream.end();
                             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
                             throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
                         } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
+                            streamType = Http3UniStreamType.ENCODER;
                             this.setupServerEncoderStream(quicStream, bufferedData);
+                            logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.REMOTELY_OPENED, "QPACK_ENCODE");
                         } else if (streamTypeBignum.equals(Http3UniStreamType.DECODER)) {
+                            streamType = Http3UniStreamType.DECODER;
                             this.setupServerDecoderStream(quicStream, bufferedData);
+                            logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.REMOTELY_OPENED, "QPACK_DECODE");
                         } else {
                             quicStream.end();
                             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
@@ -178,7 +187,7 @@ export class Http3Client extends EventEmitter {
 
         // TODO move logging to deptree because not all data will be sent instantly
         if (this.logger !== undefined) {
-            this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.OPENED, "GET");
+            this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.LOCALLY_OPENED, "GET");
             this.logger.onHTTPGet(path, stream.getStreamId(), "TX");
             this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");
         }
@@ -210,8 +219,11 @@ export class Http3Client extends EventEmitter {
                 this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.CLOSED, "FIN");
             }
 
+            const [frames, newOffset]: [Http3BaseFrame[], number] = this.http3FrameParser.parse(bufferedData, stream.getStreamId());
+            const message: Http3Message = parseHttp3Message(frames);
+
             // Send out event that the response has been received
-            this.emit(Http3ClientEvent.RESPONSE_RECEIVED, path, bufferedData)
+            this.emit(Http3ClientEvent.RESPONSE_RECEIVED, path, message)
 
             // Mark request as completed
             this.pendingRequestStreams = this.pendingRequestStreams.filter((requestStream: QuicStream) => {

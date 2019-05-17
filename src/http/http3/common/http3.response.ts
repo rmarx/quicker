@@ -47,12 +47,18 @@ export class Http3Response {
         this.filePath = path;
         this.ready = true;
 
-        // TODO Set content type header
+        const mimeType: string | null = this.getMimeType(this.getFileExtension());
+        if (mimeType !== null) {
+            this.setHeaderValue("Content-Type", mimeType);
+        } else {
+            // TODO throw error or allow no mimetype to be set?
+            //throw new Error("HTTP/3 resource mimeType undefined!");
+        }
 
         return true;
     }
 
-    public sendBuffer(content: Buffer): boolean {
+    public sendBuffer(content: Buffer, mimeType?: string): boolean {
         // Can only send something when no other content has been buffered
         if (this.content !== undefined || this.filePath != undefined) {
             return false;
@@ -60,7 +66,10 @@ export class Http3Response {
         this.content = content;
         this.ready = true;
 
-        // TODO Set content type header
+        // TODO Allow no mimetype to be set?
+        if (mimeType !== undefined) {
+            this.setHeaderValue("Content-Type", mimeType);
+        }
 
         return true;
     }
@@ -102,6 +111,21 @@ export class Http3Response {
             return path + "index.html";
         } else {
             return path;
+        }
+    }
+
+    private getMimeType(extension: string): string | null {
+        // FIXME Incomplete, maybe use https://github.com/broofa/node-mime?
+        switch(extension) {
+            case ".png": return "image/png";
+            case ".jpg": return "image/jpeg";
+            case ".jpeg": return "image/jpeg";
+            case ".html": return "text/html";
+            case ".css": return "text/css";
+            case ".js": return "application/javascript";
+            case ".txt": return "text/plain";
+            default:
+                return null;
         }
     }
 }

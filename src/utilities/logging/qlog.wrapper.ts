@@ -19,6 +19,7 @@ import { Http3Setting } from '../../http/http3/common/frames/http3.settingsframe
 import { Http3StreamState } from '../../http/http3/common/types/http3.streamstate';
 import { Http3PrioritisedElementNode } from '../../http/http3/common/prioritization/http3.prioritisedelementnode';
 import { Http3RequestNode } from '../../http/http3/common/prioritization/http3.requestnode';
+import { Http3Header } from '../../http/http3/common/qpack/types/http3.header';
 
 /*
 Example usage: 
@@ -658,7 +659,7 @@ export class QlogWrapper{
 
     public onQPACKDecoderInstruction(streamID:Bignum, instruction:Buffer, trigger:string){
         let evt:any = [
-            123, 
+            123,
             "QPACK",
             "DECODER_INSTRUCTION_NEW",
             trigger,
@@ -667,6 +668,25 @@ export class QlogWrapper{
                 length: instruction.byteLength,
                 raw: "0x" + instruction.toString("hex"),
                 guessed_instruction: this.guessQPACKDecoderInstruction(instruction),
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    public onQPACKEncode(encoded:Buffer, decoded: Http3Header[], trigger:string) {
+        const decodedStrings: string[][] = decoded.map((val) => {
+            return [val.name, val.value];
+        });
+
+        const evt:any = [
+            123,
+            "QPACK",
+            "ENCODE_HEADER",
+            trigger,
+            {
+                encoded: encoded.toString("hex"),
+                decoded: decodedStrings,
             }
         ];
 

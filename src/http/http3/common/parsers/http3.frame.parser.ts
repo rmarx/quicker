@@ -21,10 +21,11 @@ export class Http3FrameParser {
     }
     
     /**
-     * Parses a buffer and tries to form an Http3Frame object from it
-     * Returns undefined if invalid
+     * Parses a buffer and tries to extract all Http3Frames from it
      * @param buffer A buffer object containing the frame
+     * @param streamID The ID of the stream that the frames were sent on
      * @param bufferOffset The offset within the buffer where the frame starts at
+     * @returns A tuple of the array of extracted frames and the offset where the parser has stopped
      */
     public parse(buffer: Buffer, streamID: Bignum, bufferOffset: number = 0): [Http3BaseFrame[], number] {
         let frames: Http3BaseFrame[] = [];
