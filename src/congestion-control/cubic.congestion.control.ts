@@ -251,25 +251,33 @@ export class CubicCongestionControl extends PacketPipe {
         //time since last loss event
         //since we are trying to calculate T + RTT add minRTT
         let t = Date.now() + this.RTTMeasurer.minRtt - this.epochStart;
-        // differenceToWmax can be negative
+        //set it in seconds
+        t = t / 1000;
+        // C*(t-K)^3
         let differenceToWmax = CubicCongestionControl.CUBICParameter * Math.pow(t - this.K, 3);
         // the target for the next round trip
         let target = this.originPoint + differenceToWmax;
+
+        VerboseLogging.warn("TARGET IS: " + target + "  ORIGINPOINT IS " + this.originPoint + " DIFFERENCE TO WMAX  " + differenceToWmax + " CONGESTION WINDOW " + this.congestionWindow + " K IS " + this.K + " lasmax is  " + this.WlastMax + " t is " + t);
 
         let count = 0;
 
         if(target > this.congestionWindow){
             count = this.congestionWindow / (target - this.congestionWindow);
+            VerboseLogging.warn("NORMAL");
         }
         else{
             // make it ridiculously large so the cwndcount will not be larger than this, and thus won't be increased
             // because the congestion window is larger than the target
             // TODO: doublecheck
             count = 100 * this.congestionWindow
+            VerboseLogging.warn("OVER 100");
         }
         if(CubicCongestionControl.tcpFriendliness){
             count = this.cubicTcpFriendliness(count);
+            VerboseLogging.warn("TCP FRIENDLY");
         }
+        VerboseLogging.warn("COUNT IS " + count);
         return count;
     }
 
@@ -294,25 +302,20 @@ export class CubicCongestionControl extends PacketPipe {
         // Start new congestion event if the sent time is larger
         // than the start time of the previous recovery epoch.
         if(!this.inRecovery(sentTime)){
-           
             this.recoveryStartTime = Date.now();
-            let newval = this.congestionWindow * CubicCongestionControl.kLossReductionFactor;
-            VerboseLogging.info("newval has become:" + newval.toString());
-            this.setCWND(Math.max(newval, CubicCongestionControl.kMinimumWindow));
+            this.epochStart = 0;
+            //if a loss happened before it reached the last max, there is a good possibility that there is a new sender on the network
+            //make extra space
+            if(this.congestionWindow < this.WlastMax && CubicCongestionControl.fastConvergence){
+                this.WlastMax = this.congestionWindow * ((2-CubicCongestionControl.kLossReductionFactor) / 2);
+            }
+            else{
+                this.WlastMax = this.congestionWindow;
+            }
+            // why 1 - lossreductionfactor?
+            this.congestionWindow = this.congestionWindow * (1-CubicCongestionControl.kLossReductionFactor);
             this.ssthresh = this.congestionWindow;
         }
-        this.epochStart = 0;
-        //if a loss happened before it reached the last max, there is a good possibility that there is a new sender on the network
-        //make extra space
-        if(this.congestionWindow < this.WlastMax && CubicCongestionControl.fastConvergence){
-            this.WlastMax = this.congestionWindow * ((2-CubicCongestionControl.kLossReductionFactor) / 2);
-        }
-        else{
-            this.WlastMax = this.congestionWindow;
-        }
-        this.ssthresh = this.congestionWindow;
-        // why 1 - lossreductionfactor?
-        this.congestionWindow = this.congestionWindow * (1-CubicCongestionControl.kLossReductionFactor);
     }
 
 
