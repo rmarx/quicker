@@ -134,6 +134,7 @@ export class Server extends Endpoint {
                 if( fullHeaderOffset ){
                     let packetOffset: PacketOffset = this.packetParser.parse(connection, fullHeaderOffset, msg, EndpointType.Client);
                     this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+                    setImmediate( () => { this.packetHandler.handle(connection!, packetOffset.packet, receivedTime); });
                 }
                 else
                     VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");
