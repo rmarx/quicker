@@ -384,7 +384,7 @@ export class QlogWrapper{
     // RECOVERY
     //----------------------------------------
 
-    public onPacketLost(packetNumber:Bignum, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX){
+    public onPacketLost(packetNumber:Bignum, trigger:qlog.RecoveryEventTrigger = qlog.RecoveryEventTrigger.ACK_RX, detectionMechanism: string = "unspecified"){
 
         let evt:any = [
             123, 
@@ -394,7 +394,8 @@ export class QlogWrapper{
             {
                 header:{
                     "packet_number": packetNumber.toDecimalString()
-                }
+                },
+                cause: detectionMechanism
             }
         ];
 

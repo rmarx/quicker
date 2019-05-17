@@ -8,6 +8,7 @@ import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { RTTMeasurement } from './rtt.measurement';
 import { EncryptionLevel } from '../crypto/crypto.context';
 import { logTimeSince } from '../utilities/debug/time.debug';
+import { RecoveryEventTrigger } from '@quictools/qlog-schema';
 
 // SentPackets type:
 // Key is the value of the packet number toString
@@ -493,7 +494,7 @@ export class QuicLossDetection extends EventEmitter {
                     lostPackets.push(unacked);
 
                     VerboseLogging.info("LossDetecion: packet " + unackedPacketNumber + " was deemded lost");
-                    this.connection.getQlogger().onPacketLost(unackedPacketNumber);
+                    this.connection.getQlogger().onPacketLost(unackedPacketNumber, RecoveryEventTrigger.ACK_RX, unacked.time <= lostSendTime? "time_threshold": "packet_threshold");
                 }
             }
             else{ 
