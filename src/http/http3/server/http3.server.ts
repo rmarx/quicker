@@ -24,7 +24,6 @@ import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
 import { Http3PriorityFrame } from "../common/frames";
 import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
-import { Http3Message } from "../common/http3.message";
 
 class ClientState {
     private prioritiser: Http3PriorityScheme;
@@ -103,6 +102,7 @@ export class Http3Server {
 
     // GET Paths that have a user function mapped to them
     private handledGetPaths: { [path: string]: (req: Http3Request, res: Http3Response) => Promise<void>; } = {};
+    // private staticDirs: string[] = [];
 
     private connectionStates: Map<string, ClientState> = new Map<string, ClientState>();
 
@@ -131,8 +131,12 @@ export class Http3Server {
         this.quickerServer.on(QuickerEvent.ERROR, this.onQuicServerError);
     }
 
+    // Expose files in static dir
+    // TODO check to make sure its a local dir
     public static(staticDir: string) {
-        // Expose files in static dir
+        // if (existsSync(staticDir) === true && statSync(staticDir).isDirectory() === true) {
+        //     this.staticDirs.push(staticDir);
+        // }
     }
 
     /**
@@ -330,9 +334,8 @@ export class Http3Server {
                         this.handledGetPaths[requestPath](req, res);
                         VerboseLogging.info("Request was handled by the server. Responding to HTTP/3 Request.");
                     } else {
-                        VerboseLogging.info("Requested path '" +  + "' was not handled. Responding with 404");
-                        res.setStatus(404);
-                        res.sendFile("notfound.html");
+                        VerboseLogging.info("Requested path '" +  + "' has no specific handler. Trying to respond with requested file...");
+                        res.sendFile(requestPath);
                     }
                     break;
                 default:

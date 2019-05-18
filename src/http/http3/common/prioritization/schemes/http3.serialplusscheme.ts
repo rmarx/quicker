@@ -98,6 +98,7 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
             case "jpg":
             case "jpeg":
             case "ico":
+            case "gif":
                 return this.followersPlaceholderID;
             default:
                 return this.backgroundPlaceholderID;

@@ -25,6 +25,9 @@ export class Http3Response {
             let absoluteFilePath = this.parsePath(resolve(__dirname) + "/../../../../public" + this.filePath);
             if (!existsSync(absoluteFilePath)) {
                 absoluteFilePath = resolve(__dirname) + "/../../../../public/notfound.html";
+                this.setStatus(404);
+            } else {
+                this.setStatus(200);
             }
             VerboseLogging.info("Reading file: " + absoluteFilePath);
 

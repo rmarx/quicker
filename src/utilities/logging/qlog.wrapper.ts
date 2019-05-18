@@ -56,7 +56,7 @@ export class QlogWrapper{
         
         this.logger = getLogger("qlog");
         this.logger.addContext("ID", connectionID + "_" + vantagePoint); // so we can split logs based on the connectionID, see VerboseLogging:ctor
-        this.logger.level = Constants.LOG_LEVEL; 
+        this.logger.level = Constants.LOG_LEVEL;
 
         this.startTime = (new Date()).getTime();
 
@@ -628,7 +628,7 @@ export class QlogWrapper{
             trigger,
             {
                 uri: uri,
-                stream_id: streamID.toString(),
+                stream_id: streamID.toDecimalString(),
             }
         ];
 
