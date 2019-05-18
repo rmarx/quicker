@@ -393,15 +393,29 @@ export class CubicCongestionControl extends PacketPipe {
     //TODO REFACTOR:
     // having this.sendpackets() in random places doesn't really make sense to me?
     // find out reason why this is and change it, will probably lead to cleaner system
+    
+    //This is an ugly solution to keep the bytesinflight+newest packet under cwnd
+    // since the packet bytelength (via tobuffer) can not be calculated before having set a pn (for some reason), this is needed
+    private alreadySetPn : boolean = false;
     private sendPackets(){
         // TODO: doublecheck if some packets need to be excluded from blocking by CC/pacer
         // update, PTO packets need to not be blocked
         while (this.bytesInFlight.lessThan(this.congestionWindow * CubicCongestionControl.kMaxDatagramSize) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
+
             if (packet !== undefined) {
-                this.initPacketNumber(packet);
-                
-                this.sendSingularPacket(packet);
+                if(!this.alreadySetPn){
+                    this.initPacketNumber(packet);
+                    this.alreadySetPn = true;
+                }
+                if(this.bytesInFlight.add(packet.toBuffer(this.connection).byteLength).lessThan(this.congestionWindow * CubicCongestionControl.kMaxDatagramSize)){
+                    this.sendSingularPacket(packet);
+                    this.alreadySetPn = false;
+                }
+                else{
+                    this.packetsQueue.unshift(packet);
+                    break;
+                }
                 
             }
         }
