@@ -25,7 +25,7 @@ export abstract class BaseHeader {
     private packetType: number;
     private packetNumber: PacketNumber | undefined;
     protected truncatedPacketNumber: PacketNumber | undefined;
-    private parsedBuffer!: Buffer;
+    //private parsedBuffer!: Buffer;
 
     public constructor(headerType: HeaderType, type: number) {
         this.headerType = headerType;
@@ -34,8 +34,9 @@ export abstract class BaseHeader {
         this.truncatedPacketNumber = undefined;
     }
 
-    abstract toBuffer(): Buffer;
-    abstract toPNEBuffer(connection: Connection, payload: Buffer): Buffer;
+    abstract toUnencryptedBuffer(): Buffer;
+    //abstract toHeaderProtectedBuffer(connection: Connection, headerAndEncryptedPayload: Buffer): Buffer;
+    
     abstract getSize(): number;
 
     public getPacketType(): number {
@@ -72,14 +73,14 @@ export abstract class BaseHeader {
         return this.headerType;
     }
 
-    public getParsedBuffer(): Buffer {
-        if (this.parsedBuffer === undefined) {
-            throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
-        }
-        return this.parsedBuffer;
-    }
+    // public getParsedBuffer(): Buffer {
+    //     if (this.parsedBuffer === undefined) {
+    //         throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR);
+    //     }
+    //     return this.parsedBuffer;
+    // }
 
-    public setParsedBuffer(parsedBuffer: Buffer): void {
-        this.parsedBuffer = parsedBuffer;
-    }
+    // public setParsedBuffer(parsedBuffer: Buffer): void {
+    //     this.parsedBuffer = parsedBuffer;
+    // }
 }

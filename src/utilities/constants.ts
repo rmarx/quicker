@@ -23,8 +23,8 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000014': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38',
-        'abcdef0c': '9c108f98520a5c5c32968e950e8a2c5fe06d6c38', 
+        'ff000014': '0xef4fb0abb47470c41befcf8031334fae485e09a0',
+        'abcdef0c': '0xef4fb0abb47470c41befcf8031334fae485e09a0', 
     }
     public static readonly ALPN_LABELS = ["h3-19", "h3-20"];
     
@@ -39,6 +39,7 @@ export class Constants {
     public static readonly DEFAULT_CIPHER = "TLS_AES_128_GCM_SHA256";
     public static readonly DEFAULT_AEAD_GCM = 'aes-128-gcm';
     public static readonly DEFAULT_AEAD_CTR = 'aes-128-ctr';
+    public static readonly DEFAULT_AEAD_ECB = 'aes-128-ecb';
     public static readonly DEFAULT_AEAD_LENGTH = 16;
     public static readonly DEFAULT_HASH = 'sha256';
     public static readonly DEFAULT_HASH_SIZE = 32;
@@ -83,7 +84,7 @@ export class Constants {
     public static readonly SERVER_1RTT_LABEL = "server 1rtt";
     public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
     public static readonly PACKET_PROTECTION_IV_LABEL = "iv";
-    public static readonly PACKET_PROTECTION_PN_LABEL = "pn";
+    public static readonly HEADER_PROTECTION_LABEL = "hp";
     
     public static readonly TEMPORARY_DRAINING_TIME = 15000;
 

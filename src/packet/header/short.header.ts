@@ -55,7 +55,7 @@ export class ShortHeader extends BaseHeader {
         |                     Protected Payload (*)                   ...
         +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+*/
 
-    public toBuffer(): Buffer {
+    public toUnencryptedBuffer(): Buffer {
         let size = this.getSize();
         let buffer = Buffer.alloc(size);
         let offset = 0;
@@ -64,7 +64,7 @@ export class ShortHeader extends BaseHeader {
 
         let connectionID = this.getDestConnectionID();
         connectionID.toBuffer().copy(buffer, offset);
-        offset += connectionID.getLength();
+        offset += connectionID.getByteLength();
 
         let pn = this.getTruncatedPacketNumber()!.getValue();
         pn.toBuffer().copy(buffer, offset);
@@ -72,23 +72,23 @@ export class ShortHeader extends BaseHeader {
         return buffer;
     }
 
-    public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
-        let size = this.getSize();
-        let buffer = Buffer.alloc(size);
-        let offset = 0;
+    // public toHeaderProtectedBuffer(connection: Connection, headerAndEncryptedPayload: Buffer): Buffer {
+    //     let size = this.getSize();
+    //     let buffer = Buffer.alloc(size);
+    //     let offset = 0;
 
-        buffer.writeUInt8(this.getFirstByte(), offset++);
+    //     buffer.writeUInt8(this.getFirstByte(), offset++);
 
-        let connectionID = this.getDestConnectionID();
-        connectionID.toBuffer().copy(buffer, offset);
-        offset += connectionID.getLength();
+    //     let connectionID = this.getDestConnectionID();
+    //     connectionID.toBuffer().copy(buffer, offset);
+    //     offset += connectionID.getByteLength();
 
-        let pn = this.getTruncatedPacketNumber()!.getValue();
-        let encryptedPnBuffer = connection.getAEAD().protected1RTTPnEncrypt(pn.toBuffer(), this, payload, connection.getEndpointType());
-        encryptedPnBuffer.copy(buffer, offset);
+    //     let pn = this.getTruncatedPacketNumber()!.getValue();
+    //     let encryptedPnBuffer = connection.getAEAD().protected1RTTHeaderEncrypt(pn.toBuffer(), this, headerAndEncryptedPayload, connection.getEndpointType());
+    //     encryptedPnBuffer.copy(buffer, offset);
 
-        return buffer;
-    }
+    //     return buffer;
+    // }
 
     private getFirstByte(): number {
         let output = 0b01000000;
@@ -110,7 +110,7 @@ export class ShortHeader extends BaseHeader {
     }
 
     public getSize(): number {
-        let size = 1 + this.getDestConnectionID().getLength();
+        let size = 1 + this.getDestConnectionID().getByteLength();
         size += this.getTruncatedPacketNumber()!.getValue().getByteLength();
         return size;
     }

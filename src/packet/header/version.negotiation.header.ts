@@ -37,7 +37,7 @@ export class VersionNegotiationHeader extends BaseHeader {
         this.destConnectionID = connectionId;
     }
 
-    public toBuffer(): Buffer {
+    public toUnencryptedBuffer(): Buffer {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
 
@@ -48,8 +48,8 @@ export class VersionNegotiationHeader extends BaseHeader {
         offset += Buffer.from('00000000', 'hex').copy(buf, offset);
 
         // non-zero connectionIDs are always at least 4 bytes, so we can encode their lenghts in an optimized way
-        let destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
-        let srcLength  = this.srcConnectionID.getLength() === 0  ? this.srcConnectionID.getLength()  : this.srcConnectionID.getLength()  - 3;
+        let destLength = this.destConnectionID.getByteLength() === 0 ? this.destConnectionID.getByteLength() : this.destConnectionID.getByteLength() - 3;
+        let srcLength  = this.srcConnectionID.getByteLength() === 0  ? this.srcConnectionID.getByteLength()  : this.srcConnectionID.getByteLength()  - 3;
         // 0xddddssss (d = destination length, s = source length)
         buf.writeUInt8(((destLength << 4) + srcLength), offset++);
 
@@ -59,15 +59,15 @@ export class VersionNegotiationHeader extends BaseHeader {
         return buf;
     }    
     
-    public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
+    public toHeaderProtectedBuffer(connection: Connection, payload: Buffer): Buffer {
         throw new QuicError(ConnectionErrorCodes.INTERNAL_ERROR, "toPNEBuffer is not needed for version negotiation header");
     }
     
     public getSize(): number {
         // one byte for type, four bytes for version, one byte for connection ID lengths
         var size = 6;
-        size += this.destConnectionID.getLength();
-        size += this.srcConnectionID.getLength();
+        size += this.destConnectionID.getByteLength();
+        size += this.srcConnectionID.getByteLength();
         return size;
     }
 

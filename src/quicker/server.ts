@@ -2,8 +2,7 @@ import { Connection, ConnectionEvent } from './connection';
 import { QuickerEvent } from './quicker.event';
 import { QuicStream } from './quic.stream';
 import { Time } from '../types/time';
-import { HeaderOffset } from '../utilities/parsers/header.parser';
-import { PacketOffset } from '../utilities/parsers/packet.parser';
+import { PartiallyParsedPacket } from '../utilities/parsers/header.parser';
 import { EndpointType } from '../types/endpoint.type';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
@@ -21,6 +20,7 @@ import { ConnectionManager, ConnectionManagerEvents } from './connection.manager
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { Bignum } from '../types/bignum';
 import { EncryptionLevel, BufferedPacket } from '../crypto/crypto.context';
+import { BasePacket } from '../packet/base.packet';
 
 export class Server extends Endpoint {
     private serverSockets: { [key: string]: Socket; } = {};
@@ -87,7 +87,7 @@ export class Server extends Endpoint {
         connection.on(ConnectionEvent.BufferedPacketReadyForDecryption, (packet:BufferedPacket) => {
             // TODO: now we're going to re-parse the entire packet, but we already parsed the header... see packet.offset
             // could be optimized so we don't re-parse the headers 
-            this.onMessage( packet.packet, undefined, packet.connection );
+            this.onMessage( packet.packet.fullContents, undefined, packet.connection );
         });
     }
 
@@ -101,10 +101,27 @@ export class Server extends Endpoint {
         VerboseLogging.info("server:onMessage: raw message from the wire : " + msg.toString('hex'));
         
         let receivedTime = Time.now();
-        let headerOffsets:HeaderOffset[]|undefined = undefined;
+        let packets:PartiallyParsedPacket[]|undefined = undefined;
+
+
+        // Packets are encrypted twice before sending:
+        // 1. The payload was encrypted first, using the unencrypted header as Associated Data
+        // 2. Parts of the header were encrypted (PacketNumber and a few bits in the first byte)
+
+        // We first need to undo the 2nd step, but to do that, we need to sample a part of the encrypted payload (as the encrypted payload is used as Associated Data for the header encryption)
+        // To know which part we need to sample, we need to calculate a sample offset (see aead:getHeaderProtectionSampleOffset)
+        // To calculate this offset, we need to know how long the header is (not always the same size, as the connection IDs can differ in length)
+
+        // So, we approach this in three steps: 
+        // a. we will parse the unencrypted parts of the header we need to calculate the sample offset : we call this a shallow parse : HeaderParser:parseShallowHeader
+            // note: we also need to do this to know to which connection a packet belongs before we can look up that connection's decryption keys 
+        // b. we will decrypt the header and parse the now unprotected parts : HeaderHandler:decryptHeader
+        // c. we will handle the header semantics : HeaderHandler:handle
+
+        // TODO: this could be easier if we just did everything in a single function/place, but that's a bigger refactor than I'm willing to commit to right now
 
         //try {
-            headerOffsets = this.headerParser.parse(msg);
+            packets = this.headerParser.parseShallowHeader(msg);
         //} 
         /*catch(err) {
             VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + JSON.stringify(rinfo) + " // " + err );
@@ -114,23 +131,26 @@ export class Server extends Endpoint {
         }
         */
 
-        VerboseLogging.trace("Server:onMessage: Message contains " + headerOffsets.length + " independent packets (we think)");
+        VerboseLogging.trace("Server:onMessage: Message contains " + packets.length + " independent packets (we think)");
         
-        headerOffsets.forEach((headerOffset: HeaderOffset) => {
+        packets.forEach((packet: PartiallyParsedPacket) => {
             let connection: Connection | undefined = undefined;
             try {
                 if( receivingConnection )
                     connection = receivingConnection;
                 else
-                    connection = this.connectionManager.getConnection(headerOffset, rinfo!);
+                    connection = this.connectionManager.getConnection(packet.header, rinfo!);
 
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
 
-                let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(connection, headerOffset, msg, EndpointType.Client);
-                if( fullHeaderOffset ){
-                    let packetOffset: PacketOffset = this.packetParser.parse(connection, fullHeaderOffset, msg, EndpointType.Client);
-                    this.packetHandler.handle(connection, packetOffset.packet, receivedTime);
+                let decryptedHeader:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(connection, packet, EndpointType.Client);
+
+                let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(connection, packet, EndpointType.Client);
+
+                if( handledHeader ){
+                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(connection, packet, EndpointType.Client);
+                    this.packetHandler.handle(connection, fullyDecryptedPacket, receivedTime);
                 }
                 else
                     VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");

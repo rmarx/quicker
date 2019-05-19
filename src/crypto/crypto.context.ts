@@ -5,7 +5,7 @@ import { AckHandler } from '../utilities/handlers/ack.handler';
 import { Bignum } from '../types/bignum';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { LossDetection } from '../loss-detection/loss.detection';
-import { HeaderOffset } from '../utilities/parsers/header.parser';
+import { PartiallyParsedPacket } from '../utilities/parsers/header.parser';
 import { Connection } from '../quicker/connection';
 
 export enum EncryptionLevel{
@@ -16,8 +16,7 @@ export enum EncryptionLevel{
 }
 
 export interface BufferedPacket{
-    packet: Buffer,
-    offset: HeaderOffset,
+    packet: PartiallyParsedPacket,
     connection: Connection
 }
 
@@ -94,7 +93,19 @@ export class PacketNumberSpace{
     private highestReceivedNumber:PacketNumber|undefined; 
 
     public constructor(){
-        this.sendingNumber = new PacketNumber( new Bignum(-1) );
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("Initializating PN at 130 for testing");
+        this.sendingNumber = new PacketNumber( new Bignum(130) );//new Bignum(-1) );
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
+        VerboseLogging.fatal("///////////////////////////////////////////////////////////////////////////////");
     }
 
     // it should never be needed to get the current PacketNumber outside of debugging

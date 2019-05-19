@@ -1,12 +1,13 @@
 import {BasePacket, PacketType} from './base.packet';
 import {BaseFrame, FrameType} from '../frame/base.frame';
-import {BaseHeader} from './header/base.header';
+import {BaseHeader, HeaderType} from './header/base.header';
 import {Connection} from '../quicker/connection';
 import {Constants} from '../utilities/constants';
 import {PaddingFrame} from '../frame/padding';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
+import { LongHeaderType } from './header/long.header';
 
 
 export abstract class BaseEncryptedPacket extends BasePacket {
@@ -23,23 +24,47 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         return this.frames;
     }
 
-    /**
-     * Method to get buffer object from a Packet object
-     */
     public toBuffer(connection: Connection) {
-        var unencryptedHeader = this.getHeader().toBuffer();
-        var dataBuffer = this.getFramesBuffer(connection, this.getHeader());
-        var headerBuffer = this.getHeader().toPNEBuffer(connection, Buffer.concat([unencryptedHeader,dataBuffer]));
+        let unencryptedHeader:Buffer = this.getHeader().toUnencryptedBuffer();
+        let payload:Buffer           = this.getFramesBuffer(connection, this.getHeader());
 
-        console.trace("unencryptedHeader", unencryptedHeader.toString('hex') );
+        let headerAndEncryptedPayload:Buffer = Buffer.concat([unencryptedHeader,payload]);
 
-        var buffer = Buffer.alloc(headerBuffer.byteLength + dataBuffer.byteLength);
-        var offset = 0;
-        headerBuffer.copy(buffer, offset);
-        offset += headerBuffer.byteLength;
-        dataBuffer.copy(buffer, offset);
+        let encryptedPacket:Buffer|undefined = undefined;
+        if( this.getHeader().getHeaderType() === HeaderType.LongHeader ){
+
+            if (this.getHeader().getPacketType() === LongHeaderType.Protected0RTT) {
+                encryptedPacket = connection.getAEAD().protected0RTTHeaderEncrypt(this.getHeader(), headerAndEncryptedPayload);
+            }
+            else if( this.getHeader().getPacketType() === LongHeaderType.Handshake ){
+                encryptedPacket = connection.getAEAD().protectedHandshakeHeaderEncrypt(this.getHeader(), headerAndEncryptedPayload, connection.getEndpointType()); 
+            } 
+            else {
+                encryptedPacket = connection.getAEAD().clearTextHeaderEncrypt(connection.getInitialDestConnectionID(), this.getHeader(), headerAndEncryptedPayload, connection.getEndpointType());
+            }
         
-        return buffer;
+        }
+        else{ // short header by default
+            
+            encryptedPacket = connection.getAEAD().protected1RTTHeaderEncrypt(this.getHeader(), headerAndEncryptedPayload, connection.getEndpointType());
+             
+        }
+
+
+        //var encryptedPacketBuffer = this.getHeader().toHeaderProtectedBuffer(connection, Buffer.concat([unencryptedHeader,dataBuffer]));
+
+        //console.trace("unencryptedHeader", unencryptedHeader.toString('hex') );
+
+        /*
+        var buffer = Buffer.alloc(encryptedPacketBuffer.byteLength + dataBuffer.byteLength);
+        var offset = 0;
+        encryptedPacketBuffer.copy(buffer, offset);
+        offset += encryptedPacketBuffer.byteLength;
+        dataBuffer.copy(buffer, offset);
+        */
+        
+        return encryptedPacket as Buffer;
+
     }
 
     public getFrameSizes(): number {

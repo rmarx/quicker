@@ -8,8 +8,7 @@ import { QuicStream } from './quic.stream';
 import { Stream, StreamType } from './stream';
 import { TransportParameters } from '../crypto/transport.parameters';
 import { Time } from '../types/time';
-import { HeaderOffset } from '../utilities/parsers/header.parser';
-import { PacketOffset } from '../utilities/parsers/packet.parser';
+import { PartiallyParsedPacket } from '../utilities/parsers/header.parser';
 import { QuickerError } from '../utilities/errors/quicker.error';
 import { QuickerErrorCodes } from '../utilities/errors/quicker.codes';
 import { isIPv6 } from 'net';
@@ -19,6 +18,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { BufferedPacket } from '../crypto/crypto.context';
+import { BasePacket } from '../packet/base.packet';
 
 export class Client extends Endpoint {
 
@@ -103,7 +103,7 @@ export class Client extends Endpoint {
         this.connection.on(ConnectionEvent.BufferedPacketReadyForDecryption, (packet:BufferedPacket) => {
             // TODO: now we're going to re-parse the entire packet, but we already parsed the header... see packet.offset
             // could be optimized so we don't re-parse the headers 
-            this.onMessage( packet.packet );
+            this.onMessage( packet.packet.fullContents );
         });
     }
 
@@ -168,21 +168,24 @@ export class Client extends Endpoint {
             this.connection.resetIdleAlarm();
             
             let receivedTime = Time.now();
-            let headerOffsets:HeaderOffset[]|undefined = undefined;
+            let packets:PartiallyParsedPacket[]|undefined = undefined;
 
             try {
-                headerOffsets = this.headerParser.parse(msg);
+                packets = this.headerParser.parseShallowHeader(msg);
             } catch(err) {
                 VerboseLogging.error("Client:onMessage: could not parse headers! Ignoring packet. ");
                 // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
                 return;
             }
 
-            headerOffsets.forEach((headerOffset: HeaderOffset) => {
-                let fullHeaderOffset:HeaderOffset|undefined = this.headerHandler.handle(this.connection, headerOffset, msg, EndpointType.Server);
-                if( fullHeaderOffset ){
-                    var packetOffset: PacketOffset = this.packetParser.parse(this.connection, fullHeaderOffset, msg, EndpointType.Server);
-                    this.packetHandler.handle(this.connection, packetOffset.packet, receivedTime);
+            packets.forEach((packet: PartiallyParsedPacket) => {
+                let decryptedHeader:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(this.connection, packet, EndpointType.Server);
+
+                let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(this.connection, packet, EndpointType.Server);
+
+                if( handledHeader ){
+                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(this.connection, handledHeader, EndpointType.Server);
+                    this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime);
                 }
                 else
                     VerboseLogging.info("Client:handle: could not decrypt packet, buffering till later");

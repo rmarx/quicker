@@ -103,10 +103,22 @@ export class LongHeader extends BaseHeader {
         this.payloadLengthBuffer = VLIE.encode(value);
     }
 
-    // this is NOT the actual wire format: serialized version that is used for encryption calculations (e.g., associated data etc.)
-    // real wire format is toPNEBuffer
-    // TODO: rename these to make this kind of stuff clearer. Also find a way to de-duplicate code like this across the codebase
-    public toBuffer(): Buffer {
+    /*
+    // https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-17.2
+    +-+-+-+-+-+-+-+-+
+    |1|1|T T|X X X X|
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                         Version (32)                          |
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |DCIL(4)|SCIL(4)|
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |               Destination Connection ID (0/32..144)         ...
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    |                 Source Connection ID (0/32..144)            ...
+    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+    */
+    // TODO: find a way to de-duplicate code like this across the codebase
+    public toUnencryptedBuffer(): Buffer {
         var buf = Buffer.alloc(this.getSize());
         var offset = 0;
 
@@ -147,15 +159,15 @@ export class LongHeader extends BaseHeader {
         offset += this.getVersion().toBuffer().copy(buf, offset);
 
         // non-zero connectionIDs are always at least 4 bytes, so we can encode their lenghts in an optimized way
-        var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
-        var srcLength  = this.srcConnectionID.getLength() === 0  ? this.srcConnectionID.getLength()  : this.srcConnectionID.getLength()  - 3;
+        var destLength = this.destConnectionID.getByteLength() === 0 ? this.destConnectionID.getByteLength() : this.destConnectionID.getByteLength() - 3;
+        var srcLength  = this.srcConnectionID.getByteLength() === 0  ? this.srcConnectionID.getByteLength()  : this.srcConnectionID.getByteLength()  - 3;
          // 0xddddssss (d = destination length, s = source length)
          buf.writeUInt8(((destLength << 4) + srcLength), offset++);
 
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
-        // TODO: PROPERLY add tokens here (and in toPNEBuffer?)
+        // TODO: PROPERLY add tokens here
         if( this.getPacketType() == LongHeaderType.Initial ){
             let tokenLengthBuffer = VLIE.encode(this.initialTokenLength);
             offset += tokenLengthBuffer.copy(buf, offset);
@@ -166,94 +178,95 @@ export class LongHeader extends BaseHeader {
         offset += this.initialTokens.copy(buff, offset);
         */
 
+        let pnBuffer = this.getTruncatedPacketNumber()!.toBuffer();
 
-        var payloadLengthBuffer = VLIE.encode(this.payloadLength);//.add(1));
-        offset += payloadLengthBuffer.copy(buf, offset);
+        let restLengthBuffer = VLIE.encode(this.payloadLength.add(pnBuffer.byteLength));
+        offset += restLengthBuffer.copy(buf, offset);
 
-        offset += this.getTruncatedPacketNumber()!.toBuffer().copy(buf, offset);
+        offset += pnBuffer.copy(buf, offset);
         
         //this.getPacketNumber()!.getLeastSignificantBytes(1).copy(buf, offset);
 
         return buf; 
     }
 
-    // for the wire format and more in-depth info, see header.parser.ts:parseLongHeader
-    // this is simply the reverse of that operation 
-    public toPNEBuffer(connection: Connection, payload: Buffer): Buffer {
-        var buf = Buffer.alloc(this.getSize());
-        var offset = 0;
+    // // for the wire format and more in-depth info, see header.parser.ts:parseLongHeader
+    // // this is simply the reverse of that operation 
+    // public toHeaderProtectedBuffer(connection: Connection, headerAndEncryptedPayload: Buffer): Buffer {
+    //     var buf = Buffer.alloc(this.getSize());
+    //     var offset = 0;
 
-        // draft-20 
-        // |1|1|T T|X X X X|
-        // TT is the type, see LongHeaderType
-        let firstByte = 0xC0 + (this.getPacketType() << 4); // 0xCO = 1100 0000
+    //     // draft-20 
+    //     // |1|1|T T|X X X X|
+    //     // TT is the type, see LongHeaderType
+    //     let firstByte = 0xC0 + (this.getPacketType() << 4); // 0xCO = 1100 0000
 
-        // |X X X X|
-        // R = reserved = must be 0
-        // P = packet number length, always 2 bits, filled in later
-        // initial, 0RTT, handshake: R R P P
-        // retry: ODCIL 
-        if( this.getPacketType() !== LongHeaderType.Retry ){
-            /* packet number length, encoded
-            as an unsigned, two-bit integer that is one less than the length
-            of the packet number field in bytes.  That is, the length of the
-            packet number field is the value of this field, plus one.  These
-            bits are protected using header protection
-            */
-            let pnLength = this.getTruncatedPacketNumber()!.getValue().getByteLength();
-            VerboseLogging.info("LongHeader:toBuffer : pnLength is " + pnLength + " // " + this.getPacketNumber()!.getValue().toNumber());
-            if( pnLength > 4 ){
-                VerboseLogging.error("LongHeader:toBuffer : packet number length is larger than 4 bytes, not supported : " + pnLength);
-                throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "packet number too long " + pnLength);
-            }
-            else
-                firstByte += pnLength - 1; // last two bits, so normal + is enough
-        }   
-        else{
-            VerboseLogging.error("LongHeader:toBuffer : making a Retry packet, isn't supported yet! (ODCIL length in first byte)");
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Retry could not be constructed");
-        }
+    //     // |X X X X|
+    //     // R = reserved = must be 0
+    //     // P = packet number length, always 2 bits, filled in later
+    //     // initial, 0RTT, handshake: R R P P
+    //     // retry: ODCIL 
+    //     if( this.getPacketType() !== LongHeaderType.Retry ){
+    //         /* packet number length, encoded
+    //         as an unsigned, two-bit integer that is one less than the length
+    //         of the packet number field in bytes.  That is, the length of the
+    //         packet number field is the value of this field, plus one.  These
+    //         bits are protected using header protection
+    //         */
+    //         let pnLength = this.getTruncatedPacketNumber()!.getValue().getByteLength();
+    //         VerboseLogging.info("LongHeader:toBuffer : pnLength is " + pnLength + " // " + this.getPacketNumber()!.getValue().toNumber());
+    //         if( pnLength > 4 ){
+    //             VerboseLogging.error("LongHeader:toBuffer : packet number length is larger than 4 bytes, not supported : " + pnLength);
+    //             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "packet number too long " + pnLength);
+    //         }
+    //         else
+    //             firstByte += pnLength - 1; // last two bits, so normal + is enough
+    //     }   
+    //     else{
+    //         VerboseLogging.error("LongHeader:toBuffer : making a Retry packet, isn't supported yet! (ODCIL length in first byte)");
+    //         throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Retry could not be constructed");
+    //     }
 
-        buf.writeUInt8(firstByte, offset++);
+    //     buf.writeUInt8(firstByte, offset++);
 
-        offset += this.getVersion().toBuffer().copy(buf, offset);
+    //     offset += this.getVersion().toBuffer().copy(buf, offset);
 
-        var destLength = this.destConnectionID.getLength() === 0 ? this.destConnectionID.getLength() : this.destConnectionID.getLength() - 3;
-        var srcLength = this.srcConnectionID.getLength() === 0 ? this.srcConnectionID.getLength() : this.srcConnectionID.getLength() - 3;
-        buf.writeUInt8(((destLength << 4) + srcLength), offset++);
+    //     var destLength = this.destConnectionID.getByteLength() === 0 ? this.destConnectionID.getByteLength() : this.destConnectionID.getByteLength() - 3;
+    //     var srcLength = this.srcConnectionID.getByteLength() === 0 ? this.srcConnectionID.getByteLength() : this.srcConnectionID.getByteLength() - 3;
+    //     buf.writeUInt8(((destLength << 4) + srcLength), offset++);
 
-        offset += this.destConnectionID.toBuffer().copy(buf, offset);
-        offset += this.srcConnectionID.toBuffer().copy(buf, offset);
+    //     offset += this.destConnectionID.toBuffer().copy(buf, offset);
+    //     offset += this.srcConnectionID.toBuffer().copy(buf, offset);
 
-        // TODO: PROPERLY add tokens here
-        if( this.getPacketType() == LongHeaderType.Initial ){
-            let tokenLengthBuffer = VLIE.encode(this.initialTokenLength);
-            offset += tokenLengthBuffer.copy(buf, offset);
-        }
+    //     // TODO: PROPERLY add tokens here
+    //     if( this.getPacketType() == LongHeaderType.Initial ){
+    //         let tokenLengthBuffer = VLIE.encode(this.initialTokenLength);
+    //         offset += tokenLengthBuffer.copy(buf, offset);
+    //     }
 
 
-        var payloadLengthBuffer = VLIE.encode(this.payloadLength);//.add(1));
-        offset += payloadLengthBuffer.copy(buf, offset);
+    //     var payloadLengthBuffer = VLIE.encode(this.payloadLength);//.add(1));
+    //     offset += payloadLengthBuffer.copy(buf, offset);
 
-        let encodedPn = this.getTruncatedPacketNumber()!.toBuffer();
-        if (this.getPacketType() === LongHeaderType.Protected0RTT) {
-            var pne = connection.getAEAD().protected0RTTPnEncrypt(encodedPn, this, payload, connection.getEndpointType());
-        }
-        else if( this.getPacketType() === LongHeaderType.Handshake ){
-            var pne = connection.getAEAD().protectedHandshakePnEncrypt(encodedPn, this, payload, connection.getEndpointType()); 
-        } 
-        else {
-            var pne = connection.getAEAD().clearTextPnEncrypt(connection.getInitialDestConnectionID(), encodedPn, this, payload, connection.getEndpointType());
-        }
-        offset += pne.copy(buf, offset);
-        return buf;
-    }
+    //     let encodedPn = this.getTruncatedPacketNumber()!.toBuffer();
+    //     if (this.getPacketType() === LongHeaderType.Protected0RTT) {
+    //         var pne = connection.getAEAD().protected0RTTHeaderEncrypt(encodedPn, this, headerAndEncryptedPayload, connection.getEndpointType());
+    //     }
+    //     else if( this.getPacketType() === LongHeaderType.Handshake ){
+    //         var pne = connection.getAEAD().protectedHandshakeHeaderEncrypt(encodedPn, this, headerAndEncryptedPayload, connection.getEndpointType()); 
+    //     } 
+    //     else {
+    //         var pne = connection.getAEAD().clearTextHeaderEncrypt(connection.getInitialDestConnectionID(), encodedPn, this, headerAndEncryptedPayload, connection.getEndpointType());
+    //     }
+    //     offset += pne.copy(buf, offset);
+    //     return buf;
+    // }
 
     public getSize(): number {
         // one byte for type, four bytes for version, one byte for connection ID lengths
         let byteSize = 6;
-        byteSize += this.destConnectionID.getLength();
-        byteSize += this.srcConnectionID.getLength();
+        byteSize += this.destConnectionID.getByteLength();
+        byteSize += this.srcConnectionID.getByteLength();
         
         if (this.getPacketNumber() === undefined) {
             byteSize += Constants.LONG_HEADER_PACKET_NUMBER_SIZE;

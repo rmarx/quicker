@@ -24,7 +24,7 @@ export class VersionNegotiationPacket extends BasePacket {
 
         // each individual supported version is 4 bytes in length
         let output = Buffer.alloc( this.getSize() );
-        let offset = this.getHeader().toBuffer().copy(output, 0);
+        let offset = this.getHeader().toUnencryptedBuffer().copy(output, 0);
 
         this.versions.forEach((version: Version) => {
             // TODO PERF: see if we can bypass the conversion to string here 

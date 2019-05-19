@@ -1,4 +1,3 @@
-import {HeaderOffset} from '../utilities/parsers/header.parser';
 import {Connection} from './connection';
 import {BaseHeader, HeaderType} from '../packet/header/base.header';
 import {ShortHeader} from '../packet/header/short.header';
@@ -30,13 +29,7 @@ export class ConnectionManager extends EventEmitter{
         this.options = options;
     }
     
-    /**
-     * REFACTOR TODO: optimize, first connection takes 4.5ms
-     * @param headerOffset 
-     * @param rinfo 
-     */
-    public getConnection(headerOffset: HeaderOffset, rinfo: RemoteInfo): Connection {
-        var header: BaseHeader = headerOffset.header;
+    public getConnection(header: BaseHeader, rinfo: RemoteInfo): Connection {
         if (header.getHeaderType() === HeaderType.LongHeader) {
             let longHeader = <LongHeader>header;
             let connectionID = longHeader.getDestConnectionID();

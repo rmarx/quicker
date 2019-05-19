@@ -26,15 +26,15 @@ export class NewConnectionIdFrame extends BaseFrame {
         buffer.writeUInt8(this.getType(), offset++);
         sequenceBuffer.copy(buffer, offset);
         offset += sequenceBuffer.byteLength;
-        buffer.writeUInt8(this.connectionID.getLength(), offset++);
+        buffer.writeUInt8(this.connectionID.getByteLength(), offset++);
         this.connectionID.toBuffer().copy(buffer, offset);
-        offset += this.connectionID.getLength();
+        offset += this.connectionID.getByteLength();
         this.statelessResetToken.copy(buffer, offset);
         return buffer;
     }
 
     private getSize(sequenceSize: number): number {
-        return this.connectionID.getLength() + this.statelessResetToken.length + 2 + sequenceSize;
+        return this.connectionID.getByteLength() + this.statelessResetToken.length + 2 + sequenceSize;
     }
 
     public getConnectionId(): ConnectionID {

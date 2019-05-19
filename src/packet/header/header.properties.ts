@@ -40,9 +40,9 @@ export class ConnectionID extends BaseProperty {
 
     private length: number;
 
-    public constructor(buffer: Buffer, length: number) {
-        super(buffer, length);
-        this.length = length;
+    public constructor(buffer: Buffer, byteLength: number) {
+        super(buffer, byteLength);
+        this.length = byteLength;
     }
 
     public getValue(): Bignum {
@@ -54,7 +54,7 @@ export class ConnectionID extends BaseProperty {
         this.length = bignum.getByteLength();
     }
 
-    public getLength(): number {
+    public getByteLength(): number {
         return this.length;
     }
 

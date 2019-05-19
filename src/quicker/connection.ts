@@ -35,6 +35,8 @@ import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { CryptoContext, EncryptionLevel, PacketNumberSpace, BufferedPacket } from '../crypto/crypto.context';
 import { RTTMeasurement } from '../loss-detection/rtt.measurement';
 import { QlogWrapper } from '../utilities/logging/qlog.wrapper';
+import { BaseHeader, HeaderType } from '../packet/header/base.header';
+import { LongHeaderType, LongHeader } from '../packet/header/long.header';
 
 export class Connection extends FlowControlledObject {
 
@@ -518,6 +520,27 @@ export class Connection extends FlowControlledObject {
     public setSpinBit(spinbit: boolean): void {
         this.spinBit = spinbit;
     }
+
+    public getEncryptionContextByHeader(header:BaseHeader): CryptoContext | undefined {
+
+        if (header.getHeaderType() === HeaderType.LongHeader) {
+            let longHeader = header as LongHeader;
+
+            if (longHeader.getPacketType() === LongHeaderType.Protected0RTT) 
+                return this.getEncryptionContextByPacketType( PacketType.Protected0RTT );
+            else if( longHeader.getPacketType() === LongHeaderType.Handshake )
+                return this.getEncryptionContextByPacketType( PacketType.Handshake );
+            else if( longHeader.getPacketType() === LongHeaderType.Initial ) 
+                return this.getEncryptionContextByPacketType( PacketType.Initial );
+            else if( longHeader.getPacketType() === LongHeaderType.Retry ){
+                // retry packets are outside of normal packet functions and don't have encryption contexts or packet number spaces etc. 
+                return undefined;
+            }
+        }
+        else{
+            return this.getEncryptionContextByPacketType( PacketType.Protected1RTT );
+        }
+    } 
 
     public getEncryptionContextByPacketType(packetType:PacketType): CryptoContext | undefined {
         if( packetType == PacketType.Initial )
