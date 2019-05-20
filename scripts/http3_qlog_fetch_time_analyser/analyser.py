@@ -2,6 +2,8 @@ import json
 import sys
 import os
 
+# Idea: instead of single bar for each stream, use two bars where one is the same as it is now and the other shows activity based on prioritization info in some way or another?
+
 # seconds
 SCALE = 1000
 WITH_TEXT = True
