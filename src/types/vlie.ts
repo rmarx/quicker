@@ -1,4 +1,4 @@
-import { Bignum } from "../types/bignum";
+import { Bignum } from "./bignum";
 import { Buffer } from "buffer";
 
 /**

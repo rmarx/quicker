@@ -270,7 +270,10 @@ export class Connection extends FlowControlledObject {
     private hookStreamManagerEvents() {
         this.streamManager.on(StreamManagerEvents.INITIALIZED_STREAM, (stream: Stream) => {
             // for external users of the quicker library
-            this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream)); 
+            if (stream.isRemoteStream()) {
+                // Only emits the event if the stream was initiated by the peer
+                this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
+            }
             
             // purely for internal usage 
             stream.on(FlowControlledObjectEvents.INCREMENT_BUFFER_DATA_USED, (dataLength: number) => {

@@ -6,7 +6,7 @@ import { Constants } from "../constants";
 import { ConnectionID, PacketNumber, Version } from '../../packet/header/header.properties';
 import { QuicError } from "../errors/connection.error";
 import { ConnectionErrorCodes } from "../errors/quic.codes";
-import { VLIE } from "../../crypto/vlie";
+import { VLIE } from "../../types/vlie";
 import { Bignum } from "../../types/bignum";
 import { VersionValidation } from "../validation/version.validation";
 import { VersionNegotiationHeader } from "../../packet/header/version.negotiation.header";

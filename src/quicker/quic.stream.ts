@@ -1,7 +1,7 @@
 import {Connection} from './connection';
 import { EventEmitter } from "events";
 import { Bignum } from "../types/bignum";
-import { Stream, StreamEvent } from "./stream";
+import { Stream, StreamEvent, StreamType } from "./stream";
 import { FrameFactory } from '../utilities/factories/frame.factory';
 import { QuickerEvent } from './quicker.event';
 
@@ -30,6 +30,10 @@ export class QuicStream extends EventEmitter{
             this.emit(QuickerEvent.STREAM_END);
         });
     }
+    
+    public getStreamId():Bignum {
+        return this.stream.getStreamID();
+    }
 
     public write(data: Buffer): void {
         this.stream.addData(data);
@@ -52,6 +56,14 @@ export class QuicStream extends EventEmitter{
 
     public setEncoding(encoding: string): void {
         this.encoding = encoding;
+    }
+    
+    public isBidiStream(): boolean {
+        return this.stream.isBidiStream();
+    }
+    
+    public isUniStream(): boolean {
+        return this.stream.isUniStream();
     }
 }
 

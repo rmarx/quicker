@@ -84,6 +84,9 @@ export class Client extends Endpoint {
 
 
     private setupConnectionEvents() {
+        this.connection.on(ConnectionEvent.STREAM, (quicStream: QuicStream) => {
+            this.emit(QuickerEvent.NEW_STREAM, quicStream);
+        });
         this.connection.on(ConnectionEvent.DRAINING, () => {
             var connectionID = this.connection.getSrcConnectionID();
             this.emit(QuickerEvent.CONNECTION_DRAINING, connectionID.toString());
@@ -107,8 +110,8 @@ export class Client extends Endpoint {
         });
     }
 
-    public request(request: Buffer): QuicStream {
-        var stream: Stream = this.connection.getStreamManager().getNextStream(StreamType.ClientBidi);
+    public request(request: Buffer, streamType: StreamType.ClientBidi | StreamType.ClientUni): QuicStream {
+        var stream: Stream = this.connection.getStreamManager().getNextStream(streamType);
         if (this.connected) {
             this.sendRequest(stream, request);
         } else {
@@ -118,6 +121,15 @@ export class Client extends Endpoint {
             });
         }
         return new QuicStream(this.connection, stream);
+    }
+    
+    public createStream(streamType: StreamType.ClientBidi | StreamType.ClientUni): QuicStream {
+        // TODO Check connection ownership
+        if (this.connected) {
+            return new QuicStream(this.connection, this.connection.getStreamManager().getNextStream(streamType));   
+        } else {
+            throw new QuickerError(QuickerErrorCodes.NO_CONNECTION);
+        }
     }
 
     private sendRequest(stream: Stream, buf: Buffer) {

@@ -1,4 +1,4 @@
-import {VLIE} from '../crypto/vlie';
+import {VLIE} from '../types/vlie';
 import {Bignum} from '../types/bignum';
 import {BaseFrame, FrameType} from './base.frame';
 import {EncryptionLevel} from '../crypto/crypto.context'

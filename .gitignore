@@ -4,3 +4,4 @@ out/*
 package-lock.json
 keylogs.txt
 logs
+build

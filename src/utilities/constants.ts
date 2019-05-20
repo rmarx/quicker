@@ -59,7 +59,7 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
-    public static readonly DEFAULT_MAX_DATA = 1000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
+    public static readonly DEFAULT_MAX_DATA = 5000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
     public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
     public static readonly DEFAULT_MAX_ACK_DELAY = 25; // ms
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;

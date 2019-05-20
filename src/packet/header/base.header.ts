@@ -3,7 +3,7 @@ import {ConnectionID, PacketNumber, Version} from './header.properties';
 import { ConnectionErrorCodes } from "../../utilities/errors/quic.codes";
 import { QuicError } from "../../utilities/errors/connection.error";
 import { Connection } from "../../quicker/connection";
-import { VLIE } from "../../crypto/vlie";
+import { VLIE } from "../../types/vlie";
 import { Constants } from "../../utilities/constants";
 import { VerboseLogging } from "../../utilities/logging/verbose.logging";
 

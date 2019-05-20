@@ -1,6 +1,6 @@
 import { Constants } from '../constants';
 import { EndpointType } from '../../types/endpoint.type';
-import { VLIE } from '../../crypto/vlie';
+import { VLIE } from '../../types/vlie';
 import { Connection } from '../../quicker/connection';
 import { Bignum } from '../../types/bignum';
 import { BasePacket, PacketType } from '../../packet/base.packet';

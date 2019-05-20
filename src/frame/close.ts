@@ -1,4 +1,4 @@
-import {VLIE} from '../crypto/vlie';
+import {VLIE} from '../types/vlie';
 import {BaseFrame, FrameType} from './base.frame';
 
 
