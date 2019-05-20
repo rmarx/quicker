@@ -35,7 +35,9 @@ export class HeaderParser {
         // There can be multiple QUIC packets inside a single UDP datagram, called a "compound packet"
         // https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.6
 
+
         let globalOffset: number = packet.fullContents.byteLength; // points right after the first packet
+        VerboseLogging.info("HeaderParser:parseShallowHeader : after first header : " + packet.fullContents.byteLength + ". Left: " + (encryptedHeaders.byteLength - packet.fullContents.byteLength) + ", globalOffset " + globalOffset + " // full length:" + encryptedHeaders.byteLength);
         // REFACTOR TODO: second condition here should never happen, should throw error message if we encounter this! 
         while (packet.header.getHeaderType() === HeaderType.LongHeader && (<LongHeader>(packet.header)).getPayloadLength() !== undefined) {
             
@@ -66,13 +68,8 @@ export class HeaderParser {
         if ((type & 0x80) === 0x80) {
             return this.parseLongHeader(encryptedPackets, offset);
         }
-
-        if( offset !== 0 ){
-            VerboseLogging.fatal("HeaderParser:parseHeader : offset for parsing short header was not 0, means short headers were coalesced, is not allowed in QUIC!");
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Must not send coalesced short header packets");
-        }
         else
-            return this.parseShortHeader(encryptedPackets, 0);
+            return this.parseShortHeader(encryptedPackets, offset);
     }
 
     /** 
@@ -239,6 +236,7 @@ export class HeaderParser {
         let destConnectionID = new ConnectionID(destConIDBuffer, dcil);
         offset += dcil;
 
+
         //let truncatedPacketNumber = new PacketNumber(encryptedPacket.slice(offset, offset + pnLength));
         //offset = offset + pnLength;
 
@@ -249,6 +247,9 @@ export class HeaderParser {
         //header.setParsedBuffer(parsedBuffer);
 
         let restLength = encryptedPacket.byteLength - offset;
+
+        VerboseLogging.info("HeaderParser:parseShortHeader 0x" + firstByte.toString(16) + ", " + destConnectionID.toBuffer().toString('hex') + " -> rest " + restLength + " started at : " + startOffset + ", now at " + offset + " // total Length : " + encryptedPacket.byteLength);
+ 
         // the offset is now right behind the "length" field, so EXCLUDING the packet number and the payload
         // adding the restLength to it gives us the end of the packet
         // NOTE: we are copying the data here instead of just keeping it in a single buffer

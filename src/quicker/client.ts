@@ -161,7 +161,7 @@ export class Client extends Endpoint {
         VerboseLogging.debug("---------------------------------------------------////////////////////////////// CLIENT ON MESSAGE "+ DEBUGmessageNumber +" ////////////////////////////////" + msg.length);
             
         VerboseLogging.trace("client:onMessage: message length in bytes: " + msg.byteLength);
-        VerboseLogging.trace("client:onMessage: raw message from the wire : " + msg.toString('hex'));
+        VerboseLogging.info("client:onMessage: raw message from the wire : " + msg.toString('hex'));
 
         try {
             this.connection.checkConnectionState();

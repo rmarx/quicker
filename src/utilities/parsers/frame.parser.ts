@@ -73,6 +73,8 @@ export class FrameParser {
                 return this.parseStreamIdBlocked(type, buffer, offset);
             case FrameType.NEW_CONNECTION_ID:
                 return this.parseNewConnectionId(buffer, offset);
+            case FrameType.RETIRE_CONNECTION_ID:
+                return this.parseRetireConnectionId(buffer, offset);
             case FrameType.STOP_SENDING:
                 return this.parseStopSending(buffer, offset);
             case FrameType.PATH_CHALLENGE:
@@ -85,11 +87,13 @@ export class FrameParser {
                 return this.parseAck(false, buffer, offset);
             case FrameType.ACK_ECN:
                 return this.parseAck(true, buffer, offset);
+            case FrameType.NEW_TOKEN:
+                return this.parseNewToken(buffer, offset);
         }
         if (type >= FrameType.STREAM && type <= FrameType.STREAM_MAX_NR) {
             return this.parseStream(type, buffer, offset);
         }
-        
+
         VerboseLogging.error("FrameParser:parse : UNIDENTIFIED FRAME : " + type + " // " + buffer);
         return undefined;
     }
@@ -213,6 +217,11 @@ export class FrameParser {
         };
     }
 
+    private parseRetireConnectionId(buffer:Buffer, offset:number): FrameOffset | undefined {
+        VerboseLogging.error("FrameParser:parseRetireConnectionId : FRAME NOT SUPPORTED YET : IGNORING");
+        return undefined;
+    }
+
     private parseStopSending(buffer: Buffer, offset: number): FrameOffset {
         var streamID = VLIE.decode(buffer, offset);
         var appErrorCode = buffer.readUInt16BE(streamID.offset);
@@ -301,6 +310,11 @@ export class FrameParser {
             frame: FrameFactory.createCryptoFrame(data, cryptooffset.value),
             offset: offset
         };
+    }
+
+    private parseNewToken(buffer:Buffer, offset:number): FrameOffset | undefined {
+        VerboseLogging.error("FrameParser:parseNewToken : FRAME NOT SUPPORTED YET : IGNORING");
+        return undefined;
     }
 
     private parseStream(type: number, buffer: Buffer, offset: number): FrameOffset {
