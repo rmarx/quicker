@@ -20,11 +20,11 @@ export enum ElementDependencyType {
 export class Http3PriorityFrame extends Http3BaseFrame {
     private prioritizedElementType: PrioritizedElementType = 0;
     private elementDependencyType: ElementDependencyType = 0;
-    private prioritizedElementID: Bignum | undefined; // VLIE
-    private elementDependencyID: Bignum | undefined; // VLIE
+    private prioritizedElementID?: Bignum; // VLIE
+    private elementDependencyID?: Bignum; // VLIE
     private weight: number; // Ranging from 0 - 255, add one to get value between 1 - 256
 
-    public constructor(prioritizedElementType: PrioritizedElementType, elementDependencyType: ElementDependencyType, prioritizedElementID?: Bignum, elementDependencyID?: Bignum, weight: number = 16) {
+    public constructor(prioritizedElementType: PrioritizedElementType, elementDependencyType: ElementDependencyType, prioritizedElementID?: Bignum | number, elementDependencyID?: Bignum | number, weight: number = 16) {
         super();
         if (prioritizedElementType !== PrioritizedElementType.CURRENT_STREAM && prioritizedElementID === undefined) {
             // FIXME Maybe use other error?
@@ -40,8 +40,16 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         }
         this.prioritizedElementType = prioritizedElementType;
         this.elementDependencyType = elementDependencyType;
-        this.prioritizedElementID = prioritizedElementID;
-        this.elementDependencyID = elementDependencyID;
+        if (prioritizedElementID instanceof Bignum) {
+            this.prioritizedElementID = prioritizedElementID;
+        } else if (prioritizedElementID !== undefined) {
+            this.prioritizedElementID = new Bignum(prioritizedElementID);
+        }
+        if (elementDependencyID instanceof Bignum) {
+            this.elementDependencyID = elementDependencyID;
+        } else if (elementDependencyID !== undefined) {
+            this.elementDependencyID = new Bignum(elementDependencyID);
+        }
         this.weight = weight - 1;
     }
 

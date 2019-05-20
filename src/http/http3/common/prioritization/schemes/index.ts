@@ -6,6 +6,7 @@ import { Http3WeightedRoundRobinScheme } from "./http3.weightedroundrobinscheme"
 import { Http3ParallelPlusScheme } from "./http3.parallelplusscheme";
 import { Http3SerialPlusScheme } from "./http3.serialplusscheme";
 import { Http3FirefoxScheme } from "./http3.firefoxscheme";
+import { Http3ClientSidedScheme } from "./http3.clientsidedscheme";
 
 export {
     Http3DynamicFifoScheme,
@@ -16,4 +17,5 @@ export {
     Http3ParallelPlusScheme,
     Http3SerialPlusScheme,
     Http3FirefoxScheme,
+    Http3ClientSidedScheme,
 }

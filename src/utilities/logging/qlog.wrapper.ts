@@ -21,6 +21,7 @@ import { Http3StreamState } from '../../http/http3/common/types/http3.streamstat
 import { Http3PrioritisedElementNode } from '../../http/http3/common/prioritization/http3.prioritisedelementnode';
 import { Http3RequestNode } from '../../http/http3/common/prioritization/http3.requestnode';
 import { Http3Header } from '../../http/http3/common/qpack/types/http3.header';
+import { DependencyTree } from '../../http/http3/common/prioritization/http3.deptree';
 
 /*
 Example usage: 
@@ -609,29 +610,6 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
-    // TRIGGERS: ["NEW", "REMOVED", "MOVED"]
-    public onHTTPDepTreeChange(node:Http3PrioritisedElementNode, type:("Placeholder"|"Stream"), trigger:("NEW"|"REMOVED"|"MOVED")) {
-        let streamID: string | undefined;
-
-        if (node instanceof(Http3RequestNode)) {
-            streamID = node.getStreamID().toString();
-        }
-
-        let evt:any = [
-            123,
-            "HTTP",
-            "DEPENDENCY_TREE_CHANGE",
-            trigger,
-            {
-                type,
-                streamID,
-                weight: node.getWeight(),
-            }
-        ];
-
-        this.logToFile(evt);
-    }
-
     // FIXME This should probably be removed later, mostly here for debugging of prioritisation
     public onHTTPDataChunk(streamID:Bignum, byteLength:number, weight:number, trigger:("TX"|"RX")) {
         let evt:any = [
@@ -662,6 +640,22 @@ export class QlogWrapper{
             {
                 uri: uri,
                 stream_id: streamID.toDecimalString(),
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
+    // Event is currently only triggered by structural changes, not by weight changes
+    // TODO Maybe just log it everytime? -> If tool can provide easy to read div this should not cause any problems in terms of readability
+    public onHTTPDependencyTreeChange(newTree: DependencyTree, trigger:("NEW"|"MOVED"|"REMOVED")) {
+        const evt:any = [
+            123,
+            "HTTP",
+            "PRIORITY_CHANGE",
+            trigger,
+            {
+                new_tree: JSON.stringify(newTree),
             }
         ];
 

@@ -9,6 +9,21 @@ import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
 import { Http3NodeEvent } from "./http3.nodeevent";
 import { EventEmitter } from "events";
+import { QlogWrapper } from "../../../../utilities/logging/qlog.wrapper";
+
+export enum DependencyTreeNodeType {
+    REQUEST = "Request",
+    PLACEHOLDER = "Placeholder",
+    ROOT = "Root",
+}
+
+// Interface for converting to JSON
+export interface DependencyTree {
+    type?: DependencyTreeNodeType,
+    id: string,
+    weight: number,
+    children: DependencyTree[],
+}
 
 export class Http3DependencyTree extends EventEmitter {
     private root: Http3DependencyTreeRoot = new Http3DependencyTreeRoot();
@@ -18,8 +33,27 @@ export class Http3DependencyTree extends EventEmitter {
     private placeholders: Map<number, Http3PlaceholderNode> = new Map<number, Http3PlaceholderNode>();
     private placeholderCount: number = 0;
 
-    public constructor() {
+    private logger?: QlogWrapper;
+
+    public constructor(logger?: QlogWrapper) {
         super();
+        this.logger = logger;
+
+        // Log tree changes
+        this.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
+            if (this.logger !== undefined) {
+                this.logger.onHTTPDependencyTreeChange(this.toJSON(), "REMOVED");
+                if (node instanceof(Http3RequestNode)) {
+                    this.requestStreams.delete(node.getStreamID().toString());
+                } else if (node instanceof(Http3PlaceholderNode)) {
+                    this.placeholders.delete(node.getPlaceholderID());
+                }
+            };
+        });
+    }
+
+    public setLogger(logger: QlogWrapper) {
+        this.logger = logger;
     }
 
     public handlePriorityFrame(frame: Http3PriorityFrame, currentStreamID: Bignum) {
@@ -31,6 +65,9 @@ export class Http3DependencyTree extends EventEmitter {
             prioritisedNode.setParent(dependencyNode);
             if (prioritisedNode.isActive()) {
                 dependencyNode.activateChild(prioritisedNode);
+            }
+            if (this.logger !== undefined) {
+                this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
             }
         } else {
             VerboseLogging.warn("Problem occurred during handling of HTTP/3 priority frame: the prioritised node and/or the dependency node were undefined");
@@ -109,6 +146,13 @@ export class Http3DependencyTree extends EventEmitter {
             // Notify listeners of this dependency tree that a node was removed
             this.emit(Http3NodeEvent.NODE_REMOVED, node);
         });
+        node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+            // Notify listeners of this dependency tree that a node is going to be removed
+            this.emit(Http3NodeEvent.REMOVING_NODE, node);
+        });
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
+        }
     }
 
     // Add with dependency on request stream
@@ -131,6 +175,13 @@ export class Http3DependencyTree extends EventEmitter {
                 // Notify listeners of this dependency tree that a node was removed
                 this.emit(Http3NodeEvent.NODE_REMOVED, node);
             });
+            node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+                // Notify listeners of this dependency tree that a node is going to be removed
+                this.emit(Http3NodeEvent.REMOVING_NODE, node);
+            });
+        }
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
         }
     }
 
@@ -154,19 +205,34 @@ export class Http3DependencyTree extends EventEmitter {
                 // Notify listeners of this dependency tree that a node was removed
                 this.emit(Http3NodeEvent.NODE_REMOVED, node);
             });
+            node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+                // Notify listeners of this dependency tree that a node is going to be removed
+                this.emit(Http3NodeEvent.REMOVING_NODE, node);
+            });
+        }
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
         }
     }
 
     // Add with dependency on root node
     public addPlaceholderToRoot(weight: number = 16): number {
         const placeholderID: number = this.placeholderCount++;
-        const node: Http3PlaceholderNode = new Http3PlaceholderNode(this.root, weight);
+        const node: Http3PlaceholderNode = new Http3PlaceholderNode(this.root, placeholderID, weight);
         this.placeholders.set(placeholderID, node);
 
         node.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
             // Notify listeners of this dependency tree that a node was removed
             this.emit(Http3NodeEvent.NODE_REMOVED, node);
         });
+        node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+            // Notify listeners of this dependency tree that a node is going to be removed
+            this.emit(Http3NodeEvent.REMOVING_NODE, node);
+        });
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
+        }
 
         return placeholderID;
     }
@@ -181,13 +247,21 @@ export class Http3DependencyTree extends EventEmitter {
             // TODO implement appropriate error
             throw new Error("Tried adding a placeholder node to a request stream which was not in the dependency tree");
         } else {
-            const node: Http3PlaceholderNode = new Http3PlaceholderNode(parent, weight);
+            const node: Http3PlaceholderNode = new Http3PlaceholderNode(parent, placeholderID, weight);
             this.placeholders.set(placeholderID, node);
 
             node.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
                 // Notify listeners of this dependency tree that a node was removed
                 this.emit(Http3NodeEvent.NODE_REMOVED, node);
             });
+            node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+                // Notify listeners of this dependency tree that a node is going to be removed
+                this.emit(Http3NodeEvent.REMOVING_NODE, node);
+            });
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
         }
 
         return placeholderID;
@@ -203,13 +277,21 @@ export class Http3DependencyTree extends EventEmitter {
             // TODO implement appropriate error
             throw new Error("Tried adding a placeholder node to another placeholder node which was not in the dependency tree");
         } else {
-            const node: Http3PlaceholderNode = new Http3PlaceholderNode(parent, weight);
+            const node: Http3PlaceholderNode = new Http3PlaceholderNode(parent, newPlaceholderID, weight);
             this.placeholders.set(newPlaceholderID, node);
 
             node.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
                 // Notify listeners of this dependency tree that a node was removed
                 this.emit(Http3NodeEvent.NODE_REMOVED, node);
             });
+            node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+                // Notify listeners of this dependency tree that a node is going to be removed
+                this.emit(Http3NodeEvent.REMOVING_NODE, node);
+            });
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
         }
 
         return newPlaceholderID
@@ -228,7 +310,7 @@ export class Http3DependencyTree extends EventEmitter {
             throw new Error("Tried adding a request stream to a stream which was not in the dependency tree");
         } else {
             const node: Http3RequestNode = new Http3RequestNode(stream, parent, weight);
-            node.removeSelf();
+            // node.removeSelf();
             parent.addExclusiveChild(node);
             this.requestStreams.set(stream.getStreamId().toString(), node);
 
@@ -236,6 +318,92 @@ export class Http3DependencyTree extends EventEmitter {
                 // Notify listeners of this dependency tree that a node was removed
                 this.emit(Http3NodeEvent.NODE_REMOVED, node);
             });
+            node.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
+                // Notify listeners of this dependency tree that a node is going to be removed
+                this.emit(Http3NodeEvent.REMOVING_NODE, node);
+            });
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "NEW");
+        }
+    }
+
+    public moveStreamToStream(requestStreamID: Bignum, dependencyStreamID: Bignum) {
+        const node: Http3PrioritisedElementNode | undefined = this.requestStreams.get(requestStreamID.toString());
+        const parent: Http3PrioritisedElementNode | undefined = this.requestStreams.get(dependencyStreamID.toString());
+
+        if (node === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream of the HTTP/3 dependency tree while it was not yet in the tree");
+        }
+        else if (parent === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream to a stream which was not in the dependency tree");
+        } else {
+            // node.removeSelf();
+            node.setParent(parent);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
+        }
+    }
+
+    public moveStreamToRoot(requestStreamID: Bignum) {
+        const node: Http3PrioritisedElementNode | undefined = this.requestStreams.get(requestStreamID.toString());
+
+        if (node === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream of the HTTP/3 dependency tree while it was not yet in the tree");
+        } else {
+            // node.removeSelf();
+            node.setParent(this.root);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
+        }
+    }
+
+    public moveStreamToPlaceholder(requestStreamID: Bignum, placeholderID: number) {
+        const node: Http3PrioritisedElementNode | undefined = this.requestStreams.get(requestStreamID.toString());
+        const placeholder: Http3PlaceholderNode | undefined = this.placeholders.get(placeholderID);
+
+        if (node === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream of the HTTP/3 dependency tree while it was not yet in the tree");
+        } else if (placeholder === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream to a placeholder which was not in the dependency tree");
+        } else {
+            // node.removeSelf();
+            node.setParent(placeholder);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
+        }
+    }
+
+    public moveStreamToStreamExclusive(requestStreamID: Bignum, dependencyStreamID: Bignum) {
+        const node: Http3PrioritisedElementNode | undefined = this.requestStreams.get(requestStreamID.toString());
+        const parent: Http3PrioritisedElementNode | undefined = this.requestStreams.get(dependencyStreamID.toString());
+
+        if (node === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream of the HTTP/3 dependency tree while it was not yet in the tree");
+        }
+        else if (parent === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream to a stream which was not in the dependency tree");
+        } else {
+            // node.removeSelf();
+            parent.addExclusiveChild(node);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
         }
     }
 
@@ -248,13 +416,22 @@ export class Http3DependencyTree extends EventEmitter {
         }
     }
 
+    public setStreamWeight(requestStreamID: Bignum, weight: number) {
+        const requestnode: Http3RequestNode | undefined = this.requestStreams.get(requestStreamID.toString());
+        if (requestnode === undefined) {
+            throw new Error("Tried changing weight of a requeststream not in the dependency tree!");
+        } else {
+            requestnode.setWeight(weight);
+        }
+    }
+
     // Removes the given request stream from the tree, ends the stream and passes its children to the request's parent
     // CAUTION: Any buffered but untransmitted data will be lost!
     public removeRequestStream(requestStreamID: Bignum) {
         const node: Http3RequestNode | undefined = this.requestStreams.get(requestStreamID.toString());
         if (node !== undefined) {
-            node.removeSelf();
             node.finish();
+            node.removeSelf();
             this.requestStreams.delete(requestStreamID.toString());
         }
     }
@@ -280,5 +457,9 @@ export class Http3DependencyTree extends EventEmitter {
     // Do one pass starting from root
     public schedule() {
         this.root.schedule();
+    }
+
+    public toJSON(): DependencyTree {
+        return this.root.toJSON();
     }
 }

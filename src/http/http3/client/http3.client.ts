@@ -23,10 +23,11 @@ import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame } from "../common/frames/http3.baseframe";
 import { parseHttp3Message } from "../common/parsers/http3.message.parser";
 import { Http3Message } from "../common/http3.message";
+import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme } from "../common/prioritization/schemes/index"
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
-    private dependencyTree: Http3DependencyTree;
+    private prioritiser: Http3PriorityScheme;
     private scheduleTimer?: NodeJS.Timer;
     private sendingControlStream?: Http3SendingControlStream; // Client initiated
     private receivingControlStream?: Http3ReceivingControlStream; // Server initiated
@@ -47,16 +48,19 @@ export class Http3Client extends EventEmitter {
 
     private logger?: QlogWrapper;
 
+    private fileExtensionPattern: RegExp = /\.[0-9a-z]+$/i;
+    private indexRequestPattern: RegExp = /.*\/$/g;
+
     public constructor(hostname: string, port: number) {
         super();
         this.onNewStream = this.onNewStream.bind(this);
         this.quickerClient = Client.connect(hostname, port);
-        this.dependencyTree = new Http3DependencyTree();
+        this.prioritiser = new Http3FIFOScheme();
         this.http3FrameParser = new Http3FrameParser();
 
         this.quickerClient.on(QuickerEvent.CLIENT_CONNECTED, () => {
             this.logger = this.quickerClient.getConnection().getQlogger();
-
+            this.prioritiser.setLogger(this.logger);
 
             // Create control stream
             const controlStream: QuicStream = this.quickerClient.createStream(StreamType.ClientUni);
@@ -75,15 +79,15 @@ export class Http3Client extends EventEmitter {
 
             this.emit(Http3ClientEvent.CLIENT_CONNECTED);
 
-            // Schedule 30 chunks of 100 bytes every 1ms
+            // Schedule 1 chunk of 100 bytes every 10ms
             // TODO tweak numbers
             // TODO Listen to congestion control events instead
             this.scheduleTimer = setInterval(() => {
                 // for (let i = 0; i < 30; ++i) {
                 //     this.dependencyTree.schedule();
                 // }
-                this.dependencyTree.schedule();
-            }, 100);
+                this.prioritiser.schedule();
+            }, 10);
         });
 
         this.quickerClient.on(QuickerEvent.NEW_STREAM, this.onNewStream);
@@ -158,7 +162,7 @@ export class Http3Client extends EventEmitter {
     }
 
     // Returns streamID of requeststream
-    public get(path: string, weight: number = 16, dependencyStreamID?: Bignum): Bignum {
+    public get(path: string, weight: number = 16): Bignum {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -181,6 +185,19 @@ export class Http3Client extends EventEmitter {
         req.setHeader(":path", path);
         req.setHeader(":method", "GET");
 
+        // Get file extension
+        const fileExtensionMatches: RegExpMatchArray | null = path.match(this.fileExtensionPattern);
+        let fileExtension: string;
+        if (fileExtensionMatches !== null) {
+            fileExtension = fileExtensionMatches[0];
+        } else if (path.match(this.indexRequestPattern)) {
+            // Assume a path ending with `/` tries to request index.html
+            fileExtension = "html";
+        } else {
+            // TODO implement appropriate error
+            throw new Error("Could not determine file extension based on request path!");
+        }
+
         this.lastStreamID = stream.getStreamId();
         this.pendingRequestStreams.push(stream);
         VerboseLogging.info("Created new stream for HTTP/3 GET request. StreamID: " + stream.getStreamId());
@@ -192,22 +209,20 @@ export class Http3Client extends EventEmitter {
             this.logger.onHTTPFrame_Headers(req.getHeaderFrame(), "TX");
         }
 
-        let priorityFrame: Http3PriorityFrame;
-        if (dependencyStreamID === undefined) {
-            this.dependencyTree.addRequestStreamToRoot(stream, weight);
-            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
+        this.prioritiser.addStream(stream);
+        let priorityFrame: Http3PriorityFrame | null= this.prioritiser.applyScheme(stream.getStreamId(), fileExtension);
+        if (priorityFrame !== null) {
+            if (this.logger !== undefined) {
+                this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
+            }
         } else {
-            this.dependencyTree.addRequestStreamToRequest(stream, dependencyStreamID, weight);
-            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.REQUEST_STREAM, stream.getStreamId(), dependencyStreamID, weight);
+            // Default values
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, stream.getStreamId());
         }
-        // TODO frame should only be pushed on stream if not default values
 
-        if (this.logger !== undefined) {
-            this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
-        }
-        this.dependencyTree.addData(stream.getStreamId(), priorityFrame.toBuffer());
-        this.dependencyTree.addData(stream.getStreamId(), req.toBuffer());
-        this.dependencyTree.finishStream(stream.getStreamId());
+        this.prioritiser.addData(stream.getStreamId(), priorityFrame.toBuffer());
+        this.prioritiser.addData(stream.getStreamId(), req.toBuffer());
+        this.prioritiser.finishStream(stream.getStreamId());
 
         let bufferedData: Buffer = new Buffer(0);
 
@@ -218,6 +233,8 @@ export class Http3Client extends EventEmitter {
             if (this.logger !== undefined) {
                 this.logger.onHTTPStreamStateChanged(stream.getStreamId(), Http3StreamState.CLOSED, "FIN");
             }
+
+            this.prioritiser.removeRequestStream(stream.getStreamId());
 
             const [frames, newOffset]: [Http3BaseFrame[], number] = this.http3FrameParser.parse(bufferedData, stream.getStreamId());
             const message: Http3Message = parseHttp3Message(frames);
@@ -258,7 +275,7 @@ export class Http3Client extends EventEmitter {
     private setupControlStreamEvents(controlStream: Http3ReceivingControlStream) {
         controlStream.on(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, (frame: Http3PriorityFrame) => {
             this.quickerClient.getConnection().getQlogger().onHTTPFrame_Priority(frame, "RX");
-            this.dependencyTree.handlePriorityFrame(frame, controlStream.getStreamID());
+            this.prioritiser.handlePriorityFrame(frame, controlStream.getStreamID());
             VerboseLogging.info("HTTP/3: priority frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
         controlStream.on(Http3ControlStreamEvent.HTTP3_CANCEL_PUSH_FRAME, (frame: Http3CancelPushFrame) => {

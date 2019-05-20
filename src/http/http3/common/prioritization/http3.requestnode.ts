@@ -5,6 +5,7 @@ import { Http3DataFrame } from "../frames";
 import { Http3StreamState } from "../types/http3.streamstate";
 import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
+import { DependencyTree, DependencyTreeNodeType } from "./http3.deptree";
 
 export class Http3RequestNode extends Http3PrioritisedElementNode {
     private bufferedData: Buffer = Buffer.alloc(0);
@@ -33,11 +34,11 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
             this.stream.getConnection().getQlogger().onHTTPDataChunk(this.stream.getStreamId(), this.bytesSent, this.weight, "TX");
             VerboseLogging.info("Scheduled " + this.bytesSent + " bytes to be sent on stream " + this.stream.getStreamId().toString());
             if (this.allDataBuffered === true && this.bufferedData.byteLength === 0) {
-                // this.stream.end();
-                // this.stream.getConnection().sendPackets(); // Force sending packets
                 this.stream.getConnection().getQlogger().onHTTPStreamStateChanged(this.stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
-                this.removeSelf();
                 VerboseLogging.info("Closed stream " + this.stream.getStreamId().toString() + ", all data transmitted");
+                setTimeout(() => {
+                    this.terminate(); // FIXME This pruning is way too aggressive and not spec compliant (should wait at least 2 RTT)
+                }, 500);
             }
         } else {
             // Schedule children
@@ -78,6 +79,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
         if (this.bufferedData.byteLength === 0) {
             this.stream.end();
             this.removeSelf();
+            this.stream.getConnection().sendPackets(); // Force sending packets FIXME QUICker cannot send empty frames yet
         }
     }
     
@@ -110,5 +112,16 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
 
     public getStreamID(): Bignum {
         return this.stream.getStreamId();
+    }
+
+    public toJSON(): DependencyTree {
+        return {
+            type: DependencyTreeNodeType.REQUEST,
+            id: this.stream.getStreamId().toDecimalString(),
+            weight: this.weight,
+            children: this.children.map((child: Http3PrioritisedElementNode) => {
+                return child.toJSON();
+            }),
+        }
     }
 }
