@@ -69,7 +69,7 @@ export class QTLS extends EventEmitter{
     private connection: Connection;
 
     private TLSMessageCallback?:(type: TLSMessageType, message: Buffer) => void;
-    private TLSKeyCallback?:(keytype: TLSKeyType, secret: Buffer, key: Buffer, iv: Buffer) => void;
+    private TLSKeyCallback?:(keytype: TLSKeyType, secret: Buffer/*, key: Buffer, iv: Buffer*/) => void;
 
     public constructor(isServer: boolean, options: any = {}, connection: Connection) {
         super();
@@ -212,6 +212,10 @@ export class QTLS extends EventEmitter{
         return this.qtlsHelper.getSession();
     }
 
+    public getNegotiatedALPN():string {
+        return this.qtlsHelper.getNegotiatedALPN().toString();
+    }
+
     public readSSL(): Buffer {
         return this.qtlsHelper.readSSL();
     }
@@ -234,6 +238,10 @@ export class QTLS extends EventEmitter{
         // server: after reception of ClientFinished, after creation of each NewSessionTicket
         // Get 1-RTT Negotiated Cipher
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
+
+        // the alpn string will be plain text, e.g., just == "h3-20"
+        VerboseLogging.info("qtls:handleHandshakeDone : negotiated ALPN is " + this.qtlsHelper.getNegotiatedALPN().toString() + " // " + (this.qtlsHelper.getNegotiatedALPN().toString() === "h3-20"));
+
         if (this.handshakeState >= HandshakeState.CLIENT_COMPLETED) {
             return;
         }
@@ -256,10 +264,10 @@ export class QTLS extends EventEmitter{
         //console.log( secret.length + " == " + secretLength + " // " + key.length + " == " + keyLength + " // " + iv.length + " == " + ivLength );
         //console.log("QTLS: handleNewKey:", TLSMessageType[keytype], secret, secretLength, key, keyLength, iv, ivLength, arg );
         if( this.TLSKeyCallback )
-            this.TLSKeyCallback( keytype, secret, key, iv);
+            this.TLSKeyCallback( keytype, secret);//, key, iv);
     }
 
-    public setTLSKeyCallback(cb:(keytype: TLSKeyType, secret: Buffer, key: Buffer, iv: Buffer) => void){
+    public setTLSKeyCallback(cb:(keytype: TLSKeyType, secret: Buffer/*, key: Buffer, iv: Buffer*/) => void){
 		this.TLSKeyCallback = cb;
     }
 

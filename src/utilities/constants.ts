@@ -23,10 +23,10 @@ export class Constants {
      * Dictionary for the mapping between QUIC version and their version specific salt
      */
     public static readonly VERSION_SALTS: { [id: string] : string; } = {
-        'ff000014': '0xef4fb0abb47470c41befcf8031334fae485e09a0',
-        'abcdef0c': '0xef4fb0abb47470c41befcf8031334fae485e09a0', 
+        'ff000014': 'ef4fb0abb47470c41befcf8031334fae485e09a0',
+        'abcdef0c': 'ef4fb0abb47470c41befcf8031334fae485e09a0'
     }
-    public static readonly ALPN_LABELS = ["h3-19", "h3-20"];
+    public static readonly ALPN_LABELS = ["h3-20", "hq-19"];
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 
@@ -59,7 +59,7 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
-    public static readonly DEFAULT_MAX_DATA = 50 * 1024;
+    public static readonly DEFAULT_MAX_DATA = 1000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
     public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
     public static readonly DEFAULT_MAX_ACK_DELAY = 25; // ms
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;
@@ -75,16 +75,12 @@ export class Constants {
      */
     public static readonly INITIAL_MIN_SIZE = 1200;
 
-    public static readonly QHKDF_BASE_LABEL = "quic ";
-    public static readonly EXPORTER_BASE_LABEL = "EXPORTER-QUIC ";
-    public static readonly CLIENT_INITIAL_LABEL = "client in";
-    public static readonly SERVER_INITIAL_LABEL = "server in"; 
-    public static readonly CLIENT_0RTT_LABEL = "0rtt";
-    public static readonly CLIENT_1RTT_LABEL = "client 1rtt";
-    public static readonly SERVER_1RTT_LABEL = "server 1rtt";
-    public static readonly PACKET_PROTECTION_KEY_LABEL = "key";
-    public static readonly PACKET_PROTECTION_IV_LABEL = "iv";
-    public static readonly HEADER_PROTECTION_LABEL = "hp";
+    public static readonly EXPORTER_BASE_LABEL          = "EXPORTER-QUIC ";
+    public static readonly CLIENT_INITIAL_LABEL         = "client in";
+    public static readonly SERVER_INITIAL_LABEL         = "server in"; 
+    public static readonly PACKET_PROTECTION_KEY_LABEL  = "quic key";
+    public static readonly PACKET_PROTECTION_IV_LABEL   = "quic iv";
+    public static readonly HEADER_PROTECTION_LABEL      = "quic hp";
     
     public static readonly TEMPORARY_DRAINING_TIME = 15000;
 

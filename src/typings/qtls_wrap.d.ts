@@ -18,6 +18,7 @@ export class QuicTLS {
     exportEarlyKeyingMaterial(buffer: Buffer, hashsize: number): Buffer;
     getNegotiatedCipher(): string;
     getSession(): Buffer;
+    getNegotiatedALPN(): Buffer;
     setSession(buffer: Buffer): void;
     isSessionReused(): boolean;
     isEarlyDataAllowed(): boolean;

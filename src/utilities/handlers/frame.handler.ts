@@ -200,7 +200,7 @@ export class FrameHandler {
     }
 
     private handleNewConnectionIdFrame(connection: Connection, newConnectionIdFrame: NewConnectionIdFrame) {
-        
+        VerboseLogging.error("FrameHandler:handleNewConnectionIdFrame : TODO: currently, we just ignore these!");
     }
 
     private handleStopSendingFrame(connection: Connection, stopSendingFrame: StopSendingFrame) {

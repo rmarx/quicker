@@ -1,5 +1,6 @@
 import {Constants} from '../utilities/constants';
 import { Hmac, createHmac, createHash } from "crypto";
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 /**
  * Implementation of HMAC-based Extract-and-Expand Key Derivation Function (HKDF) RFC-5869
@@ -56,7 +57,7 @@ export class HKDF {
      * @param prk 
      * @param label 
      * @param hashValue 
-     * @param lengthOutput 
+     * @param hashLength 
      */
     /*
     public expandLabel(prk: Buffer, label: string, hashValue: string, lengthOutput: number): Buffer {
@@ -70,13 +71,28 @@ export class HKDF {
     */
 
 
-    public qhkdfExpandLabel(prk: Buffer, label: string, lengthOutput: number): Buffer {
-        label = Constants.QHKDF_BASE_LABEL + label;
-        var length = Buffer.from([lengthOutput / 256, lengthOutput % 256]);
-        var bufLabel = Buffer.from(label);
-        // hkdf expects a Context, but here it's empty, so pass 0 as last parameter
-        // NOTE: this is unclear in the official draft-13, but has been updated in the editor's copy and should be in draft-14
-        var hkdfLabel = Buffer.concat([length, Buffer.from([label.length]), bufLabel, Buffer.from([0])]);
-        return this.expand(prk, hkdfLabel, lengthOutput);
+    public qhkdfExpandLabel(prk: Buffer, label: string, hashLength: number): Buffer {
+
+        label = "tls13 " + label; // yes, the label will be "tls13 quic hp" and similar, this is intentional
+
+        let hashLengthBuffer = Buffer.from([hashLength]);
+        if( hashLengthBuffer.byteLength == 1 ) // we need to have a uint16, so prepend 0
+            hashLengthBuffer = Buffer.concat( [Buffer.from([0]), hashLengthBuffer] );
+
+        let labelBuffer = Buffer.from(label);
+
+        // for more details, see https://tools.ietf.org/html/rfc8446#section-7.1
+        /*
+            // we are recreating this setup here:
+            struct {
+                uint16 length = Length;
+                opaque label<7..255> = "tls13 " + Label; // opaque values are prefixed with their length
+                opaque context<0..255> = Context; // opaque values are prefixd with length. here, the context is empty string, so the length is 0, but it still needs to be encoded
+            } HkdfLabel;
+        */
+        let hkdfLabel = Buffer.concat([hashLengthBuffer, Buffer.from([label.length]), labelBuffer, Buffer.from([0])]);
+
+        VerboseLogging.info("qhkdfExpandLabel: label from " + label + " // " + hkdfLabel.toString('hex') );
+        return this.expand(prk, hkdfLabel, hashLength);
     }
 }

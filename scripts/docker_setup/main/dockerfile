@@ -17,7 +17,7 @@ RUN 						\
     && apt-get clean		\
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN git clone --depth 1 -b add_quicker_support-draft-15 https://github.com/rmarx/node.git /node
+RUN git clone --depth 1 -b add_quicker_support-draft-18 https://github.com/rmarx/node.git /node
 
 
 ############################################
@@ -43,7 +43,7 @@ RUN 				\
 	&& make install
 	
 	
-RUN git clone --depth 1 -b draft-15 https://github.com/rmarx/quicker.git /quicker
+RUN git clone --depth 1 -b draft-20 https://github.com/rmarx/quicker.git /quicker
 WORKDIR /quicker
 
 RUN npm install typescript -g && npm install && tsc -p ./ 

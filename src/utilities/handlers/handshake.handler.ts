@@ -9,6 +9,7 @@ import { ConnectionErrorCodes, TlsErrorCodes } from "../errors/quic.codes";
 import { EventEmitter } from "events";
 import { VerboseLogging } from "../logging/verbose.logging";
 import { AEAD } from '../../crypto/aead';
+import { SecurityEventTrigger } from "@quictools/qlog-schema/draft-16/QLog";
 
 
 
@@ -38,7 +39,7 @@ export class HandshakeHandler extends EventEmitter{
         this.handshakeEmitted = false;
 
         this.qtls.setTLSMessageCallback( (messagetype:TLSMessageType, message:Buffer) => { this.OnNewTLSMessage(messagetype, message); } );
-        this.qtls.setTLSKeyCallback( (keytype, secret, key, iv) => {this.OnNewTLSKey(keytype, secret, key, iv); } );
+        this.qtls.setTLSKeyCallback( (keytype, secret/*, key, iv*/) => {this.OnNewTLSKey(keytype, secret/*, key, iv*/); } );
     }
 
     // this should be called first before startHandshake!
@@ -114,7 +115,7 @@ export class HandshakeHandler extends EventEmitter{
         this.debugLogTLSMessage( type, this.currentSendingCryptoStream.getCryptoLevel() );
     }
 
-    private OnNewTLSKey(type:TLSKeyType, secret:Buffer, key:Buffer, iv:Buffer ){
+    private OnNewTLSKey(type:TLSKeyType, secret:Buffer/*, key:Buffer, iv:Buffer*/ ){
 
         let previousLevel:EncryptionLevel = this.currentSendingCryptoStream.getCryptoLevel();
 
@@ -123,23 +124,23 @@ export class HandshakeHandler extends EventEmitter{
             switch(type){
                 case TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.HANDSHAKE ) as CryptoStream;
-                    this.aead.setProtectedHandshakeSecrets( EndpointType.Server, secret, key, iv );
+                    this.aead.setProtectedHandshakeSecrets( EndpointType.Server, secret );
                     break;
                 case TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ONE_RTT ) as CryptoStream;
-                    this.aead.setProtected1RTTSecrets( EndpointType.Server, secret, key, iv );
+                    this.aead.setProtected1RTTSecrets( EndpointType.Server, secret );
                     break;
 
                 case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
-                    this.aead.setProtected0TTSecrets( EndpointType.Client, secret, key, iv );
+                    this.aead.setProtected0TTSecrets( EndpointType.Client, secret );
                     this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
-                    this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret, key, iv );
+                    this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret );
                     this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.HANDSHAKE );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
-                    this.aead.setProtected1RTTSecrets( EndpointType.Client, secret, key, iv );
+                    this.aead.setProtected1RTTSecrets( EndpointType.Client, secret );
                     this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
                     break;
             }
@@ -148,23 +149,23 @@ export class HandshakeHandler extends EventEmitter{
             switch(type){
                 case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ZERO_RTT ) as CryptoStream;
-                    this.aead.setProtected0TTSecrets( EndpointType.Client, secret, key, iv );
+                    this.aead.setProtected0TTSecrets( EndpointType.Client, secret );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.HANDSHAKE ) as CryptoStream;
-                    this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret, key, iv );
+                    this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_APPLICATION_TRAFFIC:
                     this.currentSendingCryptoStream = this.streams.get( "" + EncryptionLevel.ONE_RTT ) as CryptoStream;
-                    this.aead.setProtected1RTTSecrets( EndpointType.Client, secret, key, iv );
+                    this.aead.setProtected1RTTSecrets( EndpointType.Client, secret );
                     break;
                 
                 case TLSKeyType.SSL_KEY_SERVER_HANDSHAKE_TRAFFIC:
-                    this.aead.setProtectedHandshakeSecrets( EndpointType.Server, secret, key, iv );
+                    this.aead.setProtectedHandshakeSecrets( EndpointType.Server, secret );
                     this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.HANDSHAKE );
                     break;
                 case TLSKeyType.SSL_KEY_SERVER_APPLICATION_TRAFFIC:
-                    this.aead.setProtected1RTTSecrets( EndpointType.Server, secret, key, iv );
+                    this.aead.setProtected1RTTSecrets( EndpointType.Server, secret );
                     this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
                     break;
             }
