@@ -4,6 +4,8 @@ import { Bignum } from "../../../../../types/bignum";
 import { Http3NodeEvent } from "../http3.nodeevent";
 import { Http3PrioritisedElementNode } from "../http3.prioritisedelementnode";
 import { Http3RequestNode } from "../http3.requestnode";
+import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
+import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
 
 enum PriorityGroup {
     HIGH,
@@ -22,9 +24,11 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
     private unblockedPlaceholderID: number;
     private backgroundPlaceholderID: number;
     private speculativePlaceholderID: number;
-    
-    public constructor() {
-        super();
+
+    // TODO communicate placeholders with server when using client-sided prioritization
+    // Maybe using events?
+    public constructor(logger?: QlogWrapper) {
+        super(logger);
         this.highPriorityPlaceholderID = this.dependencyTree.addPlaceholderToRoot(256);
         this.mediumPriorityPlaceholderID = this.dependencyTree.addPlaceholderToRoot(256);
         // Weight of mediumPriorityPlaceholder changes to 1 when highpriority non-empty and back to 256 when empty
@@ -34,9 +38,9 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
         this.unblockedPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.lowPriorityPlaceholderID, 101);
         this.backgroundPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.lowPriorityPlaceholderID, 1);
         this.speculativePlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.backgroundPlaceholderID, 1);
-        
+
         // Make sure highPriorityTailID and mediumPriorityTailID always points to the last element of the chain
-        this.dependencyTree.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
+        this.dependencyTree.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
             if (node instanceof Http3RequestNode) {
                 if (node.getStreamID() === this.highPriorityTailID) {
                     const parent: Http3PrioritisedElementNode | null = node.getParent();
@@ -54,30 +58,34 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
         });
     }
 
-    public addStream(requestStream: QuicStream, fileExtension: string): void {
+    // Does not work client-sided, requires multiple frames as the weight the medium priority branch sometimes has to be changed
+    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
         switch(this.getPriorityGroup(fileExtension)) {
             case PriorityGroup.HIGH:
                 if (this.highPriorityTailID !== undefined) {
-                    this.dependencyTree.addRequestStreamToRequest(requestStream, this.highPriorityTailID);
+                    this.dependencyTree.moveStreamToStream(streamID, this.highPriorityTailID);
                 } else {
-                    this.dependencyTree.addRequestStreamToPlaceholder(requestStream, this.highPriorityPlaceholderID);
+                    this.dependencyTree.moveStreamToPlaceholder(streamID, this.highPriorityPlaceholderID);
                     this.dependencyTree.setPlaceholderWeight(this.mediumPriorityPlaceholderID, 1);
                 }
-                this.highPriorityTailID = requestStream.getStreamId();
+                this.highPriorityTailID = streamID;
                 break;
             case PriorityGroup.MEDIUM:
                 if (this.mediumPriorityTailID !== undefined) {
-                    this.dependencyTree.addRequestStreamToRequest(requestStream, this.mediumPriorityTailID);
+                    this.dependencyTree.moveStreamToStream(streamID, this.mediumPriorityTailID);
                 } else {
-                    this.dependencyTree.addRequestStreamToPlaceholder(requestStream, this.mediumPriorityPlaceholderID, 256);
+                    this.dependencyTree.moveStreamToPlaceholder(streamID, this.mediumPriorityPlaceholderID);
                 }
-                this.mediumPriorityTailID = requestStream.getStreamId();
+                this.mediumPriorityTailID = streamID;
                 break;
             case PriorityGroup.LOW:
-                this.dependencyTree.addRequestStreamToPlaceholder(requestStream, this.getLowPriorityPlaceholderID(fileExtension));
+                this.dependencyTree.moveStreamToPlaceholder(streamID, this.getLowPriorityPlaceholderID(fileExtension));
         }
+        return null;
     }
-    
+
+    public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum) {}
+
     private getPriorityGroup(extension: string): PriorityGroup {
         // TODO incomplete
         switch(extension) {
@@ -90,7 +98,7 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
                 return PriorityGroup.LOW;
         }
     }
-    
+
     private getLowPriorityPlaceholderID(extension: string): number {
         // TODO incomplete
         switch(extension) {

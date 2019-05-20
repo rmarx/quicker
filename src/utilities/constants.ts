@@ -58,7 +58,7 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 12;
     public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
-    public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
+    public static readonly DEFAULT_MAX_STREAM_DATA = 5000 * 1024;
     public static readonly DEFAULT_MAX_DATA = 5000 * 1024;
     public static readonly DEFAULT_ACK_EXPONENT = 3;
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;

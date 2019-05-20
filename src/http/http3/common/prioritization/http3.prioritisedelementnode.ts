@@ -1,6 +1,7 @@
 import { Http3DepNodePQueue } from "./http3.priorityqueue";
 import { EventEmitter } from "events";
 import { Http3NodeEvent } from "./http3.nodeevent";
+import { DependencyTree } from "./http3.deptree";
 
 export class Http3PrioritisedElementNode extends EventEmitter {
     static readonly MAX_BYTES_SENT = 100;
@@ -107,7 +108,7 @@ export class Http3PrioritisedElementNode extends EventEmitter {
     // Active children will remain active
     public removeSelf() {
         // Emit a node removed event so listeners know when a node is removed from the tree and which node that was
-        this.emit(Http3NodeEvent.NODE_REMOVED, this);
+        this.emit(Http3NodeEvent.REMOVING_NODE, this);
         this.moveChildrenUp();
 
         const parent: Http3PrioritisedElementNode | null = this.getParent();
@@ -115,6 +116,7 @@ export class Http3PrioritisedElementNode extends EventEmitter {
             parent.removeChild(this);
             this.parent = null;
         }
+        this.emit(Http3NodeEvent.NODE_REMOVED, this);
     }
 
     public getParent(): Http3PrioritisedElementNode | null {
@@ -145,5 +147,15 @@ export class Http3PrioritisedElementNode extends EventEmitter {
 
     public getPseudoTime(): number {
         return this.pseudoTime;
+    }
+
+    public toJSON(): DependencyTree {
+        return {
+            id: "-1",
+            weight: -1,
+            children: this.children.map((child: Http3PrioritisedElementNode) => {
+                return child.toJSON();
+            }),
+        }
     }
 }

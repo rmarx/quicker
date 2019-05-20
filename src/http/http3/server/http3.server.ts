@@ -23,9 +23,10 @@ import { Http3StreamState } from "../common/types/http3.streamstate";
 import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
 import { Http3PriorityFrame } from "../common/frames";
-import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
+import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme, Http3ClientSidedScheme } from "../common/prioritization/schemes/index"
 
 class ClientState {
+    private logger: QlogWrapper;
     private prioritiser: Http3PriorityScheme;
     private scheduleTimer: NodeJS.Timer;
     private sendingControlStream: Http3SendingControlStream;
@@ -35,9 +36,10 @@ class ClientState {
     private qpackDecoder: Http3QPackDecoder;
     private frameParser: Http3FrameParser;
 
-    public constructor(sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
+    public constructor(logger: QlogWrapper, sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
         // TODO make scheme easily swappable without changing actual server code
-        this.prioritiser = new Http3SerialPlusScheme();
+        this.logger = logger;
+        this.prioritiser = new Http3ClientSidedScheme(logger);
         this.sendingControlStream = sendingControlStream;
         this.receivingControlStream = receivingControlStream;
         this.lastUsedStreamID = lastUsedStreamID;
@@ -45,7 +47,7 @@ class ClientState {
         this.qpackDecoder = qpackDecoder;
         this.frameParser = frameParser;
 
-        // Schedule 30 chunks of 100 bytes every 10ms
+        // Schedule 1 chunk of 100 bytes every 10ms
         // TODO tweak numbers
         // TODO Listen to congestion control events instead
         this.scheduleTimer = setInterval(() => {
@@ -54,6 +56,10 @@ class ClientState {
             // }
             this.prioritiser.schedule();
         }, 10);
+    }
+
+    public getLogger(): QlogWrapper {
+        return this.logger;
     }
 
     public getPrioritiser(): Http3PriorityScheme {
@@ -167,6 +173,7 @@ export class Http3Server {
         connection.getQlogger().onHTTPStreamStateChanged(qpackDecoderStream.getStreamId(), Http3StreamState.LOCALLY_OPENED, "QPACK_DECODE");
 
         this.connectionStates.set(connection.getSrcConnectionID().toString(), new ClientState(
+            connection.getQlogger(),
             controlHttp3Stream,
             controlQuicStream.getStreamId(),
             qpackEncoder,
@@ -189,8 +196,7 @@ export class Http3Server {
 
         controlStream.on(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, (frame: Http3PriorityFrame) => {
             logger.onHTTPFrame_Priority(frame, "RX");
-            // FIXME temporarily ignoring received priority frames to test prioritisation schemes
-            // state.getPrioritiser().handlePriorityFrame(frame, controlStream.getStreamID());
+            state.getPrioritiser().handlePriorityFrame(frame, controlStream.getStreamID());
             VerboseLogging.info("HTTP/3: priority frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
     }
@@ -215,13 +221,14 @@ export class Http3Server {
             let bufferedData: Buffer = Buffer.alloc(0);
             let bufferedFrames: Http3BaseFrame[] = [];
 
+            state.getPrioritiser().addStream(quicStream);
+
             quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
                 bufferedData = Buffer.concat([bufferedData, data]);
                 const [frames, offset]: [Http3BaseFrame[], number] = state.getFrameParser().parse(bufferedData, quicStream.getStreamId());
                 // TODO priority frame should only be used if no other priority frames have arrived on the control stream for this request stream
                 if (frames.length > 0 && frames[0].getFrameType() === Http3FrameType.PRIORITY) {
-                    // FIXME Ignore priority frames while using server-side priority scheme -> Make this dynamic instead of commenting out the code
-                    // state.getPrioritiser().handlePriorityFrame(frames[0] as Http3PriorityFrame, quicStream.getStreamId());
+                    state.getPrioritiser().handlePriorityFrame(frames[0] as Http3PriorityFrame, quicStream.getStreamId());
                     quicStream.getConnection().getQlogger().onHTTPFrame_Priority(frames[0] as Http3PriorityFrame, "RX");
                     frames.splice(0, 1);
                 }
@@ -345,8 +352,7 @@ export class Http3Server {
             if (methodHandled) {
                 // Respond and close stream
                 const fileExtension: string = res.getFileExtension().split(".")[1];
-                // TODO Should not be here if no scheme is used, stream should be added to tree the moment it is opened in that case
-                state.getPrioritiser().addStream(quicStream, fileExtension);
+                state.getPrioritiser().applyScheme(quicStream.getStreamId(), fileExtension);
                 state.getPrioritiser().addData(quicStream.getStreamId(), res.toBuffer());
                 state.getPrioritiser().finishStream(quicStream.getStreamId());
             }
