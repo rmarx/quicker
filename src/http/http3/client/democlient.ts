@@ -5,8 +5,14 @@ import { Http3Message } from "../common/http3.message";
 import { Http3Header } from "../common/qpack/types/http3.header";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
 import { Http3ResourceParser, Http3ResourceParserEvent } from "./http3.resourceparser";
+import { Constants } from "../../../utilities/constants";
 
-const client: Http3Client = new Http3Client("127.0.0.1", 4433);
+
+let host = process.argv[2] || "127.0.0.1";
+let port = parseInt(process.argv[3]) || 4433;
+let version = process.argv[4] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+
+const client: Http3Client = new Http3Client(host, port);
 
 client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
     const resourceParser: Http3ResourceParser = new Http3ResourceParser();
