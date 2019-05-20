@@ -6,6 +6,7 @@ import { Http3PrioritisedElementNode } from "../http3.prioritisedelementnode";
 import { Http3RequestNode } from "../http3.requestnode";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
 import { VerboseLogging } from "../../../../../utilities/logging/verbose.logging";
+import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
 
 enum PriorityGroup {
     HIGHEST,
@@ -22,11 +23,11 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     private lowPriorityTail?: Bignum;
     private lowestPriorityTail?: Bignum;
 
-    public constructor() {
-        super();
+    public constructor(logger?: QlogWrapper) {
+        super(logger);
 
         // Make sure each tail always points to the last element of its chain
-        this.dependencyTree.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
+        this.dependencyTree.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
             if (node instanceof Http3RequestNode) {
                 const parent: Http3PrioritisedElementNode | null = node.getParent();
                 const streamID: Bignum = node.getStreamID();
@@ -72,19 +73,24 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
         });
     }
 
-    public addStream(requestStream: QuicStream, fileExtension: string): void {
+    // Does not work for client-sided prioritization!
+    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
         const priority: PriorityGroup = this.getFileExtensionPriority(fileExtension);
         const priorityGroupTail: Bignum | undefined = this.getPriorityGroupTail(priority);
         const weight: number = this.getPriorityGroupWeight(priority);
 
         if (priorityGroupTail !== undefined) {
-            this.dependencyTree.addExclusiveStreamToStream(requestStream, priorityGroupTail, weight);
+            this.dependencyTree.moveStreamToStreamExclusive(streamID, priorityGroupTail);
         } else {
-            this.dependencyTree.addRequestStreamToRoot(requestStream, weight);
+            this.dependencyTree.moveStreamToRoot(streamID);
         }
+        this.dependencyTree.setStreamWeight(streamID, weight);
+        this.setPriorityGroupTail(priority, streamID);
 
-        this.setPriorityGroupTail(priority, requestStream.getStreamId());
+        return null;
     }
+
+    public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void {}
 
     private getPriorityGroupTail(priority: PriorityGroup): Bignum | undefined {
         switch(priority) {
