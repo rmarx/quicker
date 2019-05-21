@@ -93,8 +93,8 @@ export class ShortHeader extends BaseHeader {
     private getFirstByte(): number {
         let output = 0b01000000;
 
-        output = this.spinBit       ? output & 0x20 : output;
-        output = this.keyPhaseBit   ? output & 0x04 : output;
+        output = this.spinBit       ? output | 0x20 : output;
+        output = this.keyPhaseBit   ? output | 0x04 : output;
 
         let pnLength = this.truncatedPacketNumber!.getValue().getByteLength(); 
 
