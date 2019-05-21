@@ -826,6 +826,14 @@ export class Connection extends FlowControlledObject {
             }
             throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
         }
+        else if (this.getState() === ConnectionState.Draining) {
+            VerboseLogging.error("Connection:checkConnectionState : we were DRAINING, so ignoring incoming packet!");
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+        }
+        else if (this.getState() === ConnectionState.Closed) {
+            VerboseLogging.error("Connection:checkConnectionState : we were CLOSED, so ignoring incoming packet!");
+            throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR);
+        }
     }
 
     public connectionIsClosingOrClosed(): boolean {
