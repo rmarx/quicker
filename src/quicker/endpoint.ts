@@ -55,9 +55,14 @@ export abstract class Endpoint extends EventEmitter {
         var handshakeState = connection.getQuicTLS().getHandshakeState();
         if (handshakeState === HandshakeState.CLIENT_COMPLETED || handshakeState === HandshakeState.COMPLETED) {
             packet = PacketFactory.createShortHeaderPacket(connection, [closeFrame]);
-        } else {
+        } 
+        else if( connection.getAEAD().canHandshakeEncrypt(connection.getEndpointType()) ) {
             packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
         }
+        else{
+            packet = PacketFactory.createInitialPacket(connection, [closeFrame]);
+        }
+        
         connection.sendPacket(packet, false)
         connection.setClosePacket(packet);
         connection.setState(ConnectionState.Closing);
