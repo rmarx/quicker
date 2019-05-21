@@ -11,6 +11,7 @@ import { TestPNTruncation } from "./tests/test.pntruncation";
 import { TestTransportParameters } from "./tests/test.transportparameters";
 import { TestHeaderProtection } from "./tests/test.headerprotection";
 import { TestHeaderParser } from "./tests/test.headerparser";
+import { TestFrameParser } from "./tests/test.frame.parser";
 
 
 
@@ -30,6 +31,7 @@ Constants.LOG_FILE_NAME = "client.log";
 //console.log("Transport Parameter test : ", TestTransportParameters.execute() );
 //console.log("Header protection test ", TestHeaderProtection.execute());
 //console.log("Header parser ", TestHeaderParser.execute());
+//console.log("Frame parser ", TestFrameParser.execute());
 //process.exit(666);
 
 
