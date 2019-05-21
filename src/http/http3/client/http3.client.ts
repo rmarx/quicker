@@ -88,6 +88,27 @@ export class Http3Client extends EventEmitter {
                 // }
                 this.prioritiser.schedule();
             }, 10);
+            setTimeout(() => {
+                if (this.clientQPackEncoder !== undefined) {
+                    const qpackData_1: Buffer = new Buffer("c18860d5485f2bce9a68", "hex");
+                    VerboseLogging.error("QPACK ENCODER STREAM DATA: " + qpackData_1.toString("hex"));
+                    this.clientQPackEncoder.sendEncoderData(qpackData_1);
+                    setTimeout(() => {
+                        if (this.clientQPackEncoder !== undefined) {
+                            const qpackData_2: Buffer = new Buffer("c18a62a3a653db548bce9a68", "hex");
+                            VerboseLogging.error("QPACK ENCODER STREAM DATA: " + qpackData_2.toString("hex"));
+                            this.clientQPackEncoder.sendEncoderData(qpackData_2);
+                        }
+                        setTimeout(() => {
+                            if (this.clientQPackEncoder !== undefined) {
+                                const qpackData_3: Buffer = new Buffer("c18d63670c97a2a0fe2c2a17aea9bf", "hex");
+                                VerboseLogging.error("QPACK ENCODER STREAM DATA: " + qpackData_3.toString("hex"));
+                                this.clientQPackEncoder.sendEncoderData(qpackData_3);
+                            }
+                        }, 10);
+                    }, 10);
+                }
+            }, 100);
         });
 
         this.quickerClient.on(QuickerEvent.NEW_STREAM, this.onNewStream);

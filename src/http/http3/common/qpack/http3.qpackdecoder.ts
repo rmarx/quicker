@@ -97,6 +97,10 @@ export class Http3QPackDecoder {
                     decoderID: this.decoderID,
                     encoderData: newData,
                 });
+                if (newData.equals(new Buffer("c18d63670c97a2a0fe2c2a17aea9bf", "hex"))) {
+                    VerboseLogging.error("\n\n\n\n\n\n\n\n\n\nFOUND IT\n\n\n\n\n\n\n\n");
+                    VerboseLogging.error(JSON.stringify(this.decodeHeaders(new Buffer("038010d1", "hex"), new Bignum(4))));
+                }
             });
             this.peerEncoderStream.on(QuickerEvent.STREAM_END, () => {
                 if (this.peerEncoderStream !== undefined) {
