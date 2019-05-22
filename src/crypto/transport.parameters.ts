@@ -416,8 +416,18 @@ export class TransportParameters {
 
                         offset = decodedVarint.offset;
     
-                        VerboseLogging.trace("fromExtensionBuffer: adding uint64 " + TransportParameterId[tpIdNumber] + " = " + tpValue.toNumber());
-                        transportParameters.tps.set( tpIdNumber, tpValue.toNumber() ); // FIXME: add support for Bignums (not just do everything as number!)
+                        VerboseLogging.trace("fromExtensionBuffer: adding uint64 " + TransportParameterId[tpIdNumber] + " = " + tpValue.toDecimalString());
+                        
+                        // FIXME: add support for Bignums (not just do everything as number!)
+                        try{
+                            let tpNumberValue:number = tpValue.toNumber();
+                            transportParameters.tps.set( tpIdNumber, tpNumberValue );
+                        }
+                        catch(e){
+                            // was a number larger than 2^53, so we will truncate, but log error!
+                            VerboseLogging.error("TransporParameters:fromExtensionBuffer : uint64 was actually larger than 2^53, truncating to MAX_SAFE_INTEGER! " + tpValue.toDecimalString() + ", " + tpValue.toString('hex') );
+                            transportParameters.tps.set( tpIdNumber, Number.MAX_SAFE_INTEGER );
+                        }
                     break;
     
                     case TransportParameterType.boolean:
