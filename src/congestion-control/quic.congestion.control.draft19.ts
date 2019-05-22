@@ -126,6 +126,9 @@ export class QuicCongestionControl extends PacketPipe {
             lossDetection.on(QuicLossDetectionEvents.PACKET_SENT, (packet : BasePacket) => {
                 this.onPacketSentCC(packet);
             });
+            lossDetection.on(QuicLossDetectionEvents.RETRANSMIT_PACKET, (packet: BasePacket) => {
+                this.setBytesInFlight(this.bytesInFlight.subtract(packet.getSerializedSizeInBytes()), "PACKET_RETRANSMITTED");
+            });
         }
     }
     
@@ -329,8 +332,14 @@ export class QuicCongestionControl extends PacketPipe {
      * @param packet packet to enter the congestion control
      */
     public packetIn(packet: BasePacket) {
-        logTimeSince("congestioncontrol: packetin:", "packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
         this.packetsQueue.push(packet);
+        this.sendPackets();
+    }
+
+
+    public queueForRetransmit(packet : BasePacket){
+        VerboseLogging.info("congestioncontrol: queueForRetransmit: unshifting packet where old packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
+        this.packetsQueue.unshift(packet);
         this.sendPackets();
     }
 
@@ -371,26 +380,49 @@ export class QuicCongestionControl extends PacketPipe {
         // TODO: doublecheck if some packets need to be excluded from blocking by CC/pacer
         // update, PTO packets need to not be blocked
         this.checkIdleConnection();
+        VerboseLogging.error("1")
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
 
-            
-            
             if (packet !== undefined) {
-                if(!this.alreadySetPn){
-                    this.initPacketNumber(packet);
-                    this.alreadySetPn = true;
-                }
+                
+                this.initPacketNumber(packet);
+                
                 if(this.bytesInFlight.add(packet.toBuffer(this.connection).byteLength).lessThan(this.congestionWindow)){
-                    this.sendSingularPacket(packet);
-                    this.alreadySetPn = false;
+                    this.sendSingularPacket(packet);                    
                 }
                 else{
+                    VerboseLogging.error("6")
                     this.packetsQueue.unshift(packet);
+                    let pnSpace:PacketNumberSpace | undefined = this.getPNSpace(packet);
+                    if(pnSpace !== undefined){ 
+                        pnSpace.goBack()
+                    }
                     break;
                 }
                 
             }
+            
+            // if (packet !== undefined) {
+            //     VerboseLogging.error("3")
+            //     if(!this.alreadySetPn){
+            //         VerboseLogging.error("4")
+            //         this.initPacketNumber(packet);
+            //         this.alreadySetPn = true;
+            //     }
+            //     VerboseLogging.error("4.5")
+            //     if(this.bytesInFlight.add(packet.toBuffer(this.connection).byteLength).lessThan(this.congestionWindow)){
+            //         VerboseLogging.error("5")
+            //         this.sendSingularPacket(packet);
+            //         this.alreadySetPn = false;
+            //     }
+            //     else{
+            //         VerboseLogging.error("6")
+            //         this.packetsQueue.unshift(packet);
+            //         break;
+            //     }
+                
+            // }
         }
     }
 
@@ -452,7 +484,7 @@ export class QuicCongestionControl extends PacketPipe {
     }
 
 
-    private setBytesInFlight(newVal : Bignum, trigger : ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST"), additionalData : Object = {}){
+    private setBytesInFlight(newVal : Bignum, trigger : ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST" | "PACKET_RETRANSMITTED"), additionalData : Object = {}){
         this.bytesInFlight = newVal;
         this.connection.getQlogger().onBytesInFlightUpdate(this.bytesInFlight, this.congestionWindow, trigger, additionalData);
     }

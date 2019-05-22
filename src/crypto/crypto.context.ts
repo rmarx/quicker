@@ -123,6 +123,12 @@ export class PacketNumberSpace{
         return this.sendingNumber;
     }
 
+    public goBack() : PacketNumber{
+        var bn = this.sendingNumber.getValue().subtract(1); 
+        this.sendingNumber = new PacketNumber( bn );
+        return this.sendingNumber;
+    }
+
     public setHighestReceivedNumber(nr:PacketNumber){
         if( this.highestReceivedNumber && nr.getValue().lessThanOrEqual(this.highestReceivedNumber.getValue()) )
             VerboseLogging.error("PacketNumberSpace:setHighestReceivedNumber : next number is equal or less than current setting!");

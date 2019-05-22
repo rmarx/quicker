@@ -166,6 +166,9 @@ export class CubicCongestionControl extends PacketPipe {
             lossDetection.on(QuicLossDetectionEvents.PACKET_SENT, (packet : BasePacket) => {
                 this.onPacketSentCC(packet);
             });
+            lossDetection.on(QuicLossDetectionEvents.RETRANSMIT_PACKET, (packet: BasePacket) => {
+                this.setBytesInFlight(this.bytesInFlight.subtract(packet.getSerializedSizeInBytes()), "PACKET_RETRANSMITTED");
+            });
         }
     }
     
@@ -475,7 +478,7 @@ export class CubicCongestionControl extends PacketPipe {
     }
 
 
-    private setBytesInFlight(newVal : Bignum, trigger  : ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST"), additionalData : Object = {}){
+    private setBytesInFlight(newVal : Bignum, trigger  : ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST" | "PACKET_RETRANSMITTED"), additionalData : Object = {}){
         this.bytesInFlight = newVal;
         this.connection.getQlogger().onBytesInFlightUpdate(this.bytesInFlight, new Bignum(this.congestionWindow * CubicCongestionControl.kMaxDatagramSize), trigger, additionalData);
     }

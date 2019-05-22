@@ -545,14 +545,16 @@ export class QuicLossDetection extends EventEmitter {
          * (test to make sure this is true)
          */
         var sendCount = 0;
+        let packetsToRetransmit : SentPacket[] = [];
         for(let space of [kPacketNumberSpace.Initial,kPacketNumberSpace.Handshake, kPacketNumberSpace.ApplicationData]){
             var i = 0;
             var keys = Object.keys(this.sentPackets[space]);
             while (keys.length > i) {
                 if (this.sentPackets[space][keys[i]].packet.isRetransmittable()) {
                     
-                    this.retransmitPacket(this.sentPackets[space][keys[i]]);
-                    this.removeFromSentPackets(space, this.sentPackets[space][keys[i]].packet.getHeader().getPacketNumber().getValue() );
+                    let packet = this.removeFromSentPackets(space, this.sentPackets[space][keys[i]].packet.getHeader().getPacketNumber().getValue() );
+                    if(packet != undefined)
+                        packetsToRetransmit.push(packet);
                     //delete this.sentPackets[keys[i]];
                     
                     sendCount++;
@@ -563,17 +565,25 @@ export class QuicLossDetection extends EventEmitter {
                 i++;
             }
         }
+        packetsToRetransmit.forEach((pack : SentPacket) => {
+            this.retransmitPacket(pack);
+        });
     }
 
     private retransmitAllUnackedHandshakeData(): void {
+        let packetsToRetransmit : SentPacket[] = [];
         for(let space of [kPacketNumberSpace.Initial,kPacketNumberSpace.Handshake, kPacketNumberSpace.ApplicationData]){
             Object.keys(this.sentPackets[space]).forEach((key: string) => {
                 if (this.sentPackets[space][key].packet.isHandshake()) {
-                    this.retransmitPacket(this.sentPackets[space][key]);
-                    this.removeFromSentPackets(space, this.sentPackets[space][key].packet.getHeader().getPacketNumber().getValue() );
+                    let pack = this.removeFromSentPackets(space, this.sentPackets[space][key].packet.getHeader().getPacketNumber().getValue() );
+                    if(pack !== undefined)
+                        packetsToRetransmit.push(pack);
                 }
             });
         }
+        packetsToRetransmit.forEach((pack : SentPacket) => {
+            this.retransmitPacket(pack);
+        });
     }
 
     private retransmitPacket(sentPacket: SentPacket) {

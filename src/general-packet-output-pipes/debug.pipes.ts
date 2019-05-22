@@ -96,7 +96,7 @@ export class DEBUGRandomDrop extends PacketPipe{
 export class DEBUGDropEveryXth extends PacketPipe{
 
     // every 10th packets gets dropped
-    private everyX : number = 2;
+    private everyX : number = 30;
     private count : number;
    
     constructor(){
@@ -114,7 +114,7 @@ export class DEBUGDropEveryXth extends PacketPipe{
             this.nextPipeFunc(packet);
         }
         else{
-            VerboseLogging.warn("DROPPING PACKET FOR DEBUG, SHOULD NOT BE ENABLED OUTSIDE OF TESTING");
+            VerboseLogging.warn("DROPPING PACKET" + packet.getHeader().getPacketNumber().getValue().toDecimalString() + " FOR DEBUG, SHOULD NOT BE ENABLED OUTSIDE OF TESTING");
         }
     }
 }
@@ -132,13 +132,15 @@ export class DEBUGDropEveryXth extends PacketPipe{
 export class DEBUGPersistentCongestionAfterX extends PacketPipe{
 
     // every 10th packets gets dropped
-    private afterX : number = 5;
-    private forY : number = 50;
+    private afterX : number = 25;
+    private forY : number = 0;
     private count : number;
+    private connection: Connection;
    
-    constructor(){
+    constructor(connection: Connection){
         super();
         this.count = 0;
+        this.connection = connection;
     }
 
     /**
@@ -147,8 +149,16 @@ export class DEBUGPersistentCongestionAfterX extends PacketPipe{
      */
     public packetIn(packet: BasePacket) {
         this.count = this.count + 1;
-        if(this.count < this.afterX && this.count > this.afterX + this.forY){
+        if(this.connection.getEndpointType() === EndpointType.Client){
             this.nextPipeFunc(packet);
+        }
+        else if(this.count < this.afterX || this.count > this.afterX + this.forY){
+            this.nextPipeFunc(packet);
+        }
+        else{
+            //caching the size......
+            packet.toBuffer(this.connection);
+            VerboseLogging.warn("DROPPING PACKET BY DEBUGPersistentCongestionAfterX, SHOULD NOT BE ENABLED OUTSIDE DEBUGGING");
         }
     }
 }
@@ -165,7 +175,7 @@ export class DEBUGPersistentCongestionAfterX extends PacketPipe{
 export class DEBUGIncreaseRTT extends PacketPipe{
 
      // wait for this many ms before sending
-     private waitMS : number = 5;
+     private waitMS : number = 200;
 
     
      constructor(){
@@ -220,3 +230,114 @@ export class DEBUGSingleDropServerOnly extends PacketPipe{
         }
     }
 }
+
+
+
+
+export class DEBUGSinglePNDropServerOnly extends PacketPipe{
+
+    private packetnum : number = 276;
+    private connection: Connection;
+
+    constructor(connection: Connection){
+        super();
+        this.connection = connection;
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        if(this.connection.getEndpointType() === EndpointType.Client){
+            this.nextPipeFunc(packet);
+        }
+        else if(!packet.getHeader().getPacketNumber().getValue().equals(this.packetnum) ){
+            this.nextPipeFunc(packet);
+        }
+        else{
+            //caching the size......
+            packet.toBuffer(this.connection);
+            VerboseLogging.warn("DROPPING PACKET BY DEBUGSingleDropServerOnly, SHOULD NOT BE ENABLED OUTSIDE DEBUGGING")
+        }
+    }
+}
+
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+export class DEBUGPTOTest extends PacketPipe{
+
+    private packetnum : string[] = ["90"];
+    private connection: Connection;
+
+    constructor(connection: Connection){
+        super();
+        this.connection = connection;
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        if(this.connection.getEndpointType() === EndpointType.Client){
+            this.nextPipeFunc(packet);
+        }
+        else if(this.packetnum.indexOf(packet.getHeader().getPacketNumber().getValue().toDecimalString()) === -1){
+            this.nextPipeFunc(packet);
+        }
+        else{
+            //caching the size......
+            packet.toBuffer(this.connection);
+            VerboseLogging.warn("DROPPING PACKET BY DEBUGSingleDropServerOnly, SHOULD NOT BE ENABLED OUTSIDE DEBUGGING")
+        }
+    }
+}
+
+
+
+//-------------------------------------------------------------------------------------------------------------------------
+
+
+
+export class DEBUGDropCrypto extends PacketPipe{
+
+    private connection: Connection;
+    private count : number;
+
+    constructor(connection: Connection){
+        super();
+        this.count = 0;
+        this.connection = connection;
+    }
+
+    /**
+     * 
+     * @param packet 
+     */
+    public packetIn(packet: BasePacket) {
+        if(this.connection.getEndpointType() === EndpointType.Client){
+            this.nextPipeFunc(packet);
+        }
+        else if(packet.containsCryptoFrames() ){
+            this.count++;
+            if(this.count == 2){
+                //caching the size......
+                packet.toBuffer(this.connection);
+                VerboseLogging.warn("DROPPING PACKET BY DEBUGSingleDropServerOnly, SHOULD NOT BE ENABLED OUTSIDE DEBUGGING")
+            }
+            else{
+                this.nextPipeFunc(packet);
+            }
+        }
+        else{
+            this.nextPipeFunc(packet);
+
+        }
+    }
+}
+

@@ -644,39 +644,42 @@ export class Connection extends FlowControlledObject {
     private retransmitPacket(packet: BasePacket) {
         VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber().getValue().toNumber() );
 
-        VerboseLogging.error("Connection:retransmitPacket : cannot retransmit because no proper logic to know which PN space to select yet! Doing nothing!");
-        if(1 == 1) return;
+        //maybe reset packet number?
+        this.congestionControl.queueForRetransmit(packet);
+
+        // VerboseLogging.error("Connection:retransmitPacket : cannot retransmit because no proper logic to know which PN space to select yet! Doing nothing!");
+        // if(1 == 1) return;
 
         
-        switch (packet.getPacketType()) {
-            case PacketType.Initial:
-                VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit INITIAL packet, no logic defined for this yet, doing nothing");
-                if( 1 == 1 ) return;
-                break;
-            case PacketType.Handshake:
-                if (this.qtls.getHandshakeState() === HandshakeState.COMPLETED) {
-                    // Only true for client after receiving the last stream 0 packet 
-                    //      (with handshake data) in a protected short header packet
-                    // Only true for server after receiving the last handshake packet of the client; 
-                    //      after this packet everything needs to be send in shortheader packet
-                    return;
-                }
-                break;
-        }
+        // switch (packet.getPacketType()) {
+        //     case PacketType.Initial:
+        //         VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit INITIAL packet, no logic defined for this yet, doing nothing");
+        //         if( 1 == 1 ) return;
+        //         break;
+        //     case PacketType.Handshake:
+        //         if (this.qtls.getHandshakeState() === HandshakeState.COMPLETED) {
+        //             // Only true for client after receiving the last stream 0 packet 
+        //             //      (with handshake data) in a protected short header packet
+        //             // Only true for server after receiving the last handshake packet of the client; 
+        //             //      after this packet everything needs to be send in shortheader packet
+        //             return;
+        //         }
+        //         break;
+        // }
 
-        var framePacket = <BaseEncryptedPacket>packet;
-        framePacket.getFrames().forEach((frame: BaseFrame) => {
-            if (frame.isRetransmittable()) {
-                VerboseLogging.info("Connection:retransmitPacket : retransmitting frame " + FrameType[frame.getType()] );
-                //VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit STREAM frame, no logic defined for this yet, doing nothing");
-                //if( 1 == 1 ) return;
-                this.retransmitFrame(frame);
-            }
-            else
-                VerboseLogging.warn("Connection:retransmitPacket : attempting to retransmit frame but unable to " + FrameType[frame.getType()]);
-        });
-        // Send packets
-        this.sendPackets();
+        // var framePacket = <BaseEncryptedPacket>packet;
+        // framePacket.getFrames().forEach((frame: BaseFrame) => {
+        //     if (frame.isRetransmittable()) {
+        //         VerboseLogging.info("Connection:retransmitPacket : retransmitting frame " + FrameType[frame.getType()] );
+        //         //VerboseLogging.error("Connection:retransmitPacket : attempting to retransmit STREAM frame, no logic defined for this yet, doing nothing");
+        //         //if( 1 == 1 ) return;
+        //         this.retransmitFrame(frame);
+        //     }
+        //     else
+        //         VerboseLogging.warn("Connection:retransmitPacket : attempting to retransmit frame but unable to " + FrameType[frame.getType()]);
+        // });
+        // // Send packets
+        // this.sendPackets();
     }
 
     private retransmitFrame(frame: BaseFrame) {

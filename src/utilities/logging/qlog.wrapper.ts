@@ -443,7 +443,7 @@ export class QlogWrapper{
 
     // TODO: maybe currentCWND is not needed here? separate event? would just be included here to easily calculate available_cwnd value from bytes_in_flight
     // changed currentCWND and bytesinflight to string so bignum can be displayed
-    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger: ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST") = "PACKET_SENT", metadata : Object){
+    public onBytesInFlightUpdate(bytesInFlight:Bignum, currentCWND:Bignum, trigger: ("PACKET_SENT" | "PACKET_RECEIVED" | "ACK_SENT" | "ACK_RECEIVED" | "PACKET_LOST" | "PACKET_RETRANSMITTED") = "PACKET_SENT", metadata : Object){
 
         let evt:any = [
             123, 
