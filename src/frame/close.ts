@@ -14,20 +14,25 @@ abstract class BaseCloseFrame extends BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        var phraseLengthBuffer: Buffer = VLIE.encode(this.phrase.length);
-        var phraseBuffer: Buffer = Buffer.from(this.phrase, 'utf8');
-        var buf = Buffer.alloc(phraseLengthBuffer.byteLength + phraseBuffer.byteLength + 3);
-
-        buf.writeUInt8(this.getType(), 0);
-        buf.writeUInt16BE(this.errorCode, 1);
-
+        let phraseLengthBuffer: Buffer = VLIE.encode(this.phrase.length);
+        let phraseBuffer: Buffer = Buffer.from(this.phrase, 'utf8');
         // TODO: Currently we don't log the responsible frame 
         let frameType = VLIE.encode(0); 
-        frameType.copy(buf, 3);
+
+        let buf = Buffer.alloc(1 + 2 + frameType.byteLength + phraseLengthBuffer.byteLength + phraseBuffer.byteLength);
+
+        let offset = 0;
+        buf.writeUInt8(this.getType(), offset++);
+        buf.writeUInt16BE(this.errorCode, offset);
+        offset += 2;
+
+        frameType.copy(buf, offset);
+        offset += frameType.byteLength;
         //console.log("VLIE LENGTH : " + frameType.byteLength);
 
-        phraseLengthBuffer.copy(buf, 4);
-        phraseBuffer.copy(buf, 4 + phraseLengthBuffer.byteLength);
+        phraseLengthBuffer.copy(buf, offset);
+        offset += phraseLengthBuffer.byteLength;
+        phraseBuffer.copy(buf, offset);
         return buf;
     }
 

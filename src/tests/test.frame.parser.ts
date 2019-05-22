@@ -14,13 +14,21 @@ export class TestFrameParser  {
 
     public static execute(): boolean {
         
-        let closeFrame = FrameFactory.createApplicationCloseFrame( 15, "Test case for the APPLICATION_CLOSE frame." );
+        let closeFrame = FrameFactory.createApplicationCloseFrame( 15, "Test case for the APPLICATION_CLOSE frame. END" );
         let closeBuffer = closeFrame.toBuffer();
 
         let parser = new FrameParser();
         let parsedFrame = parser.parse( closeBuffer, 0 )[0] as ApplicationCloseFrame;
 
         console.log(parsedFrame.getErrorCode(), parsedFrame.getErrorPhrase());
+
+        let closeFrame2 = FrameFactory.createApplicationCloseFrame( 15, "" );
+        let closeBuffer2 = closeFrame2.toBuffer();
+
+        let parser2 = new FrameParser();
+        let parsedFrame2 = parser.parse( closeBuffer2, 0 )[0] as ApplicationCloseFrame;
+
+        console.log(parsedFrame2.getErrorCode(), parsedFrame2.getErrorPhrase());
 
         return true; //&& result2;
     }
