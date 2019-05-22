@@ -26,7 +26,7 @@ export class Constants {
         'ff000014': 'ef4fb0abb47470c41befcf8031334fae485e09a0',
         'abcdef0c': 'ef4fb0abb47470c41befcf8031334fae485e09a0'
     }
-    public static readonly ALPN_LABELS = ["h3-20", "hq-19"];
+    public static readonly ALPN_LABELS = ["hq-20", "hq-19"];//["h3-20", "hq-19"];
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 

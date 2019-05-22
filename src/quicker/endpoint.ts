@@ -43,6 +43,7 @@ export abstract class Endpoint extends EventEmitter {
 
     protected handleError(connection: Connection, error: any): any {
         VerboseLogging.error("Endpoint:handleError : " + error.message + " -- " + JSON.stringify(error));
+        VerboseLogging.error("Endpoint:handleError : " + JSON.stringify(error.stack.toString()));
         console.log(error.stack);
 
         var closeFrame: ConnectionCloseFrame;
