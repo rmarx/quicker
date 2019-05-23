@@ -7,6 +7,7 @@ import { Http3ParallelPlusScheme } from "./http3.parallelplusscheme";
 import { Http3SerialPlusScheme } from "./http3.serialplusscheme";
 import { Http3FirefoxScheme } from "./http3.firefoxscheme";
 import { Http3ClientSidedScheme } from "./http3.clientsidedscheme";
+import { Http3PMeenanScheme } from "./http3.pmeenanscheme";
 
 export {
     Http3DynamicFifoScheme,
@@ -18,4 +19,5 @@ export {
     Http3SerialPlusScheme,
     Http3FirefoxScheme,
     Http3ClientSidedScheme,
+    Http3PMeenanScheme,
 }

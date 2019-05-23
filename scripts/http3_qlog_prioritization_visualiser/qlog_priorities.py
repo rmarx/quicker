@@ -25,8 +25,8 @@ with open(filename, "r") as log:
     json = json.load(log)
 
 # Just a few random colours for each stream. If there are more streams than there are colours, the program will throw an index out of range exception
-colours = ["#e1d5e7", "#fff2cc", "#d5e8d4", "#f8cecc", "#dae8fc"]
-border_colours = ["#9f7fae", "#dabd65", "#86b56c", "#b85450", "#7998c5"]
+colours = ["#e1d5e7", "#fff2cc", "#d5e8d4", "#f8cecc", "#dae8fc", "#fad7ac"]
+border_colours = ["#9f7fae", "#dabd65", "#86b56c", "#b85450", "#7998c5", "#b46504"]
 
 for row in json["connections"][0]["events"]:
     if row[1] == "HTTP" and row[2] == "DATA_CHUNK":
