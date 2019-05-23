@@ -32,11 +32,13 @@ export class Http3PMeenanBucket extends EventEmitter {
                 this.sharedBucket.push(node);
                 break;
             default:
-                throw new Error("PMeenanSceme: concurrency level + " + concurrency + " + is undefined");
+                throw new Error("PMeenanScheme: concurrency level + " + concurrency + " + is undefined");
         }
+
+        const self: Http3PMeenanBucket = this;
         node.on(Http3PMeenanNodeEvent.NODE_FINISHED, (removedNode: Http3PMeenanNode, removedNodePriority: number, removedNodeConcurrency: number) => {
-            this.removeStream(removedNode.getStreamID());
-            this.emit(Http3PMeenanNodeEvent.NODE_FINISHED, removedNode, removedNodePriority, removedNodeConcurrency);
+            self.removeStream(removedNode.getStreamID());
+            self.emit(Http3PMeenanNodeEvent.NODE_FINISHED, removedNode, removedNodePriority, removedNodeConcurrency);
         });
     }
 
@@ -49,6 +51,7 @@ export class Http3PMeenanBucket extends EventEmitter {
                         node.addData(data);
                     }
                 }
+                break;
             case 2:
                 for (const node of this.sharedSequentialBucket) {
                     if (node.getStreamID().equals(requestStreamID)) {
@@ -66,13 +69,12 @@ export class Http3PMeenanBucket extends EventEmitter {
             case undefined:
                 throw new Error("Tried adding data to a stream which was not in the bucket");
             default:
-                throw new Error("PMeenanSceme: concurrency level + " + concurrency + " + is undefined");
+                throw new Error("PMeenanScheme: concurrency level + " + concurrency + " + is undefined");
         }
     }
 
     public finishStream(streamID: Bignum) {
         const concurrency: number | undefined = this.streamIdToConcurrencyMap.get(streamID.toString());
-        // this.streamIdToConcurrencyMap.delete(streamID.toString());
         switch(concurrency) {
             case 3:
                 for (const node of this.exclusiveSequentialBucket) {
@@ -82,49 +84,49 @@ export class Http3PMeenanBucket extends EventEmitter {
                 }
                 break;
             case 2:
-            for (const node of this.sharedSequentialBucket) {
-                if (node.getStreamID().equals(streamID)) {
-                    node.finishStream();
+                for (const node of this.sharedSequentialBucket) {
+                    if (node.getStreamID().equals(streamID)) {
+                        node.finishStream();
+                    }
                 }
-            }
                 break;
             case 1:
-            for (const node of this.sharedBucket) {
-                if (node.getStreamID().equals(streamID)) {
-                    node.finishStream();
+                for (const node of this.sharedBucket) {
+                    if (node.getStreamID().equals(streamID)) {
+                        node.finishStream();
+                    }
                 }
-            }
                 break;
             case undefined:
                 throw new Error("Tried finishing a stream which was not in the bucket");
             default:
-                throw new Error("PMeenanSceme: concurrency level + " + concurrency + " + is undefined");
+                throw new Error("PMeenanScheme: concurrency level + " + concurrency + " + is undefined");
         }
     }
 
     public removeStream(streamID: Bignum) {
         const concurrency: number | undefined = this.streamIdToConcurrencyMap.get(streamID.toString());
-        // this.streamIdToConcurrencyMap.delete(streamID.toString());
+        this.streamIdToConcurrencyMap.delete(streamID.toString());
         switch(concurrency) {
             case 3:
                 this.exclusiveSequentialBucket = this.exclusiveSequentialBucket.filter((node: Http3PMeenanNode) => {
-                    return node.getStreamID().equals(streamID);
+                    return node.getStreamID().equals(streamID) === false;
                 });
                 break;
             case 2:
                 this.sharedSequentialBucket = this.sharedSequentialBucket.filter((node: Http3PMeenanNode) => {
-                    return node.getStreamID().equals(streamID);
+                    return node.getStreamID().equals(streamID) === false;
                 });
                 break;
             case 1:
                 this.sharedBucket = this.sharedBucket.filter((node: Http3PMeenanNode) => {
-                    return node.getStreamID().equals(streamID);
+                    return node.getStreamID().equals(streamID) === false;
                 });
                 break;
             case undefined:
                 throw new Error("Tried removing a stream which was not in the bucket");
             default:
-                throw new Error("PMeenanSceme: concurrency level + " + concurrency + " + is undefined");
+                throw new Error("PMeenanScheme: concurrency level + " + concurrency + " + is undefined");
         }
     }
 
@@ -137,6 +139,7 @@ export class Http3PMeenanBucket extends EventEmitter {
         if (index > 0) {
             const node: Http3PMeenanNode = this.exclusiveSequentialBucket[index];
             this.exclusiveSequentialBucket.splice(index, 1);
+            node.removeAllListeners();
             return node;
         }
         index = this.sharedSequentialBucket.findIndex((node: Http3PMeenanNode) => {
@@ -145,6 +148,7 @@ export class Http3PMeenanBucket extends EventEmitter {
         if (index > 0) {
             const node: Http3PMeenanNode = this.sharedSequentialBucket[index];
             this.sharedSequentialBucket.splice(index, 1);
+            node.removeAllListeners();
             return node;
         }
         index = this.sharedBucket.findIndex((node: Http3PMeenanNode) => {
@@ -153,6 +157,7 @@ export class Http3PMeenanBucket extends EventEmitter {
         if (index > 0) {
             const node: Http3PMeenanNode = this.sharedBucket[index];
             this.sharedBucket.splice(index, 1);
+            node.removeAllListeners();
             return node;
         } else {
             return null;
@@ -164,6 +169,13 @@ export class Http3PMeenanBucket extends EventEmitter {
         node.setPriority(this.priority);
         node.setConcurrency(concurrency);
         this.streamIdToConcurrencyMap.set(node.getStreamID().toString(), concurrency);
+
+        const self: Http3PMeenanBucket = this;
+        node.on(Http3PMeenanNodeEvent.NODE_FINISHED, (removedNode: Http3PMeenanNode, removedNodePriority: number, removedNodeConcurrency: number) => {
+            self.removeStream(removedNode.getStreamID());
+            self.emit(Http3PMeenanNodeEvent.NODE_FINISHED, removedNode, removedNodePriority, removedNodeConcurrency);
+        });
+
         switch(concurrency) {
             case 3:
                 this.exclusiveSequentialBucket.push(node);
@@ -175,7 +187,7 @@ export class Http3PMeenanBucket extends EventEmitter {
                 this.sharedBucket.push(node);
                 break;
             default:
-                throw new Error("PMeenanSceme: concurrency level + " + concurrency + " + is undefined");
+                throw new Error("PMeenanScheme: concurrency level + " + concurrency + " + is undefined");
         }
     }
 

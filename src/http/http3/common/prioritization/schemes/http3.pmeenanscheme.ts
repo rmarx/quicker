@@ -22,12 +22,14 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
         for (let i = 0; i < Http3PMeenanScheme.BUCKET_COUNT; ++i) {
             this.buckets.push(new Http3PMeenanBucket(i));
             this.bucketActivityMap.set(i, false);
+
+            const self: Http3PMeenanScheme = this;
             this.buckets[i].on(Http3PMeenanNodeEvent.NODE_FINISHED, (node: Http3PMeenanNode, priority: number, concurrency: number) => {
-                this.streamIdToBucketMap.delete(node.getStreamID().toString());
+                self.streamIdToBucketMap.delete(node.getStreamID().toString());
 
                 // Set bucket as inactive if it is empty
-                if (this.buckets[priority].isEmpty() === true) {
-                    this.deactivateBucket(priority);
+                if (self.buckets[priority].isEmpty() === true) {
+                    self.deactivateBucket(priority);
                 }
             });
         }
@@ -164,8 +166,8 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private deactivateBucket(bucketNr: number) {
         if (this.bucketActivityMap.get(bucketNr) === true) {
             this.bucketActivityMap.set(bucketNr, false);
-            this.activeBuckets.filter((bucket: number) => {
-                return bucket === bucketNr;
+            this.activeBuckets = this.activeBuckets.filter((bucket: number) => {
+                return bucket !== bucketNr;
             });
         }
     }

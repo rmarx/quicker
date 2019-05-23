@@ -51,14 +51,14 @@ metadata = []
 
 for stream_id in end_times.keys():
     if stream_id in requested_files:
-        metadata.append((stream_id, end_times[stream_id], requested_files[stream_id]))
+        metadata.append((int(stream_id), end_times[stream_id], requested_files[stream_id]))
     else:
         # Is not really an assumption I can make
         print("Mismatch in GET requests and closed streams")
         sys.exit(1)
 
 print(metadata)
-metadata.sort(key=itemgetter(1))
+metadata.sort(key=itemgetter(0))
 
 filenames = [str(i[0]) + ": " + str(i[2]) for i in metadata]
 time_values = [i[1] for i in metadata]

@@ -618,7 +618,7 @@ export class QlogWrapper{
             "DATA_CHUNK",
             trigger,
             {
-                stream_id: streamID.toString(),
+                stream_id: streamID.toDecimalString(),
                 byte_length: byteLength,
                 weight,
             }
