@@ -363,7 +363,7 @@ export class QuicCongestionControl extends PacketPipe {
         //TODO: check if this causes no unintentional resets of the congestion window
         // or if this test even passes at all due to the current placed this.sendPackets() setup
         
-        //this does cause a reset at the very end of a transmission, commented
+        //this does cause a reset at the very end of a transmission, disabling
 
         //if(this.packetsQueue.length == 0 && this.bytesInFlight.equals(0)){
         //    this.setCWND(new Bignum(QuicCongestionControl.kInitialWindow));
@@ -374,13 +374,10 @@ export class QuicCongestionControl extends PacketPipe {
 
     //TODO REFACTOR:
     // having this.sendpackets() in random places doesn't really make sense to me?
-
-    private alreadySetPn : boolean = false;
     private sendPackets(){
         // TODO: doublecheck if some packets need to be excluded from blocking by CC/pacer
         // update, PTO packets need to not be blocked
         this.checkIdleConnection();
-        VerboseLogging.error("1")
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
 
@@ -392,7 +389,7 @@ export class QuicCongestionControl extends PacketPipe {
                     this.sendSingularPacket(packet);                    
                 }
                 else{
-                    VerboseLogging.error("6")
+                    //if adding this packet to the bytesinflight would go over the cwnd limit, unshift and undo pn increase
                     this.packetsQueue.unshift(packet);
                     let pnSpace:PacketNumberSpace | undefined = this.getPNSpace(packet);
                     if(pnSpace !== undefined){ 
@@ -402,27 +399,6 @@ export class QuicCongestionControl extends PacketPipe {
                 }
                 
             }
-            
-            // if (packet !== undefined) {
-            //     VerboseLogging.error("3")
-            //     if(!this.alreadySetPn){
-            //         VerboseLogging.error("4")
-            //         this.initPacketNumber(packet);
-            //         this.alreadySetPn = true;
-            //     }
-            //     VerboseLogging.error("4.5")
-            //     if(this.bytesInFlight.add(packet.toBuffer(this.connection).byteLength).lessThan(this.congestionWindow)){
-            //         VerboseLogging.error("5")
-            //         this.sendSingularPacket(packet);
-            //         this.alreadySetPn = false;
-            //     }
-            //     else{
-            //         VerboseLogging.error("6")
-            //         this.packetsQueue.unshift(packet);
-            //         break;
-            //     }
-                
-            // }
         }
     }
 

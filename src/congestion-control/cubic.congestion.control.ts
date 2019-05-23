@@ -210,8 +210,11 @@ export class CubicCongestionControl extends PacketPipe {
         var bytesAcked = packet.toBuffer(this.connection).byteLength;
         this.setBytesInFlight(this.bytesInFlight.subtract(bytesAcked), "ACK_RECEIVED", {"packet_num" : ackedPacket.packet.getHeader().getPacketNumber().getValue().toDecimalString(), "subtracted" : bytesAcked, "packettype": ackedPacket.packet.getPacketType()});
 
+        if(this.inRecovery(ackedPacket.time)){
+
+        }
         // IN SLOW START
-        if(this.congestionWindow <= this.ssthresh){
+        else if(this.congestionWindow <= this.ssthresh){
             this.setCWND(this.congestionWindow + 1);
         }
         //else
@@ -316,7 +319,7 @@ export class CubicCongestionControl extends PacketPipe {
                 this.WlastMax = this.congestionWindow;
             }
             // why 1 - lossreductionfactor?
-            this.congestionWindow = this.congestionWindow * (1-CubicCongestionControl.kLossReductionFactor);
+            this.setCWND(this.congestionWindow * (1-CubicCongestionControl.kLossReductionFactor))
             this.ssthresh = this.congestionWindow;
         }
     }
@@ -378,6 +381,13 @@ export class CubicCongestionControl extends PacketPipe {
     }
 
 
+    public queueForRetransmit(packet : BasePacket){
+        VerboseLogging.info("congestioncontrol: queueForRetransmit: unshifting packet where old packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
+        this.packetsQueue.unshift(packet);
+        this.sendPackets();
+    }
+
+
     /**
      * get the packet number space of the passed packet's type
      * @param packet packet to get the space of
@@ -407,19 +417,21 @@ export class CubicCongestionControl extends PacketPipe {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
 
             if (packet !== undefined) {
-                if(!this.alreadySetPn){
-                    this.initPacketNumber(packet);
-                    this.alreadySetPn = true;
-                }
+
+                this.initPacketNumber(packet);
+                
                 if(this.bytesInFlight.add(packet.toBuffer(this.connection).byteLength).lessThan(this.congestionWindow * CubicCongestionControl.kMaxDatagramSize)){
-                    this.sendSingularPacket(packet);
-                    this.alreadySetPn = false;
+                    this.sendSingularPacket(packet);                    
                 }
                 else{
+                    //if adding this packet to the bytesinflight would go over the cwnd limit, unshift and undo pn increase
                     this.packetsQueue.unshift(packet);
+                    let pnSpace:PacketNumberSpace | undefined = this.getPNSpace(packet);
+                    if(pnSpace !== undefined){ 
+                        pnSpace.goBack()
+                    }
                     break;
-                }
-                
+                }                
             }
         }
     }
