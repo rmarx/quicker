@@ -120,18 +120,16 @@ export class Server extends Endpoint {
 
         // TODO: this could be easier if we just did everything in a single function/place, but that's a bigger refactor than I'm willing to commit to right now
 
-        //try {
+        try {
             packets = this.headerParser.parseShallowHeader(msg);
-        //} 
-        /*catch(err) {
-            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + JSON.stringify(rinfo) + " // " + err );
-            console.trace("Server:onMessage");
+        } 
+        catch(err) {
+            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + err.toString()  + " // " + JSON.stringify(rinfo) + " -> " + msg.toString('hex') );
             // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
-        */
 
-        VerboseLogging.trace("Server:onMessage: Message contains " + packets.length + " independent packets (we think)");
+        VerboseLogging.debug("Server:onMessage: Message contains " + packets.length + " independent packets (we think)");
         
         packets.forEach((packet: PartiallyParsedPacket) => {
             let connection: Connection | undefined = undefined;
@@ -144,13 +142,13 @@ export class Server extends Endpoint {
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
 
-                let decryptedHeader:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(connection, packet, EndpointType.Client);
+                let decryptedHeaderPacket:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(connection, packet, EndpointType.Client);
 
-                let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(connection, packet, EndpointType.Client);
+                if( decryptedHeaderPacket !== undefined ){
+                    let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(connection, decryptedHeaderPacket, EndpointType.Client);
+                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(connection, handledHeader!, EndpointType.Client);
 
-                if( handledHeader ){
-                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(connection, packet, EndpointType.Client);
-                    this.packetHandler.handle(connection, fullyDecryptedPacket, receivedTime);
+                    setImmediate( () => {this.packetHandler.handle(connection!, fullyDecryptedPacket, receivedTime) });
                 }
                 else
                     VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");

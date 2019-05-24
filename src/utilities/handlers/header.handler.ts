@@ -116,10 +116,12 @@ export class HeaderHandler {
 
         packet.header.setTruncatedPacketNumber( truncatedPacketNumber, new PacketNumber(new Bignum(0)) ); // FIXME: properly pass largestAcked from the proper packetnumberspace here!!!
 
-        // at this moment, packet.header.payloadLength also includes the length of the packet number, so we need to remove that to get the correct payloadLength
-        // this is mainly a problem if we try to re-serialize this header later (e.g., during tests or retransmits), so it's important we do this
-        let longHeader = packet.header as LongHeader;
-        longHeader.setPayloadLength( longHeader.getPayloadLength().subtract(truncatedPacketNumber.getValue().getByteLength()) );
+        // at this moment, packet.longHeader.payloadLength also includes the length of the packet number, so we need to remove that to get the correct payloadLength
+        // this is mainly a problem if we try to re-serialize this long header later (e.g., during tests or retransmits), so it's important we do this
+        if( packet.header.getHeaderType() === HeaderType.LongHeader ){
+            let longHeader = packet.header as LongHeader;
+            longHeader.setPayloadLength( longHeader.getPayloadLength().subtract(truncatedPacketNumber.getValue().getByteLength()) );
+        }
 
         return packet;
     }

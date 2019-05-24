@@ -172,20 +172,22 @@ export class Client extends Endpoint {
 
             try {
                 packets = this.headerParser.parseShallowHeader(msg);
-            } catch(err) {
-                VerboseLogging.error("Client:onMessage: could not parse headers! Ignoring packet. ");
+            } 
+            catch(err) {
+                VerboseLogging.error("Client:onMessage: could not parse headers! Ignoring packet. " + err.toString() + " -> " + msg.toString('hex') );
                 // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
                 return;
             }
 
             packets.forEach((packet: PartiallyParsedPacket) => {
-                let decryptedHeader:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(this.connection, packet, EndpointType.Server);
+                let decryptedHeaderPacket:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(this.connection, packet, EndpointType.Server);
 
-                let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(this.connection, packet, EndpointType.Server);
+                if( decryptedHeaderPacket !== undefined ){
 
-                if( handledHeader ){
-                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(this.connection, handledHeader, EndpointType.Server);
-                    this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime);
+                    let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(this.connection, decryptedHeaderPacket, EndpointType.Server);
+                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(this.connection, handledHeader!, EndpointType.Server);
+
+                    setImmediate( () => { this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime); });
                 }
                 else
                     VerboseLogging.info("Client:handle: could not decrypt packet, buffering till later");
