@@ -86,8 +86,8 @@ export class PacketHandler {
         var versionNegotiationHeader = <VersionNegotiationHeader>versionNegotiationPacket.getHeader();
         var connectionId = versionNegotiationHeader.getSrcConnectionID();
         var connectionId = versionNegotiationHeader.getDestConnectionID();
-        if (connection.getInitialDestConnectionID().getValue().compare(versionNegotiationHeader.getSrcConnectionID().getValue()) !== 0 ||
-            connection.getSrcConnectionID().getValue().compare(versionNegotiationHeader.getDestConnectionID().getValue()) !== 0) {
+        if (connection.getInitialDestConnectionID().getValueForComparison().compare(versionNegotiationHeader.getSrcConnectionID().getValueForComparison()) !== 0 ||
+            connection.getSrcConnectionID().getValueForComparison().compare(versionNegotiationHeader.getDestConnectionID().getValueForComparison()) !== 0) {
             // https://tools.ietf.org/html/draft-ietf-quic-transport#section-6.2.2
             throw new QuicError(ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR, "Version negotation didn't include correct connectionID values");
         }
@@ -136,7 +136,7 @@ export class PacketHandler {
             if (connection.getDestConnectionID() === undefined || connection.getRetrySent()) {
                 connection.setDestConnectionID(connectionID);
                 connection.setRetrySent(false);
-            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
+            } else if (connection.getDestConnectionID().getValueForComparison().compare(connectionID.getValueForComparison()) !== 0) {
                 throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent handshake packet, ignoring");
             }
         }
@@ -154,7 +154,7 @@ export class PacketHandler {
             if (connection.getDestConnectionID() === undefined) {
                 connection.setDestConnectionID(connectionID);
                 connection.setRetrySent(true);
-            } else if (connection.getDestConnectionID().getValue().compare(connectionID.getValue()) !== 0) {
+            } else if (connection.getDestConnectionID().getValueForComparison().compare(connectionID.getValueForComparison()) !== 0) {
                 throw new QuickerError(QuickerErrorCodes.IGNORE_PACKET_ERROR, "New Destination ConnID discovered in subsequent retry packet, ignoring");
             }
         }

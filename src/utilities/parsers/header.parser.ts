@@ -127,7 +127,7 @@ export class HeaderParser {
         offset += dcil;
         let srcConnectionID = new ConnectionID(encryptedPackets.slice(offset, offset + scil), scil);
         offset += scil;
-
+        
         let tokens:Buffer|undefined = undefined;
         if( type == LongHeaderType.Initial ){
 
@@ -150,31 +150,30 @@ export class HeaderParser {
             }
         }
 
-        let payloadLengthV = VLIE.decode(encryptedPackets, offset);
-        let payloadLength = payloadLengthV.value;
-        let payloadLengthBuffer = Buffer.alloc(payloadLengthV.offset - offset);
-        encryptedPackets.copy(payloadLengthBuffer, 0, offset, payloadLengthV.offset);
-        offset = payloadLengthV.offset;
+        let restLengthV = VLIE.decode(encryptedPackets, offset);
+        let restLength = restLengthV.value;
+        let restLengthBuffer = Buffer.alloc(restLengthV.offset - offset);
+        encryptedPackets.copy(restLengthBuffer, 0, offset, restLengthV.offset);
+        offset = restLengthV.offset;
 
-
-        let header = new LongHeader(type, destConnectionID, srcConnectionID, payloadLength, version, payloadLengthBuffer);
+        let header = new LongHeader(type, destConnectionID, srcConnectionID, restLength, version);
         if( tokens )
             header.setInitialTokens(tokens); // also sets initial length  
 
-        if( offset + payloadLength.toNumber() > encryptedPackets.byteLength ){
-            VerboseLogging.error("HeaderParser:parseLongHeader : encrypted packet end is past the end of the current buffer! " + (offset + payloadLength.toNumber()) + " > " + encryptedPackets.byteLength );
+        if( offset + restLength.toNumber() > encryptedPackets.byteLength ){
+            VerboseLogging.error("HeaderParser:parseLongHeader : encrypted packet end is past the end of the current buffer! " + (offset + restLength.toNumber()) + " > " + encryptedPackets.byteLength );
             throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR, "packet must have been truncated somehow. Currently not dealing with this properly yet!");
         }
 
-        let restLength = header.getPayloadLength().toNumber();
+        let restLengthNumber = restLength.toNumber();
         // the offset is now right behind the "length" field, so EXCLUDING the packet number and the payload
         // adding the restLength to it gives us the end of the packet
         // NOTE: we are copying the data here instead of just keeping it in a single buffer
         // this MIGHT give less performance, but is way easier to interpret + this only happens for long header packets, which is only at the start of the connection
         return {
-            fullContents: encryptedPackets.slice(startOffset, offset + restLength), 
+            fullContents: encryptedPackets.slice(startOffset, offset + restLengthNumber),
             partialHeaderLength: offset - startOffset,
-            restLength: restLength,
+            restLength: restLengthNumber,
             header: header,
 
             actualHeaderLength: undefined // not known yet, only known after header decryption
