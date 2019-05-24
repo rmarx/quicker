@@ -156,7 +156,7 @@ export class HeaderParser {
         encryptedPackets.copy(restLengthBuffer, 0, offset, restLengthV.offset);
         offset = restLengthV.offset;
 
-        let header = new LongHeader(type, destConnectionID, srcConnectionID, restLength, version);
+        let header = new LongHeader(type, destConnectionID, srcConnectionID, restLength, version, restLengthBuffer);
         if( tokens )
             header.setInitialTokens(tokens); // also sets initial length  
 

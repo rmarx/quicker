@@ -819,7 +819,10 @@ export class Connection extends FlowControlledObject {
             if (this.closeSentCount < Constants.MAXIMUM_CLOSE_FRAME_SEND) {
                 this.closeSentCount++;
                 var closePacket = this.getClosePacket();
-                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), this.context1RTT.getPacketNumberSpace().getHighestReceivedNumber()!);
+                let highestReceivedNumber = this.context1RTT.getPacketNumberSpace().getHighestReceivedNumber();
+                if( highestReceivedNumber === undefined )
+                    highestReceivedNumber = new PacketNumber( new Bignum(0) );
+                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), highestReceivedNumber);
                 this.qlogger.onPacketTX( closePacket );
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
                 this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);

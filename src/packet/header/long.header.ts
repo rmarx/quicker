@@ -14,6 +14,12 @@ export class LongHeader extends BaseHeader {
     private destConnectionID: ConnectionID;
     private srcConnectionID: ConnectionID;
     private payloadLength: Bignum;
+    // FIXME: we really want to get rid of this separate field
+    // Sadly, we need this to calculate the sampleoffset in aead for header decryption
+    // since it's a VLIE value, we can't just do VLIE(payloadLength), because the original value might be encoded in more bytes than was needed
+    // e.g., we've seen values of 0x403d to encode 61, rather than just encoding as 0x3d directly
+    // Best fix is not to calculate sampleOffset based on this, but to just use the PartiallyParsedPacket.partialHeaderLength + 4 there
+    // but we can only do that after we've refactored aead.ts 
     private payloadLengthBuffer: Buffer;
 
     // the INITIAL packet can contain retry tokens from draft-13 onward
@@ -27,17 +33,13 @@ export class LongHeader extends BaseHeader {
      * @param packetNumber 
      * @param version 
      */
-    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, payloadLength: Bignum, version: Version, payloadLengthBuffer?: Buffer) {
+    public constructor(type: number, destConnectionID: ConnectionID, srcConnectionID: ConnectionID, payloadLength: Bignum, version: Version, payloadLengthBuffer: Buffer) {
         super(HeaderType.LongHeader, type);
         this.version = version;
         this.destConnectionID = destConnectionID;
         this.srcConnectionID = srcConnectionID;
         this.payloadLength = payloadLength;
-        if (payloadLengthBuffer !== undefined) {
-            this.payloadLengthBuffer = payloadLengthBuffer;
-        } else {
-            this.payloadLengthBuffer = VLIE.encode(payloadLength);
-        }
+        this.payloadLengthBuffer = payloadLengthBuffer;
 
         this.initialTokenLength = new Bignum(0);
         this.initialTokens = undefined;
@@ -161,8 +163,8 @@ export class LongHeader extends BaseHeader {
         // non-zero connectionIDs are always at least 4 bytes, so we can encode their lenghts in an optimized way
         var destLength = this.destConnectionID.getByteLength() === 0 ? this.destConnectionID.getByteLength() : this.destConnectionID.getByteLength() - 3;
         var srcLength  = this.srcConnectionID.getByteLength() === 0  ? this.srcConnectionID.getByteLength()  : this.srcConnectionID.getByteLength()  - 3;
-         // 0xddddssss (d = destination length, s = source length)
-         buf.writeUInt8(((destLength << 4) + srcLength), offset++);
+        // 0xddddssss (d = destination length, s = source length)
+        buf.writeUInt8(((destLength << 4) + srcLength), offset++);
 
         offset += this.destConnectionID.toBuffer().copy(buf, offset);
         offset += this.srcConnectionID.toBuffer().copy(buf, offset);
