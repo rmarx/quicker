@@ -222,12 +222,12 @@ export class AckHandler {
 
     private setAlarm(connection: Connection) {
         this.alarm.on(AlarmEvent.TIMEOUT, () => {
-            VerboseLogging.debug(this.DEBUGname + " ---------------------------------------------------////////////////////////////// AckHandler: ON ALARM "+ this.DEBUGname +" //////////////////////////////// ");
+            VerboseLogging.debug(this.DEBUGname + " >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// AckHandler: ON ALARM "+ this.DEBUGname +" //////////////////////////////// ");
             var ackFrame = this.getAckFrame(connection);
             if (ackFrame !== undefined) {
                 connection.queueFrame(ackFrame);
             }
-            VerboseLogging.debug(this.DEBUGname + " ---------------------------------------------------////////////////////////////// AckHandler: END ALARM "+ this.DEBUGname +" //////////////////////////////// " + ackFrame);
+            VerboseLogging.debug(this.DEBUGname + " <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// AckHandler: END ALARM "+ this.DEBUGname +" //////////////////////////////// " + ackFrame);
 
         });
         this.alarm.start(AckHandler.ACK_WAIT);

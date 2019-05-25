@@ -11,6 +11,7 @@ import { AEAD } from '../crypto/aead';
 import { LongHeader } from '../packet/header/long.header';
 import { PacketParser } from '../utilities/parsers/packet.parser';
 import { Bignum } from '../types/bignum';
+import { Time } from '../types/time';
 
 export class TestHeaderParser  {
 
@@ -43,8 +44,6 @@ export class TestHeaderParser  {
         // look at how Node's HTTP client typically does this 
 
         setTimeout( () => {
-
-
             //aead.generateClearTextSecrets( connectionID, qtls, new Version( Buffer.from("ff000014", "hex")) ); 
 
             let handler = new HeaderHandler();
@@ -57,7 +56,7 @@ export class TestHeaderParser  {
             let qtls:QTLS = new QTLS(true, {}, connection);
             let aead:AEAD = new AEAD(qtls);
 
-            let intermediateResult4 = handler.decryptHeader( connection, partialResult4[0], EndpointType.Client );
+            let intermediateResult4 = handler.decryptHeader( connection, partialResult4[0], EndpointType.Client, Time.now() );
             let fullResult4 = handler.handle( connection, intermediateResult4!, EndpointType.Client );
 
             let packerParser = new PacketParser()

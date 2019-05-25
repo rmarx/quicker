@@ -133,7 +133,7 @@ export class HandshakeHandler extends EventEmitter{
 
                 case TLSKeyType.SSL_KEY_CLIENT_EARLY_TRAFFIC:
                     this.aead.setProtected0TTSecrets( EndpointType.Client, secret );
-                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ONE_RTT );
+                    this.emit( HandshakeHandlerEvents.NewDecryptionKeyAvailable, EncryptionLevel.ZERO_RTT );
                     break;
                 case TLSKeyType.SSL_KEY_CLIENT_HANDSHAKE_TRAFFIC:
                     this.aead.setProtectedHandshakeSecrets( EndpointType.Client, secret );

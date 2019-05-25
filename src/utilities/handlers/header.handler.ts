@@ -17,10 +17,11 @@ import { VLIE } from '../../crypto/vlie';
 import { VerboseLogging } from '../logging/verbose.logging';
 import { PacketLogging } from '../logging/packet.logging';
 import { PacketNumberSpace } from '../../crypto/crypto.context';
+import { Time } from '../../types/time';
 
 export class HeaderHandler {
 
-    public decryptHeader(connection: Connection, packet: PartiallyParsedPacket, encryptingEndpoint: EndpointType): PartiallyParsedPacket | undefined {
+    public decryptHeader(connection: Connection, packet: PartiallyParsedPacket, encryptingEndpoint: EndpointType, receivedTime:Time): PartiallyParsedPacket | undefined {
         let header = packet.header;
 
         // version negotation headers do not need to be handled separately, see PacketHandler for this 
@@ -51,7 +52,7 @@ export class HeaderHandler {
                 if( !connection.getAEAD().can0RTTDecrypt(encryptingEndpoint) ) {
                     VerboseLogging.info("HeaderHandler:decryptHeader : cannot yet decrypt received 0RTT packet: buffering");
                     let ctx = connection.getEncryptionContextByHeader( header );
-                    ctx!.bufferPacket( { packet: packet, connection: connection} );
+                    ctx!.bufferPacket( { packet: packet, connection: connection, receivedTime: receivedTime} );
                     return undefined; 
                 }
                 else {
@@ -62,7 +63,7 @@ export class HeaderHandler {
                 if( !connection.getAEAD().canHandshakeDecrypt(encryptingEndpoint) ) {
                     VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received Handshake packet: buffering");
                     let ctx = connection.getEncryptionContextByHeader( header );
-                    ctx!.bufferPacket( { packet: packet, connection: connection} );
+                    ctx!.bufferPacket( { packet: packet, connection: connection, receivedTime: receivedTime} );
                     return undefined; 
                 }
                 else {
@@ -81,7 +82,7 @@ export class HeaderHandler {
             if( !connection.getAEAD().can1RTTDecrypt(encryptingEndpoint) ) {
                 VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received 1RTT packet: buffering");
                 let ctx = connection.getEncryptionContextByHeader( header );
-                ctx!.bufferPacket( { packet: packet, connection: connection} );
+                ctx!.bufferPacket( { packet: packet, connection: connection, receivedTime: receivedTime} );
                 return undefined; 
             }
             else {

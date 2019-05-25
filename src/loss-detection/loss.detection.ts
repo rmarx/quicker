@@ -335,9 +335,11 @@ export class LossDetection extends EventEmitter {
 
         if (!this.lossDetectionAlarm.isRunning()) {
             this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, (timePassed:number) => {
+                VerboseLogging.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// LossDetection: alarm fired  //////////////////////////////// ");
                 VerboseLogging.info(this.DEBUGname + " LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
                 this.lossDetectionAlarm.reset();
                 this.onLossDetectionAlarm();
+                VerboseLogging.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// LossDetection: done handling alarm //////////////////////////////// ");
             });
             this.lossDetectionAlarm.start(alarmDuration);
         }
