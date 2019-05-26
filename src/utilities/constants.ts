@@ -2,9 +2,10 @@ import { VerboseLogging } from "./logging/verbose.logging";
 
 export class Constants {
 
-    public static DEBUG_fakeECN = false;
-    public static DEBUG_fakeReorder = false;
-    public static DEBUG_greaseTransportParameters = true;
+    public static DEBUG_fakeECN:boolean = false;
+    public static DEBUG_fakeReorder:boolean = false;
+    public static DEBUG_greaseTransportParameters:boolean = true;
+    public static DEBUG_packetLoss_ratio:number = 0; // set to 0 or < 0 to disable. Higher = more loss
 
     /**
      * Supported versions

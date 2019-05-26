@@ -1,10 +1,14 @@
 import {Connection} from '../quicker/connection';
 import {BaseHeader} from './header/base.header';
 import { LongHeader } from "./header/long.header";
+import { PacketNumber } from './header/header.properties';
 
 
 
 export abstract class BasePacket {
+
+    public DEBUG_wasRetransmitted:boolean = false;
+    public DEBUG_originalPacketNumber!:PacketNumber;
 
     private header: BaseHeader;
     private packetType: PacketType;

@@ -637,7 +637,22 @@ export class Connection extends FlowControlledObject {
     private retransmitPacket(packet: BasePacket) {
         VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber()!.getValue().toNumber() );
 
-        VerboseLogging.error("Connection:retransmitPacket : cannot retransmit because no proper logic to know which PN space to select yet! Doing nothing!");
+        let ctx:CryptoContext|undefined = this.getEncryptionContextByPacketType( packet.getPacketType() );
+        if( ctx === undefined ){
+            VerboseLogging.error("Connection:retransmitPacket : no CryptoContext known for this packet... doing nothing! " + PacketType[packet.getPacketType()]);
+            return;
+        }
+
+        // For now, -very- quick and dirty retransmitting: just take the existing packet, swap out packet number for a new one, and go
+        // FIXME: should be reworked into proper retransmits: old packets need to be divided into their components parts, then flow.control.ts needs to create new, decent packets
+        // e.g., for many Control-level frames (e.g., Flow control stuff) we probably don't need to resend or want to send updated values 
+        packet.DEBUG_wasRetransmitted = true;
+        packet.DEBUG_originalPacketNumber = packet.getHeader().getPacketNumber()!;
+        
+        packet.getHeader().setPacketNumber( ctx.getPacketNumberSpace().getNext(), new PacketNumber(new Bignum(0)) );
+
+        this.congestionControl.queuePackets([packet]);
+
         if(1 == 1) return;
 
         

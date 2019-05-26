@@ -151,6 +151,12 @@ export class CongestionControl extends EventEmitter {
     private sendPackets() {
         // TODO: allow coalescing of certain packets:
         // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.6
+
+        if( this.bytesInFlight.greaterThanOrEqual(this.congestionWindow) ){
+            VerboseLogging.info("CongestionController:sendPackets: congestion window is full! Packets will not be sent until it goes down. # queued: " + this.packetsQueue.length);
+            return;
+        }
+
         while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
             var packet: BasePacket | undefined = this.packetsQueue.shift();
             if (packet !== undefined) {
@@ -159,7 +165,8 @@ export class CongestionControl extends EventEmitter {
                 if( ctx ){ // VNEG and retry packets have no packet numbers
                     let pnSpace:PacketNumberSpace = ctx.getPacketNumberSpace();
 
-                    packet.getHeader().setPacketNumber( pnSpace.getNext(), new PacketNumber( new Bignum(0)) ); // FIXME: actually use largestAcked : pnSpace.getHighestAckedPacket 
+                    if( !packet.DEBUG_wasRetransmitted ) // TODO: FIXME: this is actual logic that also needs to stay outside of DEBUG!
+                        packet.getHeader().setPacketNumber( pnSpace.getNext(), new PacketNumber( new Bignum(0)) ); // FIXME: actually use largestAcked : pnSpace.getHighestAckedPacket 
 
                     let DEBUGhighestReceivedNumber = pnSpace.getHighestReceivedNumber();
                     let DEBUGrxNumber = -1;
@@ -190,6 +197,69 @@ export class CongestionControl extends EventEmitter {
                         this.onPacketSent(delayedPacket as BasePacket);    
                         this.emit(CongestionControlEvents.PACKET_SENT, delayedPacket);
                     }, 500);
+                }
+                else if( Constants.DEBUG_packetLoss_ratio > 0 ){
+                    let drop = Math.random() < Constants.DEBUG_packetLoss_ratio;
+
+                    if( pktNumber && pktNumber.getValue().toNumber() < 1 && this.connection.getEndpointType() == EndpointType.Server ){
+                        // drop all first packets from the server 
+
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("CongestionControl:sendPackets : artificially DROPPING PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+
+                        this.onPacketSent(packet);
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    }
+                    else if( pktNumber && pktNumber.getValue().toNumber() < 1 && this.connection.getEndpointType() == EndpointType.Client ){
+                        // all first packets from the client ARE sent correctly
+                        VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                        this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                    
+                        this.onPacketSent(packet);
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+
+                        /*
+                        setTimeout( () => {
+
+                            let ctx:CryptoContext|undefined = this.connection.getEncryptionContextByPacketType( packet!.getPacketType() );
+
+                            VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                            VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                            VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                            VerboseLogging.error("CongestionControl:sendPackets : artificially RE-SENDING PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
+                            VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                            VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                            VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+
+                            packet!.getHeader().setPacketNumber( ctx!.getPacketNumberSpace().getNext(), new PacketNumber( new Bignum(0) ));
+                            this.connection.getSocket().send(packet!.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                        }, 500);
+                        */
+                    }
+                    else if( drop ){
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("CongestionControl:sendPackets : artificially DROPPING PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+                        VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
+
+                        this.onPacketSent(packet);
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    }
+                    else{
+                        VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                        this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                    
+                        this.onPacketSent(packet);
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    }
                 }
                 else{
                     // NORMAL BEHAVIOUR
