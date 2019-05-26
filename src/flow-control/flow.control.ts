@@ -379,9 +379,9 @@ export class FlowControl {
         let streamFrames = new Array<StreamFrame>();
 
         // TODO: is this really needed every time? there shouldn't be anything in the data to begin with...
-        if (stream.isReceiveOnly()) {
-            stream.resetData();
-        }
+        //if (stream.isReceiveOnly()) {
+        //    stream.resetData();
+        //}
 
         while (stream.getOutgoingDataSize() > 0 && !stream.ableToSend() && !this.connection.ableToSend()) {
             let streamDataSize = maxPayloadSize.lessThan(stream.getOutgoingDataSize()) ? maxPayloadSize : new Bignum(stream.getOutgoingDataSize());
@@ -392,7 +392,7 @@ export class FlowControl {
 
 
             let streamData = stream.popData(streamDataSize.toNumber());
-            let isFin = stream.getRemoteFinalOffset() !== undefined ? stream.getRemoteFinalOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
+            let isFin = stream.getFinalSentOffset() !== undefined ? stream.getFinalSentOffset().equals(stream.getRemoteOffset().add(streamDataSize)) : false;
             let frame = (FrameFactory.createStreamFrame(stream.getStreamID(), streamData.slice(0, streamDataSize.toNumber()), isFin, true, stream.getRemoteOffset()));
         
             streamFrames.push(frame);

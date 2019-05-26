@@ -215,8 +215,8 @@ export class FrameHandler {
         } else if (stream.getStreamState() === StreamState.RemoteClosed) {
             stream.setStreamState(StreamState.Closed);
         } 
-        stream.setRemoteFinalOffset(stream.getRemoteOffset());
-        var rstStreamFrame = FrameFactory.createRstStreamFrame(stream.getStreamID(), 0, stream.getRemoteFinalOffset());
+        stream.setFinalSentOffset(stream.getRemoteOffset());
+        var rstStreamFrame = FrameFactory.createRstStreamFrame(stream.getStreamID(), 0, stream.getFinalSentOffset());
     }
 
     private handleAckFrame(connection: Connection, ackFrame: AckFrame) {
@@ -248,11 +248,12 @@ export class FrameHandler {
     }
 
     private handleStreamFrame(connection: Connection, streamFrame: StreamFrame): void {
-        var streamId = streamFrame.getStreamID();
+        let streamId = streamFrame.getStreamID();
         if (Stream.isSendOnly(connection.getEndpointType(), streamId)) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION, "Receiving data on send-only stream " + streamId.toDecimalString() );
         }
-        var stream = connection.getStreamManager().getStream(streamFrame.getStreamID());
+
+        let stream = connection.getStreamManager().getStream(streamId);
         stream.receiveData(streamFrame.getData(), streamFrame.getOffset(), streamFrame.getFin());
     }
 }

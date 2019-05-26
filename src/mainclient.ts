@@ -12,6 +12,7 @@ import { TestTransportParameters } from "./tests/test.transportparameters";
 import { TestHeaderProtection } from "./tests/test.headerprotection";
 import { TestHeaderParser } from "./tests/test.headerparser";
 import { TestFrameParser } from "./tests/test.frame.parser";
+import { TestStreamBuffering } from "./tests/test.streambuffering";
 
 
 

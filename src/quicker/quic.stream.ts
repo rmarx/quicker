@@ -39,7 +39,7 @@ export class QuicStream extends EventEmitter{
         if (data !== undefined) {
             this.stream.addData(data, true);
         } else {
-            this.stream.setRemoteFinalOffset(this.stream.getRemoteOffset());
+            this.stream.setFinalSentOffset(this.stream.getRemoteOffset());
         }
     }
 

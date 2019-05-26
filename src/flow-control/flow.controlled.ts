@@ -8,8 +8,8 @@ import { logMethod } from '../utilities/decorators/log.decorator';
 // REFACTOR TODO: use composition instead of inheritance for FlowControlledObject... 
 export abstract class FlowControlledObject extends EventEmitter {
 
-	private localOffset!: Bignum;
-	private remoteOffset!: Bignum;
+	private localOffset!: Bignum; // RECEIVE offset
+	private remoteOffset!: Bignum; // SEND offset 
 	private receiveAllowance!: Bignum;	// how much we are willing to RECEIVE from our peer
 	private sendAllowance!: Bignum; // how much we are able to SEND to our peer 
 	
