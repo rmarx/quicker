@@ -9,7 +9,7 @@ export enum Http3PMeenanNodeEvent {
 }
 
 export class Http3PMeenanNode extends EventEmitter {
-    private static readonly CHUNK_SIZE: number = 100;
+    private static readonly CHUNK_SIZE: number = 1000;
 
     private bufferedData: Buffer = Buffer.alloc(0);
     private requestStream: QuicStream;
@@ -51,6 +51,7 @@ export class Http3PMeenanNode extends EventEmitter {
         if (this.bufferedData.byteLength === 0) {
             this.requestStream.end();
             this.requestStream.getConnection().sendPackets(); // Force sending packets FIXME QUICker cannot send empty frames yet
+            this.requestStream.getConnection().getQlogger().onHTTPStreamStateChanged(this.requestStream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
             this.emit(Http3PMeenanNodeEvent.NODE_FINISHED, this, this.priority, this.concurrency);
         }
     }

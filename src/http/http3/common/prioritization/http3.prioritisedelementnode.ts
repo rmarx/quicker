@@ -4,7 +4,7 @@ import { Http3NodeEvent } from "./http3.nodeevent";
 import { DependencyTree } from "./http3.deptree";
 
 export class Http3PrioritisedElementNode extends EventEmitter {
-    static readonly MAX_BYTES_SENT = 100;
+    static readonly CHUNK_SIZE = 1000;
     private parent: Http3PrioritisedElementNode | null;
     protected activeChildrenPQueue: Http3DepNodePQueue = new Http3DepNodePQueue([]);
     protected children: Http3PrioritisedElementNode[] = [];
@@ -17,9 +17,13 @@ export class Http3PrioritisedElementNode extends EventEmitter {
         super();
         this.parent = parent;
         this.weight = weight;
-        if (this.parent !== null) {
-            this.parent.children.push(this);
-        }
+        // if (parent !== null) {
+        //     this.setParent(parent);
+        // }
+        // this.parent = parent;
+        // if (this.parent !== null) {
+        //     this.parent.children.push(this);
+        // }
     }
 
     // Do one (recursive) pass starting from this node
@@ -38,7 +42,7 @@ export class Http3PrioritisedElementNode extends EventEmitter {
 
     public getBytesSent(): number {
         // TODO?
-        return Http3PrioritisedElementNode.MAX_BYTES_SENT;
+        return Http3PrioritisedElementNode.CHUNK_SIZE;
     }
 
     // If node has active children, it is considered active
@@ -67,7 +71,7 @@ export class Http3PrioritisedElementNode extends EventEmitter {
         if (this.hasChild(child) === true) {
             // K = 256 -> constant to compensate the lost bits by integer division (e.g., 256).
             // TODO bytessent is hardcoded to MAX_BYTES_SENT as placeholders dont have a bytessent property
-            child.pseudoTime = this.pseudoTime + child.getBytesSent() * 256 / child.weight;
+            child.pseudoTime = this.lastPseudoTime + child.getBytesSent() * 256 / child.weight;
             this.activeChildrenPQueue.push(child);
             if (this.parent !== null) {
                 this.parent.activateChild(this);

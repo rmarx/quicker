@@ -17,13 +17,14 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
     public constructor(stream: QuicStream, parent: Http3PrioritisedElementNode, weight: number = 16) {
         super(parent, weight);
         this.stream = stream;
+        this.setParent(parent);
     }
 
     public schedule() {
         // TODO possibly set a threshold minimum amount of data so that it doesn't send, for example, a single byte
         // But make sure all buffers are emptied eventually
         if (this.bufferedData.byteLength > 0) {
-            const sendBuffer: Buffer = this.popData(Http3RequestNode.MAX_BYTES_SENT);
+            const sendBuffer: Buffer = this.popData(Http3RequestNode.CHUNK_SIZE);
             if (this.allDataBuffered === true && this.bufferedData.byteLength === 0) {
                 this.stream.end(sendBuffer);
             } else {
@@ -80,6 +81,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
             this.stream.end();
             this.removeSelf();
             this.stream.getConnection().sendPackets(); // Force sending packets FIXME QUICker cannot send empty frames yet
+            this.stream.getConnection().getQlogger().onHTTPStreamStateChanged(this.stream.getStreamId(), Http3StreamState.MODIFIED, "HALF_CLOSED");
         }
     }
     

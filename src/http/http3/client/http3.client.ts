@@ -53,6 +53,7 @@ export class Http3Client extends EventEmitter {
 
     public constructor(hostname: string, port: number) {
         super();
+
         this.onNewStream = this.onNewStream.bind(this);
         this.quickerClient = Client.connect(hostname, port);
         this.prioritiser = new Http3FIFOScheme();
@@ -79,13 +80,10 @@ export class Http3Client extends EventEmitter {
 
             this.emit(Http3ClientEvent.CLIENT_CONNECTED);
 
-            // Schedule 1 chunk of 100 bytes every 10ms
+            // Schedule 1 chunk of 1000 bytes every 10ms
             // TODO tweak numbers
             // TODO Listen to congestion control events instead
             this.scheduleTimer = setInterval(() => {
-                // for (let i = 0; i < 30; ++i) {
-                //     this.dependencyTree.schedule();
-                // }
                 this.prioritiser.schedule();
             }, 10);
         });
@@ -274,7 +272,9 @@ export class Http3Client extends EventEmitter {
 
     private setupControlStreamEvents(controlStream: Http3ReceivingControlStream) {
         controlStream.on(Http3ControlStreamEvent.HTTP3_PRIORITY_FRAME, (frame: Http3PriorityFrame) => {
-            this.quickerClient.getConnection().getQlogger().onHTTPFrame_Priority(frame, "RX");
+            if (this.logger !== undefined) {
+                this.logger.onHTTPFrame_Priority(frame, "RX");
+            }
             this.prioritiser.handlePriorityFrame(frame, controlStream.getStreamID());
             VerboseLogging.info("HTTP/3: priority frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
@@ -284,6 +284,9 @@ export class Http3Client extends EventEmitter {
         });
         controlStream.on(Http3ControlStreamEvent.HTTP3_SETTINGS_FRAME, (frame: Http3SettingsFrame) => {
             // TODO
+            if (this.logger !== undefined) {
+                this.logger.onHTTPFrame_Settings(frame, "RX");
+            }
             VerboseLogging.info("HTTP/3: settings frame received on client-sided control stream. ControlStreamID: " + controlStream.getStreamID().toDecimalString());
         });
         controlStream.on(Http3ControlStreamEvent.HTTP3_GOAWAY_FRAME, (frame: Http3GoAwayFrame) => {

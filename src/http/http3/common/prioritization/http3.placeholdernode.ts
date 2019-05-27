@@ -7,6 +7,7 @@ export class Http3PlaceholderNode extends Http3PrioritisedElementNode {
     public constructor(parent: Http3PrioritisedElementNode, placeholderID: number, weight: number = 16) {
         super(parent, weight);
         this.placeholderID = placeholderID;
+        this.setParent(parent);
     }
 
     public toJSON(): DependencyTree {

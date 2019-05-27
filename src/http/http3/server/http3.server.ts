@@ -39,7 +39,7 @@ class ClientState {
     public constructor(logger: QlogWrapper, sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
         // TODO make scheme easily swappable without changing actual server code
         this.logger = logger;
-        this.prioritiser = new Http3PMeenanScheme(logger);
+        this.prioritiser = new Http3FIFOScheme(logger);
         this.sendingControlStream = sendingControlStream;
         this.receivingControlStream = receivingControlStream;
         this.lastUsedStreamID = lastUsedStreamID;
@@ -47,13 +47,10 @@ class ClientState {
         this.qpackDecoder = qpackDecoder;
         this.frameParser = frameParser;
 
-        // Schedule 1 chunk of 100 bytes every 10ms
+        // Schedule 1 chunk of 1000 bytes every 10ms
         // TODO tweak numbers
         // TODO Listen to congestion control events instead
         this.scheduleTimer = setInterval(() => {
-            // for (let i = 0; i < 30; ++i) {
-            //     this.dependencyTree.schedule();
-            // }
             this.prioritiser.schedule();
         }, 10);
     }
