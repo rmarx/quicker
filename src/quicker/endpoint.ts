@@ -43,6 +43,7 @@ export abstract class Endpoint extends EventEmitter {
 
     protected handleError(connection: Connection, error: any): any {
         VerboseLogging.error("Endpoint:handleError : " + error.message + " -- " + JSON.stringify(error));
+        VerboseLogging.error("Endpoint:handleError : " + JSON.stringify(error.stack.toString()));
         console.log(error.stack);
 
         var closeFrame: ConnectionCloseFrame;
@@ -50,14 +51,19 @@ export abstract class Endpoint extends EventEmitter {
         if (error instanceof QuicError) {
             closeFrame = FrameFactory.createConnectionCloseFrame(error.getErrorCode(), error.getPhrase());
         } else {
-            closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR);
+            closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR, error.message + " -- " + JSON.stringify(error) + " -- " + JSON.stringify(error.stack) );
         }
         var handshakeState = connection.getQuicTLS().getHandshakeState();
         if (handshakeState === HandshakeState.CLIENT_COMPLETED || handshakeState === HandshakeState.COMPLETED) {
             packet = PacketFactory.createShortHeaderPacket(connection, [closeFrame]);
-        } else {
+        } 
+        else if( connection.getAEAD().canHandshakeEncrypt(connection.getEndpointType()) ) {
             packet = PacketFactory.createHandshakePacket(connection, [closeFrame]);
         }
+        else{
+            packet = PacketFactory.createInitialPacket(connection, [closeFrame]);
+        }
+        
         connection.sendPacket(packet, false)
         connection.setClosePacket(packet);
         connection.setState(ConnectionState.Closing);

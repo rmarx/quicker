@@ -69,7 +69,7 @@ export class Server extends Endpoint {
     private init(socketType: SocketType) {
         var server = createSocket(socketType);
         VerboseLogging.info("Server:init: Creating a socket of type " + socketType + " @ " + this.hostname);
-        server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo, undefined) });
+        server.on(QuickerEvent.NEW_MESSAGE, (msg, rinfo) => { this.onMessage(msg, rinfo) });
         server.on(QuickerEvent.CONNECTION_CLOSE, () => { this.handleClose() });
         server.bind(this.port, this.hostname);
         if (socketType === "udp4") {
@@ -93,15 +93,17 @@ export class Server extends Endpoint {
         connection.on(ConnectionEvent.BufferedPacketReadyForDecryption, (packet:BufferedPacket) => {
             // TODO: now we're going to re-parse the entire packet, but we already parsed the header... see packet.offset
             // could be optimized so we don't re-parse the headers 
-            this.onMessage( packet.packet.fullContents, undefined, packet.connection );
+            //this.onMessage( packet.packet.fullContents, undefined, packet.connection );
+            VerboseLogging.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// Server: PROCESSING BUFFERED PACKET //////////////////////////////// ");
+            VerboseLogging.info("server:BufferedPacketReadyForDecryption: raw message from the wire : " + packet.packet.fullContents.toString('hex'));
+            this.processPackets( [packet.packet], undefined, packet.connection, packet.receivedTime );
         });
     }
 
-    private onMessage(msg: Buffer, rinfo: RemoteInfo | undefined, receivingConnection: Connection | undefined): any {
+    private onMessage(msg: Buffer, rinfo: RemoteInfo | undefined): any {
         this.DEBUGmessageCounter++;
-        let DEBUGmessageNumber = this.DEBUGmessageCounter; // prevent multiple incoming packets from overriding (shouldn't happen due to single threadedness, but I'm paranoid)
         
-        VerboseLogging.debug("---------------------------------------------------////////////////////////////// Server: ON MESSAGE "+ DEBUGmessageNumber +" //////////////////////////////// " + msg.length);
+        VerboseLogging.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// Server: ON MESSAGE "+ this.DEBUGmessageCounter +" //////////////////////////////// " + msg.length);
 
         VerboseLogging.trace("server:onMessage: message length in bytes: " + msg.byteLength);
         VerboseLogging.info("server:onMessage: raw message from the wire : " + msg.toString('hex'));
@@ -126,19 +128,22 @@ export class Server extends Endpoint {
 
         // TODO: this could be easier if we just did everything in a single function/place, but that's a bigger refactor than I'm willing to commit to right now
 
-        //try {
+        try {
             packets = this.headerParser.parseShallowHeader(msg);
-        //} 
-        /*catch(err) {
-            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + JSON.stringify(rinfo) + " // " + err );
-            console.trace("Server:onMessage");
+        } 
+        catch(err) {
+            VerboseLogging.error("Server:onMessage: could not parse headers! Ignoring packet. " + err.toString()  + " // " + JSON.stringify(rinfo) + " -> " + msg.toString('hex') );
             // TODO: FIXME: properly propagate error? though, can't we just ignore this type of packet then? 
             return;
         }
-        */
 
-        VerboseLogging.trace("Server:onMessage: Message contains " + packets.length + " independent packets (we think)");
-        
+        VerboseLogging.debug("Server:onMessage: Message contains " + packets.length + " independent packets (we think)");
+
+        this.processPackets( packets!, rinfo, undefined, receivedTime );
+    }
+
+    private processPackets( packets: PartiallyParsedPacket[], rinfo: RemoteInfo | undefined, receivingConnection: Connection | undefined, receivedTime: Time ){
+
         packets.forEach((packet: PartiallyParsedPacket) => {
             let connection: Connection | undefined = undefined;
             try {
@@ -150,17 +155,26 @@ export class Server extends Endpoint {
                 connection.checkConnectionState();
                 connection.resetIdleAlarm();
 
-                let decryptedHeader:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(connection, packet, EndpointType.Client);
+                let decryptedHeaderPacket:PartiallyParsedPacket|undefined = this.headerHandler.decryptHeader(connection, packet, EndpointType.Client, receivedTime);
 
-                let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(connection, packet, EndpointType.Client);
+                if( decryptedHeaderPacket !== undefined ){
+                    let handledHeader:PartiallyParsedPacket|undefined = this.headerHandler.handle(connection, decryptedHeaderPacket, EndpointType.Client);
+                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(connection, handledHeader!, EndpointType.Client);
 
-                if( handledHeader ){
-                    let fullyDecryptedPacket: BasePacket = this.packetParser.parse(connection, packet, EndpointType.Client);
-                    //setImmediate( () => { this.packetHandler.handle(connection!, fullyDecryptedPacket, receivedTime) });
-                    this.packetHandler.handle(connection!, fullyDecryptedPacket, receivedTime);
+                    // if we call .handle() directly here, we can end up delaying packets being put on the wire
+                    // This is because NodeJS is single-threaded and uses an event-loop system. In this loop, data is put on the wire AFTER received data is processed
+                    // In our case, if we recieve many packets at once, that also take a long time to handle, each packet can generate new ones, but those are only actually sent out
+                    // when ALL of the incoming packets have been fully handled...
+                    // setImmediate() schedules the .handle() for the next iteration of the event loop, somewhat combatting this problem in practice
+                    // see also: https://rclayton.silvrback.com/scheduling-execution-in-node-js
+                    setImmediate( () => {
+                        VerboseLogging.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// Server: handling packet  //////////////////////////////// ");
+                        this.packetHandler.handle(connection!, fullyDecryptedPacket, receivedTime);
+                        VerboseLogging.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// Server: done handling packet //////////////////////////////// ");
+                    });
                 }
                 else
-                    VerboseLogging.info("Server:handle: could not decrypt packet, buffering till later");
+                    VerboseLogging.info("Server:processPackets: could not decrypt packet, buffering till later");
 
                 connection.startIdleAlarm();
             } 
@@ -169,11 +183,11 @@ export class Server extends Endpoint {
                     // Ignore when connection is undefined
                     // Only possible when a non-initial packet was received with a connection ID that is unknown to quicker
                     // TODO: handle this by buffering
-                    VerboseLogging.error("server:onMessage : message received but ignored because we only expect an INITIAL packet at this point. TODO: buffer this until the initial is received, then re-process");
+                    VerboseLogging.error("Server:processPackets : message received but ignored because we only expect an INITIAL packet at this point. TODO: buffer this until the initial is received, then re-process");
                     return;
                 }
                 else if (err instanceof QuicError && err.getErrorCode() === ConnectionErrorCodes.VERSION_NEGOTIATION_ERROR) {
-                    VerboseLogging.debug("server:onMessage : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
+                    VerboseLogging.debug("Server:processPackets : VERSION_NEGOTIATION_ERROR : unsupported version in INITIAL packet : " + err + " : re-negotiating");
                     connection = connection as Connection; // get rid of possible undefined, we check for that above
                     connection.resetConnectionState();
                     // we have received one initial, we need to keep packet numbers at 0, because next one will have pn 1 
@@ -183,7 +197,7 @@ export class Server extends Endpoint {
                     connection.sendPacket(versionNegotiationPacket);
                     return;
                 } else if (err instanceof QuickerError && err.getErrorCode() === QuickerErrorCodes.IGNORE_PACKET_ERROR) {
-                    VerboseLogging.info("server:onMessage : caught IGNORE_PACKET_ERROR : " + err);
+                    VerboseLogging.info("Server:processPackets : caught IGNORE_PACKET_ERROR : " + err);
                     return;
                 } else {
                     this.handleError(connection, err);
@@ -191,8 +205,8 @@ export class Server extends Endpoint {
                 }
             }
         });
-        
-        VerboseLogging.trace("---------------------------------------------------////////////////////////////// Server: DONE WITH MESSAGE " + DEBUGmessageNumber + " //////////////////////////////// " + msg.length);
+
+        VerboseLogging.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// Server: done processing these packets //////////////////////////////// ");
     }
 
 

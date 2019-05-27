@@ -2,9 +2,10 @@ import { VerboseLogging } from "./logging/verbose.logging";
 
 export class Constants {
 
-    public static DEBUG_fakeECN = false;
-    public static DEBUG_fakeReorder = false;
-    public static DEBUG_greaseTransportParameters = true;
+    public static DEBUG_fakeECN:boolean = false;
+    public static DEBUG_fakeReorder:boolean = false;
+    public static DEBUG_greaseTransportParameters:boolean = true;
+    public static DEBUG_packetLoss_ratio:number = 0; // set to 0 or < 0 to disable. Higher = more loss
 
     /**
      * Supported versions
@@ -26,7 +27,7 @@ export class Constants {
         'ff000014': 'ef4fb0abb47470c41befcf8031334fae485e09a0',
         'abcdef0c': 'ef4fb0abb47470c41befcf8031334fae485e09a0'
     }
-    public static readonly ALPN_LABELS = ["h3-20", "hq-19"];
+    public static readonly ALPN_LABELS = ["hq-20", "hq-19"];//["h3-20", "hq-19"];
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 

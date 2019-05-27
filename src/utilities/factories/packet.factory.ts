@@ -51,7 +51,7 @@ export class PacketFactory {
         // serverInitial: we know our own src and the client's dest
         let dstConnectionID = connection.getDestConnectionID() === undefined ? connection.getInitialDestConnectionID() : connection.getDestConnectionID();
 
-        var header = new LongHeader(LongHeaderType.Initial, dstConnectionID, connection.getSrcConnectionID(), new Bignum(0), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Initial, dstConnectionID, connection.getSrcConnectionID(), new Bignum(0), connection.getVersion(), Buffer.alloc(0));
         var initial = new InitialPacket(header, frames);
 
         let ackOnly:boolean = true;
@@ -89,7 +89,7 @@ export class PacketFactory {
      */
     public static createRetryPacket(connection: Connection, frames: BaseFrame[]): RetryPacket {
         // UPDATE-12 TODO: packet number of a retry packet MUST be set to zero https://tools.ietf.org/html/draft-ietf-quic-transport#section-4.4.2
-        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), new Bignum(-1), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Retry, connection.getDestConnectionID(), connection.getInitialDestConnectionID(), new Bignum(-1), connection.getVersion(), Buffer.alloc(0));
         return new RetryPacket(header, frames);
     }
 
@@ -101,7 +101,7 @@ export class PacketFactory {
      */
     public static createHandshakePacket(connection: Connection, frames: BaseFrame[]): HandshakePacket {
         var dstConnectionID = connection.getDestConnectionID() === undefined ? connection.getInitialDestConnectionID() : connection.getDestConnectionID();
-        var header = new LongHeader(LongHeaderType.Handshake, dstConnectionID, connection.getSrcConnectionID(), new Bignum(-1), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Handshake, dstConnectionID, connection.getSrcConnectionID(), new Bignum(-1), connection.getVersion(), Buffer.alloc(0));
         var packet = new HandshakePacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
         return packet;
@@ -110,7 +110,7 @@ export class PacketFactory {
     public static createProtected0RTTPacket(connection: Connection, frames: BaseFrame[]): Protected0RTTPacket {
         // UPDATE-12 TODO: new packet number encryption setup is needed here + extra protection
         // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.5
-        var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), new Bignum(-1), connection.getVersion());
+        var header = new LongHeader(LongHeaderType.Protected0RTT, connection.getInitialDestConnectionID(), connection.getSrcConnectionID(), new Bignum(-1), connection.getVersion(), Buffer.alloc(0));
         var packet = new Protected0RTTPacket(header, frames);
         header.setPayloadLength(packet.getFrameSizes() + Constants.DEFAULT_AEAD_LENGTH);
         return packet;

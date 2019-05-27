@@ -6,9 +6,11 @@ import { FlowControlledObject } from '../flow-control/flow.controlled';
 import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { Constants } from '../utilities/constants';
+import { VerboseLogging } from '../utilities/logging/verbose.logging';
 
 interface BufferedData {
-	data: Buffer,
+    data: Buffer,
+    offset:Bignum,
 	isFin: boolean
 };
 
@@ -16,29 +18,29 @@ export class Stream extends FlowControlledObject {
 	
 	private endpointType: EndpointType;
 	private streamID: Bignum;
-	private blockedSent: boolean;
+	private blockedSent!: boolean;
 	private streamState: StreamState;
-	private localFinalOffset!: Bignum;
-	private remoteFinalOffset!: Bignum;
-	private data: Buffer;
-	private bufferedData: { [key: string]: BufferedData };
+	private finalReceivedOffset!: Bignum;
+	private finalSentOffset!: Bignum;
+	private data!: Buffer;
+    private bufferedData!:Array<BufferedData>;
+    private bufferedDataIsSorted!:boolean;
 
 	
     public constructor(endpointType: EndpointType, streamID: Bignum, bufferSize: number = Constants.DEFAULT_MAX_STREAM_DATA) {
 		super(bufferSize);
 		this.endpointType = endpointType;
 		this.streamID = streamID;
-		this.streamState = StreamState.Open;
-		this.blockedSent = false;
-		this.data = Buffer.alloc(0);
-		this.bufferedData = {};
+        this.streamState = StreamState.Open;
+        this.reset();
 	}
 	
 	public reset(): void {
 		this.blockedSent = false;
 		this.resetOffsets();
 		this.data = Buffer.alloc(0);
-		this.bufferedData = {};
+        this.bufferedData = new Array<BufferedData>();
+        this.bufferedDataIsSorted = false;
 	}
 
 	public getStreamID(): Bignum {
@@ -63,41 +65,37 @@ export class Stream extends FlowControlledObject {
 
 	public setStreamState(state: StreamState): void {
 		this.streamState = state;
+    }
+    
+
+	public getFinalSentOffset(): Bignum {
+		return this.finalSentOffset;
 	}
 
-	public getLocalFinalOffset(): Bignum {
-		return this.localFinalOffset;
-	}
+	public setFinalSentOffset(finalOffset: Bignum): void {
+		this.finalSentOffset = finalOffset;
+    }
+    
+    public getCurrentSentOffset():Bignum {
+        return this.getRemoteOffset();
+    }
 
-	public setLocalFinalOffset(finalOffset: Bignum): void {
-		this.localFinalOffset = finalOffset;
-	}
+    public getCurrentReceivedOffset():Bignum {
+        return this.getLocalOffset();
+    }
 
-	public getRemoteFinalOffset(): Bignum {
-		return this.remoteFinalOffset;
-	}
-
-	public setRemoteFinalOffset(finalOffset: Bignum): void {
-		this.remoteFinalOffset = finalOffset;
-	}
-
-	public addData(data: Buffer, isFin = false): void {
+	public addData(newData: Buffer, isFin = false): void {
 		if (this.blockedSent) {
 			throw new Error("stream:addData: send was blocked");
-		}
-		this.data = Buffer.concat([this.data, data]);
+        }
+        
+        this.data = Buffer.concat([this.data, newData]);
+        
 		if (isFin) {
-			this.remoteFinalOffset = this.getRemoteOffset().add(this.data.byteLength);
+            // FIXME: this is not correct: if we do popData anywhere in between these addData's, the remoteOffset will be erroneous! 
+			this.finalSentOffset = this.getCurrentSentOffset().add(this.data.byteLength);
 		}
-	}
-	
-	public resetData(): void {
-		this.data = Buffer.alloc(0);
-	}
-
-	public setData(data: Buffer): void {
-		this.data = data;
-	}
+    }
 
 	public popData(size: number = this.data.byteLength): Buffer {
 		var buf = this.data.slice(0, size);
@@ -107,12 +105,6 @@ export class Stream extends FlowControlledObject {
 
 	public getOutgoingDataSize(): number {
 		return this.data.byteLength;
-	}
-
-	public getData(size: number = this.data.byteLength): Buffer {
-		var buf = Buffer.alloc(size);
-		this.data.copy(buf, 0, 0, size);
-		return buf;
 	}
 
     public isSendOnly(): boolean {
@@ -143,43 +135,120 @@ export class Stream extends FlowControlledObject {
 	}
 
 	public receiveData(data: Buffer, offset: Bignum, isFin: boolean): void {
-		if (this.localFinalOffset !== undefined && offset.add(data.byteLength).greaterThan(this.localFinalOffset)) {
-			throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR);
-		}
-		if (offset.equals(this.getLocalOffset())) {
-			this._receiveData(data, isFin);
-			this.checkBufferedData();
-		} else if (offset.greaterThan(this.getLocalOffset())) {
-			this.addBufferedData(data, offset, isFin);
-		} else {
+
+		if (this.finalReceivedOffset !== undefined && offset.add(data.byteLength).greaterThan(this.finalReceivedOffset)) {
+			throw new QuicError(ConnectionErrorCodes.FINAL_OFFSET_ERROR, "Stream:receiveData: receiving data past the end of the FIN'ed stream : " + offset.add(data.byteLength).toDecimalString() + " > " + this.finalReceivedOffset.toDecimalString() + " in stream " + this.streamID.toDecimalString() );
+        }
+
+        // Want to deal with out-of-order data AND overlapping data 
+        // to do this, we keep a list of buffered data, SORTED on offset
+        // when data comes in, we process this buffered list in offset order
+        
+        // 1. offset is exactly one more than current: which *should* always happen without loss/reordering
+		if ( offset.equals(this.getCurrentReceivedOffset()) ){
+            VerboseLogging.trace("Stream:receiveData : 1 : data exactly as expected : " + offset.toDecimalString() );
+            this.bubbleUpReceivedData(data, isFin);
+            if( !isFin )
+                this.checkBufferedData();
+            else{
+                VerboseLogging.debug("Stream:receiveData : stream delivered in-full : emptying buffered data : " + this.bufferedData.length );
+                for( let item of this.bufferedData ){
+                    VerboseLogging.debug("Stream:receiveData : stream delivered in-full : emptying buffered data : [" + item.offset.toDecimalString() + ", " + item.offset.add(item.data.byteLength).toDecimalString() + "]");
+                }
+                
+                this.bufferedData = new Array<BufferedData>();
+            }
+        } 
+        // 2. offset is "in the future" : just buffer until further notice
+        else if (offset.greaterThan(this.getCurrentReceivedOffset())) {
+            VerboseLogging.trace("Stream:receiveData : 2 : data too far ahead, buffering : " + offset.toDecimalString() );
+            this.addBufferedData(data, offset, isFin);
+            // No need to call checkBuffered here: we didn't add anything to the buffer that could trigger a proper call to this function
+        } 
+        // 3. here, it's implied that offset is < currentReceivedOffset
+        // two cases remain: either it's completely below and we discard it (3.), or it's partially below and we split the data (4.)
+        else if( offset.add(data.byteLength).lessThanOrEqual(this.getCurrentReceivedOffset()) ){
 			// Offset is smaller than local offset
-			// --> data is already received by the application, thus ignore data.
+            // --> data is already received by the application, thus ignore data.
+            VerboseLogging.debug("Stream:receiveData : 3 : data was completely below current received offset, ignoring. " + this.getCurrentReceivedOffset().toDecimalString() + " > " + offset.toDecimalString() + " and >= " + offset.add(data.byteLength).toDecimalString() );
+        }
+        //4. partial overlap, this is where it gets nasty
+        else {
+            VerboseLogging.debug("Stream:receiveData : 4 : data partially overlaps, adjusting and redoing : " + this.getCurrentReceivedOffset().toDecimalString() + " between " + offset.toDecimalString() + " and " + offset.add(data.byteLength).toDecimalString() );
+            // representation of situation: 
+            // .....................|  < current offset
+            //             |..................| < incoming data
+            // we can safely process this data first, before looking at the buffers, since this one will always contain SOME directly usable data
+            // it could be stuff that was already buffered (partially) overlaps this of course, but then it will be discardeed in 3. or processed in 4.
+
+            // example: current offset is at 15
+            //     ...........14|15
+            // incoming offset is 13
+            //     .......|13 14|15
+            // 15 - 13 = 2. Data index 2 = 15 (0 = 13, 1 = 14), so 2 is our direct index into the data buffer
+            let firstNewOffset:number = this.getCurrentReceivedOffset().subtract( offset ).toNumber();
+            let nonOverlappingData:Buffer = data.slice(firstNewOffset);
+            this.receiveData( nonOverlappingData, this.getCurrentReceivedOffset(), isFin);
+            // No need to call checkBuffered here : this *should* immediately execute 1., which processed any buffered data 
 		}
 	}
 
-	private _receiveData(data: Buffer, isFin: boolean): void {
+	private bubbleUpReceivedData(data: Buffer, isFin: boolean): void {
 		this.emit(StreamEvent.DATA, data);
-		this.addLocalOffset(data.byteLength);
+        this.addLocalOffset(data.byteLength); // addCurrentReceivedOffset
+
+        VerboseLogging.debug("Stream:bubbleUpReceivedData : new current received offset is at " + this.getCurrentReceivedOffset().toDecimalString() );
+        
         if (isFin) {
-            this.setLocalFinalOffset(this.getLocalOffset());
+            this.finalReceivedOffset = this.getCurrentReceivedOffset();
+
             if (this.getStreamState() === StreamState.Open) {
                 this.setStreamState(StreamState.LocalClosed);
-            } else if (this.getStreamState() === StreamState.RemoteClosed) {
+            } 
+            else if (this.getStreamState() === StreamState.RemoteClosed) {
                 this.setStreamState(StreamState.Closed);
-			}
+            }
+
             this.emit(StreamEvent.END);
         }
 	}
 
 
 	private checkBufferedData(): void {
-		var data = this.popBufferedData(this.getLocalOffset());
-		while (data !== undefined) {
-			this._receiveData(data.data, data.isFin)
-			data = this.popBufferedData(this.getLocalOffset());
-		}
+        // TODO: potentially best to use insertion-sort here, but since that leads to re-allocation in JS anyway, it probably doesn't matter
+        // TODO: still... test and make sure this is better optimized
+        // TODO: now, this function is also called EVERY TIME for each new buffer check, even if we know things are sorted! 
+
+        if( this.bufferedData.length === 0 )
+            return;
+
+        // logic is that we sort based on the offset, as we can only process things in-order either way
+        if( !this.bufferedDataIsSorted ){
+            // sort is in-place
+            this.bufferedData.sort( (a:BufferedData, b:BufferedData):number => {
+                return a.offset.compare( b.offset );
+            });
+        }
+
+        let firstUp = this.bufferedData[0];
+        VerboseLogging.debug("Stream:checkBufferedData : Checking candidate data " + firstUp.offset.toDecimalString() + ", length " + firstUp.data.byteLength + ". " + (this.bufferedData.length - 1) + " items left in the buffer" );
+
+        // we are fully sorted. If this offset is > what we expect, nothing behind us is going to be ready for use, so we can stop
+        // this is one of our "recursion" stop conditions
+        if( firstUp.offset.greaterThan(this.getCurrentReceivedOffset()) ){
+            VerboseLogging.debug("Stream:checkBufferedData : first candidate's offset was too large");
+            return;
+        }
+
+
+        // right here, we're sure this can be processed, 
+        // either in full (receiveData:1) or partially (receiveData:4) or discarded (receiveData:3) but never put back into the buffer (receiveData:2)
+        // that's why we have the greaterThan(this.getCurrentReceivedOffset()) above 
+        firstUp = this.bufferedData.shift()!;
+        this.receiveData( firstUp.data, firstUp.offset, firstUp.isFin );
 	}
 
+    /*
     private popBufferedData(localOffset: Bignum): BufferedData | undefined {
 		var offsetString: string = localOffset.toDecimalString();
         if (this.bufferedData[offsetString] !== undefined) {
@@ -190,16 +259,19 @@ export class Stream extends FlowControlledObject {
         }
         return undefined;
     }
+    */
 
     private addBufferedData(data: Buffer, offset: Bignum, isFin: boolean): void {
-		var offsetString: string = offset.toDecimalString();
-        if (this.bufferedData[offsetString] === undefined) {
-            this.bufferedData[offsetString] = {
-				data: data,
-				isFin: isFin
-			};
-			this.incrementBufferSizeUsed(data.byteLength);
-        }
+        
+        this.bufferedData.push( {
+            data: data,
+            offset: offset,
+            isFin: isFin
+        });
+
+        this.bufferedDataIsSorted = false;
+
+		this.incrementBufferSizeUsed(data.byteLength);
 	}
 
 	public static isLocalStream(endpointType: EndpointType, streamID: Bignum): boolean {

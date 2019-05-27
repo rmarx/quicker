@@ -17,10 +17,11 @@ import { VLIE } from '../../types/vlie';
 import { VerboseLogging } from '../logging/verbose.logging';
 import { PacketLogging } from '../logging/packet.logging';
 import { PacketNumberSpace } from '../../crypto/crypto.context';
+import { Time } from '../../types/time';
 
 export class HeaderHandler {
 
-    public decryptHeader(connection: Connection, packet: PartiallyParsedPacket, encryptingEndpoint: EndpointType): PartiallyParsedPacket | undefined {
+    public decryptHeader(connection: Connection, packet: PartiallyParsedPacket, encryptingEndpoint: EndpointType, receivedTime:Time): PartiallyParsedPacket | undefined {
         let header = packet.header;
 
         // version negotation headers do not need to be handled separately, see PacketHandler for this 
@@ -51,7 +52,7 @@ export class HeaderHandler {
                 if( !connection.getAEAD().can0RTTDecrypt(encryptingEndpoint) ) {
                     VerboseLogging.info("HeaderHandler:decryptHeader : cannot yet decrypt received 0RTT packet: buffering");
                     let ctx = connection.getEncryptionContextByHeader( header );
-                    ctx!.bufferPacket( { packet: packet, connection: connection} );
+                    ctx!.bufferPacket( { packet: packet, connection: connection, receivedTime: receivedTime} );
                     return undefined; 
                 }
                 else {
@@ -62,7 +63,7 @@ export class HeaderHandler {
                 if( !connection.getAEAD().canHandshakeDecrypt(encryptingEndpoint) ) {
                     VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received Handshake packet: buffering");
                     let ctx = connection.getEncryptionContextByHeader( header );
-                    ctx!.bufferPacket( { packet: packet, connection: connection} );
+                    ctx!.bufferPacket( { packet: packet, connection: connection, receivedTime: receivedTime} );
                     return undefined; 
                 }
                 else {
@@ -81,7 +82,7 @@ export class HeaderHandler {
             if( !connection.getAEAD().can1RTTDecrypt(encryptingEndpoint) ) {
                 VerboseLogging.info("HeaderHandler:handle : cannot yet decrypt received 1RTT packet: buffering");
                 let ctx = connection.getEncryptionContextByHeader( header );
-                ctx!.bufferPacket( { packet: packet, connection: connection} );
+                ctx!.bufferPacket( { packet: packet, connection: connection, receivedTime: receivedTime} );
                 return undefined; 
             }
             else {
@@ -115,6 +116,13 @@ export class HeaderHandler {
         let truncatedPacketNumber = new PacketNumber(packet.fullContents.slice(packet.partialHeaderLength, packet.actualHeaderLength));
 
         packet.header.setTruncatedPacketNumber( truncatedPacketNumber, new PacketNumber(new Bignum(0)) ); // FIXME: properly pass largestAcked from the proper packetnumberspace here!!!
+
+        // at this moment, packet.longHeader.payloadLength also includes the length of the packet number, so we need to remove that to get the correct payloadLength
+        // this is mainly a problem if we try to re-serialize this long header later (e.g., during tests or retransmits), so it's important we do this
+        if( packet.header.getHeaderType() === HeaderType.LongHeader ){
+            let longHeader = packet.header as LongHeader;
+            longHeader.setPayloadLength( longHeader.getPayloadLength().subtract(truncatedPacketNumber.getValue().getByteLength()) );
+        }
 
         return packet;
     }

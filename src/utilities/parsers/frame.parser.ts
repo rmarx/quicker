@@ -125,9 +125,17 @@ export class FrameParser {
     private parseClose(type: FrameTypeClose, buffer: Buffer, offset: number): FrameOffset {
         var errorCode = buffer.readUInt16BE(offset);
         offset += 2;
+
+        // FIXME: put this into the ConnectionCloseFrame as well! 
+        if (type === FrameType.CONNECTION_CLOSE) {
+            var frameType = VLIE.decode(buffer, offset);
+            offset = frameType.offset;
+        }
+
         var phraseLength = VLIE.decode(buffer, offset);
-        var phrase = buffer.toString('utf8', phraseLength.offset, phraseLength.value.toNumber());
+        var phrase = buffer.toString('utf8', phraseLength.offset, phraseLength.offset + phraseLength.value.toNumber());
         offset = phraseLength.offset + phraseLength.value.toNumber();
+ 
         if (type === FrameType.APPLICATION_CLOSE) {
             return {
                 frame: FrameFactory.createApplicationCloseFrame(errorCode, phrase),

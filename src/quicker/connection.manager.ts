@@ -90,22 +90,22 @@ export class ConnectionManager extends EventEmitter{
         };
 
         let longHeader = <LongHeader> header;
-        let headerSrcConnectionID = longHeader.getSrcConnectionID();
-        let headerDestConnectionID = longHeader.getDestConnectionID();
+        let peerSrcConnectionID = longHeader.getSrcConnectionID();
+        let peerDestConnectionID = longHeader.getDestConnectionID();
 
-        let connection = new Connection(remoteInfo, EndpointType.Server, this.serverSockets[rinfo.family], headerDestConnectionID, this.options);
+        let connection = new Connection(remoteInfo, EndpointType.Server, this.serverSockets[rinfo.family], peerDestConnectionID, this.options);
 
         // src is from the viewpoint of the server here. We choose our own, so it is random
         // the client chooses a temporary src for us (Which is called "initialDestConnectionID"), which we ourselves overwrite here
-        let srcConnectionID = ConnectionID.randomConnectionID();
-        while (srcConnectionID.toString() in Object.keys(this.connections)) {
-            srcConnectionID = ConnectionID.randomConnectionID();
+        let ourSrcConnectionID = ConnectionID.randomConnectionID();
+        while (ourSrcConnectionID.toString() in Object.keys(this.connections)) {
+            ourSrcConnectionID = ConnectionID.randomConnectionID();
         }
 
-        connection.setSrcConnectionID(srcConnectionID);
-        connection.setDestConnectionID(headerSrcConnectionID);
+        connection.setSrcConnectionID(ourSrcConnectionID);
+        connection.setDestConnectionID(peerSrcConnectionID);
 
-        VerboseLogging.info("ConnectionManager:createConnection : " + rinfo.address + ":" + rinfo.port + " (" + rinfo.family + ")  initialDest=" + headerDestConnectionID.toString() + ", server conn ID (src)=" + srcConnectionID.toString() + ", client conn ID (dst)=" + headerSrcConnectionID.toString() );
+        VerboseLogging.info("ConnectionManager:createConnection : " + rinfo.address + ":" + rinfo.port + " (" + rinfo.family + ")  initialDest=" + peerDestConnectionID.toString() + ", server conn ID (src)=" + ourSrcConnectionID.toString() + ", client conn ID (dst)=" + peerSrcConnectionID.toString() );
         VerboseLogging.debug("ConnectionManager:createConnection : current list : " + Object.keys(this.connections).map( (v:string) => v + "," ) );
         VerboseLogging.debug("ConnectionManager:createConnection : current mapped list : " + Object.keys(this.mappedConnections).map( (v:string) => v + "," ) );
 

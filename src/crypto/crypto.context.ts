@@ -7,6 +7,7 @@ import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { LossDetection } from '../loss-detection/loss.detection';
 import { PartiallyParsedPacket } from '../utilities/parsers/header.parser';
 import { Connection } from '../quicker/connection';
+import { Time } from '../types/time';
 
 export enum EncryptionLevel{
     INITIAL,
@@ -17,7 +18,8 @@ export enum EncryptionLevel{
 
 export interface BufferedPacket{
     packet: PartiallyParsedPacket,
-    connection: Connection
+    connection: Connection,
+    receivedTime:Time
 }
 
 // CryptoContext helps keep track of the different encryption levels and packet number spaces introduced in draft-13

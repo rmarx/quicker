@@ -45,17 +45,24 @@ export class ConnectionID extends BaseProperty {
         this.length = byteLength;
     }
 
-    public getValue(): Bignum {
+    // Only use the underlying Bignum directly for comparison purposes
+    // see ConnectionID.toBuffer for the explanation why
+    public getValueForComparison(): Bignum {
         return this.getProperty();
-    }
-
-    public setValue(bignum: Bignum) {
-        this.setProperty(bignum);
-        this.length = bignum.getByteLength();
     }
 
     public getByteLength(): number {
         return this.length;
+    }
+
+    public toBuffer(): Buffer {
+        // Bignum can't really deal with 0-length buffers
+        // if you pass Buffer.alloc(0) to our ConnectionID constructor, the underlying Bignum makes it into a 1-byte buffer filled with 0 (uint8)
+        // Since we really want to support 0-length connectionIDs, we need to catch that here and return a 0-length buffer here without relying on the underlying Bignum
+        if( this.getByteLength() === 0 )
+            return Buffer.alloc(0);
+        else
+            return this.getProperty().toBuffer();
     }
 
     // REFACTOR TODO: override the toBuffer() method and only include the connectionID length in there, instead of in the randomConnectionID function, see below

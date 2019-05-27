@@ -335,9 +335,11 @@ export class LossDetection extends EventEmitter {
 
         if (!this.lossDetectionAlarm.isRunning()) {
             this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, (timePassed:number) => {
+                VerboseLogging.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// LossDetection: alarm fired  //////////////////////////////// ");
                 VerboseLogging.info(this.DEBUGname + " LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
                 this.lossDetectionAlarm.reset();
                 this.onLossDetectionAlarm();
+                VerboseLogging.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// LossDetection: done handling alarm //////////////////////////////// ");
             });
             this.lossDetectionAlarm.start(alarmDuration);
         }
@@ -349,18 +351,22 @@ export class LossDetection extends EventEmitter {
      */
     public onLossDetectionAlarm(): void {
         if (this.handshakeOutstanding > 0) {
+            VerboseLogging.info(this.DEBUGname + " LossDetection:onLossDetectionAlarm Handshake");
             // Handshake retransmission alarm.
             this.retransmitAllUnackedHandshakeData();
             this.handshakeCount++;
         } else if (this.lossTime != 0) {
             // Early retransmit or Time Loss Detection
+            VerboseLogging.info(this.DEBUGname + " LossDetection:onLossDetectionAlarm Early Retransmit or time-based");
             this.detectLostPackets(this.largestAckedPacket);
         } else if (this.tlpCount < LossDetection.MAX_TLP) {
             // Tail Loss Probe.
+            VerboseLogging.info(this.DEBUGname + " LossDetection:onLossDetectionAlarm TLP, sendOne");
             this.sendOnePacket();
             this.tlpCount++;
         } else {
             // RTO
+            VerboseLogging.info(this.DEBUGname + " LossDetection:onLossDetectionAlarm RTO, sendTwo");
             if (this.rtoCount === 0) {
                 this.largestSentBeforeRto = this.largestSentPacket;
             }
@@ -395,6 +401,8 @@ export class LossDetection extends EventEmitter {
                 if (sentPacket !== undefined && sentPacket.packet.isHandshake()) {
                     this.handshakeOutstanding--;
                 }
+
+                this.retransmitPacket(packet); // TODO: maybe this should be handled in the CC, like it says before, but it wasn't being done, and other retransmit logic is on Connection, so do that for this case too
             });
         }
     }
@@ -442,8 +450,10 @@ export class LossDetection extends EventEmitter {
         while (keys.length > i) {
             if (this.sentPackets[keys[i]].packet.isRetransmittable()) {
                 
-                this.retransmitPacket(this.sentPackets[keys[i]]);
+                // remove first, because retransmitPacket can change the PacketNumber, and we wouldn't find it in our sentPackets array anymore
+                let packet = this.sentPackets[keys[i]];
                 this.removeFromSentPackets( this.sentPackets[keys[i]].packet.getHeader().getPacketNumber()!.getValue() );
+                this.retransmitPacket(packet);
                 //delete this.sentPackets[keys[i]];
                 
                 sendCount++;
@@ -459,15 +469,25 @@ export class LossDetection extends EventEmitter {
         Object.keys(this.sentPackets).forEach((key: string) => {
             if (this.sentPackets[key].packet.isHandshake()) {
                 //delete this.sentPackets[key];
-                this.retransmitPacket(this.sentPackets[key]);
+                // remove first, because retransmitPacket can change the PacketNumber, and we wouldn't find it in our sentPackets array anymore
+                let packet = this.sentPackets[key];
                 this.removeFromSentPackets( this.sentPackets[key].packet.getHeader().getPacketNumber()!.getValue() );
+                this.retransmitPacket(packet);
             }
         });
     }
 
-    private retransmitPacket(sentPacket: SentPacket) {
-        if (sentPacket.packet.isRetransmittable()) {
-            this.emit(LossDetectionEvents.RETRANSMIT_PACKET, sentPacket.packet);
+    private retransmitPacket(packet: SentPacket):void;
+    private retransmitPacket(packet: BasePacket):void;
+    private retransmitPacket(packet:any):void {
+        let p:BasePacket;
+        if( packet instanceof BasePacket )
+            p = packet;
+        else
+            p = packet.packet;
+
+        if (p.isRetransmittable()) {
+            this.emit(LossDetectionEvents.RETRANSMIT_PACKET, p);
         }
     }
 

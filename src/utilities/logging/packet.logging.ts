@@ -128,6 +128,9 @@ export class PacketLogging {
         var log = "";
         var header = basePacket.getHeader();
 
+        if( basePacket.DEBUG_wasRetransmitted ){
+            log += this.getSpaces(2) + color + "RETRANSMITTED from " + basePacket.DEBUG_originalPacketNumber.getValue().toDecimalString() + ConsoleColor.Reset + "\n";
+        }
         log += this.getSpaces(2) + color + direction + " " + PacketType[basePacket.getPacketType()] + "(0x" + basePacket.getPacketType() + ")" + ConsoleColor.Reset;
         
         if (header.getHeaderType() === HeaderType.LongHeader) {
