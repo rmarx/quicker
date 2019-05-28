@@ -82,18 +82,20 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
-        // TODO Test to make sure payload isnt longer than 2^53 bytes
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.getEncodedLength());
+        const type: Buffer = VLIE.encode(this.getFrameType());
+        const encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
 
+        // TODO Test to make sure payload isnt longer than 2^53 bytes
+        let buffer: Buffer = Buffer.alloc(type.byteLength + encodedLength.byteLength + this.getEncodedLength());
         let offset: number = 0;
 
-        // Length
-        encodedLength.copy(buffer);
-        offset += encodedLength.byteLength;
-
         // Frametype
-        buffer.writeUInt8(this.getFrameType(), offset++);
+        type.copy(buffer, offset);
+        offset += type.byteLength;
+
+        // Length
+        encodedLength.copy(buffer, offset);
+        offset += encodedLength.byteLength;
 
         // Payload
         // First byte: 2 bits PET - 2 bits EDT - 4 bits empty

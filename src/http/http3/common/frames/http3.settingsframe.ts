@@ -15,19 +15,22 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         super();
         this.settingsParameters = settingsParameters;
     }
-    
+
     public static fromPayload(buffer: Buffer, offset: number = 0): Http3SettingsFrame {
         const [params, bufferOffset] = Http3SettingsFrame.parseParameters(buffer, offset);
         return new Http3SettingsFrame(params);
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.getEncodedLength());
+        const type: Buffer = VLIE.encode(this.getFrameType());
+        const encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
 
-        encodedLength.copy(buffer);
-        buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
-        this.payloadtoBuffer().copy(buffer, encodedLength.byteLength + 1);
+        let buffer: Buffer = Buffer.alloc(type.byteLength + encodedLength.byteLength + this.getEncodedLength());
+
+        // Copy contents to buffer
+        type.copy(buffer);
+        encodedLength.copy(buffer, type.byteLength);
+        this.payloadtoBuffer().copy(buffer, type.byteLength + encodedLength.byteLength);
 
         return buffer;
     }
@@ -46,7 +49,7 @@ export class Http3SettingsFrame extends Http3BaseFrame {
     public getFrameType(): Http3FrameType {
         return Http3FrameType.SETTINGS;
     }
-    
+
     public getSettings(): Http3Setting[] {
         return this.settingsParameters;
     }
@@ -56,7 +59,7 @@ export class Http3SettingsFrame extends Http3BaseFrame {
         const params: Http3Setting[] = [];
         while (offset < buffer.byteLength) {
             [param, offset] = this.parseParameter(buffer, offset);
-            params.push(param); 
+            params.push(param);
         }
         return [params, offset];
     }

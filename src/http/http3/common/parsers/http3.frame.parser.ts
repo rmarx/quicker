@@ -35,9 +35,6 @@ export class Http3FrameParser {
         // TODO catch error out of range and return all completely parsed frames and parsedOffset
         while(offset < buffer.byteLength) {
             // TODO Safety checks before parsing to make sure format is valid
-            let lengthVlie: VLIEOffset = VLIE.decode(buffer, offset);
-            let length: Bignum = lengthVlie.value;
-            offset = lengthVlie.offset;
 
             // let frameType: number = buffer.readUInt8(offset++);
             const frameTypeVlie: VLIEOffset = VLIE.decode(buffer, offset);
@@ -47,6 +44,10 @@ export class Http3FrameParser {
             if (frameTypeEnum === undefined) {
                 throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME);
             }
+
+            let lengthVlie: VLIEOffset = VLIE.decode(buffer, offset);
+            let length: Bignum = lengthVlie.value;
+            offset = lengthVlie.offset;
 
             // TODO From offset to offset + length BUT length is bignum
             // Risk downcast to number?

@@ -11,15 +11,11 @@ export class Http3DuplicatePushFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + VLIE.getEncodedByteLength(this.pushID));
+        const type: Buffer = VLIE.encode(this.getFrameType());
+        const encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
+        const pushID: Buffer = VLIE.encode(this.pushID);
 
-        encodedLength.copy(buffer);
-        buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
-        const pushID = VLIE.encode(this.pushID);
-        pushID.copy(buffer, encodedLength.byteLength + 1);
-
-        return buffer;
+        return Buffer.concat([type, encodedLength, pushID]);
     }
 
     public getEncodedLength(): number {

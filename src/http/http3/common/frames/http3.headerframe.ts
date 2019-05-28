@@ -24,7 +24,7 @@ export class Http3HeaderFrame extends Http3BaseFrame {
         const payload: Buffer = this.encode();
         const encodedLength: Buffer = VLIE.encode(payload.byteLength);
 
-        return Buffer.concat([encodedLength, frameType, payload]);
+        return Buffer.concat([frameType, encodedLength, payload]);
     }
 
     public static fromPayload(buffer: Buffer, requestStreamID: Bignum, encoder: Http3QPackEncoder, decoder: Http3QPackDecoder): Http3HeaderFrame {

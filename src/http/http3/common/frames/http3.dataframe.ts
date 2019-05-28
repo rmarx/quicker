@@ -11,20 +11,23 @@ export class Http3DataFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + this.payload.byteLength);
+        const type: Buffer = VLIE.encode(this.getFrameType());
+        const encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
 
-        encodedLength.copy(buffer);
-        buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
-        this.payload.copy(buffer, encodedLength.byteLength + 1);
+        let buffer: Buffer = Buffer.alloc(type.byteLength + encodedLength.byteLength + this.payload.byteLength);
+
+        // Copy contents to buffer
+        type.copy(buffer);
+        encodedLength.copy(buffer, type.byteLength);
+        this.payload.copy(buffer, type.byteLength + encodedLength.byteLength);
 
         return buffer;
     }
-    
+
     public static fromPayload(payload: Buffer): Http3DataFrame {
         return new Http3DataFrame(payload);
     }
-    
+
     public getPayload(): Buffer {
         return this.payload;
     }

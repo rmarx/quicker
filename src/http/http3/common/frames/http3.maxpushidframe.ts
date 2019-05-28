@@ -11,15 +11,11 @@ export class Http3MaxPushIDFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + VLIE.getEncodedByteLength(this.maxPushID));
+        const type: Buffer = VLIE.encode(this.getFrameType());
+        const encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
+        const maxPushID: Buffer = VLIE.encode(this.maxPushID);
 
-        encodedLength.copy(buffer);
-        buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
-        const maxPushID = VLIE.encode(this.maxPushID);
-        maxPushID.copy(buffer, encodedLength.byteLength + 1);
-
-        return buffer;
+        return Buffer.concat([type, encodedLength, maxPushID]);
     }
 
     public getEncodedLength(): number {

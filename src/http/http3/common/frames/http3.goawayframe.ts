@@ -11,15 +11,11 @@ export class Http3GoAwayFrame extends Http3BaseFrame {
     }
 
     public toBuffer(): Buffer {
-        let encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
-        let buffer: Buffer = Buffer.alloc(encodedLength.byteLength + 1 + VLIE.getEncodedByteLength(this.streamID));
+        const type: Buffer = VLIE.encode(this.getFrameType());
+        const encodedLength: Buffer = VLIE.encode(this.getEncodedLength());
+        const streamID: Buffer = VLIE.encode(this.streamID);
 
-        encodedLength.copy(buffer);
-        buffer.writeUInt8(this.getFrameType(), encodedLength.byteLength);
-        const streamID = VLIE.encode(this.streamID);
-        streamID.copy(buffer, encodedLength.byteLength + 1);
-
-        return buffer;
+        return Buffer.concat([type, encodedLength, streamID]);
     }
     
     public static fromPayload(payload: Buffer, offset: number = 0): Http3GoAwayFrame {
