@@ -16,7 +16,8 @@ export class Constants {
 
     public static readonly LOG_TYPE = "stdout";
     public static          LOG_LEVEL = 'debug';
-    public static          LOG_FILE_NAME  = 'server.log';
+    public static          LOG_FILE_NAME: string = 'server.log';
+    public static          QLOG_FILE_NAME?: string;
     public static readonly LOG_LARGE_BUFFER_DATA = true;
     public static readonly MAX_LOG_FILE_SIZE = 20971520; 
 
@@ -27,7 +28,7 @@ export class Constants {
         'ff000014': 'ef4fb0abb47470c41befcf8031334fae485e09a0',
         'abcdef0c': 'ef4fb0abb47470c41befcf8031334fae485e09a0'
     }
-    public static readonly ALPN_LABELS = ["hq-20", "hq-19"];//["h3-20", "hq-19"];
+    public static readonly ALPN_LABELS = ["h3-20"];//["h3-20", "hq-19"];
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 
@@ -63,7 +64,7 @@ export class Constants {
     public static readonly DEFAULT_MAX_DATA = 5000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
     public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
     public static readonly DEFAULT_MAX_ACK_DELAY = 25; // ms
-    public static readonly DEFAULT_IDLE_TIMEOUT = 10;
+    public static readonly DEFAULT_IDLE_TIMEOUT = 600;
     public static readonly DEFAULT_MAX_PACKET_SIZE = 65527;
     public static readonly DEFAULT_DISABLE_MIGRATION = false;
     public static readonly DEFAULT_ACTIVE_CONNECTION_ID_LIMIT = 0;
@@ -103,4 +104,8 @@ export class Constants {
         return salt;
     }
 
+    /**
+     * HTTP/3
+     */
+    public static EXPOSED_SERVER_DIR?: string; // subdirectory of public/ that will be exposed to clients, just exposes public/ if left undefined
 }

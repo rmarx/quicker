@@ -6,6 +6,7 @@ import { Http3PrioritisedElementNode } from "../http3.prioritisedelementnode";
 import { Http3RequestNode } from "../http3.requestnode";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 export class Http3FIFOScheme extends Http3PriorityScheme {
     private tailStreamID?: Bignum;
@@ -31,7 +32,7 @@ export class Http3FIFOScheme extends Http3PriorityScheme {
         });
     }
 
-    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
+    public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
         let priorityFrame;
         if (this.tailStreamID === undefined) {
             this.dependencyTree.moveStreamToRoot(streamID);

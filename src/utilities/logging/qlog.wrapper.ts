@@ -57,7 +57,11 @@ export class QlogWrapper{
         let vantagePoint:qlog.VantagePoint = (endpointType === EndpointType.Client) ? qlog.VantagePoint.CLIENT : qlog.VantagePoint.SERVER;
         
         this.logger = getLogger("qlog");
-        this.logger.addContext("ID", connectionID + "_" + vantagePoint); // so we can split logs based on the connectionID, see VerboseLogging:ctor
+        if (Constants.QLOG_FILE_NAME !== undefined) {
+            this.logger.addContext("ID", Constants.QLOG_FILE_NAME);
+        } else {
+            this.logger.addContext("ID", connectionID + "_" + vantagePoint); // so we can split logs based on the connectionID, see VerboseLogging:ctor
+        }
         this.logger.level = Constants.LOG_LEVEL;
 
         this.startTime = (new Date()).getTime();

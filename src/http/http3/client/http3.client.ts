@@ -24,6 +24,7 @@ import { Http3BaseFrame } from "../common/frames/http3.baseframe";
 import { parseHttp3Message } from "../common/parsers/http3.message.parser";
 import { Http3Message } from "../common/http3.message";
 import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme } from "../common/prioritization/schemes/index"
+import { Http3RequestMetadata } from "./http3.requestmetadata";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
@@ -160,7 +161,7 @@ export class Http3Client extends EventEmitter {
     }
 
     // Returns streamID of requeststream
-    public get(path: string, weight: number = 16): Bignum {
+    public get(path: string, weight: number = 16, metadata?: Http3RequestMetadata): Bignum {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -208,7 +209,12 @@ export class Http3Client extends EventEmitter {
         }
 
         this.prioritiser.addStream(stream);
-        let priorityFrame: Http3PriorityFrame | null= this.prioritiser.applyScheme(stream.getStreamId(), fileExtension);
+        let priorityFrame: Http3PriorityFrame | null;
+        if (metadata !== undefined) {
+            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), metadata);
+        } else {
+            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {extension: fileExtension});
+        }
         if (priorityFrame !== null) {
             if (this.logger !== undefined) {
                 this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
@@ -226,6 +232,13 @@ export class Http3Client extends EventEmitter {
 
         stream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
             bufferedData = Buffer.concat([bufferedData, data]);
+            if (this.logger !== undefined) {
+                this.logger.onHTTPDataChunk(
+                    stream.getStreamId(), 
+                    data.byteLength, 
+                    priorityFrame !== null ? priorityFrame.getWeight() : weight,
+                    "RX");
+            }
         });
         stream.on(QuickerEvent.STREAM_END, () => {
             if (this.logger !== undefined) {

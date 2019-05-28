@@ -36,10 +36,10 @@ class ClientState {
     private qpackDecoder: Http3QPackDecoder;
     private frameParser: Http3FrameParser;
 
-    public constructor(logger: QlogWrapper, sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream) {
+    public constructor(logger: QlogWrapper, sendingControlStream: Http3SendingControlStream, lastUsedStreamID: Bignum, qpackEncoder: Http3QPackEncoder, qpackDecoder: Http3QPackDecoder, frameParser: Http3FrameParser, receivingControlStream?: Http3ReceivingControlStream, scheme: string = "client") {
         // TODO make scheme easily swappable without changing actual server code
         this.logger = logger;
-        this.prioritiser = new Http3FIFOScheme(logger);
+        this.prioritiser = this.stringToScheme(scheme, logger);
         this.sendingControlStream = sendingControlStream;
         this.receivingControlStream = receivingControlStream;
         this.lastUsedStreamID = lastUsedStreamID;
@@ -98,10 +98,37 @@ class ClientState {
     public getFrameParser(): Http3FrameParser {
         return this.frameParser;
     }
+
+    private stringToScheme(schemename: string, logger?: QlogWrapper): Http3PriorityScheme {
+        switch(schemename) {
+            case "rr":
+                return new Http3RoundRobinScheme(logger);
+            case "wrr":
+                return new Http3WeightedRoundRobinScheme(logger);
+            case "fifo":
+                return new Http3FIFOScheme(logger);
+            case "dfifo":
+                return new Http3DynamicFifoScheme(logger);
+            case "firefox":
+                return new Http3FirefoxScheme(logger);
+            case "p+":
+                return new Http3ParallelPlusScheme(logger);
+            case "s+":
+                return new Http3SerialPlusScheme(logger);
+            case "pmeenan":
+                return new Http3PMeenanScheme(logger);
+            case "client":
+                return new Http3ClientSidedScheme(logger);
+            default:
+                // TODO create appropriate error type
+                throw new Error("HTTP/3 scheme type unknown. Type give: " + schemename);
+        }
+    }
 }
 
 export class Http3Server {
     private readonly quickerServer: QuicServer;
+    private prioritizationSchemeName?: string;
 
     // GET Paths that have a user function mapped to them
     private handledGetPaths: { [path: string]: (req: Http3Request, res: Http3Response) => Promise<void>; } = {};
@@ -109,7 +136,7 @@ export class Http3Server {
 
     private connectionStates: Map<string, ClientState> = new Map<string, ClientState>();
 
-    public constructor(keyFilepath?: string, certFilepath?: string) {
+    public constructor(keyFilepath?: string, certFilepath?: string, prioritizationSchemeName?: string) {
         this.onNewConnection = this.onNewConnection.bind(this);
         this.onNewStream = this.onNewStream.bind(this);
         this.handleRequest = this.handleRequest.bind(this);
@@ -123,6 +150,7 @@ export class Http3Server {
             };
             this.quickerServer = QuicServer.createServer(options);
         }
+        this.prioritizationSchemeName = prioritizationSchemeName;
 
         this.quickerServer.on(QuickerEvent.NEW_STREAM, this.onNewStream);
         this.quickerServer.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
@@ -176,6 +204,8 @@ export class Http3Server {
             qpackEncoder,
             qpackDecoder,
             new Http3FrameParser(qpackEncoder, qpackDecoder, connection.getQlogger()),
+            undefined,
+            this.prioritizationSchemeName,
         ));
 
         VerboseLogging.info("DEBUG: A new HTTP/3 client has connected!");
@@ -349,7 +379,7 @@ export class Http3Server {
             if (methodHandled) {
                 // Respond and close stream
                 const fileExtension: string = res.getFileExtension().split(".")[1];
-                state.getPrioritiser().applyScheme(quicStream.getStreamId(), fileExtension);
+                state.getPrioritiser().applyScheme(quicStream.getStreamId(), {extension: fileExtension});
                 state.getPrioritiser().addData(quicStream.getStreamId(), res.toBuffer());
                 state.getPrioritiser().finishStream(quicStream.getStreamId());
             }

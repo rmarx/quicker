@@ -6,6 +6,7 @@ import { Http3QPackDecoder } from "./qpack/http3.qpackdecoder";
 import { Http3Header } from "./qpack/types/http3.header";
 import { Bignum } from "../../../types/bignum";
 import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
+import { Constants } from "../../../utilities/constants";
 
 export class Http3Response {
     private ready: boolean = false;
@@ -13,18 +14,24 @@ export class Http3Response {
     private filePath?: string;
     private headerFrame: Http3HeaderFrame;
     // -> Content-Type
+    private publicDir: string;
 
     public constructor(headers: Http3Header[], requestStreamID: Bignum, encoder: Http3QPackEncoder, decoder: Http3QPackDecoder) {
         this.headerFrame = new Http3HeaderFrame(headers, requestStreamID, encoder);
+        if (Constants.EXPOSED_SERVER_DIR === undefined) {
+            this.publicDir = "/../../../../public";
+        } else {
+            this.publicDir = "/../../../../public/" + Constants.EXPOSED_SERVER_DIR;
+        }
     }
 
     public toBuffer(): Buffer {
         let buffer: Buffer = this.headerFrame.toBuffer();
 
         if (this.filePath !== undefined) {
-            let absoluteFilePath = this.parsePath(resolve(__dirname) + "/../../../../public" + this.filePath);
+            let absoluteFilePath = this.parsePath(resolve(__dirname) + this.publicDir + this.filePath);
             if (!existsSync(absoluteFilePath)) {
-                absoluteFilePath = resolve(__dirname) + "/../../../../public/notfound.html";
+                absoluteFilePath = resolve(__dirname) + this.publicDir + "/notfound.html";
                 this.setStatus(404);
             } else {
                 this.setStatus(200);
@@ -98,9 +105,9 @@ export class Http3Response {
     }
 
     public getFileExtension(): string {
-        let absoluteFilePath = this.parsePath(resolve(__dirname) + "/../../../../public" + this.filePath);
+        let absoluteFilePath = this.parsePath(resolve(__dirname) + this.publicDir + this.filePath);
         if (!existsSync(absoluteFilePath)) {
-            absoluteFilePath = resolve(__dirname) + "/../../../../public/notfound.html";
+            absoluteFilePath = resolve(__dirname) + this.publicDir + "/notfound.html";
         }
         return extname(absoluteFilePath);
     }

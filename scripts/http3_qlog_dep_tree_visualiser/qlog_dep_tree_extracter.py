@@ -30,6 +30,10 @@ if executeFix:
 with open(filename, "r") as log:
     json_data = json.load(log)
 
+# Just a few random colours for each stream. If there are more streams than there are colours, the program will throw an index out of range exception
+colours = ["#e1d5e7", "#fff2cc", "#d5e8d4", "#f8cecc", "#dae8fc", "#fad7ac", "#f5b449", "#3971ed", "#1ba29b", "#285577"]
+border_colours = ["#9f7fae", "#dabd65", "#86b56c", "#b85450", "#7998c5", "#b46504", "#3971ed", "#f5b449", "#d41a1a", "#74508d"]
+
 dep_trees = []
 timestamps = []
 triggers = []
@@ -52,6 +56,17 @@ def get_edges(tree_dict, index, parent=None):
 
 dotFormattedTrees = ["" for i in range(len(dep_trees))]
 
+def extract_stream_ids(dep_tree):
+    stream_ids = []
+    for child in dep_tree["children"]:
+        stream_ids += extract_stream_ids(child)
+    if (dep_tree["type"] == "Request"):
+        stream_ids.append(dep_tree["id"])
+    return stream_ids
+
+def hexToColor(hex):
+    return ""
+
 counter = 0
 for dep_tree in dep_trees:
     get_edges(dep_tree, counter)
@@ -62,9 +77,15 @@ for dep_tree in dep_trees:
     jsonOutput.close()
 
     # Dump edge list in Graphviz DOT format
-    dotFormattedTrees[counter] += 'strict digraph tree {\n    Root_ROOT [root=Root_ROOT]\n'
+    dotFormattedTrees[counter] += "strict digraph tree {\n\tRoot_ROOT [root=Root_ROOT];\n"
+
+    # Colouring
+    stream_ids =  extract_stream_ids(dep_tree)
+    for stream_id in stream_ids:
+        dotFormattedTrees[counter] += '\tRequest_' + stream_id + ' [style=filled,fillcolor="' + colours[int(stream_id) // 4] + '", color="' + border_colours[int(stream_id) // 4] + '"];\n'
+
     for row in dep_tree_edges[counter]:
-        dotFormattedTrees[counter] += '    {0} -> {1};'.format(*row) + "\n"
+        dotFormattedTrees[counter] += '\t{0} -> {1};'.format(*row) + "\n"
     dotFormattedTrees[counter] += '}'
     print(dotFormattedTrees[counter])
     counter += 1

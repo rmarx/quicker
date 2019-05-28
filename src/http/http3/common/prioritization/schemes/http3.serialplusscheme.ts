@@ -6,6 +6,7 @@ import { Http3PrioritisedElementNode } from "../http3.prioritisedelementnode";
 import { Http3RequestNode } from "../http3.requestnode";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 enum PriorityGroup {
     HIGH,
@@ -59,8 +60,8 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
     }
 
     // Does not work client-sided, requires multiple frames as the weight the medium priority branch sometimes has to be changed
-    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
-        switch(this.getPriorityGroup(fileExtension)) {
+    public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
+        switch(this.getPriorityGroup(metadata)) {
             case PriorityGroup.HIGH:
                 if (this.highPriorityTailID !== undefined) {
                     this.dependencyTree.moveStreamToStream(streamID, this.highPriorityTailID);
@@ -79,36 +80,55 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
                 this.mediumPriorityTailID = streamID;
                 break;
             case PriorityGroup.LOW:
-                this.dependencyTree.moveStreamToPlaceholder(streamID, this.getLowPriorityPlaceholderID(fileExtension));
+                this.dependencyTree.moveStreamToPlaceholder(streamID, this.getLowPriorityPlaceholderID(metadata));
         }
         return null;
     }
 
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum) {}
 
-    private getPriorityGroup(extension: string): PriorityGroup {
-        // TODO incomplete
-        switch(extension) {
-            case "html":
-            case "ttf": // TODO Fonts in general
-            case "ccs":
-            case "js": // TODO Differentiate between head and body js
-                return PriorityGroup.HIGH;
-            default:
-                return PriorityGroup.LOW;
+    private getLowPriorityPlaceholderID(metadata: Http3RequestMetadata): number {
+        if (metadata.isPreload === true) {
+            return this.speculativePlaceholderID;
         }
-    }
-    private getLowPriorityPlaceholderID(extension: string): number {
-        // TODO incomplete
-        switch(extension) {
+
+        switch(metadata.extension) {
+            case "html":
             case "png":
             case "jpg":
             case "jpeg":
             case "ico":
-            case "gif":
+            case "ttf":
+            case "woff":
                 return this.followersPlaceholderID;
             default:
                 return this.backgroundPlaceholderID;
+        }
+    }
+
+    private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
+        if (metadata.extension === "js") {
+            if (metadata.isDefer === true || metadata.isAsync === true) {
+                return PriorityGroup.MEDIUM;
+            } else {
+                return PriorityGroup.HIGH;
+            }
+        } else if (metadata.isPreload === true) {
+            return PriorityGroup.LOW;
+        }
+        switch(metadata.extension) {
+            case "html":
+            case "png":
+            case "jpg":
+            case "jpeg":
+            case "ico":
+            case "ttf":
+            case "woff":
+                return PriorityGroup.LOW;
+            case "ccs":
+                return PriorityGroup.HIGH;
+            default:
+                return PriorityGroup.LOW;
         }
     }
 }

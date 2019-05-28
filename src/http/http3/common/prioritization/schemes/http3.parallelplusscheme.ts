@@ -6,6 +6,7 @@ import { Http3PrioritisedElementNode } from "../http3.prioritisedelementnode";
 import { Http3RequestNode } from "../http3.requestnode";
 import { Http3PriorityFrame } from "../../frames";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 enum PriorityGroup {
     HIGH,
@@ -46,8 +47,8 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
     }
 
     // Does not work client-sided as multiple frames might be needed for a single action
-    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
-        switch(this.getFileExtensionPriority(fileExtension)) {
+    public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
+        switch(this.getPriorityGroup(metadata)) {
             case PriorityGroup.HIGH:
                 if (this.highPriorityTailID !== undefined) {
                     this.dependencyTree.moveStreamToStream(streamID, this.highPriorityTailID);
@@ -72,12 +73,24 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
 
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void {}
 
-    private getFileExtensionPriority(extension: string): PriorityGroup {
-        switch(extension) {
+    private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
+        // TODO missing XHR -> should be HIGH
+        // TODO missing server push -> should be LOWEST
+        if (metadata.extension === "js") {
+            if (metadata.isAsync === true || metadata.isDefer === true) {
+                return PriorityGroup.LOW;
+            }
+            else if (metadata.isBeforeFirstImage === true) {
+                return PriorityGroup.HIGH;
+            } else {
+                return PriorityGroup.NORMAL;
+            }
+        }
+        switch(metadata.extension) {
             case "html":
             case "css":
             case "ttf": // TODO Fonts in general
-            case "js": // TODO Prior to first image should be high, after should be normal -> no semantics for this yet
+            case "woff":
                 return PriorityGroup.HIGH;
             default:
                 return PriorityGroup.LOW;

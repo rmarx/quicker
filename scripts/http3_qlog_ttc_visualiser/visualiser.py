@@ -63,7 +63,15 @@ metadata.sort(key=itemgetter(0))
 filenames = [str(i[0]) + ": " + str(i[2]) for i in metadata]
 time_values = [i[1] for i in metadata]
 
-axis.bar(filenames, time_values, width=0.5)
+bar_list = axis.bar(filenames, time_values, width=0.5)
+
+# Just a few random colours for each stream. If there are more streams than there are colours, the program will throw an index out of range exception
+colours = ["#e1d5e7", "#fff2cc", "#d5e8d4", "#f8cecc", "#dae8fc", "#fad7ac", "#f5b449", "#3971ed", "#1ba29b", "#285577"]
+border_colours = ["#9f7fae", "#dabd65", "#86b56c", "#b85450", "#7998c5", "#b46504", "#3971ed", "#f5b449", "#d41a1a", "#74508d"]
+
+for index, bar in enumerate(bar_list):
+    bar.set_color(colours[index])
+    bar.set_edgecolor(border_colours[index])
 
 rects = axis.patches
 

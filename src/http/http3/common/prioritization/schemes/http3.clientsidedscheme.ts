@@ -4,6 +4,7 @@ import { Bignum } from "../../../../../types/bignum";
 import { Http3PriorityFrame } from "../../frames";
 import { Http3PriorityScheme } from ".";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 export class Http3ClientSidedScheme extends Http3PriorityScheme {
     public constructor(logger?: QlogWrapper) {
@@ -11,7 +12,7 @@ export class Http3ClientSidedScheme extends Http3PriorityScheme {
     }
 
     // This scheme does not do its own prioritization
-    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
+    public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
         return null;
     }
 

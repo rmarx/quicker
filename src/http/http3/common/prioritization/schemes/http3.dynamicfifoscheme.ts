@@ -7,6 +7,7 @@ import { Http3RequestNode } from "../http3.requestnode";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
 import { VerboseLogging } from "../../../../../utilities/logging/verbose.logging";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 enum PriorityGroup {
     HIGHEST,
@@ -74,8 +75,8 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     }
 
     // Does not work for client-sided prioritization!
-    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
-        const priority: PriorityGroup = this.getFileExtensionPriority(fileExtension);
+    public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
+        const priority: PriorityGroup = this.getPriorityGroup(metadata);
         const priorityGroupTail: Bignum | undefined = this.getPriorityGroupTail(priority);
         const weight: number = this.getPriorityGroupWeight(priority);
 
@@ -135,16 +136,28 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
         }
     }
 
-    private getFileExtensionPriority(extension: string): PriorityGroup {
-        switch(extension) {
+    private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
+        // TODO missing XHR -> should be HIGH
+        // TODO missing server push -> should be LOWEST
+        if (metadata.extension === "js") {
+            if (metadata.isAsync === true || metadata.isDefer === true) {
+                return PriorityGroup.LOW;
+            }
+            else if (metadata.isBeforeFirstImage === true) {
+                return PriorityGroup.HIGH;
+            } else {
+                return PriorityGroup.NORMAL;
+            }
+        }
+        switch(metadata.extension) {
             case "html":
             case "css":
             case "ttf": // TODO Fonts in general
+            case "woff":
                 return PriorityGroup.HIGHEST;
-            case "js": // TODO Prior to first image should be high, after should be normal -> no semantics for this yet
-                return PriorityGroup.HIGH;
             case "png":
             case "jpg":
+            case "jpeg":
             case "gif":
                 return PriorityGroup.LOW;
             default:

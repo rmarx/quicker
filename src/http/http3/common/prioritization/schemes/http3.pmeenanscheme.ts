@@ -6,6 +6,7 @@ import { Bignum } from "../../../../../types/bignum";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
 import { Http3PMeenanNode, Http3PMeenanNodeEvent } from "./http3.pmeenannode";
 import { VerboseLogging } from "../../../../../utilities/logging/verbose.logging";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 export class Http3PMeenanScheme extends Http3PriorityScheme {
     private static readonly BUCKET_COUNT: number = 64;
@@ -39,11 +40,11 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
         this.unprioritisedStreams.set(requestStream.getStreamId().toString(), requestStream);
     }
 
-    public applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null {
+    public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
         const requestStream: QuicStream | undefined = this.unprioritisedStreams.get(streamID.toString());
         if (requestStream !== undefined) {
             this.unprioritisedStreams.delete(streamID.toString());
-            const [priority, concurrency]: [number, number] = this.metadataToBucket(fileExtension);
+            const [priority, concurrency]: [number, number] = this.metadataToBucket(metadata);
             
             this.buckets[priority].addStream(requestStream, priority, concurrency);
             this.streamIdToBucketMap.set(streamID.toString(), priority);
@@ -132,24 +133,38 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
         }
     }
 
-    private metadataToBucket(extension: string): [number, number] {
-        // FIXME Incomplete + use other metadata instead of just extension
-        switch(extension) {
+    private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
+        if (metadata.isCritical === true) {
+            return [63, 3];
+        } else if (metadata.extension === "js" || metadata.isAsync === true || metadata.isDefer === true) {
+            return [31, 2];
+        }
+
+        switch(metadata.extension) {
+            case "ttf":
+            case "woff":
+                if (metadata.isPreload === true) {
+                    return [31, 2];
+                } else {
+                    return [63, 2];
+                }
             case "css":
             case "js":
-                return [63, 3];
-            case "ttf":
-                return [63, 2];
+                return [31, 3]; // Non critical
             case "png":
             case "jpeg":
             case "jpg":
             case "gif":
-                return [31, 1];
+                if (metadata.isAboveTheFold === true) {
+                    return [63, 1]; // visible
+                } else {
+                    return [31, 1];
+                }
             case "html":
                 return [31, 2];
             case "mp4":
             case "webm":
-                return [31, 3];
+                return [31, 1];
             default: 
                 return [0, 2];
         }

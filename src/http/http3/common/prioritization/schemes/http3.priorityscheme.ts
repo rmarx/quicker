@@ -3,6 +3,7 @@ import { QuicStream } from "../../../../../quicker/quic.stream";
 import { Bignum } from "../../../../../types/bignum";
 import { Http3PriorityFrame } from "../../frames";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
+import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 export abstract class Http3PriorityScheme {
     protected dependencyTree: Http3DependencyTree;
@@ -25,7 +26,7 @@ export abstract class Http3PriorityScheme {
     // TODO expand to be more than just extension and mimetype rather than filetype
     // Null if multiple priority frames would be needed -> Can not be used over the wire e.g. exclusive prioritization emulation
     // Returns the Priorityframe that should be sent to the server if using client-sided prioritization
-    public abstract applyScheme(streamID: Bignum, fileExtension: string): Http3PriorityFrame | null;
+    public abstract applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null;
 
     public abstract handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void;
 
