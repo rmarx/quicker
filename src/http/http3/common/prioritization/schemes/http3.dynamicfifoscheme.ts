@@ -139,7 +139,7 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
         // TODO missing XHR -> should be HIGH
         // TODO missing server push -> should be LOWEST
-        if (metadata.extension === "js") {
+        if (metadata.mimetype.search("javascript") > -1) {
             if (metadata.isAsync === true || metadata.isDefer === true) {
                 return PriorityGroup.LOW;
             }
@@ -148,20 +148,14 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
             } else {
                 return PriorityGroup.NORMAL;
             }
-        }
-        switch(metadata.extension) {
-            case "html":
-            case "css":
-            case "ttf": // TODO Fonts in general
-            case "woff":
-                return PriorityGroup.HIGHEST;
-            case "png":
-            case "jpg":
-            case "jpeg":
-            case "gif":
-                return PriorityGroup.LOW;
-            default:
-                return PriorityGroup.LOWEST;
+        } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+            return PriorityGroup.HIGHEST;
+        } else if (metadata.mimetype.search("font") > -1) {
+            return PriorityGroup.HIGHEST;
+        } else if (metadata.mimetype.search("image") > -1) {
+            return PriorityGroup.LOW;
+        } else {
+            return PriorityGroup.LOWEST;
         }
     }
 

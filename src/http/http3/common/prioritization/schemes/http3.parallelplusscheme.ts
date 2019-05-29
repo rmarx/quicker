@@ -76,7 +76,7 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
         // TODO missing XHR -> should be HIGH
         // TODO missing server push -> should be LOWEST
-        if (metadata.extension === "js") {
+        if (metadata.mimetype.search("javascript") > -1) {
             if (metadata.isAsync === true || metadata.isDefer === true) {
                 return PriorityGroup.LOW;
             }
@@ -85,15 +85,12 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
             } else {
                 return PriorityGroup.NORMAL;
             }
-        }
-        switch(metadata.extension) {
-            case "html":
-            case "css":
-            case "ttf": // TODO Fonts in general
-            case "woff":
-                return PriorityGroup.HIGH;
-            default:
-                return PriorityGroup.LOW;
+        } else if (metadata.mimetype.search("font") > -1) {
+            return PriorityGroup.HIGH;
+        } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+            return PriorityGroup.HIGH;
+        } else {
+            return PriorityGroup.LOW;
         }
     }
 }

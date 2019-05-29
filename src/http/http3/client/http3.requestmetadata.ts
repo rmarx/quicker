@@ -5,8 +5,8 @@ export interface Http3RequestMetadata {
     isAsync?: boolean,
     isDefer?: boolean,
     isPreload?: boolean,
-    extension: string,
+    mimetype: string,
     deltaStartTime?: number, // ms
     delayPriorityFrame?: number, // ms
-    deps?: string[], // List of file paths
+    children?: string[], // List of file paths
 }

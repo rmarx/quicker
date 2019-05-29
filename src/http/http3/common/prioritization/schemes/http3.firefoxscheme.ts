@@ -34,7 +34,7 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void {}
 
     private getPlaceholderID(metadata: Http3RequestMetadata): number {
-        if (metadata.extension === "js") {
+        if (metadata.mimetype.search("javascript") > -1) {
             if (metadata.isDefer === true || metadata.isAsync === true) {
                 return this.unblockedPlaceholderID;
             } else {
@@ -42,42 +42,30 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
             }
         } else if (metadata.isPreload === true) {
             return this.speculativePlaceholderID;
-        }
-        switch(metadata.extension) {
-            case "html":
-            case "png":
-            case "jpg":
-            case "jpeg":
-            case "ico":
-            case "ttf": // TODO Fonts in general
-            case "woff":
-                return this.followersPlaceholderID;
-            case "ccs":
-                return this.leadersPlaceholderID;
-            default:
-                return this.backgroundPlaceholderID;
+        } else if (metadata.mimetype === "text/html") {
+            return this.followersPlaceholderID;
+        } else if (metadata.mimetype.search("image") > -1) {
+            return this.followersPlaceholderID;
+        } else if (metadata.mimetype.search("font") > -1) {
+            return this.followersPlaceholderID;
+        } else if (metadata.mimetype === "text/css") {
+            return this.leadersPlaceholderID;
+        } else {
+            return this.backgroundPlaceholderID;
         }
     }
 
     private getWeight(metadata: Http3RequestMetadata): number {
         // TODO Push should be weight 2
         // XHR should be weight 32
-        switch(metadata.extension) {
-            case "png":
-            case "jpeg":
-            case "jpg":
-            case "gif":
-            case "ico":
-                return 22;
-            case "html":
-            case "js":
-            case "css":
-                return 32;
-            case "woff":
-            case "ttf":
-                return 42;
-            default:
-                return 16;
+        if (metadata.mimetype.search("image") > -1) {
+            return 22;
+        } else if (metadata.mimetype.search("javascript") || metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+            return 32;
+        } else if (metadata.mimetype.search("font") > -1) {
+            return 42;
+        } else {
+            return 16;
         }
     }
 }

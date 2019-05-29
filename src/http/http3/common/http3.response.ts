@@ -57,13 +57,8 @@ export class Http3Response {
         this.filePath = path;
         this.ready = true;
 
-        const mimeType: string | null = this.getMimeType(this.getFileExtension());
-        if (mimeType !== null) {
-            this.setHeaderValue("Content-Type", mimeType);
-        } else {
-            // TODO throw error or allow no mimetype to be set?
-            //throw new Error("HTTP/3 resource mimeType undefined!");
-        }
+        const mimeType: string = Http3Response.extensionToMimetype(this.getFileExtension());
+        this.setHeaderValue("Content-Type", mimeType);
 
         return true;
     }
@@ -116,6 +111,10 @@ export class Http3Response {
         return this.headerFrame;
     }
 
+    public getMimeType(): string {
+        return Http3Response.extensionToMimetype(this.getFileExtension());
+    }
+
     private parsePath(path: string): string {
         if (path.endsWith("/")) {
             return path + "index.html";
@@ -124,7 +123,7 @@ export class Http3Response {
         }
     }
 
-    private getMimeType(extension: string): string | null {
+    public static extensionToMimetype(extension: string): string {
         // FIXME Incomplete, maybe use https://github.com/broofa/node-mime?
         switch(extension) {
             case ".png": return "image/png";
@@ -134,8 +133,13 @@ export class Http3Response {
             case ".css": return "text/css";
             case ".js": return "application/javascript";
             case ".txt": return "text/plain";
+            case ".woff": return "font/woff";
+            case ".woff2": return "font/woff";
+            case ".ttf": return "font/ttf";
+            case ".otf": return "font/otf";
             default:
-                return null;
+                // TODO Implement appropriate error
+                throw new Error("Conversion from extension to mimetype unsuccessful, could not match extension to mimetype");
         }
     }
 }

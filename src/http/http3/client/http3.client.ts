@@ -25,6 +25,7 @@ import { parseHttp3Message } from "../common/parsers/http3.message.parser";
 import { Http3Message } from "../common/http3.message";
 import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme } from "../common/prioritization/schemes/index"
 import { Http3RequestMetadata } from "./http3.requestmetadata";
+import { Http3Response } from "../common/http3.response";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
@@ -49,6 +50,7 @@ export class Http3Client extends EventEmitter {
 
     private logger?: QlogWrapper;
 
+    private trimQueryParamsPattern: RegExp = /([^\?]+)(\?.*)?/g;
     private fileExtensionPattern: RegExp = /\.[0-9a-z]+$/i;
     private indexRequestPattern: RegExp = /.*\/$/g;
 
@@ -179,6 +181,12 @@ export class Http3Client extends EventEmitter {
             throw new Error("HTTP/3 stream weights should have a value between 1 and 256!");
         }
 
+        // Trim any query parameters used from the path
+        const trimmedPath: RegExpMatchArray | null = path.match(this.trimQueryParamsPattern);
+        if (trimmedPath !== null) {
+            path = trimmedPath[0];
+        }
+
         const stream: QuicStream = this.quickerClient.createStream(StreamType.ClientBidi);
         const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
         req.setHeader(":path", path);
@@ -191,10 +199,10 @@ export class Http3Client extends EventEmitter {
             fileExtension = fileExtensionMatches[0];
         } else if (path.match(this.indexRequestPattern)) {
             // Assume a path ending with `/` tries to request index.html
-            fileExtension = "html";
+            fileExtension = ".html";
         } else {
             // TODO implement appropriate error
-            throw new Error("Could not determine file extension based on request path!");
+            throw new Error("Could not determine file extension based on request path! Path: " + path);
         }
 
         this.lastStreamID = stream.getStreamId();
@@ -213,7 +221,7 @@ export class Http3Client extends EventEmitter {
         if (metadata !== undefined) {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), metadata);
         } else {
-            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {extension: fileExtension});
+            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimetype: Http3Response.extensionToMimetype(fileExtension)});
         }
         if (priorityFrame !== null) {
             if (this.logger !== undefined) {

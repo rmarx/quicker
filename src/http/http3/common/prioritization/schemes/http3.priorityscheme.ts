@@ -16,15 +16,11 @@ export abstract class Http3PriorityScheme {
         this.dependencyTree.setLogger(logger);
     }
 
-    // TODO Possibly use a class/interface with request metadata instead of just extension
-    // Could contain if request was made prior to first image, if pushed, etc
-    // Priority frame can be used by schemes that still take it into consideration
     public addStream(requestStream: QuicStream): void {
         this.dependencyTree.addRequestStreamToRoot(requestStream); // Default behaviour, RR weight 16 at root
     }
 
-    // TODO expand to be more than just extension and mimetype rather than filetype
-    // Null if multiple priority frames would be needed -> Can not be used over the wire e.g. exclusive prioritization emulation
+    // Null if priority frame not possible, for example when multiple priority frames would be needed -> Can not be used over the wire e.g. exclusive prioritization emulation
     // Returns the Priorityframe that should be sent to the server if using client-sided prioritization
     public abstract applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null;
 

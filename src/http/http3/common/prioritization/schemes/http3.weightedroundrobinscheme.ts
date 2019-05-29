@@ -11,32 +11,24 @@ export class Http3WeightedRoundRobinScheme extends Http3PriorityScheme {
     }
 
     public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
-        const weight = this.fileExtensionToWeight(metadata);
+        const weight = this.getWeight(metadata);
         this.dependencyTree.setStreamWeight(streamID, weight);
         return new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, streamID, undefined, weight);
     }
 
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum) {}
 
-    private fileExtensionToWeight(metadata: Http3RequestMetadata): number {
-        // TODO differentiate pushed resources from requests
-        switch(metadata.extension) {
-            case "htm":
-            case "html":
-                return 256;
-            case "js":
-            case "css":
-                return 24;
-            case "ttf":
-            case "woff":
-                return 16; // TODO XHR should also be here
-            case "png":
-            case "jpg":
-            case "jpeg":
-            case "gif":
-                return 8;
-            default:
-                return 8;
+    private getWeight(metadata: Http3RequestMetadata): number {
+        if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+            return 256;
+        } else if (metadata.mimetype.search("javascript") > -1) {
+            return 24;
+        } else if (metadata.mimetype.search("font") > -1) {
+            return 16;
+        } else if (metadata.mimetype.search("image") > -1) {
+            return 8;
+        } else {
+            return 8;
         }
     }
 }

@@ -136,37 +136,28 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
         if (metadata.isCritical === true) {
             return [63, 3];
-        } else if (metadata.extension === "js" || metadata.isAsync === true || metadata.isDefer === true) {
+        } else if (metadata.mimetype.search("javascript") > -1 || metadata.isAsync === true || metadata.isDefer === true) {
             return [31, 2];
-        }
-
-        switch(metadata.extension) {
-            case "ttf":
-            case "woff":
-                if (metadata.isPreload === true) {
-                    return [31, 2];
-                } else {
-                    return [63, 2];
-                }
-            case "css":
-            case "js":
-                return [31, 3]; // Non critical
-            case "png":
-            case "jpeg":
-            case "jpg":
-            case "gif":
-                if (metadata.isAboveTheFold === true) {
-                    return [63, 1]; // visible
-                } else {
-                    return [31, 1];
-                }
-            case "html":
+        } else if (metadata.mimetype.search("font") > -1) {
+            if (metadata.isPreload === true) {
                 return [31, 2];
-            case "mp4":
-            case "webm":
+            } else {
+                return [63, 2];
+            }
+        } else if (metadata.mimetype === "text/html") {
+            return [31, 2];
+        } else if (metadata.mimetype === "text/css") {
+            return [31, 3];
+        } else if (metadata.mimetype.search("image") > -1) {
+            if (metadata.isAboveTheFold === true) {
+                return [63, 1]; // Visible
+            } else {
                 return [31, 1];
-            default: 
-                return [0, 2];
+            }
+        } else if (metadata.mimetype.search("video") > -1) {
+            return [31, 1];
+        } else {
+            return [0, 2];
         }
     }
 

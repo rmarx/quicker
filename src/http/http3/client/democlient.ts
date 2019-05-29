@@ -15,7 +15,7 @@ if (logFileName !== undefined) {
     Constants.LOG_FILE_NAME = logFileName;
 }
 const lookupTableFileName: string | undefined = process.argv[4] || undefined;
-const lookupTable: {[path: string]: Http3RequestMetadata} | undefined = lookupTableFileName === undefined ? undefined : JSON.parse(readFileSync(lookupTableFileName, "utf-8"));
+const lookupTable: {config: {}, resources: {[path: string]: Http3RequestMetadata}} | undefined = lookupTableFileName === undefined ? undefined : JSON.parse(readFileSync(lookupTableFileName, "utf-8"));
 
 
 let host = process.argv[5] || "127.0.0.1";
@@ -63,10 +63,10 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
     
             console.info("HTTP3 response on path '" + path + "'\nHeaders: " + headerStrings + "\nContent:\n" + payload.toString("utf8"));
     
-            const relatedResources: string[] | undefined = lookupTable[path].deps;
+            const relatedResources: string[] | undefined = lookupTable.resources[path].children;
             if (relatedResources !== undefined) {
                 for (const resource of relatedResources) {
-                    const metadata: Http3RequestMetadata = lookupTable[resource];
+                    const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                     if (metadata.deltaStartTime !== undefined) {
                         setTimeout(() => {
                             client.get(resource, undefined, metadata);
@@ -78,7 +78,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             }
         });
 
-        const firstRequest: string = Object.keys(lookupTable)[0];
-        client.get(firstRequest, undefined, lookupTable[firstRequest]);
+        const firstRequest: string = Object.keys(lookupTable.resources)[0];
+        client.get(firstRequest, undefined, lookupTable.resources[firstRequest]);
     }
 });

@@ -378,8 +378,7 @@ export class Http3Server {
 
             if (methodHandled) {
                 // Respond and close stream
-                const fileExtension: string = res.getFileExtension().split(".")[1];
-                state.getPrioritiser().applyScheme(quicStream.getStreamId(), {extension: fileExtension});
+                state.getPrioritiser().applyScheme(quicStream.getStreamId(), {mimetype: res.getMimeType()});
                 state.getPrioritiser().addData(quicStream.getStreamId(), res.toBuffer());
                 state.getPrioritiser().finishStream(quicStream.getStreamId());
             }

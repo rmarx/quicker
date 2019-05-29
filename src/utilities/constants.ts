@@ -56,10 +56,10 @@ export class Constants {
     /**
      * default values for transport extensions
      */
-    public static readonly DEFAULT_MAX_STREAM_CLIENT_BIDI = 12;
-    public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 12;
-    public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
-    public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
+    public static readonly DEFAULT_MAX_STREAM_CLIENT_BIDI = 1000;
+    public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 1000;
+    public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 1000;
+    public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 1000;
     public static readonly DEFAULT_MAX_STREAM_DATA = 5000 * 1024;
     public static readonly DEFAULT_MAX_DATA = 5000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
     public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
