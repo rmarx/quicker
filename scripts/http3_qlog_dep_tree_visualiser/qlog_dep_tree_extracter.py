@@ -30,15 +30,42 @@ if executeFix:
 with open(filename, "r") as log:
     json_data = json.load(log)
 
-# Just a few random colours for each stream. If there are more streams than there are colours, the program will throw an index out of range exception
-colours = ["#e1d5e7", "#fff2cc", "#d5e8d4", "#f8cecc", "#dae8fc", "#fad7ac", "#f5b449", "#3971ed", "#1ba29b", "#285577"]
-border_colours = ["#9f7fae", "#dabd65", "#86b56c", "#b85450", "#7998c5", "#b46504", "#3971ed", "#f5b449", "#d41a1a", "#74508d"]
+colors = ["#e1d5e7", "#fff2cc", "#d5e8d4", "#f8cecc", "#dae8fc", "#fad7ac", "#f5b449", "#3971ed", "#1ba29b", "#285577"]
+border_colors = ["#9f7fae", "#dabd65", "#86b56c", "#b85450", "#7998c5", "#b46504", "#3971ed", "#f5b449", "#d41a1a", "#74508d"]
+
+# (color, border)
+def extToColorTuple(ext):
+    if ext == ".html":
+        return (colors[0], border_colors[0])
+    elif ext == ".js":
+        return (colors[1], border_colors[1])
+    elif ext == ".css":
+        return (colors[2], border_colors[2])
+    elif ext == ".odt" or ext == ".ttf" or ext == ".woff" or ext == ".woff2":
+        return (colors[3], border_colors[3])
+    elif ext == ".png" or ext == ".jpg" or ext == ".jpeg" or ext == ".gif":
+        return (colors[4], border_colors[4])
+    elif ext == ".mp4" or ext == ".webm":
+        return (colors[5], border_colors[5])
+    elif ext == ".txt":
+        return (colors[6], border_colors[6])
+    else:
+        return ["#FFFFFF", "#FF0000"]
 
 dep_trees = []
 timestamps = []
 triggers = []
 
+# StreamID => (color, border)
+stream_to_color_map = {}
+
 for row in json_data["connections"][0]["events"]:
+    if row[1] == "HTTP" and row[2] == "GET":
+        path = row[4]["uri"]
+        if (path[-1] == "/"):
+            path += "index.html"
+        head, ext = os.path.splitext(path)
+        stream_to_color_map[row[4]["stream_id"]] = extToColorTuple(ext)
     if row[1] == "HTTP" and row[2] == "PRIORITY_CHANGE":
         x = (json.loads(row[4]["new_tree"]))
         dep_trees.append(x)
@@ -64,9 +91,6 @@ def extract_stream_ids(dep_tree):
         stream_ids.append(dep_tree["id"])
     return stream_ids
 
-def hexToColor(hex):
-    return ""
-
 counter = 0
 for dep_tree in dep_trees:
     get_edges(dep_tree, counter)
@@ -79,10 +103,12 @@ for dep_tree in dep_trees:
     # Dump edge list in Graphviz DOT format
     dotFormattedTrees[counter] += "strict digraph tree {\n\tRoot_ROOT [root=Root_ROOT];\n"
 
-    # Colouring
+    # coloring
     stream_ids =  extract_stream_ids(dep_tree)
+    print(stream_to_color_map)
     for stream_id in stream_ids:
-        dotFormattedTrees[counter] += '\tRequest_' + stream_id + ' [style=filled,fillcolor="' + colours[int(stream_id) // 4] + '", color="' + border_colours[int(stream_id) // 4] + '"];\n'
+        color, border = stream_to_color_map[stream_id]
+        dotFormattedTrees[counter] += '\tRequest_' + stream_id + ' [style=filled,fillcolor="' + color + '", color="' + border + '"];\n'
 
     for row in dep_tree_edges[counter]:
         dotFormattedTrees[counter] += '\t{0} -> {1};'.format(*row) + "\n"
