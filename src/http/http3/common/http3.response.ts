@@ -129,6 +129,7 @@ export class Http3Response {
             case ".png": return "image/png";
             case ".jpg": return "image/jpeg";
             case ".jpeg": return "image/jpeg";
+            case ".gif": return "image/gif";
             case ".html": return "text/html";
             case ".css": return "text/css";
             case ".js": return "application/javascript";
@@ -137,9 +138,11 @@ export class Http3Response {
             case ".woff2": return "font/woff";
             case ".ttf": return "font/ttf";
             case ".otf": return "font/otf";
+            case ".json": return "application/json";
+            case ".xml": return "application/xml";
             default:
                 // TODO Implement appropriate error
-                throw new Error("Conversion from extension to mimetype unsuccessful, could not match extension to mimetype");
+                throw new Error("Conversion from extension to mimetype unsuccessful, could not match extension to mimetype. Extension: " + extension);
         }
     }
 }

@@ -154,6 +154,8 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
             }
         } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
             return PriorityGroup.HIGHEST;
+        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+            return PriorityGroup.HIGH;
         } else if (metadata.mimetype.search("font") > -1) {
             return PriorityGroup.HIGHEST;
         } else if (metadata.mimetype.search("image") > -1) {

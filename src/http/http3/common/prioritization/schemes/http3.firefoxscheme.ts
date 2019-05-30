@@ -46,6 +46,8 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
             return this.speculativePlaceholderID;
         } else if (metadata.mimetype === "text/html") {
             return this.followersPlaceholderID;
+        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+            return this.unblockedPlaceholderID;
         } else if (metadata.mimetype.search("image") > -1) {
             return this.followersPlaceholderID;
         } else if (metadata.mimetype.search("font") > -1) {

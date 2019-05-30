@@ -140,6 +140,8 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
             return [31, 2];
         } else if (metadata.mimetype.search("javascript") > -1) {
             return [31, 3];
+        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+            return [31, 3];
         } else if (metadata.mimetype.search("font") > -1) {
             if (metadata.isPreload === true) {
                 return [31, 2];

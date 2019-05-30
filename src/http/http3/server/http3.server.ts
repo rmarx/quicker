@@ -47,12 +47,12 @@ class ClientState {
         this.qpackDecoder = qpackDecoder;
         this.frameParser = frameParser;
 
-        // Schedule 1 chunk of 1000 bytes every 10ms
+        // Schedule 1 chunk of 1000 bytes every 30ms
         // TODO tweak numbers
         // TODO Listen to congestion control events instead
         this.scheduleTimer = setInterval(() => {
             this.prioritiser.schedule();
-        }, 10);
+        }, 30);
     }
 
     public getLogger(): QlogWrapper {
