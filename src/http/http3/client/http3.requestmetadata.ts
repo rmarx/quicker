@@ -9,5 +9,6 @@ export interface Http3RequestMetadata {
     mimetype: string,
     deltaStartTime?: number, // ms
     delayPriorityFrame?: number, // ms
-    children?: string[], // List of file paths
+    childrenStart?: string[], // List of file paths that are discovered during transmission of the parent
+    childrenEnd?: string[], // List of files that are discovered after the parent is completed
 }

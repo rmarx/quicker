@@ -63,7 +63,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
     
             console.info("HTTP3 response on path '" + path + "'\nHeaders: " + headerStrings + "\nContent:\n" + payload.toString("utf8"));
     
-            const relatedResources: string[] | undefined = lookupTable.resources[path].children;
+            const relatedResources: string[] | undefined = lookupTable.resources[path].childrenEnd;
             if (relatedResources !== undefined) {
                 for (const resource of relatedResources) {
                     const metadata: Http3RequestMetadata = lookupTable.resources[resource];
@@ -80,5 +80,21 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
 
         const firstRequest: string = Object.keys(lookupTable.resources)[0];
         client.get(firstRequest, undefined, lookupTable.resources[firstRequest]);
+
+        // Resources discovered during transmission of its parent (found while parsing the chunks as they arrive)
+        const relatedResources: string[] | undefined = lookupTable.resources[firstRequest].childrenStart;
+        if (relatedResources !== undefined) {
+            for (const resource of relatedResources) {
+                // Based on the metadata of each resource, set a delay with which it should be fetched
+                const metadata: Http3RequestMetadata = lookupTable.resources[resource];
+                if (metadata.deltaStartTime !== undefined) {
+                    setTimeout(() => {
+                        client.get(resource, undefined, metadata);
+                    }, metadata.deltaStartTime);
+                } else {
+                    client.get(resource, undefined, metadata);
+                }
+            }
+        }
     }
 });
