@@ -407,6 +407,21 @@ export class Http3DependencyTree extends EventEmitter {
         }
     }
 
+    public moveStreamToRootExclusive(requestStreamID: Bignum) {
+        const node: Http3PrioritisedElementNode | undefined = this.requestStreams.get(requestStreamID.toString());
+
+        if (node === undefined) {
+            // TODO implement appropriate error
+            throw new Error("Tried moving a request stream of the HTTP/3 dependency tree while it was not yet in the tree");
+        } else {
+            this.root.addExclusiveChild(node);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
+        }
+    }
+
     public setPlaceholderWeight(placeholderID: number, weight: number) {
         const placeholderNode: Http3PlaceholderNode | undefined = this.placeholders.get(placeholderID);
         if (placeholderNode === undefined) {

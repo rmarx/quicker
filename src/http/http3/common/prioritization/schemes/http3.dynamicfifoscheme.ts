@@ -83,7 +83,7 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
         if (priorityGroupTail !== undefined) {
             this.dependencyTree.moveStreamToStreamExclusive(streamID, priorityGroupTail);
         } else {
-            this.dependencyTree.moveStreamToRoot(streamID);
+            this.dependencyTree.moveStreamToRootExclusive(streamID);
         }
         this.dependencyTree.setStreamWeight(streamID, weight);
         this.setPriorityGroupTail(priority, streamID);
@@ -95,16 +95,28 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
 
     private getPriorityGroupTail(priority: PriorityGroup): Bignum | undefined {
         switch(priority) {
-            case PriorityGroup.HIGHEST:
-                return this.highestPriorityTail;
-            case PriorityGroup.HIGH:
-                return this.highPriorityTail;
-            case PriorityGroup.NORMAL:
-                return this.normalPriorityTail;
-            case PriorityGroup.LOW:
-                return this.lowPriorityTail;
             case PriorityGroup.LOWEST:
-                return this.lowestPriorityTail;
+                if (this.lowestPriorityTail !== undefined) {
+                    return this.lowestPriorityTail
+                } // Else fall through
+            case PriorityGroup.LOW:
+                if (this.lowPriorityTail !== undefined) {
+                    return this.lowPriorityTail;
+                }
+            case PriorityGroup.NORMAL:
+                if (this.normalPriorityTail !== undefined) {
+                    return this.normalPriorityTail;
+                }
+            case PriorityGroup.HIGH:
+                if (this.highPriorityTail !== undefined) {
+                    return this.highPriorityTail;
+                }
+            case PriorityGroup.HIGHEST:
+                if (this.highestPriorityTail !== undefined) {
+                    return this.highestPriorityTail;
+                } else {
+                    return undefined;
+                }
         }
     }
 
@@ -113,24 +125,16 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
         switch(priority) {
             case PriorityGroup.HIGHEST:
                 this.highestPriorityTail = streamID;
-                if (this.highPriorityTail !== undefined) {
-                    break;
-                }
+                break;
             case PriorityGroup.HIGH:
                 this.highPriorityTail = streamID;
-                if (this.normalPriorityTail !== undefined) {
-                    break;
-                }
+                break;
             case PriorityGroup.NORMAL:
                 this.normalPriorityTail = streamID;
-                if (this.lowPriorityTail !== undefined) {
-                    break;
-                }
+                break;
             case PriorityGroup.LOW:
                 this.lowPriorityTail = streamID;
-                if (this.lowestPriorityTail !== undefined) {
-                    break;
-                }
+                break;
             case PriorityGroup.LOWEST:
                 this.lowestPriorityTail = streamID;
         }

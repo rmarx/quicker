@@ -10,7 +10,7 @@ import { DependencyTree, DependencyTreeNodeType } from "./http3.deptree";
 export class Http3RequestNode extends Http3PrioritisedElementNode {
     private bufferedData: Buffer = Buffer.alloc(0);
     private stream: QuicStream;
-    private bytesSent: number = 0;
+    private bytesSent: number = Http3PrioritisedElementNode.CHUNK_SIZE;
     private allDataBuffered: boolean = false; // Set to true if all data has been received and stream can be closed
 
     // Parent should be root by default

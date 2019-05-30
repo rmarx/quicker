@@ -136,8 +136,10 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
         if (metadata.isCritical === true) {
             return [63, 3];
-        } else if (metadata.mimetype.search("javascript") > -1 || metadata.isAsync === true || metadata.isDefer === true) {
+        } else if (metadata.isDefer === true || metadata.isAsync) {
             return [31, 2];
+        } else if (metadata.mimetype.search("javascript") > -1) {
+            return [31, 3];
         } else if (metadata.mimetype.search("font") > -1) {
             if (metadata.isPreload === true) {
                 return [31, 2];

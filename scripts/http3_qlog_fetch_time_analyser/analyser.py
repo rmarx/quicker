@@ -149,7 +149,7 @@ for div in sorted(html_divs.items()):
             bytecount = chunk[2]
             width = (bytecount / (CHUNK_SIZE / SCHEDULE_INTERVAL))
             color, border = stream_to_color_map[str(div[0])]
-            out.write("<div style='box-sizing:border-box;top:0px;position:absolute;box-shadow:0px 0px 0px 3px " + border + " inset;background:" + color + ";z-index:" + str(z_index) + ";height:100%;width:" + str(width) +"px;left:" + str((margin_left / (SCALE / WIDTH_SCALE)) - (width / (SCALE / WIDTH_SCALE))) + "px;'></div>")
+            out.write("<div style='box-sizing:border-box;top:0px;position:absolute;box-shadow:0px 0px 0px 3px " + border + " inset;background:" + border + ";z-index:" + str(z_index) + ";height:100%;width:" + str(width) +"px;left:" + str((margin_left / (SCALE / WIDTH_SCALE)) - (width / (SCALE / WIDTH_SCALE))) + "px;'></div>")
             z_index += 1
 
     out.write("</div>")

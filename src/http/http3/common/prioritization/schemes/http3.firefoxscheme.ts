@@ -35,7 +35,9 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
 
     private getPlaceholderID(metadata: Http3RequestMetadata): number {
         if (metadata.mimetype.search("javascript") > -1) {
-            if (metadata.isDefer === true || metadata.isAsync === true) {
+            if (metadata.inHead === true) {
+                return this.leadersPlaceholderID;
+            } else if (metadata.isDefer === true || metadata.isAsync === true) {
                 return this.unblockedPlaceholderID;
             } else {
                 return this.leadersPlaceholderID;

@@ -19,7 +19,7 @@ export class Constants {
     public static          LOG_FILE_NAME: string = 'server.log';
     public static          QLOG_FILE_NAME?: string;
     public static readonly LOG_LARGE_BUFFER_DATA = true;
-    public static readonly MAX_LOG_FILE_SIZE = 20971520; 
+    public static readonly MAX_LOG_FILE_SIZE = 2000971520; 
 
     /**
      * Dictionary for the mapping between QUIC version and their version specific salt
