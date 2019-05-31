@@ -34,32 +34,28 @@ for (var i = 0; i < 1; i++) {
     var client = Client.connect(host, Number(port), { version: version });
     client.on(QuickerEvent.CLIENT_CONNECTED, () => {
 
-        var quicStream: QuicStream = client.request(httpHelper.createRequest("index_medium.html"));
-        var quicStream2: QuicStream = client.request(httpHelper.createRequest("index.html"));
-        var bufferedData = Buffer.alloc(0);
+        let files : string[] = ["index_medium.html", "index.html"];
+        let streams : QuicStream[] = [];
 
-        quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
-            VerboseLogging.info("QUICSTREAM1 DATA RECEIVED")
-            //bufferedData = Buffer.concat([bufferedData, data]);
-        });
+        //var bufferedData = Buffer.alloc(0);
+        let timeStart = Date.now();
 
-        quicStream.on(QuickerEvent.STREAM_END, () => {
-            //console.log(bufferedData.toString('utf8'));
-            VerboseLogging.info("RECEIVED STREAM END");
-            client.close();
-        });
+        files.forEach((filename : string) => {
+            let quicStream: QuicStream = client.request(httpHelper.createRequest(filename));
+            streams.push(quicStream)
 
-        quicStream2.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
-            VerboseLogging.info("QUICSTREAM2 DATA RECEIVED")
-            //bufferedData = Buffer.concat([bufferedData, data]);
-        });
-
-        quicStream2.on(QuickerEvent.STREAM_END, () => {
-            //console.log(bufferedData.toString('utf8'));
-            VerboseLogging.info("RECEIVED STREAM END");
-            client.close();
-        });
-
+            quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
+                //VerboseLogging.info("QUICSTREAM1 DATA RECEIVED")
+                //bufferedData = Buffer.concat([bufferedData, data]);
+            });
+    
+            quicStream.on(QuickerEvent.STREAM_END, () => {
+                //console.log(bufferedData.toString('utf8'));
+                //VerboseLogging.info("RECEIVED STREAM END");
+                //client.close();
+                client.getConnection().getQlogger().onFileReceiveTimeUpdate(filename, timeStart, Date.now());
+            });
+        })
 
         /*
         setTimeout(() => {

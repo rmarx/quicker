@@ -515,4 +515,23 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
+
+    public onFileReceiveTimeUpdate(filename: string, timeStart : number, timeEnd : number){
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            "METRIC_UPDATE",
+            "PACKET_SENT",
+            {
+                metric: "fileReceiveTime",
+                filename: filename,
+                timeStart : timeStart,
+                timeEnd : timeEnd,
+                timedifference : (timeEnd - timeStart)
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
 }
