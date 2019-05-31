@@ -7,7 +7,7 @@ cd /
 echo "DOCKER:startup.sh : Shutting down running node commands"
 pkill -f node
 sleep 2
-BANDWIDTH="10kbit"
+BANDWIDTH="10kbps"
 LOSSRATE="1"
 LATENCY="30ms"
 if [ ! -z "$1" ]

@@ -34,8 +34,7 @@ ADD server.js /
 ADD client.js /
 ADD localhost-cert.pem /
 ADD localhost-privkey.pem /
-ADD index_massive.html /
-ADD index.html /
+ADD html /html
 RUN chmod +x /startup.sh
 ENTRYPOINT ["/startup.sh"]
 #CMD [ "tail", "-f", "/dev/null" ]

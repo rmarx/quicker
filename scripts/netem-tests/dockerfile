@@ -12,6 +12,7 @@ RUN 						\
 		python2.7 			\
 		nasm 				\
 		git 				\
+		tcpdump			\
     && apt-get autoremove 	\
     && apt-get clean		\
 	&& rm -rf /var/lib/apt/lists/*

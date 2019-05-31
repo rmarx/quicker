@@ -1,7 +1,7 @@
 build: 
     sudo docker build -t tcp-test:latest ./
 run:
-    sudo docker run --privileged --name tcp-test -p 4433:443/udp -p 4434:4434/udp -p 4435:4435/udp --volume=/home/sven/Documents/Course_BaPr/repo/quicker/scripts/nodejs-http-server/logs:/logs -d tcp-test:latest
+    sudo docker run --privileged --name tcp-test -p 4433:443/udp -p 4434:4434/udp -p 4435:4435/udp --volume=/home/sven/Documents/Course_BaPr/repo/quicker/scripts/nodejs-http2-server/logs:/logs -d tcp-test:latest
 logs:
     sudo docker logs -f tcp-test
 bash:

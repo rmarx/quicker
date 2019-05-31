@@ -19,19 +19,19 @@ export class VerboseLogging{
     }
 
     public static trace(message:string){
-        VerboseLogging.getInstance().output.trace(message);
+        //VerboseLogging.getInstance().output.trace(message);
     }
 
     public static debug(message:string){
-        VerboseLogging.getInstance().output.debug(message);
+        //VerboseLogging.getInstance().output.debug(message);
     }
 
     public static info(message:string){
-        VerboseLogging.getInstance().output.info(message);
+        //VerboseLogging.getInstance().output.info(message);
     }
 
     public static warn(message:string){
-        VerboseLogging.getInstance().output.warn(message);
+        //VerboseLogging.getInstance().output.warn(message);
     }
 
     public static error(message:string){

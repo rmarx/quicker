@@ -9,7 +9,7 @@ const {
   HTTP_STATUS_INTERNAL_SERVER_ERROR
 } = http2.constants;
 
-const serverRoot = "./"
+const serverRoot = "./html"
 
 
 const server = http2.createSecureServer({
