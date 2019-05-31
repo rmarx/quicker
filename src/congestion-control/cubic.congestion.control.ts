@@ -268,12 +268,15 @@ export class CubicCongestionControl extends PacketPipe {
 
         let count = 0;
 
+        // Target window change to a count
+        // update window by one segment when more than count packets received
+        // simulate not increasing by a segment size (abc)
         if(target > this.congestionWindow){
             count = this.congestionWindow / (target - this.congestionWindow);
             VerboseLogging.warn("NORMAL");
         }
         else{
-            // make it ridiculously large so the cwndcount will not be larger than this, and thus won't be increased
+            // make it ridiculously large so the cwndcount will not be larger than this, and thus won't be increased (or atleast very very slowly)
             // because the congestion window is larger than the target
             // TODO: doublecheck
             count = 100 * this.congestionWindow

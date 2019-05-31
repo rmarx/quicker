@@ -54,7 +54,7 @@ export class QuicLossDetection extends EventEmitter {
     // Timer granularity.  In ms
     public static readonly kGranularity : number = 200;
     // The default RTT used before an RTT sample is taken. In ms.
-    public static readonly kInitialRTT: number = 100;
+    public static readonly kInitialRTT: number = 500;
     //kpacketnumberspace
 
     ///////////////////////////
@@ -90,6 +90,9 @@ export class QuicLossDetection extends EventEmitter {
     public rttMeasurer: RTTMeasurement;
 
     private connection : Connection;
+
+
+
 
     public constructor(rttMeasurer: RTTMeasurement, connection: Connection) {
         super();
@@ -178,6 +181,17 @@ export class QuicLossDetection extends EventEmitter {
 
         //VerboseLogging.error("lossDetection:onPacketSent : PN "+ packetNumber.toDecimalString() +" put in buffer with timestamp " + sentPacket.time);
         
+        let packet = this.sentPackets[space][packetNumber.hash()];
+        if( packet !== undefined ){
+            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+            VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
+            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+        }
+        else{
+            VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "HASh IS " + packetNumber.hash() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
+
+            this.sentPackets[space][packetNumber.hash()] = sentPacket;
+        }
 
         if(sentPacket.inFlight){
             if (basePacket.containsCryptoFrames()) {
@@ -193,17 +207,6 @@ export class QuicLossDetection extends EventEmitter {
             this.setLossDetectionAlarm();
         }
         
-        let packet = this.sentPackets[space][packetNumber.hash()];
-        if( packet !== undefined ){
-            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-            VerboseLogging.error(this.DEBUGname + " Packet was already in sentPackets buffer! cannot add twice, error!" + packetNumber.toNumber() + " -> packet type=" + packet.packet.getHeader().getPacketType());
-            VerboseLogging.error(this.DEBUGname + " xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-        }
-        else{
-            VerboseLogging.debug(this.DEBUGname + " loss:onPacketSent : adding packet " +  packetNumber.toNumber() + "in space: "+ space +" packet type=" + basePacket.getPacketType() + ", is retransmittable=" + basePacket.isRetransmittable() );
-
-            this.sentPackets[space][packetNumber.hash()] = sentPacket;
-        }
     }
 
 
@@ -270,7 +273,7 @@ export class QuicLossDetection extends EventEmitter {
     private determineNewlyAckedPackets(receivedAckFrame: AckFrame): BasePacket[] {
         var ackedPackets: BasePacket[] = [];
         var ackedPacketnumbers = receivedAckFrame.determineAckedPacketNumbers();
-        VerboseLogging.warn("Loss: Received ackframe for:" + ackedPacketnumbers.toString());
+        //VerboseLogging.warn("Loss: Received ackframe for:" + ackedPacketnumbers.toString());
 
         let space : kPacketNumberSpace | undefined = this.findPacketSpaceFromAckFrame(receivedAckFrame);
         if(space === undefined){
@@ -401,11 +404,11 @@ export class QuicLossDetection extends EventEmitter {
             alarmType = "TimeThreshold";
         } else if (this.cryptoOutstanding !== 0) {
             // Crypto retransmission alarm.
-            if (this.rttMeasurer.smoothedRtt == 0) {
+            //if (this.rttMeasurer.smoothedRtt == 0) {
                 alarmDuration = QuicLossDetection.kInitialRTT * 2;
-            } else {
-                alarmDuration = this.rttMeasurer.smoothedRtt * 2;
-            }
+            //} else { DISABLING THIS
+              //  alarmDuration = this.rttMeasurer.smoothedRtt * 2;
+            //}
 
             alarmDuration = Math.max( alarmDuration, QuicLossDetection.kGranularity);
             var pw = Math.pow(2, this.cryptoCount);
@@ -422,9 +425,9 @@ export class QuicLossDetection extends EventEmitter {
 
         this.lossDetectionAlarm.reset();
         this.lossDetectionAlarm.on(AlarmEvent.TIMEOUT, (timePassed:number) => {
-            VerboseLogging.info(this.DEBUGname + " LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
+            VerboseLogging.error(this.DEBUGname + " LossDetection:setLossDetectionAlarm timeout alarm fired after " + timePassed + "ms");
             this.lossDetectionAlarm.reset();
-            this.onLossDetectionAlarm();
+            this.onLossDetectionAlarm(timePassed);
         });
         this.lossDetectionAlarm.start(alarmDuration);
         //TODO: get last handshake date?
@@ -438,7 +441,8 @@ export class QuicLossDetection extends EventEmitter {
      * QUIC uses one loss recovery alarm, which when set, can be in one of several modes. 
      * When the alarm fires, the mode determines the action to be performed.
      */
-    public onLossDetectionAlarm(): void {
+    public onLossDetectionAlarm(duration : number): void {
+        this.connection.getQlogger().onLossDetectionTriggered("UNKNOWN", {time: duration});
         let earliestLossTime = this.getEarliestLossTime()[0];
         let space = this.getEarliestLossTime()[1];
         let alarmtype = "";
@@ -456,17 +460,18 @@ export class QuicLossDetection extends EventEmitter {
         } else {
             //PTO
             //this is also allowed to be one packet
-            this.sendTwoPackets()
+            this.sendOnePacket()
             this.ptoCount++;
             alarmtype = "PTOTimeout";
         }
-        this.connection.getQlogger().onLossDetectionTriggered(alarmtype, {});
+        this.connection.getQlogger().onLossDetectionTriggered(alarmtype, {time: duration});
         this.setLossDetectionAlarm();
     }
 
 
 
     private detectLostPackets(space: kPacketNumberSpace): void {
+        VerboseLogging.info("entered detectLostPackets")
         this.lossTime[space] = 0;
         var lostPackets: SentPacket[] = [];
         let lossDelay : number = QuicLossDetection.kTimeThreshold * Math.max(this.rttMeasurer.latestRtt, this.rttMeasurer.smoothedRtt);
@@ -559,7 +564,7 @@ export class QuicLossDetection extends EventEmitter {
                     
                     sendCount++;
                     if (sendCount === amount) {
-                        return;
+                        break;
                     }
                 }
                 i++;

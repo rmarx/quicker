@@ -34,15 +34,29 @@ for (var i = 0; i < 1; i++) {
     var client = Client.connect(host, Number(port), { version: version });
     client.on(QuickerEvent.CLIENT_CONNECTED, () => {
 
-        var quicStream: QuicStream = client.request(httpHelper.createRequest("index.html"));
+        var quicStream: QuicStream = client.request(httpHelper.createRequest("index_medium.html"));
+        var quicStream2: QuicStream = client.request(httpHelper.createRequest("index.html"));
         var bufferedData = Buffer.alloc(0);
 
         quicStream.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
+            VerboseLogging.info("QUICSTREAM1 DATA RECEIVED")
             //bufferedData = Buffer.concat([bufferedData, data]);
         });
 
         quicStream.on(QuickerEvent.STREAM_END, () => {
             //console.log(bufferedData.toString('utf8'));
+            VerboseLogging.info("RECEIVED STREAM END");
+            client.close();
+        });
+
+        quicStream2.on(QuickerEvent.STREAM_DATA_AVAILABLE, (data: Buffer) => {
+            VerboseLogging.info("QUICSTREAM2 DATA RECEIVED")
+            //bufferedData = Buffer.concat([bufferedData, data]);
+        });
+
+        quicStream2.on(QuickerEvent.STREAM_END, () => {
+            //console.log(bufferedData.toString('utf8'));
+            VerboseLogging.info("RECEIVED STREAM END");
             client.close();
         });
 

@@ -1,0 +1,12 @@
+build: 
+    sudo docker build -t tcp-test:latest ./
+run:
+    sudo docker run --privileged --name tcp-test -p 4433:443/udp -p 4434:4434/udp -p 4435:4435/udp --volume=/home/sven/Documents/Course_BaPr/repo/quicker/scripts/nodejs-http-server/logs:/logs -d tcp-test:latest
+logs:
+    sudo docker logs -f tcp-test
+bash:
+    sudo docker exec -it tcp-test bash
+run client:
+    node /quicker/out/mainclient.js 127.0.0.1 4433
+stop:
+    sudo docker stop tcp-test && sudo docker rm tcp-test

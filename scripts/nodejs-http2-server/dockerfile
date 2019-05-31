@@ -1,0 +1,42 @@
+FROM ubuntu:16.04
+
+# install necessary packages
+RUN 						\
+	apt-get update 			\
+	&& apt-get upgrade -y 
+
+RUN apt-get -y install curl gnupg
+RUN curl -sL https://deb.nodesource.com/setup_11.x  | bash -
+RUN apt-get -y install nodejs
+RUN npm install
+
+
+RUN apt-get install -y 	\
+    	build-essential 	\
+		gcc 				\
+		make 				\
+		python-pip 			\
+		python2.7 			\
+		nasm 				\
+		git 				\
+		tcpdump \
+    && apt-get autoremove 	\
+    && apt-get clean		\
+	&& rm -rf /var/lib/apt/lists/*
+
+##EXPOSE 4433/udp 4434/udp 4435/udp
+
+RUN npm i mime-types
+
+
+ADD startup.sh /
+ADD server.js /
+ADD client.js /
+ADD localhost-cert.pem /
+ADD localhost-privkey.pem /
+ADD index_massive.html /
+ADD index.html /
+RUN chmod +x /startup.sh
+ENTRYPOINT ["/startup.sh"]
+#CMD [ "tail", "-f", "/dev/null" ]
+ 

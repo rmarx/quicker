@@ -497,4 +497,22 @@ export class QlogWrapper{
         this.logToFile(evt);
     }
 
+
+    public onGoodputUpdate(sentCount : number, retransmitCount:number){
+        let evt:any = [
+            123, 
+            qlog.EventCategory.RECOVERY,
+            "METRIC_UPDATE",
+            "PACKET_SENT",
+            {
+                metric: "goodput",
+                sentCount : sentCount,
+                retransmitCount : retransmitCount,
+                goodput : (sentCount - retransmitCount) / sentCount
+            }
+        ];
+
+        this.logToFile(evt);
+    }
+
 }

@@ -93,6 +93,9 @@ export class QuicCongestionControl extends PacketPipe {
      */
     private RTTMeasurer : RTTMeasurement;
 
+    private packetSentCount: number;
+    private packetRetransmitCount : number;
+
     
 
     public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>, rttMeasurer: RTTMeasurement) {
@@ -109,6 +112,9 @@ export class QuicCongestionControl extends PacketPipe {
         this.connection = connection;
         this.hookCongestionControlEvents(lossDetectionInstances);
         this.RTTMeasurer = rttMeasurer;
+
+        this.packetSentCount = 0;
+        this.packetRetransmitCount  = 0;
     }
 
     
@@ -154,6 +160,8 @@ export class QuicCongestionControl extends PacketPipe {
      */
     private onPacketSentCC(sentPacket : BasePacket){
         //if the packets contains non-ack frames
+        this.packetSentCount++;
+        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount);
         if( !sentPacket.isAckOnly()){
             var bytesSent = sentPacket.getSerializedSizeInBytes();
             this.setBytesInFlight(this.bytesInFlight.add(bytesSent), "PACKET_SENT", {"packet_num" : sentPacket.getHeader().getPacketNumber().getValue().toDecimalString(), "added" : bytesSent, "packettype": sentPacket.getPacketType()});
@@ -338,6 +346,8 @@ export class QuicCongestionControl extends PacketPipe {
 
 
     public queueForRetransmit(packet : BasePacket){
+        this.packetRetransmitCount++;
+        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount);
         VerboseLogging.info("congestioncontrol: queueForRetransmit: unshifting packet where old packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
         this.packetsQueue.unshift(packet);
         this.sendPackets();
