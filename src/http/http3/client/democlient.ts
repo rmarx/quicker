@@ -52,7 +52,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             }
         });
 
-        client.get("/index.html", 16);
+        client.get("/index.html");
     } else {
         client.on(Http3ClientEvent.RESPONSE_RECEIVED, (path: string, response: Http3Message) => {
             const headers: Http3Header[] = response.getHeaderFrame().getHeaders();
@@ -69,17 +69,17 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                     const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                     if (metadata.deltaStartTime !== undefined) {
                         setTimeout(() => {
-                            client.get(resource, undefined, metadata);
+                            client.get(resource, metadata);
                         }, metadata.deltaStartTime);
                     } else {
-                        client.get(resource, undefined, metadata);
+                        client.get(resource, metadata);
                     }
                 }
             }
         });
 
         const firstRequest: string = Object.keys(lookupTable.resources)[0];
-        client.get(firstRequest, undefined, lookupTable.resources[firstRequest]);
+        client.get(firstRequest, lookupTable.resources[firstRequest]);
 
         // Resources discovered during transmission of its parent (found while parsing the chunks as they arrive)
         const relatedResources: string[] | undefined = lookupTable.resources[firstRequest].childrenStart;
@@ -89,10 +89,10 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                 const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                 if (metadata.deltaStartTime !== undefined) {
                     setTimeout(() => {
-                        client.get(resource, undefined, metadata);
+                        client.get(resource, metadata);
                     }, metadata.deltaStartTime);
                 } else {
-                    client.get(resource, undefined, metadata);
+                    client.get(resource, metadata);
                 }
             }
         }

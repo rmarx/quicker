@@ -163,7 +163,7 @@ export class Http3Client extends EventEmitter {
     }
 
     // Returns streamID of requeststream
-    public get(path: string, weight: number = 16, metadata?: Http3RequestMetadata): Bignum {
+    public get(path: string, metadata?: Http3RequestMetadata): Bignum {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -175,10 +175,6 @@ export class Http3Client extends EventEmitter {
         }
         if (this.clientQPackDecoder === undefined) {
             throw new Http3Error(Http3ErrorCode.HTTP3_UNINITIALISED_DECODER);
-        }
-        if (weight < 1 || weight > 256) {
-            // TODO create appropriate error
-            throw new Error("HTTP/3 stream weights should have a value between 1 and 256!");
         }
 
         // Trim any query parameters used from the path
@@ -244,7 +240,7 @@ export class Http3Client extends EventEmitter {
                 this.logger.onHTTPDataChunk(
                     stream.getStreamId(), 
                     data.byteLength, 
-                    priorityFrame !== null ? priorityFrame.getWeight() : weight,
+                    priorityFrame !== null ? priorityFrame.getWeight() : 0, // FIXME Not accurate because priority frames can be null if scheme does not work client-sided and server-side scheme weights are not reflected here
                     "RX");
             }
         });

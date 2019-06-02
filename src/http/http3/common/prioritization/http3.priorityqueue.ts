@@ -1,7 +1,11 @@
-import { Http3PrioritisedElementNode } from "./http3.prioritisedelementnode";
+import { Http3PrioritisedElementNode, Http3RequestNode, Http3PlaceholderNode } from "./nodes/index";
 
 export class Http3DepNodePQueue {
     private heap: Http3PrioritisedElementNode[] = [];
+    // Are processed before heap (weights 255) in order of (ascending) stream or placeholder id
+    private infWeights: Http3PrioritisedElementNode[] = [];
+    // Are processed after heap (weights 0) in order of (ascending) stream or placeholder id
+    private zeroWeights: Http3PrioritisedElementNode[] = [];
 
     public constructor(nodes: Http3PrioritisedElementNode[]) {
         for (const node of nodes) {
@@ -10,12 +14,21 @@ export class Http3DepNodePQueue {
     }
 
     public push(node: Http3PrioritisedElementNode) {
-        const newSize = this.heap.push(node);
-        this.siftUp(newSize - 1);
+        if (node.getWeight() === 0) {
+            this.insertZeroWeight(node);
+        } else if (node.getWeight() === 255) {
+            this.insertInfWeight(node);
+        } else {
+            // Else push to heap as usual
+            const newSize = this.heap.push(node);
+            this.siftUp(newSize - 1);
+        }
     }
 
     public pop(): Http3PrioritisedElementNode | undefined {
-        if (this.heap.length > 0) {
+        if (this.infWeights.length > 0) {
+            return this.infWeights.shift();
+        } else if (this.heap.length > 0) {
             const top: Http3PrioritisedElementNode = this.heap[0];
             const bottom: Http3PrioritisedElementNode | undefined = this.heap.pop();
             if (bottom !== undefined && this.heap.length > 0) {
@@ -24,6 +37,8 @@ export class Http3DepNodePQueue {
             }
 
             return top;
+        } else if (this.zeroWeights.length > 0) {
+            return this.zeroWeights.shift();
         } else {
             return undefined
         }
@@ -106,6 +121,100 @@ export class Http3DepNodePQueue {
             const a: Http3PrioritisedElementNode = this.heap[indexA];
             this.heap[indexA] = this.heap[indexB];
             this.heap[indexB] = a;
+        }
+    }
+
+    private insertZeroWeight(node: Http3PrioritisedElementNode) {
+        let nodeIsRequest: boolean = false;
+        let id: number;
+        if (node instanceof Http3RequestNode) {
+            nodeIsRequest = true;
+            id = node.getStreamID().toNumber();
+        } else if (node instanceof Http3PlaceholderNode) {
+            id = node.getPlaceholderID();
+        } else {
+            throw new Error("Tried pushing a node which was neither a request nor a placeholder node!");
+        }
+
+        if (this.zeroWeights.length === 0) {
+            this.zeroWeights.push(node);
+        } else {
+            // Insert node in sorted order by stream id (in case of a tie between stream and placeholder id, the stream is inserted first)
+            for (let i = this.zeroWeights.length - 1; i >= 0; --i) {
+                const nodeAtIndex: Http3PrioritisedElementNode = this.zeroWeights[i];
+                let nodeAtIndexID: number;
+                if (nodeAtIndex instanceof Http3RequestNode) {
+                    nodeAtIndexID = nodeAtIndex.getStreamID().toNumber();
+                } else if (nodeAtIndex instanceof Http3PlaceholderNode) {
+                    nodeAtIndexID = nodeAtIndex.getPlaceholderID();
+                } else {
+                    throw new Error("Node at index was neither a request nor a placeholder node!");
+                }
+
+                if (nodeAtIndexID === id) {
+                    // Cover edge case where stream id === placeholder id
+                    if (nodeIsRequest === true) {
+                        this.zeroWeights.splice(i, 0, node);
+                    } else {
+                        this.zeroWeights.splice(i+1, 0, node);
+                    }
+                    break;
+                } else if (nodeAtIndexID < id) {
+                    this.zeroWeights.splice(i+1, 0, node);
+                    break;
+                } else if (i === 0) {
+                    // Edge case were streamid is the lowest of the list
+                    this.zeroWeights.unshift(node);
+                    break;
+                }
+            }
+        }
+    }
+
+    private insertInfWeight(node: Http3PrioritisedElementNode) {
+        let nodeIsRequest: boolean = false;
+        let id: number;
+        if (node instanceof Http3RequestNode) {
+            nodeIsRequest = true;
+            id = node.getStreamID().toNumber();
+        } else if (node instanceof Http3PlaceholderNode) {
+            id = node.getPlaceholderID();
+        } else {
+            throw new Error("Tried pushing a node which was neither a request nor a placeholder node!");
+        }
+
+        if (this.infWeights.length === 0) {
+            this.infWeights.push(node);
+        } else {
+            // Insert node in sorted order by stream id (in case of a tie between stream and placeholder id, the stream is inserted first)
+            for (let i = this.infWeights.length - 1; i >= 0; --i) {
+                const nodeAtIndex: Http3PrioritisedElementNode = this.infWeights[i];
+                let nodeAtIndexID: number;
+                if (nodeAtIndex instanceof Http3RequestNode) {
+                    nodeAtIndexID = nodeAtIndex.getStreamID().toNumber();
+                } else if (nodeAtIndex instanceof Http3PlaceholderNode) {
+                    nodeAtIndexID = nodeAtIndex.getPlaceholderID();
+                } else {
+                    throw new Error("Node at index was neither a request nor a placeholder node!");
+                }
+
+                if (nodeAtIndexID === id) {
+                    // Cover edge case where stream id === placeholder id
+                    if (nodeIsRequest === true) {
+                        this.infWeights.splice(i, 0, node);
+                    } else {
+                        this.infWeights.splice(i+1, 0, node);
+                    }
+                    break;
+                } else if (nodeAtIndexID < id) {
+                    this.infWeights.splice(i+1, 0, node);
+                    break;
+                } else if (i === 0) {
+                    // Edge case were streamid is the lowest of the list
+                    this.infWeights.unshift(node);
+                    break;
+                }
+            }
         }
     }
 }

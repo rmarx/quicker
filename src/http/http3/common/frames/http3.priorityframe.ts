@@ -22,9 +22,9 @@ export class Http3PriorityFrame extends Http3BaseFrame {
     private elementDependencyType: ElementDependencyType = 0;
     private prioritizedElementID?: Bignum; // VLIE
     private elementDependencyID?: Bignum; // VLIE
-    private weight: number; // Ranging from 0 - 255, add one to get value between 1 - 256
+    private weight: number; // Ranging from 0 - 255
 
-    public constructor(prioritizedElementType: PrioritizedElementType, elementDependencyType: ElementDependencyType, prioritizedElementID?: Bignum | number, elementDependencyID?: Bignum | number, weight: number = 16) {
+    public constructor(prioritizedElementType: PrioritizedElementType, elementDependencyType: ElementDependencyType, prioritizedElementID?: Bignum | number, elementDependencyID?: Bignum | number, weight: number = 0) {
         super();
         if (prioritizedElementType !== PrioritizedElementType.CURRENT_STREAM && prioritizedElementID === undefined) {
             // FIXME Maybe use other error?
@@ -34,9 +34,9 @@ export class Http3PriorityFrame extends Http3BaseFrame {
             // FIXME Maybe use other error?
             throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Tried creating a HTTP/3 priority frame without a elementDependencyID while EDT was not of type ROOT");
         }
-        if (weight < 1 || weight > 256) {
+        if (weight < 0 || weight > 255) {
             // FIXME Maybe use other error?
-            throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Tried creating a HTTP/3 priority frame with an invalid weight. All weights should be between 1 and 256. Given weight: " + weight);
+            throw new Http3Error(Http3ErrorCode.HTTP3_MALFORMED_FRAME, "Tried creating a HTTP/3 priority frame with an invalid weight. All weights should be between 0 and 255. Given weight: " + weight);
         }
         this.prioritizedElementType = prioritizedElementType;
         this.elementDependencyType = elementDependencyType;
@@ -50,7 +50,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         } else if (elementDependencyID !== undefined) {
             this.elementDependencyID = new Bignum(elementDependencyID);
         }
-        this.weight = weight - 1;
+        this.weight = weight;
     }
 
     public static fromPayload(payload: Buffer): Http3PriorityFrame {
@@ -76,7 +76,7 @@ export class Http3PriorityFrame extends Http3BaseFrame {
             edid = vlieOffset.value;
             offset = vlieOffset.offset;
         }
-        const weight: number = payload.readUInt8(offset) + 1;
+        const weight: number = payload.readUInt8(offset);
 
         return new Http3PriorityFrame(pet, edt, peid, edid, weight);
     }
@@ -141,9 +141,9 @@ export class Http3PriorityFrame extends Http3BaseFrame {
         return Http3FrameType.PRIORITY;
     }
 
-    // Add one to get weight from 1-256
+    // Add one to get weight from 0-255
     public getWeight(): number {
-        return this.weight + 1;
+        return this.weight;
     }
 
     public getPET(): PrioritizedElementType {

@@ -1,10 +1,10 @@
 import { Http3PrioritisedElementNode } from "./http3.prioritisedelementnode";
-import { DependencyTree, DependencyTreeNodeType } from "./http3.deptree";
+import { DependencyTree, DependencyTreeNodeType } from "../http3.deptree";
 
 export class Http3PlaceholderNode extends Http3PrioritisedElementNode {
     private placeholderID: number;
     // Parent should be root by default
-    public constructor(parent: Http3PrioritisedElementNode, placeholderID: number, weight: number = 16) {
+    public constructor(parent: Http3PrioritisedElementNode, placeholderID: number, weight: number = 0) {
         super(parent, weight);
         this.placeholderID = placeholderID;
         this.setParent(parent);

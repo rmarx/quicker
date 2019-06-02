@@ -17,7 +17,7 @@ export abstract class Http3PriorityScheme {
     }
 
     public addStream(requestStream: QuicStream): void {
-        this.dependencyTree.addRequestStreamToRoot(requestStream); // Default behaviour, RR weight 16 at root
+        this.dependencyTree.addRequestStreamToRoot(requestStream); // Default behaviour, FIFO with weight 0 at root
     }
 
     // Null if priority frame not possible, for example when multiple priority frames would be needed -> Can not be used over the wire e.g. exclusive prioritization emulation

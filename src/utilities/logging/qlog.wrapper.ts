@@ -18,8 +18,7 @@ import { TransportParameters } from '../../crypto/transport.parameters';
 import { Http3DataFrame, Http3HeaderFrame, Http3SettingsFrame, Http3PriorityFrame } from '../../http/http3/common/frames';
 import { Http3Setting } from '../../http/http3/common/frames/http3.settingsframe';
 import { Http3StreamState } from '../../http/http3/common/types/http3.streamstate';
-import { Http3PrioritisedElementNode } from '../../http/http3/common/prioritization/http3.prioritisedelementnode';
-import { Http3RequestNode } from '../../http/http3/common/prioritization/http3.requestnode';
+import { Http3PrioritisedElementNode, Http3RequestNode } from '../../http/http3/common/prioritization/nodes/index';
 import { Http3Header } from '../../http/http3/common/qpack/types/http3.header';
 import { DependencyTree } from '../../http/http3/common/prioritization/http3.deptree';
 

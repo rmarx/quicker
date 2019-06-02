@@ -1,13 +1,10 @@
 import { QuicStream } from "../../../../quicker/quic.stream";
 import { Bignum } from "../../../../types/bignum";
-import { Http3DependencyTreeRoot } from "./http3.deptreeroot";
-import { Http3RequestNode } from "./http3.requestnode";
-import { Http3PlaceholderNode } from "./http3.placeholdernode";
-import { Http3PrioritisedElementNode } from "./http3.prioritisedelementnode";
+import { Http3DependencyTreeRoot } from "./nodes/http3.deptreeroot";
+import { Http3PrioritisedElementNode, Http3PlaceholderNode, Http3RequestNode, Http3NodeEvent } from "./nodes/index";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../frames";
 import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
 import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
-import { Http3NodeEvent } from "./http3.nodeevent";
 import { EventEmitter } from "events";
 import { QlogWrapper } from "../../../../utilities/logging/qlog.wrapper";
 
@@ -133,7 +130,7 @@ export class Http3DependencyTree extends EventEmitter {
     }
 
     // Add with dependency on root node
-    public addRequestStreamToRoot(stream: QuicStream, weight: number = 16) {
+    public addRequestStreamToRoot(stream: QuicStream, weight: number = 0) {
         if (this.requestStreams.has(stream.getStreamId().toString())) {
             // TODO implement appropriate error
             throw new Error("Tried adding a request stream to the HTTP/3 dependency tree while it was already in the tree");
@@ -156,7 +153,7 @@ export class Http3DependencyTree extends EventEmitter {
     }
 
     // Add with dependency on request stream
-    public addRequestStreamToRequest(stream: QuicStream, dependencyStreamID: Bignum, weight: number = 16) {
+    public addRequestStreamToRequest(stream: QuicStream, dependencyStreamID: Bignum, weight: number = 0) {
         if (this.requestStreams.has(stream.getStreamId().toString())) {
             // TODO implement appropriate error
             throw new Error("Tried adding a request stream to the HTTP/3 dependency tree while it was already in the tree");
@@ -186,7 +183,7 @@ export class Http3DependencyTree extends EventEmitter {
     }
 
     // Add with dependency on placeholder
-    public addRequestStreamToPlaceholder(stream: QuicStream, placeholderID: number, weight: number = 16) {
+    public addRequestStreamToPlaceholder(stream: QuicStream, placeholderID: number, weight: number = 0) {
         if (this.requestStreams.has(stream.getStreamId().toString())) {
             // TODO implement appropriate error
             throw new Error("Tried adding a request stream to the HTTP/3 dependency tree while it was already in the tree");
@@ -216,7 +213,7 @@ export class Http3DependencyTree extends EventEmitter {
     }
 
     // Add with dependency on root node
-    public addPlaceholderToRoot(weight: number = 16): number {
+    public addPlaceholderToRoot(weight: number = 0): number {
         const placeholderID: number = this.placeholderCount++;
         const node: Http3PlaceholderNode = new Http3PlaceholderNode(this.root, placeholderID, weight);
         this.placeholders.set(placeholderID, node);
@@ -238,7 +235,7 @@ export class Http3DependencyTree extends EventEmitter {
     }
 
     // Add with dependency on request stream
-    public addPlaceholderToRequest(dependencyStreamID: Bignum, weight: number = 16): number {
+    public addPlaceholderToRequest(dependencyStreamID: Bignum, weight: number = 0): number {
         const placeholderID: number = this.placeholderCount++;
 
         const parent: Http3PrioritisedElementNode | undefined = this.requestStreams.get(dependencyStreamID.toString());
@@ -268,7 +265,7 @@ export class Http3DependencyTree extends EventEmitter {
     }
 
     // Add with dependency on placeholder
-    public addPlaceholderToPlaceholder(parentPlaceholderID: number, weight: number = 16): number {
+    public addPlaceholderToPlaceholder(parentPlaceholderID: number, weight: number = 0): number {
         const newPlaceholderID: number = this.placeholderCount++;
 
         const parent: Http3PrioritisedElementNode | undefined = this.placeholders.get(parentPlaceholderID);
@@ -297,7 +294,7 @@ export class Http3DependencyTree extends EventEmitter {
         return newPlaceholderID
     }
 
-    public addExclusiveStreamToStream(stream: QuicStream, dependencyStreamID: Bignum, weight: number = 16) {
+    public addExclusiveStreamToStream(stream: QuicStream, dependencyStreamID: Bignum, weight: number = 0) {
         if (this.requestStreams.has(stream.getStreamId().toString())) {
             // TODO implement appropriate error
             throw new Error("Tried adding a request stream to the HTTP/3 dependency tree while it was already in the tree");

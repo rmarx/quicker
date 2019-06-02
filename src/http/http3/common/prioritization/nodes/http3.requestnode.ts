@@ -1,11 +1,9 @@
-import { QuicStream } from "../../../../quicker/quic.stream";
-import { Bignum } from "../../../../types/bignum";
-import { Http3PrioritisedElementNode } from "./http3.prioritisedelementnode";
-import { Http3DataFrame } from "../frames";
-import { Http3StreamState } from "../types/http3.streamstate";
-import { Http3Error, Http3ErrorCode } from "../errors/http3.error";
-import { VerboseLogging } from "../../../../utilities/logging/verbose.logging";
-import { DependencyTree, DependencyTreeNodeType } from "./http3.deptree";
+import { QuicStream } from "../../../../../quicker/quic.stream";
+import { Bignum } from "../../../../../types/bignum";
+import { Http3PrioritisedElementNode } from "./index";
+import { Http3StreamState } from "../../types/http3.streamstate";
+import { VerboseLogging } from "../../../../../utilities/logging/verbose.logging";
+import { DependencyTree, DependencyTreeNodeType } from "../http3.deptree";
 
 export class Http3RequestNode extends Http3PrioritisedElementNode {
     private bufferedData: Buffer = Buffer.alloc(0);
@@ -14,7 +12,7 @@ export class Http3RequestNode extends Http3PrioritisedElementNode {
     private allDataBuffered: boolean = false; // Set to true if all data has been received and stream can be closed
 
     // Parent should be root by default
-    public constructor(stream: QuicStream, parent: Http3PrioritisedElementNode, weight: number = 16) {
+    public constructor(stream: QuicStream, parent: Http3PrioritisedElementNode, weight: number = 0) {
         super(parent, weight);
         this.stream = stream;
         this.setParent(parent);

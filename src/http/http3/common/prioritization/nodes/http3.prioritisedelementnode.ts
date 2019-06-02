@@ -1,7 +1,7 @@
-import { Http3DepNodePQueue } from "./http3.priorityqueue";
+import { Http3DepNodePQueue } from "../http3.priorityqueue";
 import { EventEmitter } from "events";
-import { Http3NodeEvent } from "./http3.nodeevent";
-import { DependencyTree } from "./http3.deptree";
+import { Http3NodeEvent } from "./index";
+import { DependencyTree } from "../http3.deptree";
 
 export class Http3PrioritisedElementNode extends EventEmitter {
     static readonly CHUNK_SIZE = 1000;
@@ -13,17 +13,10 @@ export class Http3PrioritisedElementNode extends EventEmitter {
     protected lastPseudoTime: number = 0;
 
     // Parent should be root by default
-    public constructor(parent: Http3PrioritisedElementNode | null, weight: number = 16) {
+    public constructor(parent: Http3PrioritisedElementNode | null, weight: number = 0) {
         super();
         this.parent = parent;
         this.weight = weight;
-        // if (parent !== null) {
-        //     this.setParent(parent);
-        // }
-        // this.parent = parent;
-        // if (this.parent !== null) {
-        //     this.parent.children.push(this);
-        // }
     }
 
     // Do one (recursive) pass starting from this node

@@ -1,5 +1,4 @@
 import { Http3PriorityScheme } from "./http3.priorityscheme";
-import { QuicStream } from "../../../../../quicker/quic.stream";
 import { Http3PriorityFrame, PrioritizedElementType, ElementDependencyType } from "../../frames";
 import { Bignum } from "../../../../../types/bignum";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";

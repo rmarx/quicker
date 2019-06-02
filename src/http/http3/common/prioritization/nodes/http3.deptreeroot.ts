@@ -1,5 +1,5 @@
-import { Http3PrioritisedElementNode } from "./http3.prioritisedelementnode";
-import { DependencyTree, DependencyTreeNodeType } from "./http3.deptree";
+import { Http3PrioritisedElementNode } from "../nodes/index";
+import { DependencyTree, DependencyTreeNodeType } from "../http3.deptree";
 
 export class Http3DependencyTreeRoot extends Http3PrioritisedElementNode {
     // Parent should be root by default

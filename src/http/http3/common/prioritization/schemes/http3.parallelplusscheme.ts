@@ -1,9 +1,6 @@
 import { Http3PriorityScheme } from "./http3.priorityscheme";
-import { QuicStream } from "../../../../../quicker/quic.stream";
 import { Bignum } from "../../../../../types/bignum";
-import { Http3NodeEvent } from "../http3.nodeevent";
-import { Http3PrioritisedElementNode } from "../http3.prioritisedelementnode";
-import { Http3RequestNode } from "../http3.requestnode";
+import { Http3PrioritisedElementNode, Http3RequestNode, Http3NodeEvent } from "../nodes/index";
 import { Http3PriorityFrame } from "../../frames";
 import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
 import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
