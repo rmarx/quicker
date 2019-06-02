@@ -35,9 +35,14 @@ export class Http3DependencyTree extends EventEmitter {
 
     private logger?: QlogWrapper;
 
-    public constructor(logger?: QlogWrapper) {
+    public constructor(placeholderCount: number, logger?: QlogWrapper) {
         super();
         this.logger = logger;
+
+        // Create initial placeholder nodes
+        for (let i = 0; i < placeholderCount; ++i) {
+            this.addPlaceholderToRoot();
+        }
 
         // Log tree changes
         this.on(Http3NodeEvent.NODE_REMOVED, (node: Http3PrioritisedElementNode) => {
@@ -419,6 +424,19 @@ export class Http3DependencyTree extends EventEmitter {
 
         if (this.logger !== undefined) {
             this.logger.onHTTPDependencyTreeChange(this.toJSON(), "MOVED");
+        }
+    }
+
+    public movePlaceholderToPlaceholder(placeholderID: number, targetPlaceholderID: number) {
+        const placeholder: Http3PlaceholderNode | undefined = this.placeholders.get(placeholderID);
+        const target: Http3PlaceholderNode | undefined = this.placeholders.get(targetPlaceholderID);
+
+        if (placeholder === undefined) {
+            throw new Error("Tried moving a placeholder which was not in the dependency tree. ID: " + placeholderID);
+        } else if (target === undefined) {
+            throw new Error("Tried moving a placeholder to a placeholder which was not in the dependency tree. TargetID: " + targetPlaceholderID);
+        } else {
+            placeholder.setParent(target);
         }
     }
 

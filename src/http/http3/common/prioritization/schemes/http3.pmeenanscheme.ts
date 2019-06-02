@@ -18,7 +18,7 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private bucketActivityMap: Map<number, boolean> = new Map<number, boolean>();
 
     public constructor(logger?: QlogWrapper) {
-        super(logger);
+        super(0, logger);
         // Create the buckets for each priority level
         for (let i = 0; i < Http3PMeenanScheme.BUCKET_COUNT; ++i) {
             this.buckets.push(new Http3PMeenanBucket(i));
@@ -34,6 +34,10 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
                 }
             });
         }
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        return [];
     }
 
     public addStream(requestStream: QuicStream): void {

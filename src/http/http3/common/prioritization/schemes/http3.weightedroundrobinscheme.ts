@@ -7,7 +7,11 @@ import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 export class Http3WeightedRoundRobinScheme extends Http3PriorityScheme {
     public constructor(logger?: QlogWrapper) {
-        super(logger);
+        super(0, logger);
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        return [];
     }
 
     public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {

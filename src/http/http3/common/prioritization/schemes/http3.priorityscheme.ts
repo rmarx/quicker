@@ -8,8 +8,8 @@ import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 export abstract class Http3PriorityScheme {
     protected dependencyTree: Http3DependencyTree;
 
-    public constructor(logger?: QlogWrapper) {
-        this.dependencyTree = new Http3DependencyTree(logger);
+    public constructor(placeholderCount: number, logger?: QlogWrapper) {
+        this.dependencyTree = new Http3DependencyTree(placeholderCount, logger);
     }
 
     public setLogger(logger: QlogWrapper) {
@@ -19,6 +19,10 @@ export abstract class Http3PriorityScheme {
     public addStream(requestStream: QuicStream): void {
         this.dependencyTree.addRequestStreamToRoot(requestStream); // Default behaviour, RR weight 16 at root
     }
+
+    // Creates a set of frames for initial setup if neede
+    // E.g. Set up dependency tree with placeholders and their weights
+    public abstract initialSetup(): Http3PriorityFrame[];
 
     // Null if priority frame not possible, for example when multiple priority frames would be needed -> Can not be used over the wire e.g. exclusive prioritization emulation
     // Returns the Priorityframe that should be sent to the server if using client-sided prioritization

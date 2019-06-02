@@ -25,7 +25,7 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     private lowestPriorityTail?: Bignum;
 
     public constructor(logger?: QlogWrapper) {
-        super(logger);
+        super(0, logger);
 
         // Make sure each tail always points to the last element of its chain
         this.dependencyTree.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
@@ -72,6 +72,10 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
                 throw new Error("A non request node was removed from HTTP/3 dependency tree while it should contain only request streams!");
             }
         });
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        return [];
     }
 
     // Does not work for client-sided prioritization!
