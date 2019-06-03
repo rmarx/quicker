@@ -498,7 +498,7 @@ export class QlogWrapper{
     }
 
 
-    public onGoodputUpdate(sentCount : number, retransmitCount:number){
+    public onGoodputUpdate(sentCount : number, retransmitCount:number, sentTotalSize : number, sentRetransmitSize : number){
         let evt:any = [
             123, 
             qlog.EventCategory.RECOVERY,
@@ -508,7 +508,10 @@ export class QlogWrapper{
                 metric: "goodput",
                 sentCount : sentCount,
                 retransmitCount : retransmitCount,
-                goodput : (sentCount - retransmitCount) / sentCount
+                nrgoodput : (sentCount - retransmitCount) / sentCount,
+                sentSize : sentTotalSize,
+                sentRetransmitSize: sentRetransmitSize,
+                sizeGoodput : (sentTotalSize - sentRetransmitSize) / sentTotalSize
             }
         ];
 

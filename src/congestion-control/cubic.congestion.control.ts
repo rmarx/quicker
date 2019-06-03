@@ -127,6 +127,13 @@ export class CubicCongestionControl extends PacketPipe {
      */
     private RTTMeasurer : RTTMeasurement;
 
+
+    private packetSentCount: number;
+    private packetRetransmitCount : number;
+    private packetSentTotalSize : number;
+    private packetRetransmitTotalSize : number;
+
+
     
 
     public constructor(connection: Connection, lossDetectionInstances: Array<QuicLossDetection>, rttMeasurer: RTTMeasurement) {
@@ -142,6 +149,11 @@ export class CubicCongestionControl extends PacketPipe {
         this.hookCongestionControlEvents(lossDetectionInstances);
         this.RTTMeasurer = rttMeasurer;
         this.cubic_reset();
+
+        this.packetSentCount = 0;
+        this.packetRetransmitCount  = 0;
+        this.packetSentTotalSize = 0;
+        this.packetRetransmitTotalSize  = 0;
     }
 
     private cubic_reset(){
@@ -194,6 +206,9 @@ export class CubicCongestionControl extends PacketPipe {
      */
     private onPacketSentCC(sentPacket : BasePacket){
         //if the packets contains non-ack frames
+        this.packetSentCount++;
+        this.packetSentTotalSize += sentPacket.getSerializedSizeInBytes();
+        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount, this.packetSentTotalSize, this.packetRetransmitTotalSize);
         if( !sentPacket.isAckOnly()){
             var bytesSent = sentPacket.toBuffer(this.connection).byteLength;
             this.setBytesInFlight(this.bytesInFlight.add(bytesSent), "PACKET_SENT", {"packet_num" : sentPacket.getHeader().getPacketNumber().getValue().toDecimalString(), "added" : bytesSent, "packettype": sentPacket.getPacketType()});
@@ -385,6 +400,9 @@ export class CubicCongestionControl extends PacketPipe {
 
 
     public queueForRetransmit(packet : BasePacket){
+        this.packetRetransmitCount++;
+        this.packetRetransmitTotalSize += packet.getSerializedSizeInBytes();
+        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount, this.packetSentTotalSize, this.packetRetransmitTotalSize);
         VerboseLogging.info("congestioncontrol: queueForRetransmit: unshifting packet where old packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
         this.packetsQueue.unshift(packet);
         this.sendPackets();

@@ -95,6 +95,8 @@ export class QuicCongestionControl extends PacketPipe {
 
     private packetSentCount: number;
     private packetRetransmitCount : number;
+    private packetSentTotalSize : number;
+    private packetRetransmitTotalSize : number;
 
     
 
@@ -115,6 +117,8 @@ export class QuicCongestionControl extends PacketPipe {
 
         this.packetSentCount = 0;
         this.packetRetransmitCount  = 0;
+        this.packetSentTotalSize = 0;
+        this.packetRetransmitTotalSize = 0;
     }
 
     
@@ -161,7 +165,8 @@ export class QuicCongestionControl extends PacketPipe {
     private onPacketSentCC(sentPacket : BasePacket){
         //if the packets contains non-ack frames
         this.packetSentCount++;
-        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount);
+        this.packetSentTotalSize += sentPacket.getSerializedSizeInBytes();
+        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount, this.packetSentTotalSize, this.packetRetransmitTotalSize);
         if( !sentPacket.isAckOnly()){
             var bytesSent = sentPacket.getSerializedSizeInBytes();
             this.setBytesInFlight(this.bytesInFlight.add(bytesSent), "PACKET_SENT", {"packet_num" : sentPacket.getHeader().getPacketNumber().getValue().toDecimalString(), "added" : bytesSent, "packettype": sentPacket.getPacketType()});
@@ -347,7 +352,8 @@ export class QuicCongestionControl extends PacketPipe {
 
     public queueForRetransmit(packet : BasePacket){
         this.packetRetransmitCount++;
-        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount);
+        this.packetRetransmitTotalSize += packet.getSerializedSizeInBytes();
+        this.connection.getQlogger().onGoodputUpdate(this.packetSentCount, this.packetRetransmitCount, this.packetSentTotalSize, this.packetRetransmitTotalSize);
         VerboseLogging.info("congestioncontrol: queueForRetransmit: unshifting packet where old packetnumber is " + packet.getHeader().getPacketNumber().getValue().toDecimalString());
         this.packetsQueue.unshift(packet);
         this.sendPackets();
