@@ -46,7 +46,7 @@ typedef SSIZE_T ssize_t;
  * qpack-11 (if such draft ever published) will correspond to version 0.11.
  */
 #define LSQPACK_MAJOR_VERSION 0
-#define LSQPACK_MINOR_VERSION 5
+#define LSQPACK_MINOR_VERSION 8
 #define LSQPACK_PATCH_VERSION 0
 
 /** Let's start with four billion for now */
@@ -184,6 +184,13 @@ lsqpack_enc_encode (struct lsqpack_enc *,
     const char *name, unsigned name_sz,
     const char *value, unsigned value_sz,
     enum lsqpack_enc_flags);
+
+/**
+ * Cancel current header block. Cancellation is only allowed if the dynamic 
+ * table is not used. Returns 0 on success, -1 on failure.
+ */
+int 
+lsqpack_enc_cancel_header (struct lsqpack_enc *);
 
 /**
  * End current header block.  The Header Data Prefix is written to `buf'.
@@ -427,6 +434,9 @@ struct lsqpack_enc
     lsqpack_abs_id_t            qpe_ins_count;
     lsqpack_abs_id_t            qpe_max_acked_id;
     lsqpack_abs_id_t            qpe_last_tss;
+    /* The smallest absolute index in the dynamic table that the encoder
+     * will emit a reference for.
+     */
     lsqpack_abs_id_t            qpe_drain_idx;
 
     enum {
@@ -445,12 +455,8 @@ struct lsqpack_enc
     unsigned                    qpe_max_risked_streams;
     unsigned                    qpe_cur_streams_at_risk;
 
-    /* Number of used entries in qpe_hinfos[]. */
-    unsigned                    qpe_hinfos_count;
-    /* Number of entries allocated in qpe_hinfos_arr[].  There is always
-     * an extra element at the end for use as sentinel.
-     */
-    unsigned                    qpe_hinfos_nalloc;
+    /* Number of used entries in qpe_hinfo_arrs */
+    unsigned                    qpe_hinfo_arrs_count;
 
     /* Dynamic table entries (struct enc_table_entry) live in two hash
      * tables: name/value hash table and name hash table.  These tables
@@ -473,8 +479,8 @@ struct lsqpack_enc
 
         /* Number of at-risk references in this header block */
         unsigned            n_risked;
-        /* Number of headers in this header list */
-        unsigned            n_headers;
+        /* Number of headers in this header list added to the history */
+        unsigned            n_hdr_added_to_hist;
         /* True if there are other header blocks with the same stream ID
          * that are at risk.  (This means we can risk this header block
          * as well.)
