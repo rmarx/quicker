@@ -1,7 +1,7 @@
 export interface Http3RequestMetadata {
     isCritical?: boolean,
     inHead?: boolean,
-    isBeforeFirstImage?: boolean,
+    isAfterFirstImage?: boolean,
     isAboveTheFold?: boolean,
     isAsync?: boolean,
     isDefer?: boolean,

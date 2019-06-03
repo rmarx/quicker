@@ -138,12 +138,16 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     }
 
     private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
-        if (metadata.isCritical === true) {
-            return [63, 3];
-        } else if (metadata.isDefer === true || metadata.isAsync) {
+        if (metadata.isDefer === true || metadata.isAsync) {
             return [31, 2];
+        } else if (metadata.isCritical === true) {
+            return [63, 3];
         } else if (metadata.mimetype.search("javascript") > -1) {
-            return [31, 3];
+            if (metadata.inHead === true) {
+                return [63, 3];
+            } else {
+                return [31, 3];
+            }
         } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
             return [31, 3];
         } else if (metadata.mimetype.search("font") > -1) {

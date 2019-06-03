@@ -105,21 +105,24 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void {}
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
-        // TODO missing XHR -> should be HIGH
         // TODO missing server push -> should be LOWEST
         if (metadata.mimetype.search("javascript") > -1) {
             if (metadata.isAsync === true || metadata.isDefer === true) {
                 return PriorityGroup.LOW;
             }
-            else if (metadata.isBeforeFirstImage === true) {
-                return PriorityGroup.HIGH;
-            } else {
+            else if (metadata.isAfterFirstImage === true) {
                 return PriorityGroup.NORMAL;
+            } else {
+                return PriorityGroup.HIGH;
             }
-        } else if (metadata.mimetype.search("font") > -1) {
-            return PriorityGroup.HIGH;
         } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
             return PriorityGroup.HIGH;
+        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+            return PriorityGroup.HIGH;
+        } else if (metadata.mimetype.search("font") > -1) {
+            return PriorityGroup.HIGH;
+        } else if (metadata.mimetype.search("image") > -1) {
+            return PriorityGroup.LOW;
         } else {
             return PriorityGroup.LOW;
         }

@@ -108,6 +108,8 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
         // XHR should be weight 32
         if (metadata.mimetype.search("image") > -1) {
             return 22;
+        } else if (metadata.mimetype.search("json") > -1 || metadata.mimetype.search("xml") > -1) {
+            return 32;
         } else if (metadata.mimetype.search("javascript") || metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
             return 32;
         } else if (metadata.mimetype.search("font") > -1) {

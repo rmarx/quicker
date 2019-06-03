@@ -145,16 +145,15 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     }
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
-        // TODO missing XHR -> should be HIGH
         // TODO missing server push -> should be LOWEST
         if (metadata.mimetype.search("javascript") > -1) {
             if (metadata.isAsync === true || metadata.isDefer === true) {
                 return PriorityGroup.LOW;
             }
-            else if (metadata.isBeforeFirstImage === true) {
-                return PriorityGroup.HIGH;
-            } else {
+            else if (metadata.isAfterFirstImage === true) {
                 return PriorityGroup.NORMAL;
+            } else {
+                return PriorityGroup.HIGH;
             }
         } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
             return PriorityGroup.HIGHEST;

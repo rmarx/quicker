@@ -8,6 +8,7 @@ import { QuicError } from '../utilities/errors/connection.error';
 import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { LongHeaderType } from './header/long.header';
+import { FrameFactory } from '../utilities/factories/frame.factory';
 
 
 export abstract class BaseEncryptedPacket extends BasePacket {
@@ -87,6 +88,13 @@ export abstract class BaseEncryptedPacket extends BasePacket {
             frame.toBuffer().copy(dataBuffer, offset);
             offset += frame.toBuffer().byteLength;
         });
+        if (offset < 4) {
+            VerboseLogging.error("Added padding to frame at offset: " + offset);
+            let padding = FrameFactory.createPaddingFrame(20);
+            dataBuffer = Buffer.concat([dataBuffer, padding.toBuffer()]);
+            offset += padding.toBuffer().byteLength;
+            VerboseLogging.error("Bufferlength after padding: " + dataBuffer.byteLength + "\toffset: " + offset);
+        }
         dataBuffer = this.getEncryptedData(connection, header, dataBuffer);
         return dataBuffer;
     }

@@ -14,13 +14,13 @@ const logFileName: string | undefined = process.argv[3] || undefined;
 if (logFileName !== undefined) {
     Constants.LOG_FILE_NAME = logFileName;
 }
-const lookupTableFileName: string | undefined = process.argv[4] || undefined;
+const lookupTableFileName: string | undefined = /* process.argv[4] || */ undefined;
 const lookupTable: {config: {}, resources: {[path: string]: Http3RequestMetadata}} | undefined = lookupTableFileName === undefined ? undefined : JSON.parse(readFileSync(lookupTableFileName, "utf-8"));
 
 
-let host = process.argv[5] || "127.0.0.1";
-let port = parseInt(process.argv[6]) || 4433;
-let version = process.argv[7] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+let host = process.argv[4] || "127.0.0.1";
+let port = parseInt(process.argv[5]) || 4433;
+let version = process.argv[6] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
 
 const client: Http3Client = new Http3Client(host, port);
 

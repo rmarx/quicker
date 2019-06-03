@@ -126,7 +126,7 @@ export class Http3Client extends EventEmitter {
                         bufferedData = bufferedData.slice(vlieOffset.offset);
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
                             streamType = Http3UniStreamType.CONTROL;
-                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, logger, bufferedData.slice(vlieOffset.offset));
+                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, logger, bufferedData);
                             this.setupControlStreamEvents(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
                             streamType = Http3UniStreamType.PUSH;

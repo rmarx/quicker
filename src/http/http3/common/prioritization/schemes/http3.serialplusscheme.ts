@@ -177,7 +177,7 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
         if (metadata.mimetype.search("javascript") > -1) {
-            if (metadata.isDefer === true || metadata.isAsync === true) {
+            if (metadata.isDefer === true || metadata.isAsync === true || metadata.inHead !== true) {
                 return PriorityGroup.MEDIUM;
             } else {
                 return PriorityGroup.HIGH;
@@ -186,6 +186,8 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
             return PriorityGroup.LOW;
         } else if (metadata.mimetype === "text/html") {
             return PriorityGroup.LOW;
+        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+            return PriorityGroup.MEDIUM;
         } else if (metadata.mimetype.search("image") > -1) {
             return PriorityGroup.LOW;
         } else if (metadata.mimetype.search("font") > -1) {
