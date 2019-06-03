@@ -56,7 +56,7 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
 
             const weight: number = (priority << 2) | concurrency;
             VerboseLogging.info("Creating PMeenan priority frame with priority: " + priority + " and concurrency: " + concurrency + ". Resulting weight: " + weight);
-            return new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, streamID, undefined, weight);
+            return new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
         } else {
             throw new Error("Tried applying a scheme to a stream which was not in the data structure");
         }

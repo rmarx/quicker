@@ -40,10 +40,10 @@ export class Http3FIFOScheme extends Http3PriorityScheme {
         let priorityFrame;
         if (this.tailStreamID === undefined) {
             this.dependencyTree.moveStreamToRoot(streamID);
-            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, streamID);
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT);
         } else {
             this.dependencyTree.moveStreamToStream(streamID, this.tailStreamID);
-            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.REQUEST_STREAM, streamID, this.tailStreamID);
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.REQUEST_STREAM, undefined, this.tailStreamID);
         }
         this.tailStreamID = streamID;
         return priorityFrame;

@@ -50,7 +50,6 @@ export class Http3Client extends EventEmitter {
 
     private logger?: QlogWrapper;
 
-    private trimQueryParamsPattern: RegExp = /([^\?]+)(\?.*)?/g;
     private fileExtensionPattern: RegExp = /\.[0-9a-z]+$/i;
     private indexRequestPattern: RegExp = /.*\/$/g;
 
@@ -188,12 +187,6 @@ export class Http3Client extends EventEmitter {
             throw new Error("HTTP/3 stream weights should have a value between 1 and 256!");
         }
 
-        // Trim any query parameters used from the path
-        const trimmedPath: RegExpMatchArray | null = path.match(this.trimQueryParamsPattern);
-        if (trimmedPath !== null) {
-            path = trimmedPath[0];
-        }
-
         const stream: QuicStream = this.quickerClient.createStream(StreamType.ClientBidi);
         const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
         req.setHeader(":path", path);
@@ -225,18 +218,20 @@ export class Http3Client extends EventEmitter {
 
         this.prioritiser.addStream(stream);
         let priorityFrame: Http3PriorityFrame | null;
+
         if (metadata !== undefined) {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), metadata);
         } else {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimetype: Http3Response.extensionToMimetype(fileExtension)});
         }
-        if (priorityFrame !== null) {
-            if (this.logger !== undefined) {
-                this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
-            }
-        } else {
-            // Default values
-            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, stream.getStreamId());
+
+        if (priorityFrame === null) {
+            // Use default behaviour if scheme was not able to create a frame
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
         }
 
         this.prioritiser.addData(stream.getStreamId(), priorityFrame.toBuffer());
@@ -249,8 +244,8 @@ export class Http3Client extends EventEmitter {
             bufferedData = Buffer.concat([bufferedData, data]);
             if (this.logger !== undefined) {
                 this.logger.onHTTPDataChunk(
-                    stream.getStreamId(), 
-                    data.byteLength, 
+                    stream.getStreamId(),
+                    data.byteLength,
                     priorityFrame !== null ? priorityFrame.getWeight() : weight,
                     "RX");
             }

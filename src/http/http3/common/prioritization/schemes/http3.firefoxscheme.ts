@@ -66,13 +66,12 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
         return frames;
     }
 
-    // FIXME placeholders are not yet created server side
     public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
         const placeholderID: number = this.getPlaceholderID(metadata);
         const weight: number = this.getWeight(metadata);
         this.dependencyTree.moveStreamToPlaceholder(streamID, placeholderID);
         this.dependencyTree.setStreamWeight(streamID, weight);
-        return new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.PLACEHOLDER, streamID, placeholderID, weight);
+        return new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.PLACEHOLDER, undefined, placeholderID, weight);
     }
 
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void {}

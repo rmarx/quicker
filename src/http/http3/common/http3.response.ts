@@ -16,6 +16,9 @@ export class Http3Response {
     // -> Content-Type
     private publicDir: string;
 
+    // Regex to trim query parameters if applicable
+    private trimQueryParamsPattern: RegExp = /([^\?]+)(\?.*)?/;
+
     public constructor(headers: Http3Header[], requestStreamID: Bignum, encoder: Http3QPackEncoder, decoder: Http3QPackDecoder) {
         this.headerFrame = new Http3HeaderFrame(headers, requestStreamID, encoder);
         if (Constants.EXPOSED_SERVER_DIR === undefined) {
@@ -29,7 +32,14 @@ export class Http3Response {
         let buffer: Buffer = this.headerFrame.toBuffer();
 
         if (this.filePath !== undefined) {
-            let absoluteFilePath = this.parsePath(resolve(__dirname) + this.publicDir + this.filePath);
+            // Trim everything after first '?'
+            let trimmedPath: string = this.filePath;
+            const matches: RegExpMatchArray | null = this.filePath.match(this.trimQueryParamsPattern);
+            if (matches !== null) {
+                trimmedPath = matches[1];
+            }
+
+            let absoluteFilePath = this.parsePath(resolve(__dirname) + this.publicDir + trimmedPath);
             if (!existsSync(absoluteFilePath)) {
                 absoluteFilePath = resolve(__dirname) + this.publicDir + "/notfound.html";
                 this.setStatus(404);
