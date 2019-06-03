@@ -18,7 +18,7 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private bucketActivityMap: Map<number, boolean> = new Map<number, boolean>();
 
     public constructor(logger?: QlogWrapper) {
-        super(logger);
+        super(0, logger);
         // Create the buckets for each priority level
         for (let i = 0; i < Http3PMeenanScheme.BUCKET_COUNT; ++i) {
             this.buckets.push(new Http3PMeenanBucket(i));
@@ -34,6 +34,10 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
                 }
             });
         }
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        return [];
     }
 
     public addStream(requestStream: QuicStream): void {
@@ -134,12 +138,16 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     }
 
     private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
-        if (metadata.isCritical === true) {
-            return [63, 3];
-        } else if (metadata.isDefer === true || metadata.isAsync) {
+        if (metadata.isDefer === true || metadata.isAsync) {
             return [31, 2];
+        } else if (metadata.isCritical === true) {
+            return [63, 3];
         } else if (metadata.mimetype.search("javascript") > -1) {
-            return [31, 3];
+            if (metadata.inHead === true) {
+                return [63, 3];
+            } else {
+                return [31, 3];
+            }
         } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
             return [31, 3];
         } else if (metadata.mimetype.search("font") > -1) {

@@ -15,30 +15,21 @@ enum PriorityGroup {
 }
 
 export class Http3SerialPlusScheme extends Http3PriorityScheme {
-    private highPriorityPlaceholderID: number;
+    private highPriorityPlaceholderID: number = 0;
     private highPriorityTailID?: Bignum;
-    private mediumPriorityPlaceholderID: number;
+    private mediumPriorityPlaceholderID: number = 1;
     private mediumPriorityTailID?: Bignum;
-    private lowPriorityPlaceholderID: number;
-    private leadersPlaceholderID: number;
-    private followersPlaceholderID: number;
-    private unblockedPlaceholderID: number;
-    private backgroundPlaceholderID: number;
-    private speculativePlaceholderID: number;
+    private lowPriorityPlaceholderID: number = 2;
+    private leadersPlaceholderID: number = 3;
+    private followersPlaceholderID: number = 4;
+    private unblockedPlaceholderID: number = 5;
+    private backgroundPlaceholderID: number = 6;
+    private speculativePlaceholderID: number = 7;
 
     // TODO communicate placeholders with server when using client-sided prioritization
     // Maybe using events?
     public constructor(logger?: QlogWrapper) {
-        super(logger);
-        this.highPriorityPlaceholderID = this.dependencyTree.addPlaceholderToRoot(256);
-        this.mediumPriorityPlaceholderID = this.dependencyTree.addPlaceholderToRoot(256);
-        // Weight of mediumPriorityPlaceholder changes to 1 when highpriority non-empty and back to 256 when empty
-        this.lowPriorityPlaceholderID = this.dependencyTree.addPlaceholderToRoot(1);
-        this.leadersPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.lowPriorityPlaceholderID, 201);
-        this.followersPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.leadersPlaceholderID, 1);
-        this.unblockedPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.lowPriorityPlaceholderID, 101);
-        this.backgroundPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.lowPriorityPlaceholderID, 1);
-        this.speculativePlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.backgroundPlaceholderID, 1);
+        super(8, logger);
 
         // Make sure highPriorityTailID and mediumPriorityTailID always points to the last element of the chain
         this.dependencyTree.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
@@ -49,6 +40,7 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
                         this.highPriorityTailID = parent.getStreamID();
                     } else {
                         this.highPriorityTailID = undefined;
+                        // Would need to send a frame to communicate to other endpoint weight has changed
                         this.dependencyTree.setPlaceholderWeight(this.mediumPriorityPlaceholderID, 256);
                     }
                 }
@@ -57,6 +49,88 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
                 throw new Error("A non request node was removed from HTTP/3 dependency tree while it should contain only request streams!");
             }
         });
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        this.dependencyTree.setPlaceholderWeight(this.highPriorityPlaceholderID, 256);
+        this.dependencyTree.setPlaceholderWeight(this.mediumPriorityPlaceholderID, 256);
+        // Weight of mediumPriorityPlaceholder changes to 1 when highpriority non-empty and back to 256 when empty
+        this.dependencyTree.setPlaceholderWeight(this.lowPriorityPlaceholderID, 1);
+
+        this.dependencyTree.movePlaceholderToPlaceholder(this.leadersPlaceholderID, this.lowPriorityPlaceholderID);
+        this.dependencyTree.setPlaceholderWeight(this.leadersPlaceholderID, 201);
+
+        this.dependencyTree.movePlaceholderToPlaceholder(this.followersPlaceholderID, this.leadersPlaceholderID);
+        this.dependencyTree.setPlaceholderWeight(this.followersPlaceholderID, 1);
+
+        this.dependencyTree.movePlaceholderToPlaceholder(this.unblockedPlaceholderID, this.lowPriorityPlaceholderID);
+        this.dependencyTree.setPlaceholderWeight(this.unblockedPlaceholderID, 101);
+
+        this.dependencyTree.movePlaceholderToPlaceholder(this.backgroundPlaceholderID, this.lowPriorityPlaceholderID);
+        this.dependencyTree.setPlaceholderWeight(this.backgroundPlaceholderID, 1);
+
+        this.dependencyTree.movePlaceholderToPlaceholder(this.speculativePlaceholderID, this.backgroundPlaceholderID);
+        this.dependencyTree.setPlaceholderWeight(this.speculativePlaceholderID, 1);
+
+        // Create frames
+        const frames: Http3PriorityFrame[] = [];
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
+            this.highPriorityPlaceholderID,
+            undefined,
+            256)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
+            this.mediumPriorityPlaceholderID,
+            undefined,
+            256)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
+            this.lowPriorityPlaceholderID,
+            undefined,
+            1)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.leadersPlaceholderID,
+            this.lowPriorityPlaceholderID,
+            201)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.followersPlaceholderID,
+            this.leadersPlaceholderID,
+            1)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.unblockedPlaceholderID,
+            this.lowPriorityPlaceholderID,
+            101)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.backgroundPlaceholderID,
+            this.lowPriorityPlaceholderID,
+            1)
+        ); 
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.speculativePlaceholderID,
+            this.backgroundPlaceholderID,
+            1)
+        );
+        return frames;
     }
 
     // Does not work client-sided, requires multiple frames as the weight the medium priority branch sometimes has to be changed
@@ -103,7 +177,7 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
         if (metadata.mimetype.search("javascript") > -1) {
-            if (metadata.isDefer === true || metadata.isAsync === true) {
+            if (metadata.isDefer === true || metadata.isAsync === true || metadata.inHead !== true) {
                 return PriorityGroup.MEDIUM;
             } else {
                 return PriorityGroup.HIGH;
@@ -112,6 +186,8 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
             return PriorityGroup.LOW;
         } else if (metadata.mimetype === "text/html") {
             return PriorityGroup.LOW;
+        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+            return PriorityGroup.MEDIUM;
         } else if (metadata.mimetype.search("image") > -1) {
             return PriorityGroup.LOW;
         } else if (metadata.mimetype.search("font") > -1) {

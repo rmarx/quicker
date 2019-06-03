@@ -417,6 +417,9 @@ export class FlowControl {
         }
 
         this.connection.getStreamManager().getStreams().forEach((stream: Stream) => {
+            if (stream.isUniStream() === true && stream.isLocalStream() === true) {
+                return;
+            }
             if (stream.isPeerAlmostBlocked() || stream.isPeerBlocked()) {
                 var newMaxStreamData = stream.increaseReceiveAllowance();
                 frames.push(FrameFactory.createMaxStreamDataFrame(stream.getStreamID(), newMaxStreamData));

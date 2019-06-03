@@ -5,20 +5,64 @@ import { QlogWrapper } from "../../../../../utilities/logging/qlog.wrapper";
 import { Http3RequestMetadata } from "../../../client/http3.requestmetadata";
 
 export class Http3FirefoxScheme extends Http3PriorityScheme {
-    private leadersPlaceholderID: number;
-    private followersPlaceholderID: number;
-    private unblockedPlaceholderID: number;
-    private backgroundPlaceholderID: number;
-    private speculativePlaceholderID: number;
+    private leadersPlaceholderID: number = 0;
+    private followersPlaceholderID: number = 1;
+    private unblockedPlaceholderID: number = 2;
+    private backgroundPlaceholderID: number = 3;
+    private speculativePlaceholderID: number = 4;
 
-    // TODO Placeholders should be communicated to server!
     public constructor(logger?: QlogWrapper) {
-        super(logger);
-        this.leadersPlaceholderID = this.dependencyTree.addPlaceholderToRoot(201);
-        this.followersPlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.leadersPlaceholderID, 1);
-        this.unblockedPlaceholderID = this.dependencyTree.addPlaceholderToRoot(101);
-        this.backgroundPlaceholderID = this.dependencyTree.addPlaceholderToRoot(1);
-        this.speculativePlaceholderID = this.dependencyTree.addPlaceholderToPlaceholder(this.backgroundPlaceholderID, 1);
+        super(5, logger);
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        this.dependencyTree.setPlaceholderWeight(this.leadersPlaceholderID, 201);
+        this.dependencyTree.setPlaceholderWeight(this.followersPlaceholderID, 1);
+        this.dependencyTree.movePlaceholderToPlaceholder(this.followersPlaceholderID, this.leadersPlaceholderID);
+        this.dependencyTree.setPlaceholderWeight(this.unblockedPlaceholderID, 101);
+        this.dependencyTree.setPlaceholderWeight(this.backgroundPlaceholderID, 1);
+        this.dependencyTree.setPlaceholderWeight(this.speculativePlaceholderID, 1);
+        this.dependencyTree.movePlaceholderToPlaceholder(this.speculativePlaceholderID, this.backgroundPlaceholderID);
+
+        // Create frames
+        const frames: Http3PriorityFrame[] = [];
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
+            this.leadersPlaceholderID,
+            undefined,
+            201)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.followersPlaceholderID,
+            this.leadersPlaceholderID,
+            1)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
+            this.unblockedPlaceholderID,
+            undefined,
+            101)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
+            this.backgroundPlaceholderID,
+            undefined,
+            1)
+        );
+        frames.push(new Http3PriorityFrame(
+            PrioritizedElementType.PLACEHOLDER,
+            ElementDependencyType.PLACEHOLDER,
+            this.speculativePlaceholderID,
+            this.backgroundPlaceholderID,
+            1)
+        );
+
+        return frames;
     }
 
     // FIXME placeholders are not yet created server side
@@ -63,6 +107,8 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
         // XHR should be weight 32
         if (metadata.mimetype.search("image") > -1) {
             return 22;
+        } else if (metadata.mimetype.search("json") > -1 || metadata.mimetype.search("xml") > -1) {
+            return 32;
         } else if (metadata.mimetype.search("javascript") || metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
             return 32;
         } else if (metadata.mimetype.search("font") > -1) {

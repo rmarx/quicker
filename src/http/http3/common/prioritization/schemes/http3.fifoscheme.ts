@@ -12,7 +12,7 @@ export class Http3FIFOScheme extends Http3PriorityScheme {
     private tailStreamID?: Bignum;
 
     public constructor(logger?: QlogWrapper) {
-        super(logger);
+        super(0, logger);
 
         // Make sure tailStreamID always points to the last element of the chain
         this.dependencyTree.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
@@ -30,6 +30,10 @@ export class Http3FIFOScheme extends Http3PriorityScheme {
                 throw new Error("A non request node was removed from HTTP/3 dependency tree while it should contain only request streams!");
             }
         });
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        return [];
     }
 
     public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {

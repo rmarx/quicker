@@ -47,6 +47,11 @@ class ClientState {
         this.qpackDecoder = qpackDecoder;
         this.frameParser = frameParser;
 
+        // Sets up the tree according to the scheme's requirements
+        // E.g. moving or setting weights of placeholders
+        // Returns frames which are not needed for server-sided prioritization
+        this.prioritiser.initialSetup();
+
         // Schedule 1 chunk of 1000 bytes every 30ms
         // TODO tweak numbers
         // TODO Listen to congestion control events instead

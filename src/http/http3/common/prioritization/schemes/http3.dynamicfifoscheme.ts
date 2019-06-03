@@ -24,7 +24,7 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     private lowestPriorityTail?: Bignum;
 
     public constructor(logger?: QlogWrapper) {
-        super(logger);
+        super(0, logger);
 
         // Make sure each tail always points to the last element of its chain
         this.dependencyTree.on(Http3NodeEvent.REMOVING_NODE, (node: Http3PrioritisedElementNode) => {
@@ -71,6 +71,10 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
                 throw new Error("A non request node was removed from HTTP/3 dependency tree while it should contain only request streams!");
             }
         });
+    }
+
+    public initialSetup(): Http3PriorityFrame[] {
+        return [];
     }
 
     // Does not work for client-sided prioritization!
@@ -140,16 +144,15 @@ export class Http3DynamicFifoScheme extends Http3PriorityScheme {
     }
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
-        // TODO missing XHR -> should be HIGH
         // TODO missing server push -> should be LOWEST
         if (metadata.mimetype.search("javascript") > -1) {
             if (metadata.isAsync === true || metadata.isDefer === true) {
                 return PriorityGroup.LOW;
             }
-            else if (metadata.isBeforeFirstImage === true) {
-                return PriorityGroup.HIGH;
-            } else {
+            else if (metadata.isAfterFirstImage === true) {
                 return PriorityGroup.NORMAL;
+            } else {
+                return PriorityGroup.HIGH;
             }
         } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
             return PriorityGroup.HIGHEST;
