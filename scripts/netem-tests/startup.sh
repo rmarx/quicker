@@ -33,26 +33,13 @@ echo $LOSSRATE
 echo $LATENCY
 tc qdisc replace dev lo root netem rate $BANDWIDTH loss $LOSSRATE delay $LATENCY
 
-tcpdump -U -i lo -w quicker.pcap 'port 80' &   
+
+echo "netem settings bw $BANDWIDTH loss $LOSSRATE  latency $LATENCY" > "/logs/netem_settings"
+
+tcpdump -U -i lo -w quicker.pcap &   
 sleep 5
 
 echo "DOCKER:startup.sh : Starting Quicker server at 127.0.0.1:4433"
 node /quicker/out/main.js 127.0.0.1 4433 /quicker/keys/selfsigned_default.key /quicker/keys/selfsigned_default.crt &
 sleep 360
 
-
-
-
-TIMESTAMP=`date +%d-%m-%y_%H-%M-%S` 
-echo "DOCKER:startup.sh : moving server.log to server_$TIMESTAMP.log"
-mv /logs/server.log "/logs/server_$TIMESTAMP.log"
-
-
-#get tcpdump pid
-pid=$(ps -e | pgrep tcpdump)  
-echo $pid  
-
-#kill it
-sleep 5
-kill -2 $pid
-mv quicker.pcap "/logs/server_$TIMESTAMP.pcap"

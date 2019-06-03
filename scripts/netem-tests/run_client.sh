@@ -1,1 +1,1 @@
-node /quicker/out/mainclient.js 127.0.0.1 4433
+node /quicker/out/mainclient.js 127.0.0.1 4433 "$@"

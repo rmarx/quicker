@@ -13,7 +13,24 @@ import { VerboseLogging } from "./utilities/logging/verbose.logging";
 
 let host = process.argv[2] || "127.0.0.1";
 let port = process.argv[3] || 4433;
-let version = process.argv[4] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+let version = /* process.argv[4] ||*/ Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+
+
+
+let files : string[] = [];
+
+VerboseLogging.error("argvlength" + process.argv.length)
+for( let i = 4; i < process.argv.length; i++){
+    files.push(process.argv[i]);
+    VerboseLogging.error("pushing" + process.argv[i])
+}
+
+if(files.length == 0){
+    VerboseLogging.error("zerolength files" )
+    files = ["index.html"];
+}
+
+VerboseLogging.error(files.toString());
 
 if (isNaN(Number(port))) {
     console.log("port must be a number: node ./mainclient.js 127.0.0.1 4433 deadbeef");
@@ -34,7 +51,7 @@ for (var i = 0; i < 1; i++) {
     var client = Client.connect(host, Number(port), { version: version });
     client.on(QuickerEvent.CLIENT_CONNECTED, () => {
 
-        let files : string[] = ["index_medium.html", "index.html"];
+        
         let streams : QuicStream[] = [];
 
         //var bufferedData = Buffer.alloc(0);

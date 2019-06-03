@@ -52,6 +52,9 @@ RUN npm install typescript -g && npm install && tsc -p ./
 
 ADD startup.sh /
 ADD run_client.sh /
+ADD stop.sh /
+RUN chmod +x /run_client.sh
+RUN chmod +x /stop.sh
 RUN chmod +x /startup.sh
 ENTRYPOINT ["/startup.sh"]
 #CMD [ "tail", "-f", "/dev/null" ]

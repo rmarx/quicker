@@ -7,6 +7,6 @@ logs:
 bash:
     sudo docker exec -it netem-test bash
 run client:
-    node /quicker/out/mainclient.js 127.0.0.1 4433
+    ./run_client.sh ; ./stop.sh
 stop:
     sudo docker stop netem-test && sudo docker rm netem-test
