@@ -35,7 +35,11 @@ SOFTWARE.
 
 #include "lsqpack.h"
 
+#ifdef XXH_HEADER_NAME
+#include XXH_HEADER_NAME
+#else
 #include <xxhash.h>
+#endif
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -295,11 +299,16 @@ enc_alloc_hinfo (struct lsqpack_enc *enc)
 
     if (!hiarr)
     {
+        /* Guards against tracking too much state */
+        if (enc->qpe_hinfo_arrs_count * sizeof(*hiarr)
+                                            >= enc->qpe_cur_max_capacity)
+            return NULL;
         hiarr = malloc(sizeof(*hiarr));
         if (!hiarr)
             return NULL;
         hiarr->hia_slots = 0;
         STAILQ_INSERT_TAIL(&enc->qpe_hinfo_arrs, hiarr, hia_next);
+        ++enc->qpe_hinfo_arrs_count;
     }
 
     slot = find_free_slot(hiarr->hia_slots);
@@ -403,17 +412,12 @@ qenc_grow_history (struct lsqpack_enc_hist *hist)
         return; /* Doing nothing is the correct graceful fallback */
 
     assert(hist->ehi_wrapped);
-    if (hist->ehi_wrapped)
-    {
-        memcpy(els, hist->ehi_els + hist->ehi_idx,
-                sizeof(els[0]) * (hist->ehi_nels - hist->ehi_idx));
-        memcpy(els + (hist->ehi_nels - hist->ehi_idx), hist->ehi_els,
-                sizeof(els[0]) * hist->ehi_idx);
-        hist->ehi_wrapped = 0;
-        hist->ehi_idx = hist->ehi_nels;
-    }
-    else
-        memcpy(els, hist->ehi_els, hist->ehi_idx);
+    memcpy(els, hist->ehi_els + hist->ehi_idx,
+            sizeof(els[0]) * (hist->ehi_nels - hist->ehi_idx));
+    memcpy(els + (hist->ehi_nels - hist->ehi_idx), hist->ehi_els,
+            sizeof(els[0]) * hist->ehi_idx);
+    hist->ehi_wrapped = 0;
+    hist->ehi_idx = hist->ehi_nels;
     hist->ehi_nels = nelem;
     free(hist->ehi_els);
     hist->ehi_els = els;
@@ -537,8 +541,6 @@ lsqpack_enc_init (struct lsqpack_enc *enc, void *logger_ctx,
     unsigned nbits = 2;
     unsigned i;
 
-    assert(dyn_table_size <= max_table_size);
-
     if (dyn_table_size > LSQPACK_MAX_DYN_TABLE_SIZE ||
         max_risked_streams > LSQPACK_MAX_MAX_RISKED_STREAMS ||
         dyn_table_size > max_table_size)
@@ -550,7 +552,7 @@ lsqpack_enc_init (struct lsqpack_enc *enc, void *logger_ctx,
     if (!(enc_opts & LSQPACK_ENC_OPT_STAGE_2))
         lsqpack_enc_preinit(enc, logger_ctx);
 
-    if (dyn_table_size < max_table_size)
+    if (dyn_table_size != LSQPACK_DEF_DYN_TABLE_SIZE)
     {
         if (!(tsu_buf && tsu_buf_sz))
         {
@@ -662,309 +664,93 @@ lsqpack_enc_cleanup (struct lsqpack_enc *enc)
 }
 
 
-static int
-hash_qpack_full (const char *name, int name_len, const char *val, int val_len)
+#define LSQPACK_XXH_SEED 3670
+#define XXH_NAME_WIDTH 9
+#define XXH_NAME_SHIFT 21
+#define XXH_NAMEVAL_WIDTH 9
+#define XXH_NAMEVAL_SHIFT 12
+
+static const unsigned char name2id_plus_one[ 1 << XXH_NAME_WIDTH ] =
 {
-    static const unsigned char asso_values[] =
-    {
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 7,
-        87, 87, 34, 87, 87, 72, 87, 29, 0, 48,
-        19, 42, 3, 6, 54, 1, 0, 87, 87, 39,
-        87, 87, 87, 87, 87, 87, 87, 87, 35, 32,
-        37, 34, 87, 87, 39, 35, 87, 87, 87, 87,
-        87, 87, 34, 29, 29, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 3, 87, 2,
-        4, 0, 0, 6, 8, 24, 51, 14, 3, 35,
-        15, 87, 3, 0, 0, 0, 0, 2, 87, 0,
-        87, 12, 4, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87, 87,
-        87, 87, 87, 87, 87, 87, 87, 87, 87
-    };
+    [64]   =  3,   [156]  =  92,  [267]  =  6,   [489]  =  84,  [348]  =  15,
+    [481]  =  87,  [423]  =  33,  [410]  =  45,  [309]  =  93,  [41]   =  56,
+    [471]  =  73,  [59]   =  30,  [353]  =  98,  [470]  =  60,  [452]  =  88,
+    [169]  =  85,  [415]  =  25,  [27]   =  7,   [421]  =  23,  [222]  =  62,
+    [270]  =  14,  [459]  =  4,   [382]  =  63,  [300]  =  97,  [259]  =  37,
+    [100]  =  5,   [238]  =  13,  [3]    =  74,  [465]  =  86,  [30]   =  1,
+    [79]   =  91,  [393]  =  94,  [152]  =  2,   [120]  =  8,   [212]  =  90,
+    [162]  =  81,  [463]  =  16,  [330]  =  57,  [116]  =  77,  [416]  =  34,
+    [297]  =  12,  [249]  =  96,  [446]  =  11,  [240]  =  9,   [89]   =  32,
+    [102]  =  43,  [61]   =  95,  [213]  =  89,  [217]  =  80,  [103]  =  36,
+    [2]    =  82,  [243]  =  10,
+};
 
-    unsigned hval;
-    char c;
-
-    hval = val_len + name_len;
-
-    switch (hval)
-    {
-    default:
-        if (name_len > 17)
-            c = name[17];
-        else
-            c = val[17 - name_len];
-        hval += asso_values[(unsigned char) c];
-     /*FALLTHROUGH*/ case 17:
-    case 16:
-    case 15:
-    case 14:
-    case 13:
-    case 12:
-    case 11:
-    case 10:
-    case 9:
-    case 8:
-        if (name_len > 7)
-            c = name[7];
-        else
-            c = val[7 - name_len];
-        hval += asso_values[(unsigned char) c + 3];
-     /*FALLTHROUGH*/ case 7:
-    case 6:
-    case 5:
-    case 4:
-        break;
-    }
-
-    if (val_len)
-        c = val[ val_len - 1 ];
-    else
-        /* Caller checks MIN_WORD_LENGTH, so we know name_len > 0 */
-        c = name[ name_len - 1 ];
-
-    return hval + asso_values[(unsigned char) c];
-}
+static const unsigned char nameval2id_plus_one[ 1 << XXH_NAMEVAL_WIDTH ] =
+{
+    [188]  =  1,   [272]  =  2,   [346]  =  3,   [64]   =  4,   [410]  =  5,
+    [3]    =  6,   [448]  =  7,   [431]  =  8,   [344]  =  9,   [423]  =  10,
+    [117]  =  11,  [256]  =  12,  [125]  =  13,  [54]   =  14,  [78]   =  15,
+    [341]  =  16,  [504]  =  17,  [236]  =  18,  [137]  =  19,  [402]  =  20,
+    [436]  =  21,  [74]   =  22,  [460]  =  23,  [180]  =  24,  [162]  =  25,
+    [446]  =  26,  [421]  =  27,  [314]  =  28,  [67]   =  29,  [50]   =  30,
+    [387]  =  31,  [198]  =  32,  [310]  =  33,  [248]  =  34,  [491]  =  35,
+    [429]  =  36,  [249]  =  37,  [312]  =  38,  [190]  =  39,  [354]  =  40,
+    [425]  =  41,  [245]  =  42,  [494]  =  43,  [160]  =  44,  [482]  =  45,
+    [420]  =  46,  [103]  =  47,  [441]  =  48,  [161]  =  49,  [305]  =  50,
+    [422]  =  51,  [119]  =  52,  [170]  =  53,  [179]  =  54,  [267]  =  55,
+    [76]   =  56,  [440]  =  57,  [361]  =  58,  [203]  =  59,  [149]  =  60,
+    [479]  =  61,  [136]  =  62,  [109]  =  63,  [478]  =  64,  [52]   =  65,
+    [231]  =  66,  [226]  =  67,  [489]  =  68,  [321]  =  69,  [379]  =  70,
+    [166]  =  71,  [277]  =  72,  [398]  =  73,  [68]   =  74,  [87]   =  75,
+    [294]  =  76,  [196]  =  77,  [405]  =  78,  [334]  =  79,  [16]   =  80,
+    [237]  =  81,  [506]  =  82,  [495]  =  83,  [357]  =  84,  [155]  =  85,
+    [129]  =  86,  [417]  =  87,  [144]  =  88,  [200]  =  89,  [96]   =  90,
+    [426]  =  91,  [88]   =  92,  [44]   =  93,  [507]  =  94,  [352]  =  95,
+    [207]  =  96,  [104]  =  97,  [353]  =  98,  [82]   =  99,
+};
 
 
 /* -1 means not found */
 static int
-find_in_static_full (const char *name, unsigned name_len, const char *val,
-                                                            unsigned val_len)
+find_in_static_full (uint32_t nameval_hash, const char *name,
+                        unsigned name_len, const char *val, unsigned val_len)
 {
-    enum {
-        TOTAL_KEYWORDS = 78,
-        MIN_WORD_LENGTH = 4,
-        MAX_WORD_LENGTH = 76,
-        MIN_HASH_VALUE = 4,
-        MAX_HASH_VALUE = 86
-    };
+    unsigned id;
 
-    static const struct { const char *name; unsigned name_len; int id; }
-    wordlist[] = {
-        {"", 0, 0}, {"", 0, 0}, {"", 0, 0}, {"", 0, 0}, {"age0", 3, 2},
-        {"", 0, 0}, {"", 0, 0}, {"", 0, 0}, {"", 0, 0}, {"", 0, 0},
-        {":status500", 7, 71}, {":status400", 7, 67}, {"alt-svcclear", 7, 83},
-        {":status100", 7, 63}, {":status404", 7, 27},
-        {"content-length0", 14, 4}, {":status200", 7, 25},
-        {":status425", 7, 70}, {"content-encodingbr", 16, 42},
-        {":status204", 7, 64}, {"accept-rangesbytes", 13, 32},
-        {"cache-controlno-store", 13, 40}, {"content-typetext/css", 12, 51},
-        {"purposeprefetch", 7, 91}, {"cache-controlno-cache", 13, 39},
-        {"cache-controlmax-age=0", 13, 36}, {":schemehttps", 7, 23},
-        {"content-encodinggzip", 16, 43}, {":schemehttp", 7, 22},
-        {"x-content-type-optionsnosniff", 22, 61},
-        {"cache-controlmax-age=604800", 13, 38},
-        {"cache-controlmax-age=2592000", 13, 37},
-        {"access-control-request-methodget", 29, 81},
-        {"access-control-request-methodpost", 29, 82},
-        {"access-control-allow-methodsget", 28, 76}, {":path/", 5, 1},
-        {"content-typeapplication/javascript", 12, 45},
-        {"content-typeapplication/dns-message", 12, 44},
-        {"access-control-allow-methodsoptions", 28, 78},
-        {"content-typetext/plain;charset=utf-8", 12, 54},
-        {"content-typetext/plain", 12, 53},
-        {"strict-transport-securitymax-age=31536000", 25, 56},
-        {"access-control-request-headerscontent-type", 30, 80},
-        {"access-control-allow-headerscontent-type", 28, 34},
-        {"content-typetext/html; charset=utf-8", 12, 52},
-        {"content-typeapplication/json", 12, 46},
-        {"x-frame-optionsdeny", 15, 97},
-        {"access-control-allow-headerscache-control", 28, 33},
-        {"varyaccept-encoding", 4, 59},
-        {"access-control-allow-methodsget, post, options", 28, 77},
-        {"content-typeimage/gif", 12, 48},
-        {"content-typeapplication/x-www-form-urlencoded", 12, 47},
-        {":status503", 7, 28}, {":status403", 7, 68},
-        {"access-control-expose-headerscontent-length", 29, 79},
-        {":status103", 7, 24}, {"content-typeimage/png", 12, 50},
-        {"content-typeimage/jpeg", 12, 49},
-        {"acceptapplication/dns-message", 6, 30}, {":status421", 7, 69},
-        {"strict-transport-securitymax-age=31536000; includesubdomains", 25, 57},
-        {"cache-controlpublic, max-age=31536000", 13, 41}, {"accept*/*", 6, 29},
-        {"early-data1", 10, 86}, {"accept-encodinggzip, deflate, br", 15, 31},
-        {"access-control-allow-origin*", 27, 35},
-        {"access-control-allow-headers*", 28, 75},
-        {":status304", 7, 26}, {":methodPUT", 7, 21}, {":methodPOST", 7, 20},
-        {":status206", 7, 65}, {"access-control-allow-credentialsTRUE", 32, 74},
-        {"access-control-allow-credentialsFALSE", 32, 73},
-        {"strict-transport-securitymax-age=31536000; includesubdomains; preload", 25, 58},
-        {"upgrade-insecure-requests1", 25, 94},
-        {"x-frame-optionssameorigin", 15, 98}, {"varyorigin", 4, 60},
-        {":methodOPTIONS", 7, 19}, {":methodGET", 7, 17},
-        {":methodDELETE", 7, 16}, {":methodCONNECT", 7, 15},
-        {":methodHEAD", 7, 18}, {"timing-allow-origin*", 19, 93},
-        {":status302", 7, 66}, {"x-xss-protection1; mode=block", 16, 62},
-        {"rangebytes=0-", 5, 55},
-        {"content-security-policyscript-src 'none'; object-src 'none'; base-uri 'none'", 23, 85}
-    };
+    id = nameval2id_plus_one[ (nameval_hash >> XXH_NAMEVAL_SHIFT)
+                                    & ((1 << XXH_NAMEVAL_WIDTH) - 1) ];
 
-    const char *s;
-    int key, len;
+    if (id == 0)
+        return -1;
 
-    len = name_len + val_len;
-    if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
-    {
-        key = hash_qpack_full(name, name_len, val, val_len);
-        if (key <= MAX_HASH_VALUE && key >= 0)
-        {
-            s = wordlist[key].name;
-            if (*name == *s
-                && name_len == wordlist[key].name_len
-                && 0 == memcmp(name + 1, wordlist[key].name + 1, name_len - 1)
-                && 0 == memcmp(val, wordlist[key].name + name_len, val_len))
-            {
-                return wordlist[key].id;
-            }
-        }
-    }
-
-    return -1;
+    --id;
+    if (static_table[id].name_len == name_len
+            && static_table[id].val_len == val_len
+            && memcmp(static_table[id].name, name, name_len) == 0
+            && memcmp(static_table[id].val, val, val_len) == 0)
+        return id;
+    else
+        return -1;
 }
 
 
 static int
-hash_qpack_header (const char *str, unsigned len)
+find_in_static_headers (uint32_t name_hash, const char *name, unsigned name_len)
 {
-    static const unsigned char asso_values[] =
-    {
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 26, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 18, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 2, 65, 2,
-        20, 2, 27, 36, 18, 33, 65, 27, 18, 17,
-        9, 24, 0, 65, 11, 0, 12, 28, 8, 65,
-        6, 10, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65, 65, 65, 65, 65,
-        65, 65, 65, 65, 65, 65
-    };
+    unsigned id;
 
-    int hval = len;
+    id = name2id_plus_one[ (name_hash >> XXH_NAME_SHIFT)
+                                    & ((1 << XXH_NAME_WIDTH) - 1) ];
 
-    switch (hval)
-    {
-    default:
-        hval += asso_values[(unsigned char) str[21]];
-     /*FALLTHROUGH*/ case 21:
-    case 20:
-    case 19:
-    case 18:
-    case 17:
-    case 16:
-    case 15:
-    case 14:
-    case 13:
-    case 12:
-    case 11:
-    case 10:
-    case 9:
-    case 8:
-    case 7:
-    case 6:
-    case 5:
-    case 4:
-    case 3:
-    case 2:
-    case 1:
-        hval += asso_values[(unsigned char) str[0]];
-        break;
-    }
-    return hval + asso_values[(unsigned char) str[len - 1]];
-}
+    if (id == 0)
+        return -1;
 
-
-static int
-find_in_static_headers (const char *str, unsigned len)
-{
-    enum
-    {
-        TOTAL_KEYWORDS = 52,
-        MIN_WORD_LENGTH = 3,
-        MAX_WORD_LENGTH = 32,
-        MIN_HASH_VALUE = 7,
-        MAX_HASH_VALUE = 64
-    };
-
-    static const struct { const char *name; unsigned len; int id; }
-    wordlist[] = {
-        {"",0,0}, {"",0,0}, {"",0,0}, {"",0,0}, {"",0,0}, {"",0,0}, {"",0,0},
-        {"age",3,2}, {"",0,0}, {"purpose",7,91}, {"cookie",6,5},
-        {"alt-svc",7,83}, {"set-cookie",10,14}, {"",0,0},
-        {"early-data",10,86}, {"accept-ranges",13,32},
-        {"content-type",12,44}, {"server",6,92}, {"range",5,55},
-        {"accept-language",15,72}, {"accept",6,29},
-        {"x-frame-options",15,97}, {"vary",4,59}, {"expect-ct",9,87},
-        {"authorization",13,84}, {":status",7,24}, {"date",4,6},
-        {":scheme",7,22}, {"x-content-type-options",22,61},
-        {"referer",7,13}, {"content-disposition",19,3},
-        {"x-xss-protection",16,62}, {"x-forwarded-for",15,96},
-        {"cache-control",13,36}, {"content-length",14,4},
-        {"location",8,12}, {"access-control-allow-credentials",32,73},
-        {"content-security-policy",23,85}, {":authority",10,0},
-        {"origin",6,90}, {"timing-allow-origin",19,93}, {":path",5,1},
-        {"etag",4,7}, {"if-range",8,89},
-        {"access-control-request-headers",30,80}, {":method",7,15},
-        {"strict-transport-security",25,56},
-        {"access-control-allow-methods",28,76},
-        {"access-control-allow-headers",28,33},
-        {"link",4,11}, {"user-agent",10,95}, {"last-modified",13,10},
-        {"if-modified-since",17,8}, {"accept-encoding",15,31},
-        {"content-encoding",16,42}, {"upgrade-insecure-requests",25,94},
-        {"forwarded",9,88}, {"access-control-expose-headers",29,79},
-        {"",0,0}, {"",0,0}, {"",0,0}, {"",0,0},
-        {"access-control-allow-origin",27,35},
-        {"access-control-request-method",29,81}, {"if-none-match",13,9}
-    };
-
-    const char *s;
-    int key;
-
-    if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
-    {
-        key = hash_qpack_header(str, len);
-        if (key <= MAX_HASH_VALUE && key >= 0)
-        {
-            s = wordlist[key].name;
-            if (*str == *s
-                    && len == wordlist[key].len
-                    && 0 == memcmp(str + 1, s + 1, len - 1))
-            {
-                return wordlist[key].id;
-            }
-        }
-    }
-
-    return -1;
+    --id;
+    if (static_table[id].name_len == name_len
+            && memcmp(static_table[id].name, name, name_len) == 0)
+        return id;
+    else
+        return -1;
 }
 
 
@@ -1282,13 +1068,12 @@ qenc_grow_tables (struct lsqpack_enc *enc)
 
 
 static struct lsqpack_enc_table_entry *
-lsqpack_enc_push_entry (struct lsqpack_enc *enc, const char *name,
-                        unsigned name_len, const char *value,
-                        unsigned value_len)
+lsqpack_enc_push_entry (struct lsqpack_enc *enc, uint32_t name_hash,
+                uint32_t nameval_hash, const char *name, unsigned name_len,
+                const char *value, unsigned value_len)
 {
-    unsigned name_hash, nameval_hash, buckno;
     struct lsqpack_enc_table_entry *entry;
-    XXH32_state_t hash_state;
+    unsigned buckno;
     size_t size;
 
     if (enc->qpe_nelem >= N_BUCKETS(enc->qpe_nbits) / 2 &&
@@ -1299,14 +1084,6 @@ lsqpack_enc_push_entry (struct lsqpack_enc *enc, const char *name,
     entry = malloc(size);
     if (!entry)
         return NULL;
-
-    XXH32_reset(&hash_state, (uintptr_t) enc);
-    XXH32_update(&hash_state, &name_len, sizeof(name_len));
-    XXH32_update(&hash_state, name, name_len);
-    name_hash = XXH32_digest(&hash_state);
-    XXH32_update(&hash_state,  &value_len, sizeof(value_len));
-    XXH32_update(&hash_state,  value, value_len);
-    nameval_hash = XXH32_digest(&hash_state);
 
     entry->ete_name_hash = name_hash;
     entry->ete_nameval_hash = nameval_hash;
@@ -1355,7 +1132,7 @@ lsqpack_enc_start_header (struct lsqpack_enc *enc, uint64_t stream_id,
     else
         E_INFO("could not allocate hinfo for stream %"PRIu64, stream_id);
     enc->qpe_cur_header.n_risked = 0;
-    enc->qpe_cur_header.n_headers = 0;
+    enc->qpe_cur_header.n_hdr_added_to_hist = 0;
     enc->qpe_cur_header.base_idx = enc->qpe_ins_count;
 
     /* Check if there are other header blocks with the same stream ID that
@@ -1403,6 +1180,29 @@ lsqpack_enc_header_data_prefix_size (const struct lsqpack_enc *enc)
 }
 
 
+int 
+lsqpack_enc_cancel_header (struct lsqpack_enc *enc)
+{
+    /* No header has been started. */
+    if (!(enc->qpe_flags & LSQPACK_ENC_HEADER))
+        return -1;
+
+    /* Cancellation is not (yet) allowed if the dynamic table is used since 
+     * ls-qpack's state is changed when the dynamic table is used. 
+     */
+    if (enc->qpe_cur_header.hinfo && HINFO_IDS_SET(enc->qpe_cur_header.hinfo))
+        return -1;
+
+    if (enc->qpe_cur_header.hinfo) {
+        enc_free_hinfo(enc, enc->qpe_cur_header.hinfo);
+        enc->qpe_cur_header.hinfo = NULL;
+    }
+
+    enc->qpe_flags &= ~LSQPACK_ENC_HEADER;
+
+    return 0;
+}
+
 ssize_t
 lsqpack_enc_end_header (struct lsqpack_enc *enc, unsigned char *buf, size_t sz)
 {
@@ -1410,6 +1210,9 @@ lsqpack_enc_end_header (struct lsqpack_enc *enc, unsigned char *buf, size_t sz)
     unsigned char *dst, *end;
     lsqpack_abs_id_t diff, encoded_largest_ref;
     unsigned sign;
+
+    if (sz == 0)
+        return -1;
 
     if (!(enc->qpe_flags & LSQPACK_ENC_HEADER))
         return -1;
@@ -1459,11 +1262,11 @@ lsqpack_enc_end_header (struct lsqpack_enc *enc, unsigned char *buf, size_t sz)
 
     if (sz >= 2)
     {
+        memset(buf, 0, 2);
         if (enc->qpe_cur_header.hinfo)
         {
             E_DEBUG("ended header for stream %"PRIu64"; dynamic table not "
                 "referenced", enc->qpe_cur_header.hinfo->qhi_stream_id);
-            memset(buf, 0, 2);
             enc_free_hinfo(enc, enc->qpe_cur_header.hinfo);
             enc->qpe_cur_header.hinfo = NULL;
         }
@@ -1680,8 +1483,16 @@ lsqpack_enc_encode (struct lsqpack_enc *enc,
     if (hea_buf == hea_buf_end)
         return LQES_NOBUF_HEAD;
 
+    XXH32_reset(&hash_state, LSQPACK_XXH_SEED);
+    XXH32_update(&hash_state, name, name_len);
+    name_hash = XXH32_digest(&hash_state);
+    XXH32_update(&hash_state, value, value_len);
+    nameval_hash = XXH32_digest(&hash_state);
+    E_DEBUG("name hash: 0x%X; nameval hash: 0x%X", name_hash, nameval_hash);
+
     /* Look for a full match in the static table */
-    static_id = find_in_static_full(name, name_len, value, value_len);
+    static_id = find_in_static_full(nameval_hash, name, name_len, value,
+                                                                value_len);
     if (static_id >= 0)
     {
         id = static_id;
@@ -1717,21 +1528,14 @@ lsqpack_enc_encode (struct lsqpack_enc *enc,
         || enc->qpe_cur_header.others_at_risk
         || enc->qpe_cur_streams_at_risk < enc->qpe_max_risked_streams;
 
-    XXH32_reset(&hash_state, (uintptr_t) enc);
-    XXH32_update(&hash_state, &name_len, sizeof(name_len));
-    XXH32_update(&hash_state, name, name_len);
-    name_hash = XXH32_digest(&hash_state);
-    XXH32_update(&hash_state,  &value_len, sizeof(value_len));
-    XXH32_update(&hash_state,  value, value_len);
-    nameval_hash = XXH32_digest(&hash_state);
-    E_DEBUG("name hash: 0x%X; nameval hash: 0x%X", name_hash, nameval_hash);
-
-    ++enc->qpe_cur_header.n_headers;
-    if (enc->qpe_hist
-            && enc->qpe_cur_header.n_headers > enc->qpe_hist->ehi_nels)
-        qenc_grow_history(enc->qpe_hist);
-
-    enc->qpe_hist_add(enc->qpe_hist, name_hash, nameval_hash);
+    /* Add header to history if it exists */
+    if (enc->qpe_hist)
+    {
+        ++enc->qpe_cur_header.n_hdr_added_to_hist;
+        if (enc->qpe_cur_header.n_hdr_added_to_hist > enc->qpe_hist->ehi_nels)
+            qenc_grow_history(enc->qpe_hist);
+        enc->qpe_hist_add(enc->qpe_hist, name_hash, nameval_hash);
+    }
 
   restart:
     /* Look for a full match in the dynamic table */
@@ -1810,7 +1614,7 @@ lsqpack_enc_encode (struct lsqpack_enc *enc,
 #endif
 
     /* Look for name-only match in the static table */
-    static_id = find_in_static_headers(name, name_len);
+    static_id = find_in_static_headers(name_hash, name, name_len);
     if (static_id >= 0)
     {
         id = static_id;
@@ -2101,8 +1905,8 @@ lsqpack_enc_encode (struct lsqpack_enc *enc,
     {
     case ETA_NEW:
     case ETA_NEW_NAME:
-        new_entry = lsqpack_enc_push_entry(enc, name, name_len, value,
-                                prog.ep_tab_action == ETA_NEW ? value_len : 0);
+        new_entry = lsqpack_enc_push_entry(enc, name_hash, nameval_hash, name,
+                name_len, value, prog.ep_tab_action == ETA_NEW ? value_len : 0);
         if (!new_entry)
         {   /* Push can only fail due to inability to allocate memory.
              * In this case, fall back on encoding without indexing.
@@ -2201,6 +2005,11 @@ enc_proc_header_ack (struct lsqpack_enc *enc, uint64_t stream_id)
         if (stream_id == hinfo->qhi_stream_id &&
                 (!acked || hinfo->qhi_seqno < acked->qhi_seqno))
             acked = hinfo;
+    /*
+     * XXX if an ACK comes in while a header is being encoded, it will not
+     *     have any effect because the the `qhi_max_id` is 0 until the header
+     *     encoding is finished (see enc_end_header()).
+     */
 
     if (!acked)
         return -1;
@@ -3510,16 +3319,19 @@ parse_header_data (struct lsqpack_dec *dec,
                 LFONR.nread = 0;
                 LFONR.str_off = 0;
                 LFONR.str_len = value;
-                LFONR.nalloc = value * 2;
                 if (LFONR.is_huffman)
                 {
+                    LFONR.nalloc = value + value / 2;
                     LFONR.dec_huff_state.resume = 0;
                     read_ctx->hbrc_parse_ctx_u.data.state
                                         = DATA_STATE_READ_LFONR_NAME_HUFFMAN;
                 }
                 else
+                {
+                    LFONR.nalloc = value;
                     read_ctx->hbrc_parse_ctx_u.data.state
                                         = DATA_STATE_READ_LFONR_NAME_PLAIN;
+                }
                 LFONR.name = malloc(LFONR.nalloc);
                 if (LFONR.name)
                     break;
@@ -4552,7 +4364,7 @@ lsqpack_dec_enc_in (struct lsqpack_dec *dec, const unsigned char *buf,
                     WINR.name = DTE_NAME(WINR.reffed_entry);
                 }
                 if (WINR.is_huffman)
-                    WINR.alloced_val_len = WINR.val_len + WINR.val_len / 4;
+                    WINR.alloced_val_len = WINR.val_len + WINR.val_len / 2;
                 else
                     WINR.alloced_val_len = WINR.val_len;
                 WINR.entry = malloc(sizeof(*WINR.entry) + WINR.name_len
@@ -4629,16 +4441,7 @@ lsqpack_dec_enc_in (struct lsqpack_dec *dec, const unsigned char *buf,
             }
             break;
         case DEI_WINR_READ_VALUE_PLAIN:
-            if (WINR.alloced_val_len < WINR.val_len)
-            {
-                WINR.alloced_val_len = WINR.val_len;
-                entry = realloc(WINR.entry, sizeof(*WINR.entry)
-                                                        + WINR.alloced_val_len);
-                if (entry)
-                    WINR.entry = entry;
-                else
-                    return -1;
-            }
+            assert(WINR.alloced_val_len >= WINR.val_len);
             size = MIN((unsigned) (end - buf), WINR.val_len - WINR.val_off);
             memcpy(DTE_VALUE(WINR.entry) + WINR.val_off, buf, size);
             WINR.val_off += size;
@@ -4675,7 +4478,7 @@ lsqpack_dec_enc_in (struct lsqpack_dec *dec, const unsigned char *buf,
                 /* TODO: Check that the name is not larger than the max dynamic
                  * table capacity, for example.
                  */
-                WONR.alloced_len = WONR.str_len ? WONR.str_len * 2 : 16;
+                WONR.alloced_len = WONR.str_len ? WONR.str_len + WONR.str_len / 2 : 16;
                 size = sizeof(*new_entry) + WONR.alloced_len;
                 WONR.entry = malloc(size);
                 if (!WONR.entry)
@@ -4729,16 +4532,7 @@ lsqpack_dec_enc_in (struct lsqpack_dec *dec, const unsigned char *buf,
             }
             break;
         case DEI_WONR_READ_NAME_PLAIN:
-            if (WONR.alloced_len < WONR.str_len)
-            {
-                WONR.alloced_len = WONR.str_len * 2;
-                entry = realloc(WONR.entry, sizeof(*WONR.entry)
-                                                        + WONR.alloced_len);
-                if (entry)
-                    WONR.entry = entry;
-                else
-                    return -1;
-            }
+            assert(WONR.alloced_len >= WONR.str_len);
             size = MIN((unsigned) (end - buf), WONR.str_len - WONR.str_off);
             memcpy(DTE_NAME(WONR.entry) + WONR.str_off, buf, size);
             WONR.str_off += size;
@@ -4808,10 +4602,8 @@ lsqpack_dec_enc_in (struct lsqpack_dec *dec, const unsigned char *buf,
                 WONR.str_off += hdr.n_dst;
                 break;
             case HUFF_DEC_END_DST:
-                if (WONR.alloced_len)
-                    WONR.alloced_len *= 2;
-                else
-                    WONR.alloced_len = WONR.str_len + WONR.str_len / 4;
+                assert(WONR.alloced_len);
+                WONR.alloced_len *= 2;
                 entry = realloc(WONR.entry, sizeof(*WONR.entry)
                                                         + WONR.alloced_len);
                 if (!entry)
