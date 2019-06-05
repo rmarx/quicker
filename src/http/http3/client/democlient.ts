@@ -20,6 +20,7 @@ const lookupTable: {config: {}, resources: {[path: string]: Http3RequestMetadata
 
 let host = process.argv[4] || "127.0.0.1";
 let port = parseInt(process.argv[5]) || 4433;
+const authority: string = host + ":" + port
 let version = process.argv[6] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
 
 const client: Http3Client = new Http3Client(host, port);
@@ -33,7 +34,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             VerboseLogging.info("HTTP/3 Resource parser found new resources");
             for (const file of fileList) {
                 VerboseLogging.info("Requesting newly found resource: " + file);
-                client.get(file);
+                client.get(file, authority);
             }
         });
 
@@ -52,7 +53,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             }
         });
 
-        client.get("/index.html", 16);
+        client.get("/index.html", authority, 16);
     } else {
         client.on(Http3ClientEvent.RESPONSE_RECEIVED, (path: string, response: Http3Message) => {
             const headers: Http3Header[] = response.getHeaderFrame().getHeaders();
@@ -69,17 +70,17 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                     const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                     if (metadata.deltaStartTime !== undefined) {
                         setTimeout(() => {
-                            client.get(resource, undefined, metadata);
+                            client.get(resource, authority, undefined, metadata);
                         }, metadata.deltaStartTime);
                     } else {
-                        client.get(resource, undefined, metadata);
+                        client.get(resource, authority, undefined, metadata);
                     }
                 }
             }
         });
 
         const firstRequest: string = Object.keys(lookupTable.resources)[0];
-        client.get(firstRequest, undefined, lookupTable.resources[firstRequest]);
+        client.get(firstRequest, authority, undefined, lookupTable.resources[firstRequest]);
 
         // Resources discovered during transmission of its parent (found while parsing the chunks as they arrive)
         const relatedResources: string[] | undefined = lookupTable.resources[firstRequest].childrenStart;
@@ -89,10 +90,10 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                 const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                 if (metadata.deltaStartTime !== undefined) {
                     setTimeout(() => {
-                        client.get(resource, undefined, metadata);
+                        client.get(resource, authority, undefined, metadata);
                     }, metadata.deltaStartTime);
                 } else {
-                    client.get(resource, undefined, metadata);
+                    client.get(resource, authority, undefined, metadata);
                 }
             }
         }

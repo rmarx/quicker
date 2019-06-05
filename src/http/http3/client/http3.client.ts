@@ -169,7 +169,7 @@ export class Http3Client extends EventEmitter {
     }
 
     // Returns streamID of requeststream
-    public get(path: string, weight: number = 16, metadata?: Http3RequestMetadata): Bignum {
+    public get(path: string, authority: string, weight: number = 16, metadata?: Http3RequestMetadata): Bignum {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -191,6 +191,8 @@ export class Http3Client extends EventEmitter {
         const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
         req.setHeader(":path", path);
         req.setHeader(":method", "GET");
+        req.setHeader(":authority", authority);
+        req.setHeader(":scheme", "https");
 
         // Get file extension
         const fileExtensionMatches: RegExpMatchArray | null = path.match(this.fileExtensionPattern);
