@@ -26,6 +26,7 @@ import { Http3Message } from "../common/http3.message";
 import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
 import { Http3RequestMetadata } from "./http3.requestmetadata";
 import { Http3Response } from "../common/http3.response";
+import { Connection } from "../../../quicker/connection";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
@@ -349,5 +350,12 @@ export class Http3Client extends EventEmitter {
             return;
         }
         this.clientQPackEncoder.setPeerDecoderStream(serverDecoderStream, bufferedStreamData.byteLength === 0 ? undefined : bufferedStreamData);
+    }
+
+    public DEBUGgetQlogger():QlogWrapper|undefined {
+        return this.logger;
+    }
+    public DEBUGgetQUICClient():Client|undefined {
+        return this.quickerClient;
     }
 }

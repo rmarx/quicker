@@ -58,7 +58,7 @@ class ClientState {
         // TODO Listen to congestion control events instead
         this.scheduleTimer = setInterval(() => {
             this.prioritiser.schedule();
-        }, 30);
+        }, 10);
     }
 
     public getLogger(): QlogWrapper {

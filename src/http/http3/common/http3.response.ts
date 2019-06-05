@@ -144,6 +144,7 @@ export class Http3Response {
             case ".jpg": return "image/jpeg";
             case ".jpeg": return "image/jpeg";
             case ".gif": return "image/gif";
+            case ".svg": return "image/svg+xml";
             case ".html": return "text/html";
             case ".css": return "text/css";
             case ".js": return "application/javascript";
