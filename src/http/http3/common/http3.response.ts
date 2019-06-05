@@ -29,7 +29,7 @@ export class Http3Response {
     }
 
     public toBuffer(): Buffer {
-        let buffer: Buffer = this.headerFrame.toBuffer();
+        let dataFrame: Http3DataFrame | undefined;
 
         if (this.filePath !== undefined) {
             // Trim everything after first '?'
@@ -48,15 +48,19 @@ export class Http3Response {
             }
             VerboseLogging.info("Reading file: " + absoluteFilePath);
 
-            const dataFrame: Http3DataFrame = new Http3DataFrame(readFileSync(absoluteFilePath));
-            buffer = Buffer.concat([buffer, dataFrame.toBuffer()]);
+            dataFrame = new Http3DataFrame(readFileSync(absoluteFilePath));
+            this.setHeaderValue("content-length", dataFrame.getEncodedLength().toString());
+            return Buffer.concat([this.headerFrame.toBuffer(), dataFrame.toBuffer()]);
 
         } else if (this.content !== undefined) {
-            const dataFrame: Http3DataFrame = new Http3DataFrame(this.content);
-            buffer = Buffer.concat([buffer, dataFrame.toBuffer()]);
+            dataFrame = new Http3DataFrame(this.content);
         }
 
-        return buffer;
+        if (dataFrame !== undefined) {
+            return Buffer.concat([this.headerFrame.toBuffer(), dataFrame.toBuffer()]);
+        } else {
+            throw new Error("Tried sending a HTTP response without a payload.");
+        }
     }
 
     public sendFile(path: string): boolean {

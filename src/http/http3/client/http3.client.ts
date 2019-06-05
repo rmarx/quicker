@@ -23,7 +23,7 @@ import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame } from "../common/frames/http3.baseframe";
 import { parseHttp3Message } from "../common/parsers/http3.message.parser";
 import { Http3Message } from "../common/http3.message";
-import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme } from "../common/prioritization/schemes/index"
+import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
 import { Http3RequestMetadata } from "./http3.requestmetadata";
 import { Http3Response } from "../common/http3.response";
 
@@ -79,6 +79,9 @@ export class Http3Client extends EventEmitter {
             this.clientQPackDecoder = new Http3QPackDecoder(clientQPackDecoder, this.logger);
             this.http3FrameParser.setEncoder(this.clientQPackEncoder);
             this.http3FrameParser.setDecoder(this.clientQPackDecoder);
+
+            // Send initial settings frame
+            this.sendingControlStream.sendFrame(new Http3SettingsFrame([]));
 
             // Frames needed for initial setup of the tree
             // E.g. moving or setting weights of placeholders
