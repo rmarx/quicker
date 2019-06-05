@@ -22,8 +22,9 @@ import { QlogWrapper } from "../../../utilities/logging/qlog.wrapper";
 import { Http3StreamState } from "../common/types/http3.streamstate";
 import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
-import { Http3PriorityFrame } from "../common/frames";
+import { Http3PriorityFrame, Http3SettingsFrame } from "../common/frames";
 import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme, Http3ClientSidedScheme, Http3PMeenanScheme } from "../common/prioritization/schemes/index"
+import { Http3Setting } from "../common/frames/http3.settingsframe";
 
 class ClientState {
     private logger: QlogWrapper;
@@ -141,6 +142,11 @@ export class Http3Server {
 
     private connectionStates: Map<string, ClientState> = new Map<string, ClientState>();
 
+    // Separate from connectionState as they are kept for 0RTT connections
+    // private connectionSettings: Map<string, Http3Setting[]> = new Map<string, Http3Setting[]>();
+    // Tracks for each connection if the 
+    // private areSettingsSet: Map<string, boolean> = new Map<string, boolean>();
+
     public constructor(keyFilepath?: string, certFilepath?: string, prioritizationSchemeName?: string) {
         this.onNewConnection = this.onNewConnection.bind(this);
         this.onNewStream = this.onNewStream.bind(this);
@@ -212,6 +218,17 @@ export class Http3Server {
             undefined,
             this.prioritizationSchemeName,
         ));
+
+        const clientState: ClientState | undefined = this.connectionStates.get(connection.getSrcConnectionID().toString());
+        if (clientState !== undefined) {
+            // Send SETTINGS frame to communicate that the server supports up to 8 placeholders (number of PH used by serialplus)
+            clientState.getSendingControlStream().sendFrame(new Http3SettingsFrame([{
+                identifier: new Bignum(0x9),
+                value: new Bignum(8),
+            }]));
+        } else {
+            throw new Error("Client state could not succesfully be created or added to the clientstate map!");
+        }
 
         VerboseLogging.info("DEBUG: A new HTTP/3 client has connected!");
     }
@@ -285,7 +302,7 @@ export class Http3Server {
                         bufferedData = bufferedData.slice(vlieOffset.offset);
                         if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
                             streamType = Http3UniStreamType.CONTROL;
-                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, state.getFrameParser(), logger, bufferedData.slice(vlieOffset.offset));
+                            const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, state.getFrameParser(), logger, bufferedData);
                             this.setupControlStreamEvents(controlStream);
                             state.setReceivingControlStream(controlStream);
                         } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
@@ -362,8 +379,6 @@ export class Http3Server {
             state.getPrioritiser().finishStream(quicStream.getStreamId());
         } else {
             let methodHandled: boolean = false;
-            res.setHeaderValue(":method", method);
-            res.setHeaderValue(":path", requestPath);
             // TODO implement other methods
             switch(method) {
                 case "GET":

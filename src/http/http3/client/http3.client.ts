@@ -23,7 +23,7 @@ import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame } from "../common/frames/http3.baseframe";
 import { parseHttp3Message } from "../common/parsers/http3.message.parser";
 import { Http3Message } from "../common/http3.message";
-import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme } from "../common/prioritization/schemes/index"
+import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
 import { Http3RequestMetadata } from "./http3.requestmetadata";
 import { Http3Response } from "../common/http3.response";
 
@@ -50,7 +50,6 @@ export class Http3Client extends EventEmitter {
 
     private logger?: QlogWrapper;
 
-    private trimQueryParamsPattern: RegExp = /([^\?]+)(\?.*)?/g;
     private fileExtensionPattern: RegExp = /\.[0-9a-z]+$/i;
     private indexRequestPattern: RegExp = /.*\/$/g;
 
@@ -80,6 +79,9 @@ export class Http3Client extends EventEmitter {
             this.clientQPackDecoder = new Http3QPackDecoder(clientQPackDecoder, this.logger);
             this.http3FrameParser.setEncoder(this.clientQPackEncoder);
             this.http3FrameParser.setDecoder(this.clientQPackDecoder);
+
+            // Send initial settings frame
+            this.sendingControlStream.sendFrame(new Http3SettingsFrame([]));
 
             // Frames needed for initial setup of the tree
             // E.g. moving or setting weights of placeholders
@@ -170,7 +172,7 @@ export class Http3Client extends EventEmitter {
     }
 
     // Returns streamID of requeststream
-    public get(path: string, metadata?: Http3RequestMetadata): Bignum {
+    public get(path: string, authority: string, metadata?: Http3RequestMetadata): Bignum {
         if (this.isClosed === true) {
             throw new Http3Error(Http3ErrorCode.HTTP3_CLIENT_CLOSED, "Can not send new requests after client has been closed");
         }
@@ -184,16 +186,12 @@ export class Http3Client extends EventEmitter {
             throw new Http3Error(Http3ErrorCode.HTTP3_UNINITIALISED_DECODER);
         }
 
-        // Trim any query parameters used from the path
-        const trimmedPath: RegExpMatchArray | null = path.match(this.trimQueryParamsPattern);
-        if (trimmedPath !== null) {
-            path = trimmedPath[0];
-        }
-
         const stream: QuicStream = this.quickerClient.createStream(StreamType.ClientBidi);
         const req: Http3Request = new Http3Request(stream.getStreamId(), this.clientQPackEncoder);
         req.setHeader(":path", path);
         req.setHeader(":method", "GET");
+        req.setHeader(":authority", authority);
+        req.setHeader(":scheme", "https");
 
         // Get file extension
         const fileExtensionMatches: RegExpMatchArray | null = path.match(this.fileExtensionPattern);
@@ -221,18 +219,20 @@ export class Http3Client extends EventEmitter {
 
         this.prioritiser.addStream(stream);
         let priorityFrame: Http3PriorityFrame | null;
+
         if (metadata !== undefined) {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), metadata);
         } else {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimetype: Http3Response.extensionToMimetype(fileExtension)});
         }
-        if (priorityFrame !== null) {
-            if (this.logger !== undefined) {
-                this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
-            }
-        } else {
-            // Default values
-            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, stream.getStreamId());
+
+        if (priorityFrame === null) {
+            // Use default behaviour if scheme was not able to create a frame
+            priorityFrame = new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT);
+        }
+
+        if (this.logger !== undefined) {
+            this.logger.onHTTPFrame_Priority(priorityFrame, "TX");
         }
 
         this.prioritiser.addData(stream.getStreamId(), priorityFrame.toBuffer());

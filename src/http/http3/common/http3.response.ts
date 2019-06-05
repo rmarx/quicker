@@ -16,6 +16,9 @@ export class Http3Response {
     // -> Content-Type
     private publicDir: string;
 
+    // Regex to trim query parameters if applicable
+    private trimQueryParamsPattern: RegExp = /([^\?]+)(\?.*)?/;
+
     public constructor(headers: Http3Header[], requestStreamID: Bignum, encoder: Http3QPackEncoder, decoder: Http3QPackDecoder) {
         this.headerFrame = new Http3HeaderFrame(headers, requestStreamID, encoder);
         if (Constants.EXPOSED_SERVER_DIR === undefined) {
@@ -26,10 +29,17 @@ export class Http3Response {
     }
 
     public toBuffer(): Buffer {
-        let buffer: Buffer = this.headerFrame.toBuffer();
+        let dataFrame: Http3DataFrame | undefined;
 
         if (this.filePath !== undefined) {
-            let absoluteFilePath = this.parsePath(resolve(__dirname) + this.publicDir + this.filePath);
+            // Trim everything after first '?'
+            let trimmedPath: string = this.filePath;
+            const matches: RegExpMatchArray | null = this.filePath.match(this.trimQueryParamsPattern);
+            if (matches !== null) {
+                trimmedPath = matches[1];
+            }
+
+            let absoluteFilePath = this.parsePath(resolve(__dirname) + this.publicDir + trimmedPath);
             if (!existsSync(absoluteFilePath)) {
                 absoluteFilePath = resolve(__dirname) + this.publicDir + "/notfound.html";
                 this.setStatus(404);
@@ -38,15 +48,19 @@ export class Http3Response {
             }
             VerboseLogging.info("Reading file: " + absoluteFilePath);
 
-            const dataFrame: Http3DataFrame = new Http3DataFrame(readFileSync(absoluteFilePath));
-            buffer = Buffer.concat([buffer, dataFrame.toBuffer()]);
+            dataFrame = new Http3DataFrame(readFileSync(absoluteFilePath));
+            this.setHeaderValue("content-length", dataFrame.getEncodedLength().toString());
+            return Buffer.concat([this.headerFrame.toBuffer(), dataFrame.toBuffer()]);
 
         } else if (this.content !== undefined) {
-            const dataFrame: Http3DataFrame = new Http3DataFrame(this.content);
-            buffer = Buffer.concat([buffer, dataFrame.toBuffer()]);
+            dataFrame = new Http3DataFrame(this.content);
         }
 
-        return buffer;
+        if (dataFrame !== undefined) {
+            return Buffer.concat([this.headerFrame.toBuffer(), dataFrame.toBuffer()]);
+        } else {
+            throw new Error("Tried sending a HTTP response without a payload.");
+        }
     }
 
     public sendFile(path: string): boolean {

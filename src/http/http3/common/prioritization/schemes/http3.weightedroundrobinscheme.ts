@@ -17,7 +17,7 @@ export class Http3WeightedRoundRobinScheme extends Http3PriorityScheme {
     public applyScheme(streamID: Bignum, metadata: Http3RequestMetadata): Http3PriorityFrame | null {
         const weight = this.getWeight(metadata);
         this.dependencyTree.setStreamWeight(streamID, weight);
-        return new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, streamID, undefined, weight);
+        return new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
     }
 
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum) {}

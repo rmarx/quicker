@@ -56,7 +56,7 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
 
             const weight: number = (priority << 2) | concurrency;
             VerboseLogging.info("Creating PMeenan priority frame with priority: " + priority + " and concurrency: " + concurrency + ". Resulting weight: " + weight);
-            return new Http3PriorityFrame(PrioritizedElementType.REQUEST_STREAM, ElementDependencyType.ROOT, streamID, undefined, weight);
+            return new Http3PriorityFrame(PrioritizedElementType.CURRENT_STREAM, ElementDependencyType.ROOT, undefined, undefined, weight);
         } else {
             throw new Error("Tried applying a scheme to a stream which was not in the data structure");
         }
@@ -140,10 +140,8 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
         if (metadata.isDefer === true || metadata.isAsync) {
             return [31, 2];
-        } else if (metadata.isCritical === true) {
-            return [63, 3];
         } else if (metadata.mimetype.search("javascript") > -1) {
-            if (metadata.inHead === true) {
+            if (metadata.inHead === true || metadata.isCritical === true) {
                 return [63, 3];
             } else {
                 return [31, 3];
@@ -159,7 +157,11 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
         } else if (metadata.mimetype === "text/html") {
             return [31, 2];
         } else if (metadata.mimetype === "text/css") {
-            return [31, 3];
+            if (metadata.inHead === true || metadata.isCritical === true) {
+                return [63, 3];
+            } else {
+                return [31, 3];
+            }
         } else if (metadata.mimetype.search("image") > -1) {
             if (metadata.isAboveTheFold === true) {
                 return [63, 1]; // Visible

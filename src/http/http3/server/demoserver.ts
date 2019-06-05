@@ -28,25 +28,20 @@ server.get(`/QUIC_lowres.png`, getQUICImageLowRes);
 
 async function getRoot(req: Http3Request, res: Http3Response) {
     res.sendFile("/");
-    res.setHeaderValue("cookies", "was-handled"); // FIXME remove, just for testing purpose
 }
 
 async function getJS(req: Http3Request, res: Http3Response) {
     res.sendFile("/script.js");
-    res.setHeaderValue("cookies", "was-handled"); // FIXME remove, just for testing purpose
 }
 
 async function getImage(req: Http3Request, res: Http3Response) {
     res.sendFile("/image.jpg");
-    res.setHeaderValue("cookies", "was-handled"); // FIXME remove, just for testing purpose
 }
 
 async function getQUICImage(req: Http3Request, res: Http3Response) {
     res.sendFile("/QUIC.png");
-    res.setHeaderValue("cookies", "was-handled"); // FIXME remove, just for testing purpose
 }
 
 async function getQUICImageLowRes(req: Http3Request, res: Http3Response) {
     res.sendFile("/QUIC_lowres.png");
-    res.setHeaderValue("cookies", "was-handled"); // FIXME remove, just for testing purpose
 }

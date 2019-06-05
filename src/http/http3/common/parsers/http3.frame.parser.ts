@@ -84,6 +84,7 @@ export class Http3FrameParser {
                     if (this.logger !== undefined) {
                         this.logger.onHTTPFrame_Settings(settingsFrame, "RX");
                     }
+                    break;
                 case Http3FrameType.GOAWAY:
                     const goAwayFrame: Http3GoAwayFrame = Http3GoAwayFrame.fromPayload(payload);
                     frames.push(goAwayFrame);
