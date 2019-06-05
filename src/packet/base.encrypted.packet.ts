@@ -64,6 +64,10 @@ export abstract class BaseEncryptedPacket extends BasePacket {
         dataBuffer.copy(buffer, offset);
         */
         
+        // FIXME: make sure that if something changes in the frames-array (e.g., new element is added / removed), this gets set to -1 again! 
+        // just a quick hack to get rid of .toBuffer().bytelength
+        this.bufferedLength = (encryptedPacket as Buffer).byteLength;
+
         return encryptedPacket as Buffer;
 
     }

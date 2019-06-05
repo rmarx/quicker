@@ -17,12 +17,16 @@ export abstract class BasePacket {
     protected ackOnly: boolean;
     protected paddingOnly: boolean;
 
+    protected bufferedLength: number;
+
     public constructor(packetType: PacketType, header: BaseHeader) {
         this.packetType = packetType;
         this.header = header;
         this.retransmittable = false;
         this.ackOnly = true;
         this.paddingOnly = true;
+
+        this.bufferedLength = -1;
     }
 
 
@@ -58,6 +62,10 @@ export abstract class BasePacket {
 
     abstract getSize(): number;
     abstract toBuffer(connection: Connection): Buffer;
+
+    public getBufferedByteLength():number{
+        return this.bufferedLength;
+    }
 }
 
 export enum PacketType {
