@@ -60,7 +60,7 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
         );
         frames.push(new Http3PriorityFrame(
             PrioritizedElementType.PLACEHOLDER,
-            ElementDependencyType.PLACEHOLDER,
+            ElementDependencyType.ROOT,
             this.normalPriorityPlaceholderID,
             undefined,
             256)
