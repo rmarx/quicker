@@ -145,10 +145,13 @@ export class Http3Client extends EventEmitter {
                             streamType = Http3UniStreamType.DECODER;
                             this.setupServerDecoderStream(quicStream, bufferedData);
                             logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.REMOTELY_OPENED, "QPACK_DECODE");
+                        } else if (streamTypeBignum.subtract(0x21).modulo(0x1f).equals(new Bignum(0))) {
+                            // Reserved stream types are of format "0x1f * N + 0x21" and should be ignored
+                            streamType = Http3UniStreamType.RESERVED;
                         } else {
                             quicStream.end();
                             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
+                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamTypeBignum.toString() + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                         }
                     } catch(error) {
                         // Do nothing if there was not enough data to decode the StreamType

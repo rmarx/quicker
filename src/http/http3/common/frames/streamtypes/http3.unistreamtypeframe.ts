@@ -3,6 +3,7 @@ export enum Http3UniStreamType {
     PUSH = 0x01,
     ENCODER = 0x02,
     DECODER = 0x03,
+    RESERVED = 0x21, // 0x1f * N + 0x21
 }
 
 /**
