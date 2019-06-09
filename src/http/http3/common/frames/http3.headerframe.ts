@@ -9,6 +9,7 @@ import { Http3QPackDecoder } from "../qpack/http3.qpackdecoder";
 
 export class Http3HeaderFrame extends Http3BaseFrame {
     private headers: Map<string, string> = new Map<string, string>();
+    private pseudoHeaders: Map<string, string> = new Map<string, string>();
     private requestStreamID: Bignum;
     private encoder: Http3QPackEncoder;
 
@@ -35,12 +36,21 @@ export class Http3HeaderFrame extends Http3BaseFrame {
 
     public getHeaders(): Http3Header[] {
         const headerList: Http3Header[] = [];
+
+        // Pseudo headers have to come before normal headers
+        this.pseudoHeaders.forEach((value, key) => {
+            headerList.push({
+                name: key,
+                value,
+            });
+        });
         this.headers.forEach((value, key) => {
            headerList.push({
                name: key,
                value,
            });
         });
+
         return headerList;
     }
 
@@ -54,17 +64,29 @@ export class Http3HeaderFrame extends Http3BaseFrame {
     }
 
     public getHeaderValue(property: string): string | undefined {
-        return this.headers.get(property.toLowerCase());
+        if (property[0] === ":") {
+            return this.pseudoHeaders.get(property.toLowerCase());
+        } else {
+            return this.headers.get(property.toLowerCase());
+        }
     }
 
     public setHeaderValue(property: string, value: string) {
-        this.headers.set(property.toLowerCase(), value);
+        if (property[0] === ":") {
+            this.pseudoHeaders.set(property.toLowerCase(), value);
+        } else {
+            this.headers.set(property.toLowerCase(), value);
+        }
     }
     
     public setHeaders(headers: Http3Header[]) {
         this.headers.clear();
         for (const header of headers) {
-            this.headers.set(header.name.toLowerCase(), header.value);
+            if (header.name[0] === ":") {
+                this.pseudoHeaders.set(header.name.toLowerCase(), header.value);
+            } else {
+                this.headers.set(header.name.toLowerCase(), header.value);
+            }
         }
     }
 

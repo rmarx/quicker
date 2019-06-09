@@ -31,6 +31,8 @@ export class Http3Response {
     public toBuffer(): Buffer {
         let dataFrame: Http3DataFrame | undefined;
 
+        this.headerFrame.setHeaderValue("server", "quicker/h3-20");
+
         if (this.filePath !== undefined) {
             // Trim everything after first '?'
             let trimmedPath: string = this.filePath;
