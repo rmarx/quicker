@@ -157,6 +157,7 @@ export class Client extends Endpoint {
 
     public close() {
         // TODO: close connection with applicationcloseframe
+        this.handleError( this.connection, new QuicError(ConnectionErrorCodes.NO_ERROR, "Everything is well in the world"));
     }
 
     // TODO: FIXME: remove! this is for debugging only!

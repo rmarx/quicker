@@ -15,7 +15,7 @@ export class Constants {
     ];
 
     public static readonly LOG_TYPE = "stdout";
-    public static          LOG_LEVEL = 'debug';
+    public static          LOG_LEVEL = process.env.LOG_LEVEL || 'debug';
     public static          LOG_FILE_NAME: string = 'server.log';
     public static          QLOG_FILE_NAME?: string;
     public static readonly LOG_LARGE_BUFFER_DATA = true;
@@ -60,8 +60,8 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 1000;
     public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 1000;
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 1000;
-    public static readonly DEFAULT_MAX_STREAM_DATA = 5000 * 1024;
-    public static readonly DEFAULT_MAX_DATA = 5000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
+    public static readonly DEFAULT_MAX_STREAM_DATA = 50000 * 1024;
+    public static readonly DEFAULT_MAX_DATA = 50000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
     public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
     public static readonly DEFAULT_MAX_ACK_DELAY = 25; // ms
     public static readonly DEFAULT_IDLE_TIMEOUT = 600;

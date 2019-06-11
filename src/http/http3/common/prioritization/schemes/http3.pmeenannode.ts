@@ -9,7 +9,7 @@ export enum Http3PMeenanNodeEvent {
 }
 
 export class Http3PMeenanNode extends EventEmitter {
-    private static readonly CHUNK_SIZE: number = 1000;
+    private static readonly CHUNK_SIZE: number = 1400;
 
     private bufferedData: Buffer = Buffer.alloc(0);
     private requestStream: QuicStream;

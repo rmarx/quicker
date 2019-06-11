@@ -47,7 +47,7 @@ export class VerboseLogging{
     }
 
     private constructor() {
-        configure({
+        let config = {
             appenders: {
                 consoleOut: {
                     type: Constants.LOG_TYPE
@@ -86,7 +86,7 @@ export class VerboseLogging{
             },
             categories: {
                 default: {
-                    appenders: ['consoleOut', 'fileOut'],
+                    appenders: ['fileOut'],
                     level: Constants.LOG_LEVEL
                 },
                 qlog: {
@@ -94,7 +94,14 @@ export class VerboseLogging{
                     level: Constants.LOG_LEVEL
                 }
             }
-        });
+        };
+
+        if( !process.env.DISABLE_STDOUT || (process.env.DISABLE_STDOUT === "false") )
+            config.categories.default.appenders.push('consoleOut');
+
+        console.log("VerboseLogging: starting with log level " + Constants.LOG_LEVEL);
+
+        configure(config);
 
         this.output = getLogger();
         this.output.level = Constants.LOG_LEVEL;

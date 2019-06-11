@@ -48,8 +48,11 @@ export abstract class Endpoint extends EventEmitter {
 
         var closeFrame: ConnectionCloseFrame;
         var packet: BaseEncryptedPacket;
+        let aRealError:boolean = true;
         if (error instanceof QuicError) {
             closeFrame = FrameFactory.createConnectionCloseFrame(error.getErrorCode(), error.getPhrase());
+            if( error.getErrorCode() === ConnectionErrorCodes.NO_ERROR )
+                aRealError = false;
         } else {
             closeFrame = FrameFactory.createConnectionCloseFrame(ConnectionErrorCodes.INTERNAL_ERROR, error.message + " -- " + JSON.stringify(error) + " -- " + JSON.stringify(error.stack) );
         }
@@ -67,7 +70,9 @@ export abstract class Endpoint extends EventEmitter {
         connection.sendPacket(packet, false)
         connection.setClosePacket(packet);
         connection.setState(ConnectionState.Closing);
-        this.emit(QuickerEvent.ERROR, error);
+        // TODO: right now, we also allow this function to be used for normal closures, which is WAY TOO DIRTY
+        if( aRealError )
+            this.emit(QuickerEvent.ERROR, error);
     }
 
     protected handleClose(): any {

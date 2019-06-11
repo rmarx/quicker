@@ -48,6 +48,8 @@ export class QlogWrapper{
     private currentDestConnID:string = "";
     private currentSpinbit?:number = undefined; 
 
+    private wasClosed:boolean = false;
+
     public constructor(connectionID:string, endpointType:EndpointType, description:string ) {
         
         VerboseLogging.getInstance(); // make sure VerboseLogging is created, since it initializes log4js properly 
@@ -99,7 +101,7 @@ export class QlogWrapper{
         let squareBracketIndex:number = preambleString.indexOf("]", events);
         preambleString = preambleString.slice(0, squareBracketIndex);
 
-        this.logger.debug(preambleString);
+        this.logger.error(preambleString);
     }
 
     public close(){
@@ -109,13 +111,22 @@ export class QlogWrapper{
         // HOWEVER: we still need to take into account incomplete files, seeing as for a crash, this method will not be called
         // so the frontend needs to employ a streaming .json parser instead of a sync parser, which is best practice anyway
         // e.g., see http://oboejs.com 
-        this.logger.debug("]}]}");
+        if( this.wasClosed )
+            return;
+            
+        this.logger.error("]}]}");
+        this.wasClosed = true;
     }
 
     // FIXME: make this of type qlog.IEventTuple instead of any (but also allow a more general setup that can bypass this if absolutely needed)
     private logToFile(evt:any[]){
+        if( this.wasClosed ){
+            VerboseLogging.warn("qlog was already closed, not appending!" + JSON.stringify(evt));
+            return;
+        }
+
         evt[0] = ((new Date()).getTime() - this.startTime); // we store the delta, which is small enough, shouldn't need a string
-        this.logger.debug( "                " + JSON.stringify(evt) + ",");
+        this.logger.error( "                " + JSON.stringify(evt) + ",");
     }
 
     public onPathUpdate( ipVersion:string, localAddress:string, localPort:number, remoteAddress:string, remotePort:number ){

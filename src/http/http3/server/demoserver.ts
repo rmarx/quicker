@@ -3,6 +3,9 @@ import { Http3Request } from "../common/http3.request";
 import { Http3Response } from "../common/http3.response";
 import { resolve } from "path";
 import { Constants } from "../../../utilities/constants";
+import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
+import { readFileSync } from "fs";
+import { Http3RequestMetadata } from "../client/http3.requestmetadata";
 
 // node demoserver.js scheme_name qlog_file_name log_file_name exposed_public_subdir
 
@@ -12,12 +15,16 @@ const logFileName: string | undefined = process.argv[4] || undefined;
 if (logFileName !== undefined) {
     Constants.LOG_FILE_NAME = logFileName;
 }
-Constants.EXPOSED_SERVER_DIR = process.argv[5] || undefined;
 
-let server: Http3Server = new Http3Server(resolve(__dirname + "../../../../../keys/selfsigned_default.key"), resolve(__dirname + "../../../../../keys/selfsigned_default.crt"), schemeName);
+Constants.EXPOSED_SERVER_DIR = process.argv[5] || (Constants.EXPOSED_SERVER_DIR !== undefined ? Constants.EXPOSED_SERVER_DIR : undefined);
+
+const resourceListName: string | undefined = process.argv[6] || undefined;
+const resourceList: {[path: string]: Http3RequestMetadata} | undefined = resourceListName === undefined ? undefined : JSON.parse(readFileSync(resourceListName, "utf-8")).resources;
+
+let server: Http3Server = new Http3Server(resolve(__dirname + "../../../../../keys/selfsigned_default.key"), resolve(__dirname + "../../../../../keys/selfsigned_default.crt"), schemeName, resourceList);
 server.listen(4433, "127.0.0.1");
 
-console.log("HTTP/3 server listening on port 4433");
+console.log("HTTP/3 server listening on port 4433, log level " + Constants.LOG_LEVEL);
 
 server.get(`/`, getRoot);
 server.get(`/index.html`, getRoot);

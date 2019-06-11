@@ -26,6 +26,7 @@ import { Http3Message } from "../common/http3.message";
 import { Http3PriorityScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3FirefoxScheme } from "../common/prioritization/schemes/index"
 import { Http3RequestMetadata } from "./http3.requestmetadata";
 import { Http3Response } from "../common/http3.response";
+import { Connection } from "../../../quicker/connection";
 
 export class Http3Client extends EventEmitter {
     private quickerClient: Client;
@@ -97,7 +98,7 @@ export class Http3Client extends EventEmitter {
             // TODO Listen to congestion control events instead
             this.scheduleTimer = setInterval(() => {
                 this.prioritiser.schedule();
-            }, 30);
+            }, 10);
         });
 
         this.quickerClient.on(QuickerEvent.NEW_STREAM, this.onNewStream);
@@ -144,10 +145,13 @@ export class Http3Client extends EventEmitter {
                             streamType = Http3UniStreamType.DECODER;
                             this.setupServerDecoderStream(quicStream, bufferedData);
                             logger.onHTTPStreamStateChanged(quicStream.getStreamId(), Http3StreamState.REMOTELY_OPENED, "QPACK_DECODE");
+                        } else if (streamTypeBignum.subtract(0x21).modulo(0x1f).equals(new Bignum(0))) {
+                            // Reserved stream types are of format "0x1f * N + 0x21" and should be ignored
+                            streamType = Http3UniStreamType.RESERVED;
                         } else {
                             quicStream.end();
                             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
+                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamTypeBignum.toString() + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                         }
                     } catch(error) {
                         // Do nothing if there was not enough data to decode the StreamType
@@ -193,14 +197,20 @@ export class Http3Client extends EventEmitter {
         req.setHeader(":authority", authority);
         req.setHeader(":scheme", "https");
 
+        // TODO: make sure fileExtensionPattern and indexRequestPattern can deal with query parameters proper, this is a dirty quick fix
+        let questionIndex:number = path.indexOf("?");
+        let pathWithoutQueryParameters:string = path.substring(0, (questionIndex >= 0 ? questionIndex : path.length));
+
         // Get file extension
-        const fileExtensionMatches: RegExpMatchArray | null = path.match(this.fileExtensionPattern);
+        const fileExtensionMatches: RegExpMatchArray | null = pathWithoutQueryParameters.match(this.fileExtensionPattern);
         let fileExtension: string;
         if (fileExtensionMatches !== null) {
             fileExtension = fileExtensionMatches[0];
-        } else if (path.match(this.indexRequestPattern)) {
+        } else if (pathWithoutQueryParameters.match(this.indexRequestPattern)) {
             // Assume a path ending with `/` tries to request index.html
             fileExtension = ".html";
+        } else if( metadata && metadata.mimeType ){
+            fileExtension = Http3Response.mimeTypeToExtension(metadata.mimeType);
         } else {
             // TODO implement appropriate error
             throw new Error("Could not determine file extension based on request path! Path: " + path);
@@ -223,7 +233,7 @@ export class Http3Client extends EventEmitter {
         if (metadata !== undefined) {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), metadata);
         } else {
-            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimetype: Http3Response.extensionToMimetype(fileExtension)});
+            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimeType: Http3Response.extensionToMimetype(fileExtension, path)});
         }
 
         if (priorityFrame === null) {
@@ -345,5 +355,12 @@ export class Http3Client extends EventEmitter {
             return;
         }
         this.clientQPackEncoder.setPeerDecoderStream(serverDecoderStream, bufferedStreamData.byteLength === 0 ? undefined : bufferedStreamData);
+    }
+
+    public DEBUGgetQlogger():QlogWrapper|undefined {
+        return this.logger;
+    }
+    public DEBUGgetQUICClient():Client|undefined {
+        return this.quickerClient;
     }
 }

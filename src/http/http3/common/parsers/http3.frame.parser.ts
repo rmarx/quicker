@@ -95,6 +95,8 @@ export class Http3FrameParser {
                 case Http3FrameType.DUPLICATE_PUSH:
                     frames.push(new Http3DuplicatePushFrame(payload));
                     break;
+                case Http3FrameType.RESERVED:
+                    break;
                 default:
                     throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unknown frametype encountered while parsing http3 frames");
             }
@@ -119,6 +121,9 @@ export class Http3FrameParser {
      * @returns A value of type Http3FrameType if valid, undefined otherwise
      */
     private static toFrameType(frameType: Bignum): Http3FrameType | undefined {
+        if (this.isReservedFrameType(frameType)) {
+            return Http3FrameType.RESERVED;
+        }
         const ft: number = frameType.toNumber();
         switch(ft) {
             case Http3FrameType.DATA:
@@ -132,11 +137,7 @@ export class Http3FrameParser {
             case Http3FrameType.DUPLICATE_PUSH:
                 return ft as Http3FrameType;
             default:
-                if (Http3FrameParser.isReservedFrameType(frameType) == true) {
-                    return Http3FrameType.RESERVED;
-                } else {
-                    return undefined;
-                }
+                return undefined;
         }
     }
 

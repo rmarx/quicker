@@ -164,11 +164,11 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
     private getLowPriorityPlaceholderID(metadata: Http3RequestMetadata): number {
         if (metadata.isPreload === true) {
             return this.speculativePlaceholderID;
-        } else if (metadata.mimetype.search("image") > -1) {
+        } else if (metadata.mimeType.search("image") > -1) {
             return this.followersPlaceholderID;
-        } else if (metadata.mimetype === "text/html") {
+        } else if (metadata.mimeType === "text/html") {
             return this.followersPlaceholderID;
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             return this.followersPlaceholderID;
         } else {
             return this.backgroundPlaceholderID;
@@ -176,7 +176,7 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
     }
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
-        if (metadata.mimetype.search("javascript") > -1) {
+        if (metadata.mimeType.search("javascript") > -1) {
             if (metadata.isDefer === true || metadata.isAsync === true || metadata.inHead !== true) {
                 return PriorityGroup.MEDIUM;
             } else {
@@ -184,15 +184,15 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
             }
         } else if (metadata.isPreload === true) {
             return PriorityGroup.LOW;
-        } else if (metadata.mimetype === "text/html") {
+        } else if (metadata.mimeType === "text/html") {
             return PriorityGroup.LOW;
-        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+        } else if (metadata.mimeType.search("xml") > -1 || metadata.mimeType.search("json") > -1) {
             return PriorityGroup.MEDIUM;
-        } else if (metadata.mimetype.search("image") > -1) {
+        } else if (metadata.mimeType.search("image") > -1) {
             return PriorityGroup.LOW;
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             return PriorityGroup.LOW;
-        } else if (metadata.mimetype === "text/css") {
+        } else if (metadata.mimeType === "text/css") {
             return PriorityGroup.HIGH;
         } else {
             return PriorityGroup.LOW;

@@ -845,7 +845,7 @@ export class Connection extends FlowControlledObject {
                 let highestReceivedNumber = this.context1RTT.getPacketNumberSpace().getHighestReceivedNumber();
                 if( highestReceivedNumber === undefined )
                     highestReceivedNumber = new PacketNumber( new Bignum(0) );
-                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), highestReceivedNumber);
+                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), new PacketNumber(new Bignum(0)));
                 this.qlogger.onPacketTX( closePacket );
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
                 this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);
