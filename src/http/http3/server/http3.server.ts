@@ -23,7 +23,7 @@ import { Http3StreamState } from "../common/types/http3.streamstate";
 import { Http3DependencyTree } from "../common/prioritization/http3.deptree";
 import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe";
 import { Http3PriorityFrame, Http3SettingsFrame } from "../common/frames";
-import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme, Http3ClientSidedScheme, Http3PMeenanScheme } from "../common/prioritization/schemes/index"
+import { Http3PriorityScheme, Http3ZeroWeightSimple, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme, Http3ClientSidedScheme, Http3PMeenanScheme } from "../common/prioritization/schemes/index"
 import { Http3Setting } from "../common/frames/http3.settingsframe";
 import { Http3RequestMetadata } from "../client/http3.requestmetadata";
 
@@ -124,6 +124,8 @@ class ClientState {
                 return new Http3SerialPlusScheme(logger);
             case "pmeenan":
                 return new Http3PMeenanScheme(logger);
+            case "zeroweightsimple":
+                return new Http3ZeroWeightSimple(logger);
             case "client":
                 return new Http3ClientSidedScheme(logger);
             default:

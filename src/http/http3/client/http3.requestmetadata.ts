@@ -6,6 +6,7 @@ export interface Http3RequestMetadata {
     isAsync?: boolean,
     isDefer?: boolean,
     isPreload?: boolean,
+    isMainResource?: boolean,
     mimeType: string,
     deltaStartTime?: number, // ms
     delayPriorityFrame?: number, // ms
