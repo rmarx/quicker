@@ -25,6 +25,7 @@ import { Http3BaseFrame, Http3FrameType } from "../common/frames/http3.baseframe
 import { Http3PriorityFrame, Http3SettingsFrame } from "../common/frames";
 import { Http3PriorityScheme, Http3DynamicFifoScheme, Http3FIFOScheme, Http3RoundRobinScheme, Http3WeightedRoundRobinScheme, Http3ParallelPlusScheme, Http3SerialPlusScheme, Http3FirefoxScheme, Http3ClientSidedScheme, Http3PMeenanScheme } from "../common/prioritization/schemes/index"
 import { Http3Setting } from "../common/frames/http3.settingsframe";
+import { Http3RequestMetadata } from "../client/http3.requestmetadata";
 
 class ClientState {
     private logger: QlogWrapper;
@@ -58,7 +59,7 @@ class ClientState {
         // TODO Listen to congestion control events instead
         this.scheduleTimer = setInterval(() => {
             this.prioritiser.schedule();
-        }, 10);
+        }, 30);
     }
 
     public getLogger(): QlogWrapper {
@@ -142,12 +143,14 @@ export class Http3Server {
 
     private connectionStates: Map<string, ClientState> = new Map<string, ClientState>();
 
+    private resourceList?: {[path: string]: Http3RequestMetadata};
+
     // Separate from connectionState as they are kept for 0RTT connections
     // private connectionSettings: Map<string, Http3Setting[]> = new Map<string, Http3Setting[]>();
     // Tracks for each connection if the 
     // private areSettingsSet: Map<string, boolean> = new Map<string, boolean>();
 
-    public constructor(keyFilepath?: string, certFilepath?: string, prioritizationSchemeName?: string) {
+    public constructor(keyFilepath?: string, certFilepath?: string, prioritizationSchemeName?: string, resourceList?: {[path: string]: Http3RequestMetadata}) {
         this.onNewConnection = this.onNewConnection.bind(this);
         this.onNewStream = this.onNewStream.bind(this);
         this.handleRequest = this.handleRequest.bind(this);
@@ -162,6 +165,7 @@ export class Http3Server {
             this.quickerServer = QuicServer.createServer(options);
         }
         this.prioritizationSchemeName = prioritizationSchemeName;
+        this.resourceList = resourceList;
 
         this.quickerServer.on(QuickerEvent.NEW_STREAM, this.onNewStream);
         this.quickerServer.on(QuickerEvent.CONNECTION_CLOSE, this.closeConnection);
@@ -398,7 +402,8 @@ export class Http3Server {
 
             if (methodHandled) {
                 // Respond and close stream
-                state.getPrioritiser().applyScheme(quicStream.getStreamId(), {mimeType: res.getMimeType(requestPath)});
+                const metadata: Http3RequestMetadata = this.resourceList === undefined ? {mimeType: res.getMimeType(requestPath)} : this.resourceList[requestPath];
+                state.getPrioritiser().applyScheme(quicStream.getStreamId(), metadata);
                 state.getPrioritiser().addData(quicStream.getStreamId(), res.toBuffer());
                 state.getPrioritiser().finishStream(quicStream.getStreamId());
             }
