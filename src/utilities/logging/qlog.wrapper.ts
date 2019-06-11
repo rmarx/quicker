@@ -102,7 +102,7 @@ export class QlogWrapper{
         let squareBracketIndex:number = preambleString.indexOf("]", events);
         preambleString = preambleString.slice(0, squareBracketIndex);
 
-        this.logger.debug(preambleString);
+        this.logger.error(preambleString);
     }
 
     public close(){
@@ -115,7 +115,7 @@ export class QlogWrapper{
         if( this.wasClosed )
             return;
             
-        this.logger.debug("]}]}");
+        this.logger.error("]}]}");
         this.wasClosed = true;
     }
 
@@ -127,7 +127,7 @@ export class QlogWrapper{
         }
 
         evt[0] = ((new Date()).getTime() - this.startTime); // we store the delta, which is small enough, shouldn't need a string
-        this.logger.debug( "                " + JSON.stringify(evt) + ",");
+        this.logger.error( "                " + JSON.stringify(evt) + ",");
     }
 
     public onPathUpdate( ipVersion:string, localAddress:string, localPort:number, remoteAddress:string, remotePort:number ){

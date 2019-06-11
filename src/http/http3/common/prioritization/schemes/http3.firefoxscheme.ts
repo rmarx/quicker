@@ -77,7 +77,7 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum): void {}
 
     private getPlaceholderID(metadata: Http3RequestMetadata): number {
-        if (metadata.mimetype.search("javascript") > -1) {
+        if (metadata.mimeType.search("javascript") > -1) {
             if (metadata.inHead === true) {
                 return this.leadersPlaceholderID;
             } else if (metadata.isDefer === true || metadata.isAsync === true) {
@@ -87,15 +87,15 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
             }
         } else if (metadata.isPreload === true) {
             return this.speculativePlaceholderID;
-        } else if (metadata.mimetype === "text/html") {
+        } else if (metadata.mimeType === "text/html") {
             return this.followersPlaceholderID;
-        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+        } else if (metadata.mimeType.search("xml") > -1 || metadata.mimeType.search("json") > -1) {
             return this.unblockedPlaceholderID;
-        } else if (metadata.mimetype.search("image") > -1) {
+        } else if (metadata.mimeType.search("image") > -1) {
             return this.followersPlaceholderID;
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             return this.followersPlaceholderID;
-        } else if (metadata.mimetype === "text/css") {
+        } else if (metadata.mimeType === "text/css") {
             return this.leadersPlaceholderID;
         } else {
             return this.backgroundPlaceholderID;
@@ -105,13 +105,13 @@ export class Http3FirefoxScheme extends Http3PriorityScheme {
     private getWeight(metadata: Http3RequestMetadata): number {
         // TODO Push should be weight 2
         // XHR should be weight 32
-        if (metadata.mimetype.search("image") > -1) {
+        if (metadata.mimeType.search("image") > -1) {
             return 22;
-        } else if (metadata.mimetype.search("json") > -1 || metadata.mimetype.search("xml") > -1) {
+        } else if (metadata.mimeType.search("json") > -1 || metadata.mimeType.search("xml") > -1) {
             return 32;
-        } else if (metadata.mimetype.search("javascript") || metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+        } else if (metadata.mimeType.search("javascript") || metadata.mimeType === "text/html" || metadata.mimeType === "text/css") {
             return 32;
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             return 42;
         } else {
             return 16;

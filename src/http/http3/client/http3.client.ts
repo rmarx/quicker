@@ -98,7 +98,7 @@ export class Http3Client extends EventEmitter {
             // TODO Listen to congestion control events instead
             this.scheduleTimer = setInterval(() => {
                 this.prioritiser.schedule();
-            }, 30);
+            }, 10);
         });
 
         this.quickerClient.on(QuickerEvent.NEW_STREAM, this.onNewStream);
@@ -201,14 +201,20 @@ export class Http3Client extends EventEmitter {
         req.setHeader(":authority", authority);
         req.setHeader(":scheme", "https");
 
+        // TODO: make sure fileExtensionPattern and indexRequestPattern can deal with query parameters proper, this is a dirty quick fix
+        let questionIndex:number = path.indexOf("?");
+        let pathWithoutQueryParameters:string = path.substring(0, (questionIndex >= 0 ? questionIndex : path.length));
+
         // Get file extension
-        const fileExtensionMatches: RegExpMatchArray | null = path.match(this.fileExtensionPattern);
+        const fileExtensionMatches: RegExpMatchArray | null = pathWithoutQueryParameters.match(this.fileExtensionPattern);
         let fileExtension: string;
         if (fileExtensionMatches !== null) {
             fileExtension = fileExtensionMatches[0];
-        } else if (path.match(this.indexRequestPattern)) {
+        } else if (pathWithoutQueryParameters.match(this.indexRequestPattern)) {
             // Assume a path ending with `/` tries to request index.html
             fileExtension = ".html";
+        } else if( metadata && metadata.mimeType ){
+            fileExtension = Http3Response.mimeTypeToExtension(metadata.mimeType);
         } else {
             // TODO implement appropriate error
             throw new Error("Could not determine file extension based on request path! Path: " + path);
@@ -231,7 +237,7 @@ export class Http3Client extends EventEmitter {
         if (metadata !== undefined) {
             priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), metadata);
         } else {
-            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimetype: Http3Response.extensionToMimetype(fileExtension)});
+            priorityFrame = this.prioritiser.applyScheme(stream.getStreamId(), {mimeType: Http3Response.extensionToMimetype(fileExtension, path)});
         }
 
         if (priorityFrame === null) {

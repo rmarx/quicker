@@ -82,8 +82,8 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                     for (const resource of relatedResources) {
                         const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                         if (metadata.deltaStartTime !== undefined) {
+                            ++startedRequestCount;
                             setTimeout(() => {
-                                ++startedRequestCount;
                                 client.get(resource, authority, undefined, metadata);
                             }, metadata.deltaStartTime);
                         } else {
@@ -102,7 +102,9 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                 client.DEBUGgetQUICClient()!.close();
                 
                 setTimeout( () => {
-                    process.exit(999);
+                    VerboseLogging.error("Exiting process with code 66");
+                    console.log("Exiting process with code 66");
+                    process.exit(66);
                 }, 500);
             }
         });
@@ -118,8 +120,8 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                 // Based on the metadata of each resource, set a delay with which it should be fetched
                 const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                 if (metadata.deltaStartTime !== undefined) {
+                    ++startedRequestCount;
                     setTimeout(() => {
-                        ++startedRequestCount;
                         client.get(resource, authority, undefined, metadata);
                     }, metadata.deltaStartTime);
                 } else {

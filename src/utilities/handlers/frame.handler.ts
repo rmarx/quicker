@@ -138,8 +138,10 @@ export class FrameHandler {
             if( connectionCloseFrame.getErrorPhrase() === "Everything is well in the world"){
                 immediateShutdown = true;
                 setTimeout( () => {
-                    process.exit(999);
-                }, 1000);
+                    VerboseLogging.error("Exiting process with code 66");
+                    console.log("Exiting process with code 66");
+                    process.exit(66);
+                }, 500);
             }
         }
         

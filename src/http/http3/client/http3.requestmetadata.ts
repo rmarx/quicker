@@ -6,7 +6,7 @@ export interface Http3RequestMetadata {
     isAsync?: boolean,
     isDefer?: boolean,
     isPreload?: boolean,
-    mimetype: string,
+    mimeType: string,
     deltaStartTime?: number, // ms
     delayPriorityFrame?: number, // ms
     childrenStart?: string[], // List of file paths that are discovered during transmission of the parent

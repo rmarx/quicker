@@ -388,7 +388,7 @@ export class Http3Server {
                         this.handledGetPaths[requestPath](req, res);
                         VerboseLogging.info("Request was handled by the server. Responding to HTTP/3 Request.");
                     } else {
-                        VerboseLogging.info("Requested path '" +  + "' has no specific handler. Trying to respond with requested file...");
+                        VerboseLogging.info("Requested path '" + requestPath + "' has no specific handler. Trying to respond with requested file...");
                         res.sendFile(requestPath);
                     }
                     break;
@@ -398,7 +398,7 @@ export class Http3Server {
 
             if (methodHandled) {
                 // Respond and close stream
-                state.getPrioritiser().applyScheme(quicStream.getStreamId(), {mimetype: res.getMimeType()});
+                state.getPrioritiser().applyScheme(quicStream.getStreamId(), {mimeType: res.getMimeType(requestPath)});
                 state.getPrioritiser().addData(quicStream.getStreamId(), res.toBuffer());
                 state.getPrioritiser().finishStream(quicStream.getStreamId());
             }

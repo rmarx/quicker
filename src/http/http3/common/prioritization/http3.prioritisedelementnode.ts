@@ -4,7 +4,7 @@ import { Http3NodeEvent } from "./http3.nodeevent";
 import { DependencyTree } from "./http3.deptree";
 
 export class Http3PrioritisedElementNode extends EventEmitter {
-    static readonly CHUNK_SIZE = 1000;
+    public static readonly CHUNK_SIZE = 1400;
     private parent: Http3PrioritisedElementNode | null;
     protected activeChildrenPQueue: Http3DepNodePQueue = new Http3DepNodePQueue([]);
     protected children: Http3PrioritisedElementNode[] = [];

@@ -140,35 +140,35 @@ export class Http3PMeenanScheme extends Http3PriorityScheme {
     private metadataToBucket(metadata: Http3RequestMetadata): [number, number] {
         if (metadata.isDefer === true || metadata.isAsync) {
             return [31, 2];
-        } else if (metadata.mimetype.search("javascript") > -1) {
+        } else if (metadata.mimeType.search("javascript") > -1) {
             if (metadata.inHead === true || metadata.isCritical === true) {
                 return [63, 3];
             } else {
                 return [31, 3];
             }
-        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+        } else if (metadata.mimeType.search("xml") > -1 || metadata.mimeType.search("json") > -1) {
             return [31, 3];
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             if (metadata.isPreload === true) {
                 return [31, 2];
             } else {
                 return [63, 2];
             }
-        } else if (metadata.mimetype === "text/html") {
+        } else if (metadata.mimeType === "text/html") {
             return [31, 2];
-        } else if (metadata.mimetype === "text/css") {
+        } else if (metadata.mimeType === "text/css") {
             if (metadata.inHead === true || metadata.isCritical === true) {
                 return [63, 3];
             } else {
                 return [31, 3];
             }
-        } else if (metadata.mimetype.search("image") > -1) {
+        } else if (metadata.mimeType.search("image") > -1) {
             if (metadata.isAboveTheFold === true) {
                 return [63, 1]; // Visible
             } else {
                 return [31, 1];
             }
-        } else if (metadata.mimetype.search("video") > -1) {
+        } else if (metadata.mimeType.search("video") > -1) {
             return [31, 1];
         } else {
             return [0, 2];

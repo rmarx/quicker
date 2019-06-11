@@ -106,7 +106,7 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
 
     private getPriorityGroup(metadata: Http3RequestMetadata): PriorityGroup {
         // TODO missing server push -> should be LOWEST
-        if (metadata.mimetype.search("javascript") > -1) {
+        if (metadata.mimeType.search("javascript") > -1) {
             if (metadata.isAsync === true || metadata.isDefer === true) {
                 return PriorityGroup.LOW;
             }
@@ -115,13 +115,13 @@ export class Http3ParallelPlusScheme extends Http3PriorityScheme {
             } else {
                 return PriorityGroup.HIGH;
             }
-        } else if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+        } else if (metadata.mimeType === "text/html" || metadata.mimeType === "text/css") {
             return PriorityGroup.HIGH;
-        } else if (metadata.mimetype.search("xml") > -1 || metadata.mimetype.search("json") > -1) {
+        } else if (metadata.mimeType.search("xml") > -1 || metadata.mimeType.search("json") > -1) {
             return PriorityGroup.HIGH;
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             return PriorityGroup.HIGH;
-        } else if (metadata.mimetype.search("image") > -1) {
+        } else if (metadata.mimeType.search("image") > -1) {
             return PriorityGroup.LOW;
         } else {
             return PriorityGroup.LOW;

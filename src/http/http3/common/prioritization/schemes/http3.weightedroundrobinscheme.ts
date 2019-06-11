@@ -23,13 +23,13 @@ export class Http3WeightedRoundRobinScheme extends Http3PriorityScheme {
     public handlePriorityFrame(priorityFrame: Http3PriorityFrame, currentStreamID: Bignum) {}
 
     private getWeight(metadata: Http3RequestMetadata): number {
-        if (metadata.mimetype === "text/html" || metadata.mimetype === "text/css") {
+        if (metadata.mimeType === "text/html" || metadata.mimeType === "text/css") {
             return 256;
-        } else if (metadata.mimetype.search("javascript") > -1) {
+        } else if (metadata.mimeType.search("javascript") > -1) {
             return 24;
-        } else if (metadata.mimetype.search("font") > -1) {
+        } else if (metadata.mimeType.search("font") > -1) {
             return 16;
-        } else if (metadata.mimetype.search("image") > -1) {
+        } else if (metadata.mimeType.search("image") > -1) {
             return 8;
         } else {
             return 8;

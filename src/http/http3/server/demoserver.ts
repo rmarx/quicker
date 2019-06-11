@@ -3,7 +3,6 @@ import { Http3Request } from "../common/http3.request";
 import { Http3Response } from "../common/http3.response";
 import { resolve } from "path";
 import { Constants } from "../../../utilities/constants";
-import { VerboseLogging } from "../../../utilities/logging/verbose.logging";
 
 // node demoserver.js scheme_name qlog_file_name log_file_name exposed_public_subdir
 
@@ -19,7 +18,7 @@ Constants.EXPOSED_SERVER_DIR = process.argv[5] || (Constants.EXPOSED_SERVER_DIR 
 let server: Http3Server = new Http3Server(resolve(__dirname + "../../../../../keys/selfsigned_default.key"), resolve(__dirname + "../../../../../keys/selfsigned_default.crt"), schemeName);
 server.listen(4433, "127.0.0.1");
 
-console.log("HTTP/3 server listening on port 4433");
+console.log("HTTP/3 server listening on port 4433, log level " + Constants.LOG_LEVEL);
 
 server.get(`/`, getRoot);
 server.get(`/index.html`, getRoot);
