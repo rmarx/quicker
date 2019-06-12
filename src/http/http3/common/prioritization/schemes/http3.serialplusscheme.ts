@@ -43,6 +43,13 @@ export class Http3SerialPlusScheme extends Http3PriorityScheme {
                         // Would need to send a frame to communicate to other endpoint weight has changed
                         this.dependencyTree.setPlaceholderWeight(this.mediumPriorityPlaceholderID, 256);
                     }
+                } else if (node.getStreamID() === this.mediumPriorityTailID) {
+                    const parent: Http3PrioritisedElementNode | null = node.getParent();
+                    if (parent !== null && parent instanceof Http3RequestNode) {
+                        this.mediumPriorityTailID = parent.getStreamID();
+                    } else {
+                        this.mediumPriorityTailID = undefined;
+                    }
                 }
             } else {
                 // TODO Implement appropriate error
