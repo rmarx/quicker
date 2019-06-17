@@ -8,6 +8,8 @@ import { Http3SerialPlusScheme } from "./http3.serialplusscheme";
 import { Http3FirefoxScheme } from "./http3.firefoxscheme";
 import { Http3ClientSidedScheme } from "./http3.clientsidedscheme";
 import { Http3PMeenanScheme } from "./http3.pmeenanscheme";
+import { Http3PmeenanHtmlScheme } from "./http3.pmeenanhtmlscheme";
+import { Http3SpeedyRRScheme } from "./http3.speedyrrscheme";
 import { Http3ZeroWeightSimple } from "./http3.zeroweightsimplescheme";
 
 export {
@@ -21,5 +23,7 @@ export {
     Http3FirefoxScheme,
     Http3ClientSidedScheme,
     Http3PMeenanScheme,
+    Http3PmeenanHtmlScheme,
+    Http3SpeedyRRScheme,
     Http3ZeroWeightSimple,
 }

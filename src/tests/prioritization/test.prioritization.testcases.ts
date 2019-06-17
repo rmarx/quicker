@@ -19,9 +19,11 @@ export class TestPrioritization {
     public static execute(): boolean {
         let result:boolean = false;
 
+        // note: we now have 45  instead of 40 test cases:
+        // these are new: 'syntheticmeenan','huffingtonpost','usatoday','change','syntheticwijnants'
 
-        let testcasesSimple:Array<string> = ["gnu", "apache", "academia", "bitly", "dotdash", "github", "google", "gravatar", "imgur", "opera", "syntheticmeenan", "wikipedia", "ed", "gov_uk", "harvard", "phpbb", "statcounter", "wordpress"];
-        let testcasesComplex:Array<string> = ["columbia", "etsy", "huffingtonpost", "joomla", "nature", "pinterest", "reddit", "sciencedirect", "spotify", "telegraph", "canvas", "cnet", "demorgen", "facebook", "imdb", 
+        let testcasesSimple:Array<string> = ["gnu", "apache", "academia", "bitly", "dotdash", "github", "google", "gravatar", "imgur", "opera", "syntheticmeenan", "ed", "gov_uk", "harvard", "phpbb", "statcounter", "wordpress"];
+        let testcasesComplex:Array<string> = ["columbia", "etsy", "huffingtonpost", "joomla", "nature", "pinterest", "reddit", "sciencedirect", "spotify", "telegraph", "cnet", "facebook", "imdb", "wikipedia",
                                             "msn", "nytimes", "proflow-vodlib", "researchgate", "sciencemag2",  "usatoday", "w3"];
 
         let testcasesBroken:Array<string> = new Array<string>();
@@ -32,9 +34,11 @@ export class TestPrioritization {
         testcasesBroken.push("syntheticwijnants");// API fatal error handler returned after process out of memory
         testcasesBroken.push("canvas"); // javascript heap out of memory on s+
 
-        let testcases = testcasesSimple.concat( testcasesComplex ); 
+        let testcases = testcasesSimple.concat( testcasesComplex ).concat( testcasesBroken ).concat(["demorgen"]); // for some reason does the "demorgen" testcase often timeout, leading to errors for the ones directly behind: keep it at the back 
+                                                                                                                   // this helps: kill -9 `ps aux | grep demorgen | grep -v grep | awk '{print $2}'`
 
-        let schemes:Array<string> = ["fifo", "rr", "wrr", "dfifo", "firefox", "p+", "s+", "pmeenan"]; // TODO: add 0-weight (need to switch branches for that one!)
+        let schemes:Array<string> = ["fifo", "rr", "wrr", "dfifo", "firefox", "p+", /*"s+",*/ "pmeenan", "pmeenanhtml", "spdyrr"/*, "zeroweightsimple"*/];
+            // NOTE: s+ still has an error for some sites on 12 jun, wait for fix from Tom
 
         //testcases = testcasesComplex; // ["gnu","wordpress"];
         //schemes = ["rr", "dfifo", "firefox", "p+", "s+", "pmeenan"];
@@ -42,8 +46,9 @@ export class TestPrioritization {
         //schemes = ["wrr", "dfifo", "p+", "s+"];
 
 
-        testcases = ["gnu"];
-        schemes = ["rr", "fifo", "pmeenan"];
+        //testcases = ["usatoday", "w3"]; //["telegraph"];
+        //testcases = ["demorgen"] 
+        //schemes = ["s+"];//["p+"];//["dfifo"]; //["fifo"];//["firefox"];//["pmeenan"];//["pmeenanhtml"];//["wrr"];//["spdyrr"];//["rr"];
 
 
 
@@ -90,7 +95,7 @@ export class TestPrioritization {
             let currentScheme:string = getCurrentScheme();
             let nextTestcase:string|undefined = getNextTestcase();
 
-            console.log("DEBUG : ", currentScheme, nextTestcase);
+            console.log("processNextTestcase : ", currentScheme, nextTestcase);
 
             if( nextTestcase === undefined ){
                 let nextScheme = getNextScheme();
@@ -100,8 +105,8 @@ export class TestPrioritization {
                     VerboseLogging.info(`TestPrioritization: Done processing ${schemes.length} schemes for ${testcases.length} testcases, ${goodTestCount} succeeded`);
                     console.log(`TestPrioritization: Done processing ${schemes.length} schemes for ${testcases.length} testcases, ${goodTestCount} succeeded`);
 
-                    console.log("Succeeded cases : ", JSON.stringify(succeededCases, null, 4) );
-                    console.log("Failed cases: ", JSON.stringify(failedCases, null, 4) );
+                    console.log("Succeeded cases : ", succeededCases.length, JSON.stringify(succeededCases, null, 4) );
+                    console.log("Failed cases: ", failedCases.length, JSON.stringify(failedCases, null, 4) );
 
                     console.log("CHUNK_SIZE was ", Http3PrioritisedElementNode.CHUNK_SIZE);
 
@@ -129,7 +134,7 @@ export class TestPrioritization {
             let serverError:boolean = false;
             let clientError:boolean = false;
 
-            VerboseLogging.info(`Processing ${currentTestcase}`); 
+            VerboseLogging.info(`Processing ${currentTestcase}, ${succeededCases.length + failedCases.length + 1} out of ${ schemes.length * testcases.length} to run.`); 
 
             
             // run this in main quicker directory, e.g., ../node/out/Release/node ./out/test/prioritization/test.prioritization.testcases.ts
@@ -173,7 +178,7 @@ export class TestPrioritization {
             let serverLogFilename:string = `${currentTestcase}_${currentScheme}_server_1.log`;
             let serverQLogFilename:string = `${currentTestcase}_${currentScheme}_server_1`;
             //./out/http/http3/server/demoserver.js $1 $2_$1_server_1 $2_$1_server_1.log prioritization_testcases/$2
-            exec( nodeLocation + ` ./out/http/http3/server/demoserver.js ${currentScheme} ${serverQLogFilename} ${serverLogFilename} prioritization_testcases/${currentTestcase}`, { encoding: "buffer", maxBuffer: 4048 * 10240 }, function(error, {}, stderr){
+            exec( nodeLocation + ` ./out/http/http3/server/demoserver.js ${currentScheme} ${serverQLogFilename} ${serverLogFilename} prioritization_testcases/${currentTestcase} public/prioritization_testcases/${currentTestcase}/prioritization_resource_lists/resource_list.json`, { encoding: "buffer", maxBuffer: 4048 * 10240 }, function(error, {}, stderr){
                 serverDone = true;
                 console.log("Server exited ", currentTestcase, currentScheme, timeoutHappened);
                 
