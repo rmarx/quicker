@@ -27,6 +27,9 @@ let version = process.argv[7] || Constants.getActiveVersion(); // pass "deadbeef
 let startedRequestCount:number = 0;
 let finishedRequestCount:number = 0;
 
+let startedRequestPaths:Array<string>  = [];
+let finishedRequestPaths:Array<string> = [];
+
 const client: Http3Client = new Http3Client(host, port);
 
 client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
@@ -67,8 +70,8 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                 return [header.name, header.value];
             });
     
-            console.info("HTTP3 response on path '" + path + "'\nHeaders: " + headerStrings + "\nContent:\n" + payload.toString("utf8"));
-            VerboseLogging.info("HTTP3 response on path '" + path + "'\nHeaders: " + headerStrings + "\nContent:\n" + payload.toString("utf8"));
+            //console.info("HTTP3 response on path '" + path + "'\nHeaders: " + headerStrings + "\nContent:\n" + payload.toString("utf8").substr(0, 500));
+            VerboseLogging.info("HTTP3 response on path '" + path + "'\nHeaders: " + headerStrings + "\nContent:\n" + payload.toString("utf8").substr(0, 500));
     
             if( !lookupTable.resources[path] ){
                 VerboseLogging.error("Path does not exist! "  + JSON.stringify(lookupTable.resources, null, 4) + ":" + path);       
@@ -81,12 +84,16 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                         const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                         if (metadata.deltaStartTime !== undefined) {
                             ++startedRequestCount;
+                            startedRequestPaths.push( resource );
+                            VerboseLogging.info( JSON.stringify(startedRequestPaths) );
                             setTimeout(() => {
                                 client.get(resource, authority, metadata);
                             }, metadata.deltaStartTime);
                         } else {
                             VerboseLogging.error("democlient: lookuptable resource had undefined deltaStartTime " + resource);
                             ++startedRequestCount;
+                            startedRequestPaths.push( resource );
+                            VerboseLogging.info( JSON.stringify(startedRequestPaths) );
                             client.get(resource, authority, metadata);
                         }
                     }
@@ -94,6 +101,9 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             }
 
             ++finishedRequestCount;
+            finishedRequestPaths.push( path );
+            VerboseLogging.info( "Received : " + JSON.stringify(finishedRequestPaths) );
+            VerboseLogging.info( "started : " + JSON.stringify(startedRequestPaths) );
             if( finishedRequestCount === startedRequestCount ){
                 VerboseLogging.info("All requests are fully done, ending this test run " + finishedRequestCount + " === " + startedRequestCount + " === " + Object.keys(lookupTable.resources).length );
                 client.DEBUGgetQlogger()!.close(); // nicely end our qlog json output
@@ -108,6 +118,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
         });
 
         const firstRequest: string = Object.keys(lookupTable.resources)[0];
+        ++startedRequestCount;
         client.get(firstRequest, authority, lookupTable.resources[firstRequest]);
 
         // Resources discovered during transmission of its parent (found while parsing the chunks as they arrive)
@@ -118,12 +129,16 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
                 const metadata: Http3RequestMetadata = lookupTable.resources[resource];
                 if (metadata.deltaStartTime !== undefined) {
                     ++startedRequestCount;
+                    startedRequestPaths.push( resource );
+                    VerboseLogging.info( JSON.stringify(startedRequestPaths) );
                     setTimeout(() => {
                         client.get(resource, authority, metadata);
                     }, metadata.deltaStartTime);
                 } else {
                     VerboseLogging.error("democlient: lookuptable resource had undefined deltaStartTime " + resource);
                     ++startedRequestCount;
+                    startedRequestPaths.push( resource );
+                    VerboseLogging.info( JSON.stringify(startedRequestPaths) );
                     client.get(resource, authority, metadata);
                 }
             }

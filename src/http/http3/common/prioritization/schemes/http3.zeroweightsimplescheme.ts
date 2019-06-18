@@ -35,7 +35,7 @@ export class Http3ZeroWeightSimple extends Http3PriorityScheme {
                 if (metadata.isAboveTheFold === true) {
                     return 8;
                 } else {
-                    return 0;
+                    return 1;
                 }
             } else {
                 return 0;

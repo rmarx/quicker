@@ -1,3 +1,5 @@
+
+
 import { Connection } from '../../quicker/connection';
 import { EndpointType } from '../..//types/endpoint.type';
 import { Socket, createSocket, SocketType } from 'dgram';
@@ -5,7 +7,7 @@ import { Version, ConnectionID } from '../..//packet/header/header.properties';
 import { TransportParameters, TransportParameterId } from '../..//crypto/transport.parameters';
 import { VerboseLogging } from '../../utilities/logging/verbose.logging';
 import { exec } from 'child_process';
-import { Http3PrioritisedElementNode } from '../../http/http3/common/prioritization/nodes/index';
+//import { Http3PrioritisedElementNode } from '../../http/http3/common/prioritization/nodes/http3.prioritisedelementnode';
 
 // run directly in quicker main directory as ../node/out/Release/node ./out/tests/prioritization/test.prioritization.testcases.js 
     // Note: before logging this, make sure we're not logging VerboseLogging to stdout! (disable console appender manually!)
@@ -19,10 +21,12 @@ export class TestPrioritization {
     public static execute(): boolean {
         let result:boolean = false;
 
+        let bufferSize = "0";
+
         // note: we now have 45  instead of 40 test cases:
         // these are new: 'syntheticmeenan','huffingtonpost','usatoday','change','syntheticwijnants'
 
-        let testcasesSimple:Array<string> = ["gnu", "apache", "academia", "bitly", "dotdash", "github", "google", "gravatar", "imgur", "opera", "syntheticmeenan", "ed", "gov_uk", "harvard", "phpbb", "statcounter", "wordpress"];
+        let testcasesSimple:Array<string> = ["gnu", "apache", "academia", "bitly", "dotdash", "github", "google", "gravatar", "opera", "syntheticmeenan", "ed", "gov_uk", "harvard", "phpbb", "statcounter", "wordpress"];
         let testcasesComplex:Array<string> = ["columbia", "etsy", "huffingtonpost", "joomla", "nature", "pinterest", "reddit", "sciencedirect", "spotify", "telegraph", "cnet", "facebook", "imdb", "wikipedia",
                                             "msn", "nytimes", "proflow-vodlib", "researchgate", "sciencemag2",  "usatoday", "w3"];
 
@@ -33,12 +37,12 @@ export class TestPrioritization {
         testcasesBroken.push("intel2");  // javascript heap out of memory
         testcasesBroken.push("syntheticwijnants");// API fatal error handler returned after process out of memory
         testcasesBroken.push("canvas"); // javascript heap out of memory on s+
+        testcasesBroken.push("imgur"); // often times out
 
-        let testcases = testcasesSimple.concat( testcasesComplex ).concat( testcasesBroken ).concat(["demorgen"]); // for some reason does the "demorgen" testcase often timeout, leading to errors for the ones directly behind: keep it at the back 
+        let testcases = testcasesSimple.concat( testcasesComplex ).concat( testcasesBroken );//.concat(["demorgen"]); // for some reason does the "demorgen" testcase often timeout, leading to errors for the ones directly behind: keep it at the back 
                                                                                                                    // this helps: kill -9 `ps aux | grep demorgen | grep -v grep | awk '{print $2}'`
 
-        let schemes:Array<string> = ["fifo", "rr", "wrr", "dfifo", "firefox", "p+", /*"s+",*/ "pmeenan", "pmeenanhtml", "spdyrr"/*, "zeroweightsimple"*/];
-            // NOTE: s+ still has an error for some sites on 12 jun, wait for fix from Tom
+        let schemes:Array<string> = ["fifo", "rr", "wrr", "dfifo", "firefox", "p+", "s+", "pmeenan", "pmeenanhtml", "spdyrr"/*, "zeroweightsimple"*/];
 
         //testcases = testcasesComplex; // ["gnu","wordpress"];
         //schemes = ["rr", "dfifo", "firefox", "p+", "s+", "pmeenan"];
@@ -49,6 +53,16 @@ export class TestPrioritization {
         //testcases = ["usatoday", "w3"]; //["telegraph"];
         //testcases = ["demorgen"] 
         //schemes = ["s+"];//["p+"];//["dfifo"]; //["fifo"];//["firefox"];//["pmeenan"];//["pmeenanhtml"];//["wrr"];//["spdyrr"];//["rr"];
+
+        // these are the 14 bad font cases
+        //testcases = ["academia", "apache", "cnet", "dotdash", "ed", "etsy", "harvard", "researchgate", "spotify", "sciencemag2", "syntheticmeenan", "syntheticwijnants", "telegraph", "vtm"];
+        //testcases.push("gnu"); // rerun for pmeenanhtml
+        //testcases = ["syntheticmeenan"]; 
+        //schemes = ["rr", "wrr", "dfifo", "firefox", "p+", "s+", "pmeenan", "pmeenanhtml", "spdyrr"];
+        //testcases= ["syntheticmeenan"];
+        schemes = ["zeroweightsimple"];
+        //schemes = ["pmeenan"]; // TODO: run these for "demorgen" as well later!
+        //bufferSize = "1000k";
 
 
 
@@ -108,7 +122,7 @@ export class TestPrioritization {
                     console.log("Succeeded cases : ", succeededCases.length, JSON.stringify(succeededCases, null, 4) );
                     console.log("Failed cases: ", failedCases.length, JSON.stringify(failedCases, null, 4) );
 
-                    console.log("CHUNK_SIZE was ", Http3PrioritisedElementNode.CHUNK_SIZE);
+                    //console.log("CHUNK_SIZE was ", Http3PrioritisedElementNode.CHUNK_SIZE);
 
                     process.exit(0);
                     return;
@@ -155,7 +169,7 @@ export class TestPrioritization {
                     console.log("Testcase finished : ", currentTestcase, currentScheme, (endTime - startTime));
 
                     clearTimeout(timer);
-                    setTimeout( () => { processNextTestcase(); }, 1000 );
+                    setTimeout( () => { processNextTestcase(); }, 5000 );
                 }
             };
 
@@ -175,8 +189,9 @@ export class TestPrioritization {
             }, 300000 ); // if not done after 5 minutes, we're just going to consider the wget call to hang and move on
 
             console.log("Starting server ", currentTestcase, currentScheme);
-            let serverLogFilename:string = `${currentTestcase}_${currentScheme}_server_1.log`;
-            let serverQLogFilename:string = `${currentTestcase}_${currentScheme}_server_1`;
+            let bufferSizeAppendage = bufferSize === "0" ? "" : "_" + bufferSize; // 0 buffersize doesn't reflect in the filename because we were to stupid to take it into account from the start 
+            let serverLogFilename:string = `${currentTestcase}_${currentScheme}${bufferSizeAppendage}_server_1.log`;
+            let serverQLogFilename:string = `${currentTestcase}_${currentScheme}${bufferSizeAppendage}_server_1`;
             //./out/http/http3/server/demoserver.js $1 $2_$1_server_1 $2_$1_server_1.log prioritization_testcases/$2
             exec( nodeLocation + ` ./out/http/http3/server/demoserver.js ${currentScheme} ${serverQLogFilename} ${serverLogFilename} prioritization_testcases/${currentTestcase} public/prioritization_testcases/${currentTestcase}/prioritization_resource_lists/resource_list.json`, { encoding: "buffer", maxBuffer: 4048 * 10240 }, function(error, {}, stderr){
                 serverDone = true;
@@ -201,8 +216,8 @@ export class TestPrioritization {
             });
 
             console.log("Starting client ", currentTestcase, currentScheme);
-            let clientLogFilename:string = `${currentTestcase}_${currentScheme}_client_1.log`;
-            let clientQLogFilename:string = `${currentTestcase}_${currentScheme}_client_1`;
+            let clientLogFilename:string = `${currentTestcase}_${currentScheme}${bufferSizeAppendage}_client_1.log`;
+            let clientQLogFilename:string = `${currentTestcase}_${currentScheme}${bufferSizeAppendage}_client_1`;
             setTimeout( () => {
                 //./out/http/http3/client/democlient.js $2_$1_client_1 $2_$1_client_1.log public/prioritization_testcases/$2/prioritization_resource_lists/resource_list.json
                 exec( nodeLocation + ` ./out/http/http3/client/democlient.js ${clientQLogFilename} ${clientLogFilename} public/prioritization_testcases/${currentTestcase}/prioritization_resource_lists/resource_list.json`,{ encoding: "buffer", maxBuffer: 4048 * 10240  }, function(error, {}, stderr){
