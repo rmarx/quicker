@@ -41,11 +41,24 @@ export class PacketHandler {
         this.frameHandler = new FrameHandler();
     }
 
-    public handle(connection: Connection, packet: BasePacket, receivedTime: Time) {
-        connection.getQlogger().onPacketRX(packet);
-        PacketLogging.getInstance().logIncomingPacket(connection, packet);
+    public handle(connection: Connection, packet: BasePacket, receivedTime: Time, DEBUG_sendOnreceived:boolean = true, DEBUG_processPacket:boolean = true) {
+        //VerboseLogging.info("handle " + DEBUG_sendOnreceived + " " +  DEBUG_processPacket);
 
-        this.onPacketReceived(connection, packet, receivedTime);
+        // need these to make sure we generate ACKs ASAP to prevent retransmits when adding jitter and holblocking
+        // TCP also doesn't hol-block on ACKs of course, but in QUIC this is a bit more involved since ACKs are in normal QUIC packets
+        if( DEBUG_processPacket ){
+            connection.getQlogger().onPacketRX(packet);
+            PacketLogging.getInstance().logIncomingPacket(connection, packet);
+        }
+
+        if( DEBUG_sendOnreceived ){
+            this.onPacketReceived(connection, packet, receivedTime);
+            if( !DEBUG_processPacket )
+                connection.sendPackets();
+        }
+
+        if( !DEBUG_processPacket )
+            return;
 
         switch (packet.getPacketType()) {
             case PacketType.VersionNegotiation:

@@ -89,9 +89,16 @@ export class RTTMeasurement{
             this.rttVar = this.rttVar.multiply(3 / 4).add(rttVarSample.multiply(1 / 4));
             this.smoothedRtt = this.smoothedRtt.multiply(7 / 8).add(this.latestRtt.multiply(1 / 8));
             */
-           let rttVarSample = Math.abs( this.smoothedRtt - this.latestRtt );
-           this.rttVar = this.rttVar * 0.75 + rttVarSample * 0.25;
-           this.smoothedRtt = this.smoothedRtt * 0.875 + this.latestRtt * 0.125;
+           if( Constants.DEBUG_HOLblocking_jitter ){
+                let rttVarSample = Math.abs( this.smoothedRtt - this.latestRtt );
+                this.rttVar = 150 + (this.rttVar * 0.75 + rttVarSample * 0.25);
+                this.smoothedRtt = 150 + (this.smoothedRtt * 0.875 + this.latestRtt * 0.125);
+           }
+           else{
+                let rttVarSample = Math.abs( this.smoothedRtt - this.latestRtt );
+                this.rttVar = this.rttVar * 0.75 + rttVarSample * 0.25;
+                this.smoothedRtt = this.smoothedRtt * 0.875 + this.latestRtt * 0.125;
+           }
         }
 
         VerboseLogging.info("RTTMeasurerment:updateRTT : latest=" + this.latestRtt + ", smooth="+ this.smoothedRtt +", rttVar=" + this.rttVar + ", maxAckDelay=" + this.maxAckDelay + ". Due to ACK of packet nr " + (largestAcknowledgedPacket.packet.getHeader().getPacketNumber()!.getValue().toNumber()));

@@ -6,6 +6,9 @@ export class Constants {
     public static DEBUG_fakeReorder:boolean = false;
     public static DEBUG_greaseTransportParameters:boolean = true;
     public static DEBUG_packetLoss_ratio:number = 0; // set to 0 or < 0 to disable. Higher = more loss
+    
+    public static DEBUG_HOLblocking_jitter:boolean = true;
+    public static DEBUG_HOLblocking_block:boolean = false; // if this is true, the _jitter one also must be true!
 
     /**
      * Supported versions

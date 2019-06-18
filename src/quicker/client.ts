@@ -18,7 +18,7 @@ import { ConnectionErrorCodes } from '../utilities/errors/quic.codes';
 import { QuicError } from '../utilities/errors/connection.error';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
 import { BufferedPacket } from '../crypto/crypto.context';
-import { BasePacket } from '../packet/base.packet';
+import { BasePacket, PacketType } from '../packet/base.packet';
 
 export class Client extends Endpoint {
 
@@ -28,6 +28,8 @@ export class Client extends Endpoint {
     private connected: boolean;
 
     private DEBUGmessageCounter:number = 0;
+    private DEBUG_HOLblocking_lastPacketNumber:PacketNumber = new PacketNumber( new Bignum(-1) );
+    private DEBUG_HOLblocking_holBlockingBuffer:Array<BasePacket> = new Array<BasePacket>();
 
     private constructor() {
         super();
@@ -211,7 +213,69 @@ export class Client extends Endpoint {
 
                     setImmediate( () => { 
                         VerboseLogging.debug(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>////////////////////////////// Client: handling packet  //////////////////////////////// ");
-                        this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime); 
+                        
+                        if( Constants.DEBUG_HOLblocking_block && fullyDecryptedPacket.getPacketType() === PacketType.Protected1RTT ){
+
+                            if( !fullyDecryptedPacket.getHeader().getPacketNumber()!.getValue().subtract( this.DEBUG_HOLblocking_lastPacketNumber.getValue() ).equals( new Bignum(1) ) ){
+
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("HOL BLOCKED : HOLDING PACKET IN BUFFER " + fullyDecryptedPacket.getHeader().getPacketNumber()!.getValue().toDecimalString() + " > " + this.DEBUG_HOLblocking_lastPacketNumber.getValue().toDecimalString() );
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("--------------------------------------");
+                                VerboseLogging.error("--------------------------------------");
+                                this.DEBUG_HOLblocking_holBlockingBuffer.push( fullyDecryptedPacket );
+
+                                this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime, true, false); 
+
+                                return;
+                            }
+                            else{
+
+                                this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime, true, true); 
+                                this.DEBUG_HOLblocking_lastPacketNumber = fullyDecryptedPacket.getHeader().getPacketNumber()!;
+                                VerboseLogging.error("//////////////////////////////////////");
+                                VerboseLogging.error("//////////////////////////////////////");
+                                VerboseLogging.error("HOL BLOCKED : DEBUG_HOLblocking_lastPacketNumber " + this.DEBUG_HOLblocking_lastPacketNumber.getValue().toDecimalString());
+                                VerboseLogging.error("//////////////////////////////////////");
+                                VerboseLogging.error("//////////////////////////////////////");
+
+                                for( let packet of this.DEBUG_HOLblocking_holBlockingBuffer ){
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("HOL BLOCKED : bubbling up bufered packet " + packet.getHeader().getPacketNumber()!.getValue().toDecimalString() + " / #" + this.DEBUG_HOLblocking_holBlockingBuffer.length + " buffered packets" );
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("--------------------------------------");
+                                    VerboseLogging.error("--------------------------------------");
+
+                                    this.packetHandler.handle(this.connection, packet, receivedTime, false, true); 
+
+                                    this.DEBUG_HOLblocking_lastPacketNumber = packet.getHeader().getPacketNumber()!;
+                                    VerboseLogging.error("HOL BLOCKED : after bubble : DEBUG_HOLblocking_lastPacketNumber " + this.DEBUG_HOLblocking_lastPacketNumber.getValue().toDecimalString());
+                                }
+
+                                this.DEBUG_HOLblocking_holBlockingBuffer = new Array<BasePacket>();
+                                return;
+                            }
+                        }
+
+                        if( fullyDecryptedPacket.getPacketType() === PacketType.Protected1RTT ){
+
+                            this.DEBUG_HOLblocking_lastPacketNumber = fullyDecryptedPacket.getHeader().getPacketNumber()!;
+                            VerboseLogging.error("//////////////////////////////////////");
+                            VerboseLogging.error("//////////////////////////////////////");
+                            VerboseLogging.error("HOL BLOCKED : DEBUG_HOLblocking_lastPacketNumber " + this.DEBUG_HOLblocking_lastPacketNumber.getValue().toDecimalString());
+                            VerboseLogging.error("//////////////////////////////////////");
+                            VerboseLogging.error("//////////////////////////////////////");
+                        }
+
+                        this.packetHandler.handle(this.connection, fullyDecryptedPacket, receivedTime, true, true); 
                         VerboseLogging.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// Client: done handling packet //////////////////////////////// ");
                     });
                 }

@@ -641,8 +641,15 @@ export class Connection extends FlowControlledObject {
         VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber()!.getValue().toNumber() );
 
         if (this.connectionIsClosingOrClosed() === true) {
-            VerboseLogging.info("Connection closing, will not retransmit");
+            VerboseLogging.error("Connection closing, will not retransmit");
             return;
+        }
+
+        if( Constants.DEBUG_HOLblocking_jitter && packet.getHeader().getPacketNumber()!.getValue().greaterThan(4) && packet.getPacketType() === PacketType.Protected1RTT ){
+            VerboseLogging.error("RETRANSMIT TRIGGERED WHILE DOING THE JITTER TEST, SHOULD NOT HAPPEN!");
+            //setTimeout( () => {process.exit(22); }, 10);
+            if( 1 == 1)
+                return;
         }
 
         let ctx:CryptoContext|undefined = this.getEncryptionContextByPacketType( packet.getPacketType() );

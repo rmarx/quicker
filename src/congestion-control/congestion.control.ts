@@ -32,6 +32,8 @@ export class CongestionControl extends EventEmitter {
     // Reduction in congestion window when a new loss event is detected.
     private static LOSS_REDUCTION_FACTOR: number = 0.5;
 
+    private DEBUG_HOLblocking_totalPacketCount:number ;
+
     ///////////////////////////
     // Variables of interest
     ///////////////////////////
@@ -62,6 +64,8 @@ export class CongestionControl extends EventEmitter {
         this.sshtresh = Bignum.infinity();
         this.packetsQueue = [];
         this.hookCongestionControlEvents(lossDetectionInstances);
+
+        this.DEBUG_HOLblocking_totalPacketCount = 0;
     }
 
     private hookCongestionControlEvents(lossDetectionInstances: Array<LossDetection>) {
@@ -110,12 +114,17 @@ export class CongestionControl extends EventEmitter {
             // Do not increase congestion window in recovery period.
             return;
         }
-        if (this.congestionWindow.lessThan(this.sshtresh)) {
-            // Slow start
-            this.congestionWindow = this.congestionWindow.add(packetByteSize);
-        } else {
-            // Congestion avoidance
-            this.congestionWindow = this.congestionWindow.add(new Bignum(CongestionControl.DEFAULT_MSS * packetByteSize).divide(this.congestionWindow));
+        if( Constants.DEBUG_HOLblocking_jitter ){
+            this.congestionWindow = this.congestionWindow.add(packetByteSize * 4); // make sure we never run out 
+        }
+        else{        
+            if (this.congestionWindow.lessThan(this.sshtresh)) {
+                // Slow start
+                this.congestionWindow = this.congestionWindow.add(packetByteSize);
+            } else {
+                // Congestion avoidance
+                this.congestionWindow = this.congestionWindow.add(new Bignum(CongestionControl.DEFAULT_MSS * packetByteSize).divide(this.congestionWindow));
+            }
         }
         this.sendPackets();
     }
@@ -268,6 +277,50 @@ export class CongestionControl extends EventEmitter {
                         this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
                     
                         this.onPacketSent(packet);
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    }
+                }
+                else if( Constants.DEBUG_HOLblocking_jitter ){
+                    this.DEBUG_HOLblocking_totalPacketCount++;
+                    
+                    // not for handshake stuff or acks, only for actual data
+                    if( pktNumber && pktNumber.getValue().greaterThan(4) && packet.getPacketType() == PacketType.Protected1RTT && !packet.isAckOnly() && this.DEBUG_HOLblocking_totalPacketCount % 4 === 0 && this.connection.getEndpointType() == EndpointType.Server ){
+                        
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("HOL BLOCKING, ADDING JITTER! " + this.DEBUG_HOLblocking_totalPacketCount + " -> " + + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+                        VerboseLogging.error("-----------------------------------------------------------------------");
+
+
+                        setTimeout( () => {
+
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("CongestionControl:sendPackets : HOL BLOCKING : actually sending packet DELAYED : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                            this.connection.getSocket().send(packet!.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                            VerboseLogging.error("-----------------------------------------------------------------------");
+                        
+                        }, 20 + Math.random() * 5); // between 20 and 25ms delay. Default send interval is 10ms, so about 2 to 2.5 packets delay
+
+                        this.onPacketSent(packet!);    
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    } 
+                    else{
+
+                        VerboseLogging.info("CongestionControl:sendPackets : HOL BLOCKING : actually sending packet IMMEDIATELY : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                        this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                    
+                        this.onPacketSent(packet);    
                         this.emit(CongestionControlEvents.PACKET_SENT, packet);
                     }
                 }
