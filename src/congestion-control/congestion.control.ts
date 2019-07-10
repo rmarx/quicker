@@ -152,14 +152,19 @@ export class CongestionControl extends EventEmitter {
         // TODO: allow coalescing of certain packets:
         // https://tools.ietf.org/html/draft-ietf-quic-transport-12#section-4.6
 
-        if( this.bytesInFlight.greaterThanOrEqual(this.congestionWindow) ){
-            VerboseLogging.info("CongestionController:sendPackets: congestion window is full! Packets will not be sent until it goes down. # queued: " + this.packetsQueue.length);
-            return;
-        }
-
-        while (this.bytesInFlight.lessThan(this.congestionWindow) && this.packetsQueue.length > 0) {
-            var packet: BasePacket | undefined = this.packetsQueue.shift();
+        while (this.packetsQueue.length > 0) {
+            let packet: BasePacket | undefined = this.packetsQueue[0];
             if (packet !== undefined) {
+
+                if( !packet.isAckOnly() ){
+                    if( this.bytesInFlight.greaterThanOrEqual(this.congestionWindow) ){
+                        VerboseLogging.warn("CongestionController:sendPackets: congestion window is full! Packets will not be sent until it goes down. # queued: " + this.packetsQueue.length + " : bytes in flight  : " + this.bytesInFlight.toDecimalString() + " >= " + this.congestionWindow.toDecimalString());
+                        break;
+                    }
+                }
+
+                packet = this.packetsQueue.shift()!;
+
                 let ctx:CryptoContext|undefined = this.connection.getEncryptionContextByPacketType( packet.getPacketType() );
 
                 if( ctx ){ // VNEG and retry packets have no packet numbers
@@ -198,16 +203,18 @@ export class CongestionControl extends EventEmitter {
                         this.emit(CongestionControlEvents.PACKET_SENT, delayedPacket);
                     }, 500);
                 }
-                else if( Constants.DEBUG_packetLoss_ratio > 0 ){
-                    let drop = Math.random() < Constants.DEBUG_packetLoss_ratio;
+                else if( Constants.DEBUG_lossAndDuplicatesInHandshake &&
+                         packet.getHeader().getHeaderType() == HeaderType.LongHeader ){
 
+                    // Testing problems during the handshake
+                    // we do this differently from 1RTT because we want to have a bit more control of what we drop + handshake problems are often way worse than 1RTT problems
                     if( pktNumber && pktNumber.getValue().toNumber() < 1 && this.connection.getEndpointType() == EndpointType.Server ){
                         // drop all first packets from the server 
 
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
-                        VerboseLogging.error("CongestionControl:sendPackets : artificially DROPPING PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
+                        VerboseLogging.error("CongestionControl:sendPackets : artificially DROPPING LONG HEADER PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
@@ -231,21 +238,40 @@ export class CongestionControl extends EventEmitter {
                             VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                             VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                             VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
-                            VerboseLogging.error("CongestionControl:sendPackets : artificially RE-SENDING PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
+                            VerboseLogging.error("CongestionControl:sendPackets : artificially RE-SENDING LONG HEADER PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
                             VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                             VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                             VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
 
                             packet!.getHeader().setPacketNumber( ctx!.getPacketNumberSpace().getNext(), new PacketNumber( new Bignum(0) ));
                             this.connection.getSocket().send(packet!.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+
+
+                            this.onPacketSent(packet);
+                            this.emit(CongestionControlEvents.PACKET_SENT, packet);
                         }, 500);
                         */
                     }
-                    else if( drop ){
+                    else{
+                        VerboseLogging.info("CongestionControl:sendPackets : actually sending packet : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") );
+                        this.connection.getSocket().send(packet.toBuffer(this.connection), this.connection.getRemoteInformation().port, this.connection.getRemoteInformation().address);
+                    
+                        this.onPacketSent(packet);
+                        this.emit(CongestionControlEvents.PACKET_SENT, packet);
+                    }
+                }
+                else if( Constants.DEBUG_1RTT_packetLoss_ratio > 0 &&
+                         packet.getHeader().getHeaderType() == HeaderType.ShortHeader ){
+
+                    // dropping random 1RTT data packets 
+                    let drop = Math.random() < Constants.DEBUG_1RTT_packetLoss_ratio;
+
+                    
+                    if( drop ){
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
-                        VerboseLogging.error("CongestionControl:sendPackets : artificially DROPPING PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
+                        VerboseLogging.error("CongestionControl:sendPackets : artificially DROPPING 1RTT PACKET : #" + ( pktNumber ? pktNumber.getValue().toNumber() : "VNEG|RETRY") + " @ " + ( ctx ? ctx!.getAckHandler().DEBUGname : "?") );
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");
                         VerboseLogging.error("///////////////////////////////////////////////////////////////////////////////////////////////");

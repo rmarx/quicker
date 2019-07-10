@@ -637,6 +637,11 @@ export class Connection extends FlowControlledObject {
     private retransmitPacket(packet: BasePacket) {
         VerboseLogging.info("Connection:retransmitPacket : " + PacketType[packet.getPacketType()] + " with nr " + packet.getHeader().getPacketNumber()!.getValue().toNumber() );
 
+        if( this.connectionIsClosingOrClosed() ){
+            VerboseLogging.info("Connection:retransmitPacket : we were in a closing state: no more retransmits for us. TODO: maybe we should retransmit in draining?");
+            return;
+        }
+
         let ctx:CryptoContext|undefined = this.getEncryptionContextByPacketType( packet.getPacketType() );
         if( ctx === undefined ){
             VerboseLogging.error("Connection:retransmitPacket : no CryptoContext known for this packet... doing nothing! " + PacketType[packet.getPacketType()]);

@@ -200,7 +200,7 @@ export class TransportParameters {
             }
 
             let tpType:TransportParameterType = (<any>TransportParameterTypeLookup)[tpIdString] as TransportParameterType;
-            VerboseLogging.info("getTransportParametersBuffer: encoding " + TransportParameterId[tpIdNumber] + " with internal type " + TransportParameterType[tpType] );
+            VerboseLogging.trace("getTransportParametersBuffer: encoding " + TransportParameterId[tpIdNumber] + " with internal type " + TransportParameterType[tpType] );
 
             switch( tpType ){
                 case TransportParameterType.uint64:
@@ -239,7 +239,7 @@ export class TransportParameters {
         }
 
         for( let entry of this.unknownTps ){
-            VerboseLogging.info("getTransportParametersBuffer: encoding greased TP : " + entry[0] );
+            VerboseLogging.trace("getTransportParametersBuffer: encoding greased TP : " + entry[0] );
 
             bufferOffset = this.writeIdAndLength(entry[0], bufferOffset.buffer, bufferOffset.offset, entry[1].byteLength);
             bufferOffset.offset += entry[1].copy(bufferOffset.buffer, bufferOffset.offset);
@@ -399,7 +399,7 @@ export class TransportParameters {
                 
                 let tpIdString:TransportParameterId = ((<any>TransportParameterId)[tpIdNumber] as TransportParameterId);
                 let tpType:TransportParameterType = (<any>TransportParameterTypeLookup)[tpIdString] as TransportParameterType;
-                VerboseLogging.info("fromExtensionBuffer: decoding " + TransportParameterId[tpIdNumber] + " with internal type " + TransportParameterType[tpType] );
+                VerboseLogging.trace("fromExtensionBuffer: decoding " + TransportParameterId[tpIdNumber] + " with internal type " + TransportParameterType[tpType] );
     
                 if( transportParameters.tps.has(tpIdNumber) ){
                     VerboseLogging.error("fromExtensionBuffer: decoding : Duplicate TP detected " + TransportParameterId[tpIdNumber] + ". This MUST result in connection closure, but we don't do that yet!");
@@ -461,7 +461,7 @@ export class TransportParameters {
                 buffer.copy( tpValue, 0, offset, offset + valueLength );
                 offset = offset + valueLength;
 
-                VerboseLogging.info("fromExtensionBuffer: Unknown TP : " + tpIdNumber + " = " + tpValue.toString('hex'));
+                VerboseLogging.trace("fromExtensionBuffer: Unknown TP : " + tpIdNumber + " = " + tpValue.toString('hex'));
                 transportParameters.unknownTps.set( tpIdNumber, tpValue );
             }
         }

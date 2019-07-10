@@ -5,7 +5,8 @@ export class Constants {
     public static DEBUG_fakeECN:boolean = false;
     public static DEBUG_fakeReorder:boolean = false;
     public static DEBUG_greaseTransportParameters:boolean = true;
-    public static DEBUG_packetLoss_ratio:number = 0; // set to 0 or < 0 to disable. Higher = more loss
+    public static DEBUG_lossAndDuplicatesInHandshake:boolean = false;
+    public static DEBUG_1RTT_packetLoss_ratio:number = -1; // set to 0 or < 0 to disable. Higher = more loss
 
     /**
      * Supported versions
@@ -59,12 +60,12 @@ export class Constants {
     public static readonly DEFAULT_MAX_STREAM_SERVER_BIDI = 12;
     public static readonly DEFAULT_MAX_STREAM_CLIENT_UNI = 12;
     public static readonly DEFAULT_MAX_STREAM_SERVER_UNI = 12;
-    public static readonly DEFAULT_MAX_STREAM_DATA = 10 * 1024;
-    public static readonly DEFAULT_MAX_DATA = 1000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
+    public static readonly DEFAULT_MAX_STREAM_DATA = 5000 * 1024;
+    public static readonly DEFAULT_MAX_DATA = 5000 * 1024; // TODO: we have a bug in our connection-level flow control, that's why this is so big. See issue #70
     public static readonly DEFAULT_ACK_DELAY_EXPONENT = 3;
     public static readonly DEFAULT_MAX_ACK_DELAY = 25; // ms
     public static readonly DEFAULT_IDLE_TIMEOUT = 10;
-    public static readonly DEFAULT_MAX_PACKET_SIZE = 65527;
+    public static readonly DEFAULT_MAX_PACKET_SIZE = 1400;//65527;
     public static readonly DEFAULT_DISABLE_MIGRATION = false;
     public static readonly DEFAULT_ACTIVE_CONNECTION_ID_LIMIT = 0;
 

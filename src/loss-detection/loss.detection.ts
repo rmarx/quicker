@@ -424,6 +424,8 @@ export class LossDetection extends EventEmitter {
                         lostPackets.push(unacked.packet);
                     }
                 } else if (delta.greaterThan(this.reorderingTreshold)) {
+                    // TODO: FIXME: added this because we will retransmit this packet in detectLostPackets, but that's probably not the best thing! 
+                    this.removeFromSentPackets(unacked.packet.getHeader().getPacketNumber()!.getValue());
                     lostPackets.push(unacked.packet);
                 } else if (this.lossTime == 0 && delayUntilLost != Number.MAX_VALUE) {
                     //this.lossTime = (new Bignum((new Date()).getTime())).add(delayUntilLost).subtract(timeSinceSent);

@@ -110,7 +110,7 @@ export abstract class FlowControlledObject extends EventEmitter {
 	// if not, we need to send a STREAM_BLOCKED frame to our peer 
     public ableToSend(added: any = new Bignum(0)): boolean {
 		var temp = this.remoteOffset.add(added);
-		return this.sendAllowance.lessThan(temp);
+		return this.sendAllowance.lessThanOrEqual(temp);
 	}
 
 
