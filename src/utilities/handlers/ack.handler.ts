@@ -1,6 +1,6 @@
 import { Constants } from '../constants';
 import { EndpointType } from '../../types/endpoint.type';
-import { VLIE } from '../../crypto/vlie';
+import { VLIE } from '../../types/vlie';
 import { Connection } from '../../quicker/connection';
 import { Bignum } from '../../types/bignum';
 import { BasePacket, PacketType } from '../../packet/base.packet';
@@ -29,6 +29,7 @@ export class AckHandler {
     private largestPacketNumber!: Bignum;
     private alarm: Alarm;
     private ackablePacketsSinceLastAckFrameSent: number = 0; // count of ACK-able packets we have received since the last time we've sent an ACK frame
+    private totalPacketsSinceLastAckFrameSent: number = 0;
     // ack wait in ms
     private static readonly ACK_WAIT = 15;
 
@@ -109,6 +110,8 @@ export class AckHandler {
 
         VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : added packet " + pn.toNumber() + ", ackOnly=" + packet.isAckOnly() );
 
+        ++this.totalPacketsSinceLastAckFrameSent;
+
         // we should only separately ACK packets containing other stuff than other ACKs and padding
         // the other packets should be acked (so are in this.receivedPackets) but only together with "real" packets
         if( !packet.isAckOnly() && !packet.isPaddingOnly() ){
@@ -120,7 +123,7 @@ export class AckHandler {
         }
         else if( this.ackablePacketsSinceLastAckFrameSent == 0 ){
             this.alarm.reset(); // this SHOULDN'T be running, but just to make sure, let's reset it, ok?
-            VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : no ACK-able packets outstanding, stopping ACK alarm");
+            VerboseLogging.info(this.DEBUGname + " AckHandler:onPacketReceived : no ACK-able packets outstanding, stopping ACK alarm. Total ack-only outstanding: " + this.totalPacketsSinceLastAckFrameSent);
         }
     }
 
@@ -132,12 +135,14 @@ export class AckHandler {
 
         // we only want to generate ACK frames if we have actual ACK-able packets
         // e.g., for ACK-only or PADDING-only packets, we don't want to generate ACK frames
-        if( this.ackablePacketsSinceLastAckFrameSent == 0 ){
+        // TODO: FIXME: limit of 10 is -very- arbitrary and shouldn't even be needed (everything should work without acks of acks), but as a quick fix, this should work
+        if( this.totalPacketsSinceLastAckFrameSent < 10 && this.ackablePacketsSinceLastAckFrameSent == 0 ){
             VerboseLogging.trace(this.DEBUGname + " AckHandler:getAckFrame: no new ACK-able packets received since last ACK frame, not generating new one");
             return undefined;
         }
 
         this.ackablePacketsSinceLastAckFrameSent = 0; // we always ACK all newly received packets
+        this.totalPacketsSinceLastAckFrameSent = 0;
 
         this.alarm.reset();
         /*

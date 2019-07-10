@@ -270,7 +270,10 @@ export class Connection extends FlowControlledObject {
     private hookStreamManagerEvents() {
         this.streamManager.on(StreamManagerEvents.INITIALIZED_STREAM, (stream: Stream) => {
             // for external users of the quicker library
-            this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream)); 
+            if (stream.isRemoteStream()) {
+                // Only emits the event if the stream was initiated by the peer
+                this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
+            }
             
             // purely for internal usage 
             stream.on(FlowControlledObjectEvents.INCREMENT_BUFFER_DATA_USED, (dataLength: number) => {
@@ -842,7 +845,7 @@ export class Connection extends FlowControlledObject {
                 let highestReceivedNumber = this.context1RTT.getPacketNumberSpace().getHighestReceivedNumber();
                 if( highestReceivedNumber === undefined )
                     highestReceivedNumber = new PacketNumber( new Bignum(0) );
-                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), highestReceivedNumber);
+                closePacket.getHeader().setPacketNumber(this.context1RTT.getPacketNumberSpace().getNext(), new PacketNumber(new Bignum(0)));
                 this.qlogger.onPacketTX( closePacket );
                 PacketLogging.getInstance().logOutgoingPacket(this, closePacket);
                 this.getSocket().send(closePacket.toBuffer(this), this.getRemoteInformation().port, this.getRemoteInformation().address);

@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/rmarx/quicker#readme",
   "devDependencies": {
-    "@types/node": "^8.10.17",
+    "@types/node": "^8.10.40",
     "typescript": "^2.8.3"
   },
   "dependencies": {

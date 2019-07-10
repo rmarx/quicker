@@ -4,3 +4,6 @@ out/*
 package-lock.json
 keylogs.txt
 logs
+build
+public/prioritization_testcases
+publicOLD

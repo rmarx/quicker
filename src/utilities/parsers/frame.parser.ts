@@ -1,6 +1,6 @@
 import {BaseFrame, FrameType} from '../../frame/base.frame';
 import {Bignum} from '../../types/bignum';
-import {VLIE, VLIEOffset} from '../../crypto/vlie';
+import {VLIE, VLIEOffset} from '../../types/vlie';
 import {RstStreamFrame} from '../../frame/rst.stream';
 import {ApplicationCloseFrame, ConnectionCloseFrame} from '../../frame/close';
 import {MaxDataFrame} from '../../frame/max.data';

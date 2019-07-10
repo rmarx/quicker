@@ -86,7 +86,10 @@ export class CongestionControl extends EventEmitter {
 
     private onPacketSent(packetSent: BasePacket) {
         if (!packetSent.isAckOnly()) {
-            var bytesSent = packetSent.toBuffer(this.connection).byteLength;
+            let bytesSent = packetSent.getBufferedByteLength();
+            if( bytesSent < 0 )
+                bytesSent = packetSent.toBuffer(this.connection).byteLength;
+
             // Add bytes sent to bytesInFlight.
             this.bytesInFlight = this.bytesInFlight.add(bytesSent);
         }
@@ -97,7 +100,10 @@ export class CongestionControl extends EventEmitter {
         if (ackedPacket.isAckOnly())
             return;
 
-        var packetByteSize = ackedPacket.toBuffer(this.connection).byteLength;
+        let packetByteSize = ackedPacket.getBufferedByteLength();
+        if( packetByteSize < 0) 
+            packetByteSize = ackedPacket.toBuffer(this.connection).byteLength;
+
         // Remove from bytesInFlight.
         this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
         if (this.inRecovery(ackedPacket.getHeader().getPacketNumber()!.getValue())) {
@@ -120,7 +126,11 @@ export class CongestionControl extends EventEmitter {
         lostPackets.forEach((lostPacket: BasePacket) => {
             if (lostPacket.isAckOnly())
                 return;
-            var packetByteSize = lostPacket.toBuffer(this.connection).byteLength;
+
+            var packetByteSize = lostPacket.getBufferedByteLength();
+            if( packetByteSize < 0 )
+                packetByteSize = lostPacket.toBuffer(this.connection).byteLength;
+                
             // Remove lost packets from bytesInFlight.
             this.bytesInFlight = this.bytesInFlight.subtract(packetByteSize);
             if (lostPacket.getHeader().getPacketNumber()!.getValue().greaterThan(largestLost)) {

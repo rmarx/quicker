@@ -6,7 +6,7 @@ import { Version, ConnectionID } from '../packet/header/header.properties';
 import { HandshakeState } from './qtls';
 import { Bignum } from '../types/bignum';
 import { VerboseLogging } from '../utilities/logging/verbose.logging';
-import { VLIE } from './vlie';
+import { VLIE } from '../types/vlie';
 
 
 // hardcoded, in this order, at https://tools.ietf.org/html/draft-ietf-quic-transport-20#section-18.1

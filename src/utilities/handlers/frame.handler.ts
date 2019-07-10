@@ -131,8 +131,24 @@ export class FrameHandler {
     private handleConnectionCloseFrame(connection: Connection, connectionCloseFrame: ConnectionCloseFrame) {
         // incoming connectionclose means that the other endpoint is already in its closing state.
         // it is safe to set the state to draining then.
-        connection.setState(ConnectionState.Draining);
-        connection.closeRequested();
+        let immediateShutdown:boolean = false;
+        if( connectionCloseFrame.getErrorCode() === ConnectionErrorCodes.NO_ERROR ){
+            connection.getQlogger().close();
+            // TODO: remove this, only for automated debugging!
+            if( connectionCloseFrame.getErrorPhrase() === "Everything is well in the world"){
+                immediateShutdown = true;
+                setTimeout( () => {
+                    VerboseLogging.error("Exiting process with code 66");
+                    console.log("Exiting process with code 66");
+                    process.exit(66);
+                }, 500);
+            }
+        }
+        
+        if( !immediateShutdown ){ 
+            connection.setState(ConnectionState.Draining);
+            connection.closeRequested();
+        }
         //var frame: ConnectionCloseFrame = FrameFactory.createConnectionCloseFrame();
     }
     private handleApplicationCloseFrame(connection: Connection, applicationCloseFrame: ApplicationCloseFrame) {
@@ -152,7 +168,8 @@ export class FrameHandler {
     private handleMaxStreamDataFrame(connection: Connection, maxDataStreamFrame: MaxStreamFrame) {
         var streamId = maxDataStreamFrame.getStreamId();
         if (Stream.isReceiveOnly(connection.getEndpointType(), streamId)) {
-            throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+            //throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION)
+            return;
         }
         if (Stream.isSendOnly(connection.getEndpointType(), streamId) && !connection.getStreamManager().hasStream(streamId)) {
             throw new QuicError(ConnectionErrorCodes.PROTOCOL_VIOLATION);
