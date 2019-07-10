@@ -313,7 +313,7 @@ export class FlowControl {
 
             // 2. 
             // TODO: check if we're allowed to send these messages if the conn-level flow control maximum is exceeded
-            if (stream.ableToSend()) { 
+            if ( !stream.isReceiveOnly() && stream.ableToSend()) { 
                 if( !stream.getBlockedSent() ){ // keep track of if we've already sent a STREAM_BLOCKED frame for this stream
                     flowControlFrames.push(FrameFactory.createStreamBlockedFrame(stream.getStreamID(), stream.getRemoteOffset()));
                     stream.setBlockedSent(true); // is un-set when we receive MAX_STREAM_DATA frame from peer 
