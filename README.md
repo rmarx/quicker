@@ -1,5 +1,5 @@
 # quicker
-NodeJS/TypeScript implementation of the IETF QUIC protocol (https://github.com/quicwg).
+NodeJS/TypeScript implementation of the IETF QUIC and HTTP/3 protocols (https://github.com/quicwg).
 Maintained by Hasselt University, see quic.edm.uhasselt.be. 
 
 Installation/testing is easiest via the dockerfile (see scripts/docker_setup/main/dockerfile).
@@ -8,12 +8,12 @@ Most of these convenience scripts include hard paths to where we've checked out 
 
 
 The container currently launches the server via this command:
-> node /quicker/out/main.js 127.0.0.1 4433 /quicker/keys/selfsigned_default.key /quicker/keys/selfsigned_default.crt
+> node /quicker/out/http/http3/server/demoserver.js 127.0.0.1 4433 /quicker/keys/selfsigned_default.key /quicker/keys/selfsigned_default.crt
 
 Launching the client would look like this:
-> node /quicker/out/mainclient.js 127.0.0.1 4433
+> node /quicker/out/http/http3/client/democlient.js 127.0.0.1 4433
 
 
-NOTE: the "node" command is from a custom built version of NodeJS, from this repository: https://github.com/rmarx/node/tree/add_quicker_support-draft-15
+NOTE: the "node" command is from a custom built version of NodeJS, from this repository: https://github.com/rmarx/node/tree/add_quicker_support-draft-18
 Instructions for building and installing this custom version before running quicker are in the dockerfile mentioned above. 
 QUICker does NOT currently work with other versions of NodeJS!

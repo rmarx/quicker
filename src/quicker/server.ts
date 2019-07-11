@@ -209,6 +209,15 @@ export class Server extends Endpoint {
         VerboseLogging.debug("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<////////////////////////////// Server: done processing these packets //////////////////////////////// ");
     }
 
+    public closeConnection(connection:Connection, error:QuicError){
+        try{
+            this.handleError(connection, error);
+        }
+        catch(e){
+
+        }
+    }
+
 
     private createServerSecureContext(key: Buffer, cert: Buffer): SecureContext {
         var secureContext = createSecureContext({

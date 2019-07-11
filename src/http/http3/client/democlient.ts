@@ -10,19 +10,28 @@ import { readFileSync } from "fs";
 import { Http3RequestMetadata } from "./http3.requestmetadata";
 import { start } from "repl";
 
-Constants.QLOG_FILE_NAME = process.argv[2];
-const logFileName: string | undefined = process.argv[3] || undefined;
-if (logFileName !== undefined) {
-    Constants.LOG_FILE_NAME = logFileName;
-}
-const lookupTableFileName: string | undefined = process.argv[4] || undefined;
-const lookupTable: {config: {}, resources: {[path: string]: Http3RequestMetadata}} | undefined = lookupTableFileName === undefined ? undefined : JSON.parse(readFileSync(lookupTableFileName, "utf-8"));
+// Constants.QLOG_FILE_NAME = process.argv[2];
+// const logFileName: string | undefined = process.argv[3] || undefined;
+// if (logFileName !== undefined) {
+//     Constants.LOG_FILE_NAME = logFileName;
+// }
+// const lookupTableFileName: string | undefined = process.argv[4] || undefined;
+// const lookupTable: {config: {}, resources: {[path: string]: Http3RequestMetadata}} | undefined = lookupTableFileName === undefined ? undefined : JSON.parse(readFileSync(lookupTableFileName, "utf-8"));
 
 
-let host = process.argv[5] || "127.0.0.1";
-let port = parseInt(process.argv[6]) || 4433;
+// let host = process.argv[5] || "0.0.0.0";
+// let port = parseInt(process.argv[6]) || 4433;
+// const authority: string = host + ":" + port
+// let version = process.argv[7] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+
+
+let host = process.argv[2] || "0.0.0.0";
+let port = parseInt(process.argv[3]) || 4433;
 const authority: string = host + ":" + port
-let version = process.argv[7] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+let version = process.argv[4] || Constants.getActiveVersion(); // pass "deadbeef" to force version negotiation
+
+const lookupTableFileName = undefined;
+const lookupTable:any = undefined;
 
 let startedRequestCount:number = 0;
 let finishedRequestCount:number = 0;
@@ -38,6 +47,7 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             VerboseLogging.info("HTTP/3 Resource parser found new resources");
             for (const file of fileList) {
                 VerboseLogging.info("Requesting newly found resource: " + file);
+                ++startedRequestCount;
                 client.get(file, authority);
             }
         });
@@ -56,9 +66,24 @@ client.on(Http3ClientEvent.CLIENT_CONNECTED, () => {
             if (mimeType !== undefined) {
                 resourceParser.parseBuffer(payload, mimeType);
             }
+            ++finishedRequestCount;
+
+            if( finishedRequestCount === startedRequestCount ){
+                VerboseLogging.info("All requests are fully done, ending this test run " + finishedRequestCount + " === " + startedRequestCount );
+                client.DEBUGgetQUICClient()!.close("'Well, I'm back,' he said.");
+                client.DEBUGgetQlogger()!.close(); // nicely end our qlog json output
+                
+                setTimeout( () => {
+                    VerboseLogging.error("Exiting process with code 66");
+                    console.log("Exiting process with code 66");
+                    process.exit(66);
+                }, 500);
+            }
+
         });
 
-        client.get("/index.html", authority, 16);
+        ++startedRequestCount;
+        client.get("/index_with_subresources.html", authority, 16);
     } 
     // using the hardcoded lookup table for synthetic testing 
     else {

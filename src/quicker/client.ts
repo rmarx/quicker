@@ -87,6 +87,9 @@ export class Client extends Endpoint {
         this.connection.on(ConnectionEvent.STREAM, (quicStream: QuicStream) => {
             this.emit(QuickerEvent.NEW_STREAM, quicStream);
         });
+        this.connection.on(ConnectionEvent.CREATED_STREAM, (quicStream: QuicStream) => {
+            this.emit(QuickerEvent.CREATED_STREAM, quicStream);
+        });
         this.connection.on(ConnectionEvent.DRAINING, () => {
             var connectionID = this.connection.getSrcConnectionID();
             this.emit(QuickerEvent.CONNECTION_DRAINING, connectionID.toString());
@@ -155,9 +158,9 @@ export class Client extends Endpoint {
         return this.connection.getQuicTLS().isSessionReused();
     }
 
-    public close() {
+    public close(closePhrase:string|undefined = undefined) {
         // TODO: close connection with applicationcloseframe
-        this.handleError( this.connection, new QuicError(ConnectionErrorCodes.NO_ERROR, "Everything is well in the world"));
+        this.handleError( this.connection, new QuicError(ConnectionErrorCodes.NO_ERROR, ( closePhrase !== undefined ? closePhrase : "Everything is well in the world") ));
     }
 
     // TODO: FIXME: remove! this is for debugging only!

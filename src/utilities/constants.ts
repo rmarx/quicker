@@ -29,7 +29,10 @@ export class Constants {
         'ff000014': 'ef4fb0abb47470c41befcf8031334fae485e09a0',
         'abcdef0c': 'ef4fb0abb47470c41befcf8031334fae485e09a0'
     }
-    public static readonly ALPN_LABELS = ["h3-20"];//["h3-20", "hq-19"];
+    public static ALPN_LABELS = ["h3-20", "hq-20", "hq-19"];//["h3-20", "hq-19"]; // these are the labels that we offer as server
+    public static readonly ALPN_VALID_HTTP3  = ["h3-20"];
+    public static readonly ALPN_VALID_HTTP09 = ["hq-20", "hq-19"];
+
     
     public static readonly LONG_HEADER_PACKET_NUMBER_SIZE = 4;
 

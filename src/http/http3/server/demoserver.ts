@@ -9,22 +9,38 @@ import { Http3RequestMetadata } from "../client/http3.requestmetadata";
 
 // node demoserver.js scheme_name qlog_file_name log_file_name exposed_public_subdir
 
-const schemeName: string | undefined = process.argv[2] || undefined;
-Constants.QLOG_FILE_NAME = process.argv[3] || undefined;
-const logFileName: string | undefined = process.argv[4] || undefined;
-if (logFileName !== undefined) {
-    Constants.LOG_FILE_NAME = logFileName;
+// const schemeName: string | undefined = process.argv[2] || undefined;
+// Constants.QLOG_FILE_NAME = process.argv[3] || undefined;
+// const logFileName: string | undefined = process.argv[4] || undefined;
+// if (logFileName !== undefined) {
+//     Constants.LOG_FILE_NAME = logFileName;
+// }
+
+// Constants.EXPOSED_SERVER_DIR = process.argv[5] || (Constants.EXPOSED_SERVER_DIR !== undefined ? Constants.EXPOSED_SERVER_DIR : undefined);
+
+// const resourceListName: string | undefined = process.argv[6] || undefined;
+// const resourceList: {[path: string]: Http3RequestMetadata} | undefined = resourceListName === undefined ? undefined : JSON.parse(readFileSync(resourceListName, "utf-8")).resources;
+
+const schemeName = undefined;
+const resourceList = undefined;
+let host = process.argv[2] || "0.0.0.0";
+let port = parseInt(process.argv[3]) || 4433;
+let key  = process.argv[4] || "../../../../../keys/selfsigned_default.key";
+let cert = process.argv[5] || "../../../../../keys/selfsigned_default.crt";
+
+if (isNaN(Number(port))) {
+    console.log("port must be a number: node ./main.js 127.0.0.1 4433 ca.key ca.cert");
+    process.exit(-1);
 }
 
-Constants.EXPOSED_SERVER_DIR = process.argv[5] || (Constants.EXPOSED_SERVER_DIR !== undefined ? Constants.EXPOSED_SERVER_DIR : undefined);
+Constants.LOG_FILE_NAME = "server.log";
 
-const resourceListName: string | undefined = process.argv[6] || undefined;
-const resourceList: {[path: string]: Http3RequestMetadata} | undefined = resourceListName === undefined ? undefined : JSON.parse(readFileSync(resourceListName, "utf-8")).resources;
+VerboseLogging.info("Running QUICker server at " + host + ":" + port + ", with certs: " + key + ", " + cert);
 
-let server: Http3Server = new Http3Server(resolve(__dirname + "../../../../../keys/selfsigned_default.key"), resolve(__dirname + "../../../../../keys/selfsigned_default.crt"), schemeName, resourceList);
-server.listen(4433, "127.0.0.1");
+let server: Http3Server = new Http3Server(resolve(__dirname + key), resolve(__dirname + cert), "rr", resourceList);
+server.listen(port, host);
 
-console.log("HTTP/3 server listening on port 4433, log level " + Constants.LOG_LEVEL);
+console.log("HTTP/3 server listening on port "+ host +":"+ port +", log level " + Constants.LOG_LEVEL);
 
 server.get(`/`, getRoot);
 server.get(`/index.html`, getRoot);

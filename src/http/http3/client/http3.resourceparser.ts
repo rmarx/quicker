@@ -20,11 +20,11 @@ export class Http3ResourceParser extends EventEmitter {
     // Fixme this shouldnt use buffers but read files instead, this requires whole files to be kept completely in memory
     public parseBuffer(requestedFile: Buffer, mimeType: string): void {
         if (this.parseMimeTypeForResources(mimeType)) {
-            this.parseAsync(requestedFile);
+            this.parse(requestedFile);
         }
     }
 
-    private async parseAsync(requestedFile: Buffer) {
+    private parse(requestedFile: Buffer) {
         // FIXME Reading the buffer completely at once is bad, doubles the amount of memory consumed
         const lines: string[] = requestedFile.toString("utf-8").split(this.newlineRegex);
         for (const line of lines) {

@@ -19,6 +19,8 @@ if (isNaN(Number(port))) {
     process.exit(-1);
 }
 
+Constants.ALPN_LABELS = Constants.ALPN_VALID_HTTP09;
+
 Constants.LOG_FILE_NAME = "server.log";
 
 VerboseLogging.info("Running QUICker server at " + host + ":" + port + ", with certs: " + key + ", " + cert);

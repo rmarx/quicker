@@ -26,6 +26,7 @@ if (isNaN(Number(port))) {
     process.exit(-1);
 }
 
+Constants.ALPN_LABELS = Constants.ALPN_VALID_HTTP09;
 Constants.LOG_FILE_NAME = "client.log";
 
 //console.log("AEAD cleartext result: ", TestAeaedCleartextVector.execute() );
@@ -53,7 +54,7 @@ for (var i = 0; i < 1; i++) {
 
         quicStream.on(QuickerEvent.STREAM_END, () => {
             //console.log(bufferedData.toString('utf8'));
-            client.close();
+            client.close("'Well, I'm back,' he said.");
         });
 
 
@@ -66,6 +67,15 @@ for (var i = 0; i < 1; i++) {
                 session: client.getSession(),
                 transportparameters: client.getTransportParameters()
             }, httpHelper.createRequest("index.html"));
+
+            client2.on( QuickerEvent.CREATED_STREAM, (quicStream:QuicStream) => {
+                // we only open 1 stream, the early-data one, so can take this shortcut here
+
+                quicStream.on(QuickerEvent.STREAM_END, () => {
+                    client2.close("'Thank goodness!' said Bilbo laughing, and handed him the tobacco jar.");
+                });
+            });
+
             client2.on(QuickerEvent.CLIENT_CONNECTED, () => {
                 //
             });

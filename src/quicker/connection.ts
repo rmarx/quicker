@@ -274,6 +274,10 @@ export class Connection extends FlowControlledObject {
                 // Only emits the event if the stream was initiated by the peer
                 this.emit(ConnectionEvent.STREAM, new QuicStream(this, stream));
             }
+            else {
+                // Only emits the event if the stream was initiated by the peer
+                this.emit(ConnectionEvent.CREATED_STREAM, new QuicStream(this, stream));
+            }
             
             // purely for internal usage 
             stream.on(FlowControlledObjectEvents.INCREMENT_BUFFER_DATA_USED, (dataLength: number) => {
@@ -343,6 +347,10 @@ export class Connection extends FlowControlledObject {
 
     public getAEAD(): AEAD {
         return this.aead;
+    }
+
+    public getALPN():string|undefined {
+        return this.qtls.getNegotiatedALPN();
     }
 
     public getStreamManager(): StreamManager {
@@ -905,7 +913,8 @@ export enum ConnectionState {
 
 export enum ConnectionEvent {
     HANDSHAKE_DONE = "con-handshake-done",
-    STREAM = "con-stream",
+    STREAM = "con-stream", // INCOMING new stream from the peer, not created by ourselves
+    CREATED_STREAM = "con-created-stream", // OUTGOING new stream, created by ourselves
     DRAINING = "con-draining",
     CLOSE = "con-close",
     PACKET_SENT = "con-packet-sent",
