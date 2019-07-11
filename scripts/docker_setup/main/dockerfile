@@ -44,7 +44,7 @@ RUN 				\
 	&& make install
 	
 	
-RUN git clone --depth 1 -b draft-20 https://github.com/rmarx/quicker.git /quicker
+RUN git clone --depth 1 -b draft-22 https://github.com/rmarx/quicker.git /quicker
 WORKDIR /quicker
 
 RUN npm install typescript -g && npm install && tsc -p ./ 

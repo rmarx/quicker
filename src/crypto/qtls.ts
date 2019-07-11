@@ -240,7 +240,7 @@ export class QTLS extends EventEmitter{
         this.cipher = new Cipher(this.qtlsHelper.getNegotiatedCipher());
 
         // the alpn string will be plain text, e.g., just == "h3-20"
-        VerboseLogging.info("qtls:handleHandshakeDone : negotiated ALPN is " + this.qtlsHelper.getNegotiatedALPN().toString() + " // " + (this.qtlsHelper.getNegotiatedALPN().toString() === "h3-20"));
+        VerboseLogging.info("qtls:handleHandshakeDone : negotiated ALPN is " + this.qtlsHelper.getNegotiatedALPN().toString() + " // " + (this.qtlsHelper.getNegotiatedALPN().toString() === "h3-22"));
 
         if (this.handshakeState >= HandshakeState.CLIENT_COMPLETED) {
             return;

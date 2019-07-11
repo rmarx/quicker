@@ -6,7 +6,7 @@
 # TODO: figure out a way to do this even if we've changed main branches... e.g., use curl to see what the current "main" branch is on github
 
 cd /quicker 
-git pull origin draft-20
+git pull origin draft-22
 
 # chmod sometimes takes too long, causing the .sh script to not be executed ("Text file is busy" bug)
 # sync helps by waiting for chmod to fully complete
