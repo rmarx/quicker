@@ -131,12 +131,6 @@ export class Http3Client extends EventEmitter {
                             streamType = Http3UniStreamType.CONTROL;
                             const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.CLIENT, this.http3FrameParser, logger, bufferedData);
                             this.setupControlStreamEvents(controlStream);
-                        } else if (streamTypeBignum.equals(Http3UniStreamType.PUSH)) {
-                            streamType = Http3UniStreamType.PUSH;
-                            // Server shouldn't receive push streams
-                            quicStream.end();
-                            quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-                            throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
                         } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
                             streamType = Http3UniStreamType.ENCODER;
                             this.setupServerEncoderStream(quicStream, bufferedData);
@@ -151,7 +145,8 @@ export class Http3Client extends EventEmitter {
                         } else {
                             quicStream.end();
                             quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-                            throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamTypeBignum.toString() + ", StreamID: " + quicStream.getStreamId().toDecimalString());
+                            // TODO: send STOP_SENDING. See similar issue in http3.server
+                            VerboseLogging.error("Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamTypeBignum.toDecimalString() + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                         }
                     } catch(error) {
                         // Do nothing if there was not enough data to decode the StreamType

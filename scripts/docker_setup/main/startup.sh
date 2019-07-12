@@ -3,7 +3,9 @@
 # we only pull once, not every time the server is restarted
 # this is to make sure we keep the running code stable for reproducibility 
 cd /quicker 
-git pull origin draft-20
+echo "DOCKER:startup.sh : Pulling from draft-22"
+git pull origin draft-22
+echo "DOCKER:startup.sh : compiling code"
 tsc -p ./
 
 cd /

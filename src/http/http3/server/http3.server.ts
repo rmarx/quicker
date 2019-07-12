@@ -373,6 +373,7 @@ export class Http3Server {
                             const vlieOffset: VLIEOffset = VLIE.decode(bufferedData);
                             const streamTypeBignum: Bignum = vlieOffset.value;
                             bufferedData = bufferedData.slice(vlieOffset.offset);
+
                             if (streamTypeBignum.equals(Http3UniStreamType.CONTROL)) {
                                 streamType = Http3UniStreamType.CONTROL;
                                 const controlStream: Http3ReceivingControlStream = new Http3ReceivingControlStream(quicStream, Http3EndpointType.SERVER, state.getFrameParser(), logger, bufferedData);
@@ -383,7 +384,8 @@ export class Http3Server {
                                 // Server shouldn't receive push streams
                                 quicStream.end();
                                 quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-                                throw new Http3Error(Http3ErrorCode.HTTP_WRONG_STREAM_DIRECTION, "A push stream was initialized towards the server. This is not allowed");
+                                // TODO: FIXME: send a STOP_SENDING on this stream maybe? for now, just ignore it
+                                VerboseLogging.error("A push stream was initialized towards the server. This is not allowed");
                             } else if (streamTypeBignum.equals(Http3UniStreamType.ENCODER)) {
                                 streamType = Http3UniStreamType.ENCODER;
                                 state.getQPackDecoder().setPeerEncoderStream(quicStream, bufferedData);
@@ -395,7 +397,13 @@ export class Http3Server {
                             } else {
                                 quicStream.end();
                                 quicStream.getConnection().sendPackets(); // we force trigger sending here because it's not yet done anywhere else. FIXME: This should be moved into stream prioritization scheduler later
-                                throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamType + ", StreamID: " + quicStream.getStreamId().toDecimalString());
+                                
+                                // TODO: FIXME: send a STOP_SENDING on this stream maybe? for now, just ignore it
+                                // see also similar issue in http3.client
+                                // there are streams in the reserved range that people shouldn't use. Also implementations can use their own extensions that we might not recognize
+                                // so throwing an error is too harsh here, just log it and ignore the stream from then on
+                                VerboseLogging.error("Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamTypeBignum.toDecimalString() + ", StreamID: " + quicStream.getStreamId().toDecimalString());
+                                //throw new Http3Error(Http3ErrorCode.HTTP3_UNKNOWN_FRAMETYPE, "Unexpected first frame on new stream. The unidirectional stream was not recognized as a control, push, encoder or decoder stream. Stream Type: " + streamTypeBignum.toDecimalString() + ", StreamID: " + quicStream.getStreamId().toDecimalString());
                             }
                         } catch(error) {
                             // Do nothing if there was not enough data to decode the StreamType
